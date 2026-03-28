@@ -133,3 +133,13 @@ type TaskEvent struct {
 	EventData sql.NullString `json:"event_data"`
 	CreatedAt int64          `json:"created_at"`
 }
+
+type WorkingMemoryContext struct {
+	ID          string        `json:"id"`
+	SessionID   string        `json:"session_id"`
+	ContextJson string        `json:"context_json"`
+	Version     int64         `json:"version"`
+	CreatedAt   int64         `json:"created_at"`
+	UpdatedAt   int64         `json:"updated_at"`
+	ExpiresAt   sql.NullInt64 `json:"expires_at"`
+}

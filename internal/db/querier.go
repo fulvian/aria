@@ -12,6 +12,7 @@ import (
 type Querier interface {
 	AddTaskDependency(ctx context.Context, arg AddTaskDependencyParams) error
 	CancelTask(ctx context.Context, id string) error
+	CountTasksByStatus(ctx context.Context, status string) (int64, error)
 	CreateAgency(ctx context.Context, arg CreateAgencyParams) (Agency, error)
 	CreateEpisode(ctx context.Context, arg CreateEpisodeParams) (Episode, error)
 	CreateFact(ctx context.Context, arg CreateFactParams) (Fact, error)
@@ -23,6 +24,7 @@ type Querier interface {
 	CreateTaskEvent(ctx context.Context, arg CreateTaskEventParams) (TaskEvent, error)
 	DeleteAgency(ctx context.Context, id string) error
 	DeleteEpisode(ctx context.Context, id string) error
+	DeleteExpiredContexts(ctx context.Context) error
 	DeleteFact(ctx context.Context, id string) error
 	DeleteFile(ctx context.Context, id string) error
 	DeleteMessage(ctx context.Context, id string) error
@@ -32,6 +34,7 @@ type Querier interface {
 	DeleteSessionFiles(ctx context.Context, sessionID string) error
 	DeleteSessionMessages(ctx context.Context, sessionID string) error
 	DeleteTask(ctx context.Context, id string) error
+	DeleteWorkingContext(ctx context.Context, sessionID string) error
 	GetAgencyByID(ctx context.Context, id string) (Agency, error)
 	GetAgencyByName(ctx context.Context, name string) (Agency, error)
 	GetDependentTasks(ctx context.Context, dependsOn string) ([]Task, error)
@@ -47,6 +50,7 @@ type Querier interface {
 	GetTaskByID(ctx context.Context, id string) (Task, error)
 	GetTaskDependencies(ctx context.Context, taskID string) ([]Task, error)
 	GetTaskEvents(ctx context.Context, taskID string) ([]TaskEvent, error)
+	GetWorkingContext(ctx context.Context, sessionID string) (WorkingMemoryContext, error)
 	IncrementFactUsage(ctx context.Context, id string) error
 	ListAgencies(ctx context.Context) ([]Agency, error)
 	ListAgenciesByStatus(ctx context.Context, status string) ([]Agency, error)
@@ -60,6 +64,7 @@ type Querier interface {
 	ListLatestSessionFiles(ctx context.Context, sessionID string) ([]File, error)
 	ListMessagesBySession(ctx context.Context, sessionID string) ([]Message, error)
 	ListNewFiles(ctx context.Context) ([]File, error)
+	ListPendingTasks(ctx context.Context, arg ListPendingTasksParams) ([]Task, error)
 	ListProcedures(ctx context.Context) ([]Procedure, error)
 	ListProceduresByTrigger(ctx context.Context, triggerType string) ([]Procedure, error)
 	ListSessions(ctx context.Context) ([]Session, error)
@@ -67,6 +72,7 @@ type Querier interface {
 	ListTasksByAgency(ctx context.Context, arg ListTasksByAgencyParams) ([]Task, error)
 	ListTasksByStatus(ctx context.Context, arg ListTasksByStatusParams) ([]Task, error)
 	RemoveTaskDependency(ctx context.Context, arg RemoveTaskDependencyParams) error
+	SaveWorkingContext(ctx context.Context, arg SaveWorkingContextParams) (WorkingMemoryContext, error)
 	SearchEpisodes(ctx context.Context, arg SearchEpisodesParams) ([]Episode, error)
 	SearchFacts(ctx context.Context, arg SearchFactsParams) ([]Fact, error)
 	SearchProcedures(ctx context.Context, arg SearchProceduresParams) ([]Procedure, error)
