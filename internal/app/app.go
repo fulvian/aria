@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fulvian/aria/internal/aria/core"
 	"github.com/fulvian/aria/internal/config"
 	"github.com/fulvian/aria/internal/db"
 	"github.com/fulvian/aria/internal/format"
@@ -109,6 +110,77 @@ func (app *App) initTheme() {
 func (a *App) RunNonInteractive(ctx context.Context, prompt string, outputFormat string, quiet bool) error {
 	logging.Info("Running in non-interactive mode")
 
+	// Check if ARIA mode is enabled and use orchestrator
+	if a.IsARIAMode() && a.ARIA != nil && a.ARIA.Orchestrator != nil {
+		return a.runARIA(ctx, prompt, outputFormat, quiet)
+	}
+
+	// Legacy mode - use coder agent directly
+	return a.runLegacy(ctx, prompt, outputFormat, quiet)
+}
+
+// runARIA handles non-interactive execution in ARIA mode.
+func (a *App) runARIA(ctx context.Context, prompt string, outputFormat string, quiet bool) error {
+	logging.Info("Running in ARIA mode")
+
+	// Start spinner if not in quiet mode
+	var spinner *format.Spinner
+	if !quiet {
+		spinner = format.NewSpinner("ARIA processing...")
+		spinner.Start()
+		defer spinner.Stop()
+	}
+
+	// Create a minimal session for context
+	sess, err := a.Sessions.Create(ctx, "ARIA: "+truncateString(prompt, 50))
+	if err != nil {
+		return fmt.Errorf("failed to create session: %w", err)
+	}
+	logging.Info("Created session for ARIA run", "session_id", sess.ID)
+
+	// Process query through ARIA orchestrator
+	query := core.Query{
+		Text:      prompt,
+		SessionID: sess.ID,
+		UserID:    "cli",
+		Metadata: map[string]any{
+			"mode":   "non-interactive",
+			"quiet":  quiet,
+			"format": outputFormat,
+		},
+	}
+
+	response, err := a.ARIA.Orchestrator.ProcessQuery(ctx, query)
+	if err != nil {
+		return fmt.Errorf("ARIA processing failed: %w", err)
+	}
+
+	// Stop spinner before printing output
+	if !quiet && spinner != nil {
+		spinner.Stop()
+	}
+
+	// Handle fallback to legacy mode
+	if response.Text == "FALLBACK_TO_LEGACY" {
+		logging.Info("ARIA routing fell back to legacy mode")
+		return a.runLegacy(ctx, prompt, outputFormat, quiet)
+	}
+
+	// Output the response
+	content := response.Text
+	if content == "" {
+		content = fmt.Sprintf("ARIA processed your request.\nAgency: %s\nSkills: %v\nConfidence: %.2f",
+			response.Agency, response.Skills, response.Confidence)
+	}
+
+	fmt.Println(format.FormatOutput(content, outputFormat))
+	logging.Info("ARIA run completed", "session_id", sess.ID, "agency", response.Agency)
+
+	return nil
+}
+
+// runLegacy handles non-interactive execution using the legacy coder agent.
+func (a *App) runLegacy(ctx context.Context, prompt string, outputFormat string, quiet bool) error {
 	// Start spinner if not in quiet mode
 	var spinner *format.Spinner
 	if !quiet {
@@ -167,6 +239,17 @@ func (a *App) RunNonInteractive(ctx context.Context, prompt string, outputFormat
 	logging.Info("Non-interactive run completed", "session_id", sess.ID)
 
 	return nil
+}
+
+// truncateString truncates a string to maxLen characters.
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	if len(s) > maxLen {
+		return s[:maxLen] + "..."
+	}
+	return s
 }
 
 // Shutdown performs a clean shutdown of the application

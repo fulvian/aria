@@ -1,7 +1,7 @@
 # ARIA: Autonomous Reasoning & Intelligent Assistant
 ## Foundation Blueprint Document
 
-> **Version**: 1.1.0-DRAFT  
+> **Version**: 1.2.0-DRAFT  
 > **Date**: 2025-03-28  
 > **Status**: IN_PROGRESS  
 > **Base Project**: ARIA CLI  
@@ -982,25 +982,30 @@ agents:
 │                    ROADMAP ARIA                                  │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  FASE 0: FOUNDATION         ████████████████░░░░░░░░░░░  (100%)  │
-│  [Mese 1-2]                 Setup complete ✓             │
+│  FASE 0: FOUNDATION         ████████████████████████████████  (100%)│
+│  [Mese 1-2]                 COMPLETE ✓                          │
 │                                                                  │
-│  FASE 1: CORE SYSTEM        ░░░░░░░░░░░░░░░░░░░░░░░░░░░  (0%)   │
-│  [Mese 2-4]                 Agency/Agent architecture           │
+│  FASE 1: CORE SYSTEM        ████████░░░░░░░░░░░░░░░░░░░░░  (~20%) │
+│  [Mese 2-4]                 Agency/Agent integration              │
+│                             - Orchestrator MVP ✓                 │
+│                             - Development Agency ✓              │
+│                             - Skill System MVP ✓                 │
+│                             - Routing baseline ✓                  │
+│                             - CLI integration: IN PROGRESS       │
 │                                                                  │
-│  FASE 2: MEMORY & LEARNING  ░░░░░░░░░░░░░░░░░░░░░░░░░░░  (0%)   │
+│  FASE 2: MEMORY & LEARNING  ░░░░░░░░░░░░░░░░░░░░░░░░░░  (0%)   │
 │  [Mese 4-6]                 Memory system, learning loop        │
 │                                                                  │
-│  FASE 3: SCHEDULING         ░░░░░░░░░░░░░░░░░░░░░░░░░░░  (0%)   │
+│  FASE 3: SCHEDULING         ░░░░░░░░░░░░░░░░░░░░░░░░░░  (0%)   │
 │  [Mese 6-7]                 Task scheduler, persistence         │
 │                                                                  │
-│  FASE 4: PROACTIVITY        ░░░░░░░░░░░░░░░░░░░░░░░░░░░  (0%)   │
+│  FASE 4: PROACTIVITY        ░░░░░░░░░░░░░░░░░░░░░░░░░░  (0%)   │
 │  [Mese 7-8]                 Proactive behavior, guardrails      │
 │                                                                  │
-│  FASE 5: AGENCIES           ░░░░░░░░░░░░░░░░░░░░░░░░░░░  (0%)   │
+│  FASE 5: AGENCIES           ░░░░░░░░░░░░░░░░░░░░░░░░░░  (0%)   │
 │  [Mese 8-12]                Implement specialized agencies      │
 │                                                                  │
-│  FASE 6: POLISH & EXPAND    ░░░░░░░░░░░░░░░░░░░░░░░░░░░  (0%)   │
+│  FASE 6: POLISH & EXPAND    ░░░░░░░░░░░░░░░░░░░░░░░░░░  (0%)   │
 │  [Ongoing]                  Refinement, new capabilities        │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
@@ -1057,40 +1062,48 @@ agents:
 
 **Durata**: 6-8 settimane  
 **Obiettivo**: Implementare il sistema Agency/Agent
+**Stato**: IN PROGRESS (~20%)
 
 #### 8.3.1 Task
 
-1. **Orchestrator implementation**
-   - Query processing pipeline
-   - Basic routing logic
-   - Agency/Agent coordination
+1. **Orchestrator implementation** ✅ COMPLETE
+   - [x] Query processing pipeline
+   - [x] Basic routing logic
+   - [x] Agency/Agent coordination
 
-2. **Agency system**
-   - Agency interface implementation
-   - Agency registry
-   - Agency lifecycle management
+2. **Agency system** ✅ COMPLETE
+   - [x] Agency interface implementation
+   - [x] Agency registry
+   - [x] Development Agency implementation
+   - [ ] Agency lifecycle management
 
-3. **Enhanced Agent system**
-   - Extend current agent
-   - Add skills integration
-   - Multi-LLM support per agent
+3. **Enhanced Agent system** 🔄 IN PROGRESS
+   - [ ] Extend current agent
+   - [ ] Add skills integration
+   - [ ] Multi-LLM support per agent
 
-4. **Skill system**
-   - Skill interface
-   - Skill registry
-   - Built-in skills migration (da tools)
+4. **Skill system** ✅ MVP COMPLETE
+   - [x] Skill interface
+   - [x] Skill registry
+   - [x] 3 development skills (CodeReview, TDD, Debugging) - stub implementation
+   - [ ] Real skill execution with tool integration
 
-5. **Routing system**
-   - Intent classifier
-   - Complexity analyzer
-   - Routing decision engine
+5. **Routing system** ✅ MVP COMPLETE
+   - [x] Intent classifier
+   - [x] Baseline rules
+   - [ ] Complexity analyzer improvements
+
+6. **CLI Integration** ⏳ PENDING
+   - [ ] Wire ARIA mode to prompt loop
+   - [ ] Task execution flow (Orchestrator → Agency → Agent → Skill)
+   - [ ] Agent bridge to legacy coder
 
 #### 8.3.2 Deliverables
 - [x] Orchestrator funzionante
 - [x] 1+ Agency implementata (Development)
-- [x] 3+ Skills migrati da tools
+- [x] 3+ Skills (MVP - stub implementation)
 - [x] Routing base funzionante
-- [x] CLI updated per nuova architettura
+- [ ] CLI updated per nuova architettura ⏳ IN PROGRESS
 
 ---
 
@@ -1329,7 +1342,8 @@ internal/aria/
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 1.1.0-DRAFT | 2026-03-28 | **IN_PROGRESS**: FASE 0 complete. Implemented: namespace internal/aria/*, Development Agency, Orchestrator MVP, Skill System (CodeReview, TDD, Debugging), Routing baseline, Database schema, Config integration. All commits pushed to github.com/fulvian/aria |
+| 1.2.0-DRAFT | 2026-03-28 | **IN_PROGRESS**: FASE 1 started. FASE 0 complete. Implemented: namespace internal/aria/*, Development Agency, Orchestrator MVP, Skill System (CodeReview, TDD, Debugging), Routing baseline, Database schema, Config integration, App integration. **Next**: CLI integration to wire ARIA mode to prompt loop. All commits pushed to github.com/fulvian/aria |
+| 1.1.0-DRAFT | 2026-03-28 | FASE 0 foundation setup. All commits pushed to github.com/fulvian/aria |
 | 1.0.0-DRAFT | 2025-03-28 | Initial foundation document |
 
 ---

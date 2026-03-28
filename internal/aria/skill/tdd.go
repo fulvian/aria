@@ -51,7 +51,7 @@ func (s *TDDSkill) Execute(ctx context.Context, params SkillParams) (SkillResult
 	// Step 1: RED - Write failing test
 	steps[0].Status = "completed"
 	steps = append(steps, SkillStep{Name: "write_test", Description: "Writing failing test (RED)", Status: "in_progress", DurationMs: 0})
-	testContent := fmt.Sprintf("package %s_test\n\nimport \"testing\"\n\nfunc Test%s(t *testing.T) {\n\t// TODO: implement test\n\tt.Fatal(\"not implemented\")\n}\n", target)
+	testContent := fmt.Sprintf("package %s_test\n\nimport \"testing\"\n\nfunc Test%s(t *testing.T) {\n\t// TODO: implement test\n\tt.Fatal(\"not implemented\")\n}\n", target, target)
 
 	steps[1].Status = "completed"
 	steps = append(steps, SkillStep{Name: "verify_failure", Description: "Verifying test fails", Status: "completed", DurationMs: 0})

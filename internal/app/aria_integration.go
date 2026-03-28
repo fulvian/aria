@@ -35,8 +35,8 @@ func (app *App) initARIA(ctx context.Context) error {
 	}
 	logging.Info("Registered default skills", "count", len(registry.List()))
 
-	// Initialize development agency
-	devAgency := agency.NewDevelopmentAgency()
+	// Initialize development agency with coder agent bridge
+	devAgency := agency.NewDevelopmentAgency(app.CoderAgent)
 	logging.Info("Initialized development agency", "name", devAgency.Name())
 
 	// Initialize orchestrator

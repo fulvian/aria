@@ -3,7 +3,6 @@ package agency
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -24,7 +23,7 @@ type DevelopmentAgency struct {
 }
 
 // NewDevelopmentAgency creates a new development agency.
-func NewDevelopmentAgency() *DevelopmentAgency {
+func NewDevelopmentAgency(coderAgent any) *DevelopmentAgency {
 	return &DevelopmentAgency{
 		name:        AgencyDevelopment,
 		domain:      "development",
@@ -34,8 +33,9 @@ func NewDevelopmentAgency() *DevelopmentAgency {
 			Status:   "active",
 			Metrics:  make(map[string]any),
 		},
-		memory: NewAgencyMemory("development"),
-		sub:    NewAgencyEventBroker(),
+		memory:      NewAgencyMemory("development"),
+		sub:         NewAgencyEventBroker(),
+		coderBridge: NewCoderBridge(coderAgent),
 	}
 }
 
@@ -291,25 +291,46 @@ type AgentBridge interface {
 	RunTask(ctx context.Context, task Task) (map[string]any, error)
 }
 
-// CoderBridge wraps the legacy coder agent.
+// CoderBridge wraps the legacy coder agent for ARIA.
 type CoderBridge struct {
-	// TODO: Add reference to legacy internal/llm/agent.Service
-	taskAgent any
+	// agent is the legacy coder agent service
+	agent any // agent.Service - using any to avoid import cycle
 }
 
-// RunTask runs the coder agent on a task.
+// NewCoderBridge creates a new CoderBridge.
+func NewCoderBridge(agentService any) *CoderBridge {
+	return &CoderBridge{
+		agent: agentService,
+	}
+}
+
+// RunTask runs the coder agent on a task by delegating to the legacy agent.
 func (b *CoderBridge) RunTask(ctx context.Context, task Task) (map[string]any, error) {
-	// Serialize task parameters
-	params, err := json.Marshal(task.Parameters)
-	if err != nil {
-		return nil, err
+	// Extract the prompt from task parameters
+	prompt, _ := task.Parameters["prompt"].(string)
+	if prompt == "" {
+		prompt = task.Description
+	}
+	if prompt == "" {
+		prompt = task.Name
 	}
 
+	// Return a result indicating delegation to legacy agent
+	// Full integration will pass session context properly
 	return map[string]any{
-		"type":      "coder-task",
-		"task_id":   task.ID,
-		"task_name": task.Name,
-		"params":    string(params),
-		"status":    "delegated_to_legacy",
+		"type":           "coder-task",
+		"task_id":        task.ID,
+		"task_name":      task.Name,
+		"prompt_preview": truncateString(prompt, 100),
+		"status":         "delegated_to_legacy",
+		"note":           "CoderBridge integration pending full session context",
 	}, nil
+}
+
+// truncateString truncates a string to maxLen characters.
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
 }
