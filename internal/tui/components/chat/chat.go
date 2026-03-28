@@ -6,12 +6,12 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/opencode-ai/opencode/internal/config"
-	"github.com/opencode-ai/opencode/internal/message"
-	"github.com/opencode-ai/opencode/internal/session"
-	"github.com/opencode-ai/opencode/internal/tui/styles"
-	"github.com/opencode-ai/opencode/internal/tui/theme"
-	"github.com/opencode-ai/opencode/internal/version"
+	"github.com/fulvian/aria/internal/config"
+	"github.com/fulvian/aria/internal/message"
+	"github.com/fulvian/aria/internal/session"
+	"github.com/fulvian/aria/internal/tui/styles"
+	"github.com/fulvian/aria/internal/tui/theme"
+	"github.com/fulvian/aria/internal/version"
 )
 
 type SendMsg struct {
@@ -120,7 +120,7 @@ func logo(width int) string {
 }
 
 func repo(width int) string {
-	repo := "https://github.com/opencode-ai/opencode"
+	repo := "https://github.com/fulvian/aria"
 	t := theme.CurrentTheme()
 
 	return styles.BaseStyle().

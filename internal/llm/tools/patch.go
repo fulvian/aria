@@ -8,12 +8,12 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/opencode-ai/opencode/internal/config"
-	"github.com/opencode-ai/opencode/internal/diff"
-	"github.com/opencode-ai/opencode/internal/history"
-	"github.com/opencode-ai/opencode/internal/logging"
-	"github.com/opencode-ai/opencode/internal/lsp"
-	"github.com/opencode-ai/opencode/internal/permission"
+	"github.com/fulvian/aria/internal/config"
+	"github.com/fulvian/aria/internal/diff"
+	"github.com/fulvian/aria/internal/history"
+	"github.com/fulvian/aria/internal/logging"
+	"github.com/fulvian/aria/internal/lsp"
+	"github.com/fulvian/aria/internal/permission"
 )
 
 type PatchParams struct {

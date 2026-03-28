@@ -3,10 +3,10 @@ package lsp
 import (
 	"encoding/json"
 
-	"github.com/opencode-ai/opencode/internal/config"
-	"github.com/opencode-ai/opencode/internal/logging"
-	"github.com/opencode-ai/opencode/internal/lsp/protocol"
-	"github.com/opencode-ai/opencode/internal/lsp/util"
+	"github.com/fulvian/aria/internal/config"
+	"github.com/fulvian/aria/internal/logging"
+	"github.com/fulvian/aria/internal/lsp/protocol"
+	"github.com/fulvian/aria/internal/lsp/util"
 )
 
 // Requests

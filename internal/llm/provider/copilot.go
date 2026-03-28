@@ -13,11 +13,11 @@ import (
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 	"github.com/openai/openai-go/shared"
-	"github.com/opencode-ai/opencode/internal/config"
-	"github.com/opencode-ai/opencode/internal/llm/models"
-	toolsPkg "github.com/opencode-ai/opencode/internal/llm/tools"
-	"github.com/opencode-ai/opencode/internal/logging"
-	"github.com/opencode-ai/opencode/internal/message"
+	"github.com/fulvian/aria/internal/config"
+	"github.com/fulvian/aria/internal/llm/models"
+	toolsPkg "github.com/fulvian/aria/internal/llm/tools"
+	"github.com/fulvian/aria/internal/logging"
+	"github.com/fulvian/aria/internal/message"
 )
 
 type copilotOptions struct {

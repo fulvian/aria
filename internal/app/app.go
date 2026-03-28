@@ -9,17 +9,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/opencode-ai/opencode/internal/config"
-	"github.com/opencode-ai/opencode/internal/db"
-	"github.com/opencode-ai/opencode/internal/format"
-	"github.com/opencode-ai/opencode/internal/history"
-	"github.com/opencode-ai/opencode/internal/llm/agent"
-	"github.com/opencode-ai/opencode/internal/logging"
-	"github.com/opencode-ai/opencode/internal/lsp"
-	"github.com/opencode-ai/opencode/internal/message"
-	"github.com/opencode-ai/opencode/internal/permission"
-	"github.com/opencode-ai/opencode/internal/session"
-	"github.com/opencode-ai/opencode/internal/tui/theme"
+	"github.com/fulvian/aria/internal/config"
+	"github.com/fulvian/aria/internal/db"
+	"github.com/fulvian/aria/internal/format"
+	"github.com/fulvian/aria/internal/history"
+	"github.com/fulvian/aria/internal/llm/agent"
+	"github.com/fulvian/aria/internal/logging"
+	"github.com/fulvian/aria/internal/lsp"
+	"github.com/fulvian/aria/internal/message"
+	"github.com/fulvian/aria/internal/permission"
+	"github.com/fulvian/aria/internal/session"
+	"github.com/fulvian/aria/internal/tui/theme"
 )
 
 type App struct {

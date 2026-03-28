@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/opencode-ai/opencode/cmd"
-	"github.com/opencode-ai/opencode/internal/logging"
+	"github.com/fulvian/aria/cmd"
+	"github.com/fulvian/aria/internal/logging"
 )
 
 func main() {

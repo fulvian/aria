@@ -8,16 +8,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/opencode-ai/opencode/internal/config"
-	"github.com/opencode-ai/opencode/internal/llm/models"
-	"github.com/opencode-ai/opencode/internal/llm/prompt"
-	"github.com/opencode-ai/opencode/internal/llm/provider"
-	"github.com/opencode-ai/opencode/internal/llm/tools"
-	"github.com/opencode-ai/opencode/internal/logging"
-	"github.com/opencode-ai/opencode/internal/message"
-	"github.com/opencode-ai/opencode/internal/permission"
-	"github.com/opencode-ai/opencode/internal/pubsub"
-	"github.com/opencode-ai/opencode/internal/session"
+	"github.com/fulvian/aria/internal/config"
+	"github.com/fulvian/aria/internal/llm/models"
+	"github.com/fulvian/aria/internal/llm/prompt"
+	"github.com/fulvian/aria/internal/llm/provider"
+	"github.com/fulvian/aria/internal/llm/tools"
+	"github.com/fulvian/aria/internal/logging"
+	"github.com/fulvian/aria/internal/message"
+	"github.com/fulvian/aria/internal/permission"
+	"github.com/fulvian/aria/internal/pubsub"
+	"github.com/fulvian/aria/internal/session"
 )
 
 // Common errors

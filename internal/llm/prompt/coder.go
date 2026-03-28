@@ -8,9 +8,9 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/opencode-ai/opencode/internal/config"
-	"github.com/opencode-ai/opencode/internal/llm/models"
-	"github.com/opencode-ai/opencode/internal/llm/tools"
+	"github.com/fulvian/aria/internal/config"
+	"github.com/fulvian/aria/internal/llm/models"
+	"github.com/fulvian/aria/internal/llm/tools"
 )
 
 func CoderPrompt(provider models.ModelProvider) string {

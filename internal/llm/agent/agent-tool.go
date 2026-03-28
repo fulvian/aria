@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/opencode-ai/opencode/internal/config"
-	"github.com/opencode-ai/opencode/internal/llm/tools"
-	"github.com/opencode-ai/opencode/internal/lsp"
-	"github.com/opencode-ai/opencode/internal/message"
-	"github.com/opencode-ai/opencode/internal/session"
+	"github.com/fulvian/aria/internal/config"
+	"github.com/fulvian/aria/internal/llm/tools"
+	"github.com/fulvian/aria/internal/lsp"
+	"github.com/fulvian/aria/internal/message"
+	"github.com/fulvian/aria/internal/session"
 )
 
 type agentTool struct {
