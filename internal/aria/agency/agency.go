@@ -69,19 +69,14 @@ type DomainMemory interface {
 	GetRelevant(ctx context.Context, task Task) ([]map[string]any, error)
 }
 
-// Subscriber defines the subscription interface for receiving events.
-// This matches the pattern used in internal/pubsub/broker.go.
-type Subscriber[T any] interface {
-	Subscribe(ctx context.Context) <-chan T
-}
-
 // Agency coordinates multiple agents for a specific domain.
 // It manages agent lifecycle, task routing within the agency,
 // and maintains domain-specific state and memory.
 //
 // Reference: Blueprint Section 2.2.2
 type Agency interface {
-	Subscriber[AgencyEvent]
+	// Subscribe returns a channel for receiving agency events.
+	Subscribe(ctx context.Context) <-chan AgencyEvent
 
 	// Identity
 	Name() AgencyName
