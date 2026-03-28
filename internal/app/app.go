@@ -32,6 +32,9 @@ type App struct {
 
 	LSPClients map[string]*lsp.Client
 
+	// ARIA components (nil when aria.enabled = false)
+	ARIA *ARIAComponents
+
 	clientsMutex sync.RWMutex
 
 	watcherCancelFuncs []context.CancelFunc
@@ -75,6 +78,12 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 	if err != nil {
 		logging.Error("Failed to create coder agent", err)
 		return nil, err
+	}
+
+	// Initialize ARIA if enabled
+	if err := app.initARIA(ctx); err != nil {
+		logging.Error("Failed to initialize ARIA", err)
+		// Continue in legacy mode even if ARIA init fails
 	}
 
 	return app, nil
