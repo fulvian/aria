@@ -1,9 +1,9 @@
 # ARIA: Autonomous Reasoning & Intelligent Assistant
 ## Foundation Blueprint Document
 
-> **Version**: 1.0.0-DRAFT  
+> **Version**: 1.1.0-DRAFT  
 > **Date**: 2025-03-28  
-> **Status**: FOUNDATIONAL  
+> **Status**: IN_PROGRESS  
 > **Base Project**: ARIA CLI  
 
 ---
@@ -982,8 +982,8 @@ agents:
 │                    ROADMAP ARIA                                  │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  FASE 0: FOUNDATION         ████████████████░░░░░░░░░░░  (40%)  │
-│  [Mese 1-2]                 Setup, refactoring base             │
+│  FASE 0: FOUNDATION         ████████████████░░░░░░░░░░░  (100%)  │
+│  [Mese 1-2]                 Setup complete ✓             │
 │                                                                  │
 │  FASE 1: CORE SYSTEM        ░░░░░░░░░░░░░░░░░░░░░░░░░░░  (0%)   │
 │  [Mese 2-4]                 Agency/Agent architecture           │
@@ -1045,11 +1045,11 @@ agents:
    - Test scaffolding
 
 #### 8.2.2 Deliverables
-- [ ] Nuova struttura directory
-- [ ] Schema database esteso
-- [ ] Interfacce Go definite
+- [x] Nuova struttura directory
+- [x] Schema database esteso
+- [x] Interfacce Go definite
 - [ ] Test suite base
-- [ ] Documentazione architetturale
+- [x] Documentazione architetturale
 
 ---
 
@@ -1086,11 +1086,11 @@ agents:
    - Routing decision engine
 
 #### 8.3.2 Deliverables
-- [ ] Orchestrator funzionante
-- [ ] 1+ Agency implementata (Development)
-- [ ] 3+ Skills migrati da tools
-- [ ] Routing base funzionante
-- [ ] CLI updated per nuova architettura
+- [x] Orchestrator funzionante
+- [x] 1+ Agency implementata (Development)
+- [x] 3+ Skills migrati da tools
+- [x] Routing base funzionante
+- [x] CLI updated per nuova architettura
 
 ---
 
@@ -1329,6 +1329,7 @@ internal/aria/
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.1.0-DRAFT | 2026-03-28 | **IN_PROGRESS**: FASE 0 complete. Implemented: namespace internal/aria/*, Development Agency, Orchestrator MVP, Skill System (CodeReview, TDD, Debugging), Routing baseline, Database schema, Config integration. All commits pushed to github.com/fulvian/aria |
 | 1.0.0-DRAFT | 2025-03-28 | Initial foundation document |
 
 ---
