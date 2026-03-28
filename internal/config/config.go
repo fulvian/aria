@@ -74,6 +74,84 @@ type TUIConfig struct {
 	Theme string `json:"theme,omitempty"`
 }
 
+// ARIAConfig defines the configuration for the ARIA system.
+type ARIAConfig struct {
+	// Enabled indicates whether ARIA mode is active (opt-in)
+	Enabled bool `json:"enabled,omitempty"`
+
+	// Routing configuration
+	Routing RoutingConfig `json:"routing,omitempty"`
+
+	// Agencies configuration
+	Agencies AgenciesConfig `json:"agencies,omitempty"`
+
+	// Skills configuration
+	Skills SkillsConfig `json:"skills,omitempty"`
+
+	// Scheduler configuration
+	Scheduler SchedulerConfig `json:"scheduler,omitempty"`
+
+	// Guardrails configuration
+	Guardrails GuardrailsConfig `json:"guardrails,omitempty"`
+}
+
+// RoutingConfig defines routing behavior.
+type RoutingConfig struct {
+	// DefaultAgency is the agency to use when no specific routing matches.
+	DefaultAgency string `json:"defaultAgency,omitempty"`
+
+	// ConfidenceThreshold is the minimum confidence for routing decisions.
+	ConfidenceThreshold float64 `json:"confidenceThreshold,omitempty"`
+
+	// EnableFallback enables fallback to legacy coder agent.
+	EnableFallback bool `json:"enableFallback,omitempty"`
+}
+
+// AgenciesConfig defines which agencies are enabled.
+type AgenciesConfig struct {
+	// Development agency config
+	Development DevelopmentAgencyConfig `json:"development,omitempty"`
+}
+
+// DevelopmentAgencyConfig defines the development agency configuration.
+type DevelopmentAgencyConfig struct {
+	// Enabled indicates whether the development agency is enabled.
+	Enabled bool `json:"enabled,omitempty"`
+
+	// CoderBridge indicates whether to use the legacy coder as the coding agent.
+	CoderBridge bool `json:"coderBridge,omitempty"`
+}
+
+// SkillsConfig defines skill availability.
+type SkillsConfig struct {
+	// CodeReview skill
+	CodeReview bool `json:"codeReview,omitempty"`
+
+	// TDD skill (test-driven development)
+	TDD bool `json:"tdd,omitempty"`
+
+	// Debugging skill
+	Debugging bool `json:"debugging,omitempty"`
+}
+
+// SchedulerConfig defines task scheduling behavior.
+type SchedulerConfig struct {
+	// MaxConcurrentTasks is the maximum number of tasks that can run concurrently.
+	MaxConcurrentTasks int `json:"maxConcurrentTasks,omitempty"`
+
+	// DefaultPriority is the default priority for scheduled tasks.
+	DefaultPriority int `json:"defaultPriority,omitempty"`
+}
+
+// GuardrailsConfig defines guardrail behavior.
+type GuardrailsConfig struct {
+	// AllowProactive indicates whether proactive suggestions are allowed.
+	AllowProactive bool `json:"allowProactive,omitempty"`
+
+	// MaxDailyActions is the maximum number of proactive actions per day.
+	MaxDailyActions int `json:"maxDailyActions,omitempty"`
+}
+
 // ShellConfig defines the configuration for the shell used by the bash tool.
 type ShellConfig struct {
 	Path string   `json:"path,omitempty"`
@@ -94,6 +172,9 @@ type Config struct {
 	TUI          TUIConfig                         `json:"tui"`
 	Shell        ShellConfig                       `json:"shell,omitempty"`
 	AutoCompact  bool                              `json:"autoCompact,omitempty"`
+
+	// ARIA configuration (opt-in hierarchical agency system)
+	ARIA ARIAConfig `json:"aria,omitempty"`
 }
 
 // Application constants
@@ -232,6 +313,21 @@ func setDefaults(debug bool) {
 	viper.SetDefault("contextPaths", defaultContextPaths)
 	viper.SetDefault("tui.theme", "opencode")
 	viper.SetDefault("autoCompact", true)
+
+	// ARIA defaults - disabled by default for backward compatibility
+	viper.SetDefault("aria.enabled", false)
+	viper.SetDefault("aria.routing.defaultAgency", "development")
+	viper.SetDefault("aria.routing.confidenceThreshold", 0.7)
+	viper.SetDefault("aria.routing.enableFallback", true)
+	viper.SetDefault("aria.agencies.development.enabled", true)
+	viper.SetDefault("aria.agencies.development.coderBridge", true)
+	viper.SetDefault("aria.skills.codeReview", true)
+	viper.SetDefault("aria.skills.tdd", true)
+	viper.SetDefault("aria.skills.debugging", true)
+	viper.SetDefault("aria.scheduler.maxConcurrentTasks", 3)
+	viper.SetDefault("aria.scheduler.defaultPriority", 50)
+	viper.SetDefault("aria.guardrails.allowProactive", false)
+	viper.SetDefault("aria.guardrails.maxDailyActions", 10)
 
 	// Set default shell from environment or fallback to /bin/bash
 	shellPath := os.Getenv("SHELL")
