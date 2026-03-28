@@ -1,5 +1,32 @@
 {
   "$schema": "./opencode-schema.json",
+  "aria": {
+    "enabled": true,
+    "routing": {
+      "defaultAgency": "development",
+      "confidenceThreshold": 0.7,
+      "enableFallback": true
+    },
+    "agencies": {
+      "development": {
+        "enabled": true,
+        "coderBridge": true
+      }
+    },
+    "skills": {
+      "codeReview": true,
+      "tdd": true,
+      "debugging": true
+    },
+    "scheduler": {
+      "maxConcurrentTasks": 3,
+      "defaultPriority": 50
+    },
+    "guardrails": {
+      "allowProactive": false,
+      "maxDailyActions": 10
+    }
+  },
   "lsp": {
     "gopls": {
       "command": "gopls"

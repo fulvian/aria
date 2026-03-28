@@ -314,8 +314,8 @@ func setDefaults(debug bool) {
 	viper.SetDefault("tui.theme", "opencode")
 	viper.SetDefault("autoCompact", true)
 
-	// ARIA defaults - disabled by default for backward compatibility
-	viper.SetDefault("aria.enabled", false)
+	// ARIA defaults - enabled by default for new installations
+	viper.SetDefault("aria.enabled", true)
 	viper.SetDefault("aria.routing.defaultAgency", "development")
 	viper.SetDefault("aria.routing.confidenceThreshold", 0.7)
 	viper.SetDefault("aria.routing.enableFallback", true)
