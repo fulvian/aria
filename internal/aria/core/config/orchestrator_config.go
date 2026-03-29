@@ -3,6 +3,7 @@ package config
 
 import (
 	"github.com/fulvian/aria/internal/aria/core/decision"
+	"github.com/fulvian/aria/internal/aria/core/telemetry"
 )
 
 // AgencyName represents the name of an agency.
@@ -16,6 +17,7 @@ type OrchestratorConfigV2 struct {
 	DecisionEngine      DecisionEngineConfig
 	Reviewer            ReviewerConfig
 	Paths               ExecutionPathsConfig
+	Telemetry           telemetry.TelemetryConfig
 }
 
 // DecisionEngineConfig contains configuration for the decision engine.
@@ -76,6 +78,7 @@ func DefaultOrchestratorConfigV2() OrchestratorConfigV2 {
 		DecisionEngine:      NewDecisionEngineConfig(),
 		Reviewer:            NewReviewerConfig(),
 		Paths:               NewExecutionPathsConfig(),
+		Telemetry:           telemetry.DefaultTelemetryConfig(),
 	}
 }
 
