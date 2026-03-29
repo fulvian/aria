@@ -928,21 +928,54 @@ func (s *memoryService) EnforceRetentionPolicy(ctx context.Context, cfg Retentio
 		cutoff := now.Add(-cfg.EpisodeRetention).Unix()
 		if err := s.db.DeleteOldEpisodes(ctx, cutoff); err != nil {
 			logging.Error("Failed to delete old episodes", "error", err)
+			results["episodes"] = 0
+		} else {
+			results["episodes"] = 1 // Bulk delete succeeded
 		}
-		// Note: DeleteOldEpisodes returns count via RowsAffected but we don't capture it here
-		results["episodes"] = 0 // Would need a query that returns count
 	}
 
 	// Delete old working memory contexts
 	if cfg.EpisodeRetention > 0 {
-		// Use existing DeleteExpiredContexts which handles TTL-based expiry
 		if err := s.db.DeleteExpiredContexts(ctx); err != nil {
 			logging.Error("Failed to delete expired contexts", "error", err)
 		}
 	}
 
-	// Note: For facts and procedures, we'd need DeleteOldFacts/DeleteOldProcedures queries
-	// For MVP, we'll just note the limitation
+	// Delete low-use facts older than retention period
+	if cfg.FactRetention > 0 {
+		factCutoff := now.Add(-cfg.FactRetention).Unix()
+		// Get all facts and delete those that are old and unused
+		if facts, err := s.db.ListFactsByDomain(ctx, ""); err == nil {
+			for _, fact := range facts {
+				// Check if fact is old and has zero use count
+				if fact.UseCount == 0 && fact.CreatedAt < int64(factCutoff) {
+					if err := s.db.DeleteFact(ctx, fact.ID); err != nil {
+						logging.Error("Failed to delete old fact", "id", fact.ID, "error", err)
+					} else {
+						results["facts"]++
+					}
+				}
+			}
+		}
+	}
+
+	// Delete low-use procedures older than retention period
+	if cfg.ProcedureRetention > 0 {
+		procCutoff := now.Add(-cfg.ProcedureRetention).Unix()
+		// Get all procedures and delete those that are old and unused
+		if procedures, err := s.db.ListProcedures(ctx); err == nil {
+			for _, proc := range procedures {
+				// Check if procedure is old and has zero use count
+				if proc.UseCount == 0 && proc.UpdatedAt < int64(procCutoff) {
+					if err := s.db.DeleteProcedure(ctx, proc.ID); err != nil {
+						logging.Error("Failed to delete old procedure", "id", proc.ID, "error", err)
+					} else {
+						results["procedures"]++
+					}
+				}
+			}
+		}
+	}
 
 	return results, nil
 }
@@ -951,12 +984,42 @@ func (s *memoryService) EnforceRetentionPolicy(ctx context.Context, cfg Retentio
 func (s *memoryService) GetRetentionStats(ctx context.Context) (map[string]int64, error) {
 	stats := make(map[string]int64)
 
-	// Count episodes
-	episodes, err := s.db.ListEpisodes(ctx, db.ListEpisodesParams{Limit: 1, Offset: 0})
-	if err == nil {
-		// We can't get total count easily without a CountEpisodes query
-		// For now, just note we tried
-		_ = episodes
+	// Estimate episode count using large limit
+	if episodes, err := s.db.ListEpisodes(ctx, db.ListEpisodesParams{Limit: 10000, Offset: 0}); err == nil {
+		stats["total_episodes"] = int64(len(episodes))
+		// Estimate if there are more
+		if len(episodes) == 10000 {
+			stats["episodes_estimated"] = 1
+		}
+	}
+
+	// Estimate fact count using large limit
+	if facts, err := s.db.ListFactsByDomain(ctx, ""); err == nil {
+		stats["total_facts"] = int64(len(facts))
+	}
+
+	// Estimate procedure count using large limit
+	if procedures, err := s.db.ListProcedures(ctx); err == nil {
+		stats["total_procedures"] = int64(len(procedures))
+	}
+
+	// Count positive vs negative outcomes
+	if episodes, err := s.db.ListEpisodes(ctx, db.ListEpisodesParams{Limit: 1000, Offset: 0}); err == nil {
+		positiveCount := int64(0)
+		negativeCount := int64(0)
+		for _, ep := range episodes {
+			outcome := ep.Outcome.String
+			if outcome == "success" {
+				positiveCount++
+			} else if outcome == "failure" {
+				negativeCount++
+			}
+		}
+		stats["positive_episodes"] = positiveCount
+		stats["negative_episodes"] = negativeCount
+		if positiveCount+negativeCount > 0 {
+			stats["success_rate"] = positiveCount * 100 / (positiveCount + negativeCount)
+		}
 	}
 
 	return stats, nil

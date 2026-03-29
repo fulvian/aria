@@ -94,12 +94,34 @@ func (o *BasicOrchestrator) ProcessQuery(ctx context.Context, query Query) (Resp
 		}
 	}
 
+	// Get conversation history for the session
+	var conversationHistory []string
+	if o.memoryService != nil && query.SessionID != "" {
+		if episodes, err := o.memoryService.SearchEpisodes(ctx, memory.EpisodeQuery{
+			SessionID: query.SessionID,
+			Limit:     10,
+		}); err == nil && len(episodes) > 0 {
+			for _, ep := range episodes {
+				// Extract task description or action summary as history entry
+				if desc, ok := ep.Task["description"].(string); ok && desc != "" {
+					conversationHistory = append(conversationHistory, desc)
+				}
+				// Also include action summaries
+				for _, action := range ep.Actions {
+					if action.Type != "" {
+						conversationHistory = append(conversationHistory, action.Type)
+					}
+				}
+			}
+		}
+	}
+
 	// Classify the query
 	class, err := o.classifier.Classify(ctx, routing.Query{
 		Text:      query.Text,
 		SessionID: query.SessionID,
 		UserID:    query.UserID,
-		History:   nil, // TODO: pass history
+		History:   conversationHistory,
 		Metadata:  query.Metadata,
 	})
 	if err != nil {
@@ -387,8 +409,138 @@ func (o *BasicOrchestrator) Learn(ctx context.Context, experience Experience) er
 
 // GetProactiveSuggestions returns suggestions for proactive behavior.
 func (o *BasicOrchestrator) GetProactiveSuggestions(ctx context.Context) ([]Suggestion, error) {
-	// TODO: Implement proactive suggestions
-	return []Suggestion{}, nil
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+
+	var suggestions []Suggestion
+	now := time.Now()
+
+	// Analyze task queue for pending tasks
+	// Priority: 0=low, 1=normal, 2=high, 3=urgent
+	if len(o.taskQueue) > 0 {
+		for _, task := range o.taskQueue {
+			if task.Priority >= 2 { // high or urgent
+				suggestions = append(suggestions, Suggestion{
+					ID:          fmt.Sprintf("pending-task-%s", task.ID),
+					Description: fmt.Sprintf("Complete pending high-priority task: %s", task.Description),
+					Action:      "complete_task",
+					Impact:      "medium",
+					Reason:      fmt.Sprintf("Task '%s' has been pending", task.Description),
+				})
+			}
+		}
+	}
+
+	// Analyze learnings for improvement opportunities
+	if len(o.learnings) > 0 {
+		// Find recent negative learnings that suggest improvements
+		for i := len(o.learnings) - 1; i >= 0 && len(suggestions) < 3; i-- {
+			learning := o.learnings[i]
+			if learning.Outcome == "negative" && learning.Timestamp > now.Add(-24*time.Hour).Unix() {
+				suggestions = append(suggestions, Suggestion{
+					ID:          fmt.Sprintf("learn-%d", learning.Timestamp),
+					Description: fmt.Sprintf("Address recurring issue: %s", learning.Feedback),
+					Action:      "review_learning",
+					Impact:      "high",
+					Reason:      "Recent negative outcome suggests a process improvement opportunity",
+				})
+			}
+		}
+	}
+
+	// Analyze registered agencies for capacity suggestions
+	if len(o.agencyRegistry) > 0 {
+		// Check if all agencies are properly configured
+		if len(o.agencyRegistry) < 3 {
+			suggestions = append(suggestions, Suggestion{
+				ID:          "agency-capacity",
+				Description: "Consider registering more agencies for specialized tasks",
+				Action:      "expand_agencies",
+				Impact:      "medium",
+				Reason:      fmt.Sprintf("Only %d agencies registered", len(o.agencyRegistry)),
+			})
+		}
+	}
+
+	// Time-based suggestions
+	hour := now.Hour()
+	if hour >= 9 && hour < 11 {
+		// Morning - suggest planning
+		suggestions = append(suggestions, Suggestion{
+			ID:          "morning-planning",
+			Description: "Good time for daily planning and task prioritization",
+			Action:      "plan_day",
+			Impact:      "medium",
+			Reason:      "Morning hours are optimal for planning activities",
+		})
+	} else if hour >= 14 && hour < 16 {
+		// Afternoon - suggest code review
+		suggestions = append(suggestions, Suggestion{
+			ID:          "afternoon-review",
+			Description: "Good time for code reviews - fresh eyes after lunch",
+			Action:      "code_review",
+			Impact:      "medium",
+			Reason:      "Afternoon is effective for review tasks",
+		})
+	}
+
+	// Memory-based suggestions if service available
+	if o.memoryService != nil {
+		if metrics, err := o.memoryService.GetPerformanceMetrics(ctx, memory.TimeRange{
+			Start: now.Add(-24 * time.Hour),
+			End:   now,
+		}); err == nil {
+			if metrics.TotalTasks > 100 {
+				suggestions = append(suggestions, Suggestion{
+					ID:          "memory-cleanup",
+					Description: "Consider reviewing memory retention policy",
+					Action:      "cleanup_memory",
+					Impact:      "low",
+					Reason:      fmt.Sprintf("Processed %d tasks in the last 24 hours", metrics.TotalTasks),
+				})
+			}
+			if metrics.SuccessRate < 0.8 {
+				suggestions = append(suggestions, Suggestion{
+					ID:          "low-success-rate",
+					Description: fmt.Sprintf("Success rate is %.0f%% - consider investigating failures", metrics.SuccessRate*100),
+					Action:      "analyze_failures",
+					Impact:      "high",
+					Reason:      "Low success rate may indicate systematic issues",
+				})
+			}
+		}
+	}
+
+	// Analysis-based suggestions using the available methods
+	if o.analysisService != nil {
+		// Generate improvements and suggest top ones
+		if improvements, err := o.analysisService.GenerateImprovements(ctx); err == nil && len(improvements) > 0 {
+			for _, imp := range improvements {
+				if len(suggestions) >= 5 {
+					break
+				}
+				suggestions = append(suggestions, Suggestion{
+					ID:          "ai-suggestion-" + imp.ID,
+					Description: imp.Description,
+					Action:      "apply_improvement",
+					Impact:      imp.Impact,
+					Reason:      "Generated from self-analysis",
+				})
+			}
+		}
+	}
+
+	// Limit suggestions to prevent overload
+	if len(suggestions) > 5 {
+		suggestions = suggestions[:5]
+	}
+
+	return suggestions, nil
+}
+
+// GetClassifier returns the routing classifier for debugging/inspection.
+func (o *BasicOrchestrator) GetClassifier() routing.QueryClassifier {
+	return o.classifier
 }
 
 // RegisterAgency registers an agency with the orchestrator.

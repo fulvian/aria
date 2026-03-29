@@ -6,6 +6,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
 	ariaConfig "github.com/fulvian/aria/internal/aria/config"
@@ -335,7 +337,82 @@ func jsonConvert(m any) string {
 
 // extractLocation attempts to extract a location from a description string.
 func extractLocation(description string) string {
-	// Simple implementation - look for common patterns
-	// In production, this would use NLP or regex patterns
+	if description == "" {
+		return ""
+	}
+
+	description = strings.TrimSpace(description)
+	lowerDesc := strings.ToLower(description)
+
+	// Pattern 1: "in/at/for [City], [State/Country]" or just "in/at/for [City]"
+	// e.g., "weather in Tokyo", "temperature at New York, NY", "forecast for Paris"
+	cityStatePattern := regexp.MustCompile(`(?i)(?:in|at|for|of|near|around)\s+([A-Za-z\s]+(?:,\s*[A-Z]{2}|[A-Za-z]+)?)`)
+	if matches := cityStatePattern.FindStringSubmatch(description); len(matches) > 1 {
+		location := strings.TrimSpace(matches[1])
+		if location != "" && len(location) > 1 && len(location) < 50 {
+			return location
+		}
+	}
+
+	// Pattern 2: City, Country pattern - "City, Country"
+	// e.g., "New York, USA", "London, UK", "Tokyo, Japan"
+	cityCommaCountry := regexp.MustCompile(`(?i)^([A-Za-z\s]+),\s*([A-Za-z\s]+)$`)
+	if matches := cityCommaCountry.FindStringSubmatch(description); len(matches) > 2 {
+		return strings.TrimSpace(matches[1]) + ", " + strings.TrimSpace(matches[2])
+	}
+
+	// Pattern 3: ZIP/Postal code pattern - "12345" or "12345-6789"
+	zipPattern := regexp.MustCompile(`\b(\d{5}(?:-\d{4})?)\b`)
+	if matches := zipPattern.FindStringSubmatch(description); len(matches) > 1 {
+		return "ZIP:" + matches[1]
+	}
+
+	// Pattern 4: Coordinate pattern - "37.7749° N, 122.4194° W" or similar
+	coordPattern := regexp.MustCompile(`(?i)(-?\d+\.?\d*)\s*°?\s*[NS],\s*(-?\d+\.?\d*)\s*°?\s*[EW]`)
+	if matches := coordPattern.FindStringSubmatch(description); len(matches) > 2 {
+		return "coords:" + matches[1] + "," + matches[2]
+	}
+
+	// Pattern 5: "near [landmark/place]"
+	// e.g., "near the Eiffel Tower", "near Central Park"
+	nearPattern := regexp.MustCompile(`(?i)near\s+(?:the\s+)?([A-Za-z\s]+)`)
+	if matches := nearPattern.FindStringSubmatch(description); len(matches) > 1 {
+		nearLocation := strings.TrimSpace(matches[1])
+		if nearLocation != "" && len(nearLocation) > 2 {
+			return "near " + nearLocation
+		}
+	}
+
+	// Pattern 6: Single city name that is well-known
+	// Only use if description is short and looks like a city name
+	commonCities := []string{
+		"new york", "los angeles", "chicago", "houston", "phoenix",
+		"philadelphia", "san antonio", "san diego", "dallas", "san jose",
+		"london", "paris", "tokyo", "sydney", "berlin", "madrid", "rome",
+		"amsterdam", "dubai", "singapore", "hong kong", "shanghai", "beijing",
+		"mumbai", "delhi", "kolkata", "mumbai", "cairo", "johannesburg",
+		"moscow", "istanbul", "bangkok", "jakarta", "manila", "seoul",
+		"toronto", "vancouver", "montreal", "mexico city", "sao paulo",
+		"buenos aires", "bogota", "lima", "santiago",
+	}
+	for _, city := range commonCities {
+		if lowerDesc == city || strings.HasSuffix(lowerDesc, " "+city) ||
+			strings.HasSuffix(lowerDesc, " in "+city) || strings.HasSuffix(lowerDesc, " at "+city) ||
+			strings.HasSuffix(lowerDesc, " near "+city) || strings.HasSuffix(lowerDesc, " for "+city) {
+			// Capitalize properly
+			return strings.Title(city)
+		}
+	}
+
+	// Pattern 7: If description is short and might be a city itself
+	// e.g., user just types "Tokyo" or "London"
+	if len(description) >= 3 && len(description) <= 30 {
+		// Check if it looks like a city name (starts with capital, no spaces or single space)
+		if strings.ToUpper(description[:1]) == description[:1] &&
+			!strings.Contains(description, " ") || (strings.Count(description, " ") == 1 && strings.Contains(description, ",")) {
+			return description
+		}
+	}
+
 	return ""
 }

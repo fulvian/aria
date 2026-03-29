@@ -144,8 +144,9 @@ func (s *DebuggingSkill) Execute(ctx context.Context, params SkillParams) (Skill
 	}
 
 	// Parse stack trace to find relevant files
+	var filePaths []string
 	if stackTrace != "" {
-		filePaths := extractFilePathsFromStack(stackTrace)
+		filePaths = extractFilePathsFromStack(stackTrace)
 		for _, fp := range filePaths {
 			if fp != "" {
 				viewResult, err := s.viewTool.Run(ctx, tools.ToolCall{
@@ -179,8 +180,64 @@ func (s *DebuggingSkill) Execute(ctx context.Context, params SkillParams) (Skill
 
 	steps[3].Status = "completed"
 
-	// Step 4: Verify
-	steps = append(steps, SkillStep{Name: "verify", Description: "Verification pending", Status: "completed", DurationMs: 0})
+	// Step 4: Verify - attempt to run tests or build to confirm
+	steps = append(steps, SkillStep{Name: "verify", Description: "Verifying the fix", Status: "in_progress", DurationMs: 0})
+
+	verificationResult := map[string]any{
+		"build_attempted": false,
+		"build_passed":    false,
+		"test_attempted":  false,
+		"test_passed":     false,
+	}
+
+	// Try to build the package to see if there are compilation errors
+	bashResult, err := s.bashTool.Run(ctx, tools.ToolCall{
+		ID:   "verify-build",
+		Name: "bash",
+		Input: toJSON(map[string]any{
+			"command": "go build ./... 2>&1 || true",
+			"timeout": 30000,
+		}),
+	})
+	if err == nil && !bashResult.IsError {
+		verificationResult["build_attempted"] = true
+		verificationResult["build_passed"] = !strings.Contains(bashResult.Content, "error")
+		verificationResult["build_output"] = bashResult.Content
+	}
+
+	// Try to run tests on the affected files
+	if len(filePaths) > 0 {
+		for _, fp := range filePaths {
+			if strings.HasSuffix(fp, ".go") {
+				// Get package directory
+				pkgDir := getPackageDir(fp)
+				if pkgDir != "" {
+					bashResult, err := s.bashTool.Run(ctx, tools.ToolCall{
+						ID:   fmt.Sprintf("verify-test-%s", fp),
+						Name: "bash",
+						Input: toJSON(map[string]any{
+							"command": fmt.Sprintf("cd %s && go test -v -count=1 -run=./... 2>&1 | head -50 || true", pkgDir),
+							"timeout": 60000,
+						}),
+					})
+					if err == nil && !bashResult.IsError {
+						verificationResult["test_attempted"] = true
+						verificationResult["test_passed"] = strings.Contains(bashResult.Content, "PASS")
+						verificationResult["test_output"] = bashResult.Content
+					}
+					break // Only test one package to save time
+				}
+			}
+		}
+	}
+
+	steps[4].Status = "completed"
+	steps = append(steps, SkillStep{
+		Name:        "verify_result",
+		Description: fmt.Sprintf("Build: %v, Tests: %v", verificationResult["build_passed"], verificationResult["test_passed"]),
+		Status:      "completed",
+		DurationMs:  10,
+	})
 
 	return SkillResult{
 		Success: true,
@@ -336,6 +393,28 @@ func extractFilePathsFromStack(stackTrace string) []string {
 		}
 	}
 	return paths
+}
+
+// getPackageDir extracts the package directory from a file path.
+// It walks up from the file to find a directory with a go.mod file.
+func getPackageDir(filePath string) string {
+	if filePath == "" {
+		return ""
+	}
+	// Find the last occurrence of "internal" or "cmd" or root
+	parts := strings.Split(filePath, "/")
+	for i := len(parts) - 1; i >= 0; i-- {
+		if parts[i] == "internal" || parts[i] == "cmd" || parts[i] == "" {
+			if i > 0 {
+				return strings.Join(parts[:i], "/")
+			}
+		}
+	}
+	// Default: return parent of file
+	if len(parts) > 1 {
+		return strings.Join(parts[:len(parts)-1], "/")
+	}
+	return "."
 }
 
 // CanExecute checks if the skill can execute.

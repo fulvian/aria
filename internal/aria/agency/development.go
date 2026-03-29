@@ -4,6 +4,7 @@ package agency
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/fulvian/aria/internal/aria/contracts"
@@ -490,18 +491,75 @@ func (a *ReviewerAgent) Review(ctx context.Context, task contracts.Task) (map[st
 		Payload: map[string]any{"task_id": task.ID},
 	})
 
-	// Perform code review - simplified implementation
-	findings := []map[string]any{}
+	// Extract files/pattern from task parameters
+	var files []string
+	var pattern string
 
-	// In a real implementation, this would analyze code files
-	// For now, return empty findings
+	if task.Parameters != nil {
+		if f, ok := task.Parameters["files"].([]string); ok {
+			files = f
+		}
+		if p, ok := task.Parameters["pattern"].(string); ok {
+			pattern = p
+		}
+	}
+
+	// Execute code review skill
+	codeReviewSkill := a.skills[0].(*skill.CodeReviewSkill)
+	skillResult, err := codeReviewSkill.Execute(ctx, skill.SkillParams{
+		TaskID: task.ID,
+		Input: map[string]any{
+			"files":       files,
+			"pattern":     pattern,
+			"description": task.Description,
+		},
+		Context: map[string]any{
+			"task_id": task.ID,
+		},
+	})
+
+	if err != nil {
+		// Return error result but still publish event
+		result := map[string]any{
+			"type":        "code-review",
+			"task_id":     task.ID,
+			"description": task.Description,
+			"status":      "failed",
+			"error":       err.Error(),
+			"findings":    []map[string]any{},
+			"summary":     "Code review failed: " + err.Error(),
+		}
+		a.broker.Publish(contracts.AgentEvent{
+			AgentID: string(a.name),
+			Type:    "review_completed",
+			TaskID:  task.ID,
+			Payload: result,
+		})
+		return result, err
+	}
+
+	// Convert skill result to review result
+	findings := []map[string]any{}
+	if output, ok := skillResult.Output["findings"].([]map[string]any); ok {
+		findings = output
+	}
+
+	stats := map[string]int{}
+	if s, ok := skillResult.Output["stats"].(map[string]int); ok {
+		stats = s
+	}
+
 	result := map[string]any{
-		"type":        "code-review",
-		"task_id":     task.ID,
-		"description": task.Description,
-		"status":      "completed",
-		"findings":    findings,
-		"summary":     "Code review completed - no critical issues found",
+		"type":           "code-review",
+		"task_id":        task.ID,
+		"description":    task.Description,
+		"status":         "completed",
+		"findings":       findings,
+		"summary":        skillResult.Output["summary"],
+		"files_reviewed": skillResult.Output["files_reviewed"],
+		"stats":          stats,
+		"duration_ms":    skillResult.DurationMs,
+		"steps":          skillResult.Steps,
 	}
 
 	a.broker.Publish(contracts.AgentEvent{
@@ -588,7 +646,47 @@ func (a *ReviewerAgent) HasSkill(name skill.SkillName) bool {
 
 // LearnFromFeedback processes feedback to improve review quality.
 func (a *ReviewerAgent) LearnFromFeedback(feedback contracts.Feedback) error {
-	// TODO: Implement learning mechanism
+	// Update metrics based on feedback type
+	if a.state.Metrics == nil {
+		a.state.Metrics = make(map[string]any)
+	}
+
+	switch feedback.Type {
+	case "positive":
+		a.state.Metrics["positive_feedback_count"] =
+			int64Value(a.state.Metrics["positive_feedback_count"]) + 1
+		// Increase confidence for similar tasks
+		a.state.Metrics["review_confidence"] =
+			minFloat64(100, float64Value(a.state.Metrics["review_confidence"], 80)+5)
+	case "negative":
+		a.state.Metrics["negative_feedback_count"] =
+			int64Value(a.state.Metrics["negative_feedback_count"]) + 1
+		// Decrease confidence
+		a.state.Metrics["review_confidence"] =
+			maxFloat64(0, float64Value(a.state.Metrics["review_confidence"], 80)-10)
+	case "suggestion":
+		a.state.Metrics["suggestion_count"] =
+			int64Value(a.state.Metrics["suggestion_count"]) + 1
+	}
+
+	// Store feedback for pattern learning
+	if a.state.Metrics["recent_feedback"] == nil {
+		a.state.Metrics["recent_feedback"] = []contracts.Feedback{}
+	}
+	recentFeedback := a.state.Metrics["recent_feedback"].([]contracts.Feedback)
+	recentFeedback = append(recentFeedback, feedback)
+	// Keep only last 10 feedbacks
+	if len(recentFeedback) > 10 {
+		recentFeedback = recentFeedback[len(recentFeedback)-10:]
+	}
+	a.state.Metrics["recent_feedback"] = recentFeedback
+
+	// Analyze feedback content for patterns
+	if strings.Contains(strings.ToLower(feedback.Content), "missed") {
+		a.state.Metrics["missed_issue_types"] =
+			appendStringSlice(a.state.Metrics["missed_issue_types"], extractIssueType(feedback.Content))
+	}
+
 	return nil
 }
 
@@ -654,18 +752,31 @@ func (a *ArchitectAgent) Design(ctx context.Context, task contracts.Task) (map[s
 		Payload: map[string]any{"task_id": task.ID},
 	})
 
-	// Perform system design - simplified implementation
+	// Analyze task description to determine architecture
+	desc := strings.ToLower(task.Description)
+
+	// Detect application type
+	appType := detectApplicationType(desc)
+
+	// Determine architectural pattern and components
+	patterns := detectArchitecturalPatterns(desc)
+	components := detectComponents(desc, appType)
+	layers := determineLayers(appType, patterns)
+
 	result := map[string]any{
 		"type":        "architecture",
 		"task_id":     task.ID,
 		"description": task.Description,
 		"status":      "completed",
 		"design": map[string]any{
-			"components": []string{},
-			"layers":     []string{"presentation", "business", "data"},
-			"patterns":   []string{"layered-architecture"},
+			"application_type": appType,
+			"components":       components,
+			"layers":           layers,
+			"patterns":         patterns,
+			"technology_hints": getTechnologyHints(appType, patterns),
 		},
-		"summary": "System design completed",
+		"summary": fmt.Sprintf("System design completed using %s architecture with %d components",
+			getPrimaryPattern(patterns), len(components)),
 	}
 
 	a.broker.Publish(contracts.AgentEvent{
@@ -676,6 +787,167 @@ func (a *ArchitectAgent) Design(ctx context.Context, task contracts.Task) (map[s
 	})
 
 	return result, nil
+}
+
+// detectApplicationType determines the type of application from description.
+func detectApplicationType(desc string) string {
+	typeIndicators := map[string][]string{
+		"web":           {"web", "website", "frontend", "ui", "dashboard", "portal"},
+		"api":           {"api", "rest", "graphql", "grpc", "endpoint", "service"},
+		"cli":           {"cli", "command-line", "terminal", "console", "tool", "script"},
+		"data-pipeline": {"pipeline", "etl", "batch", "stream", "kafka", "data processing"},
+		"mobile":        {"mobile", "ios", "android", "app"},
+		"microservice":  {"microservice", "distributed", "container", "docker", "kubernetes"},
+	}
+
+	for appType, indicators := range typeIndicators {
+		for _, indicator := range indicators {
+			if strings.Contains(desc, indicator) {
+				return appType
+			}
+		}
+	}
+	return "general"
+}
+
+// detectArchitecturalPatterns identifies architectural patterns from description.
+func detectArchitecturalPatterns(desc string) []string {
+	patterns := []string{}
+	patternIndicators := map[string][]string{
+		"layered-architecture":   {"layered", "layers", "tier", "3-tier", "n-tier"},
+		"hexagonal-architecture": {"hexagonal", "ports-and-adapters", "adapter", "port"},
+		"event-driven":           {"event", "event-driven", "pub/sub", "mq", "message queue"},
+		"microservices":          {"microservice", "service-mesh", "api-gateway"},
+		"cqrs":                   {"cqrs", "command-query-responsibility-segregation"},
+		"event-sourcing":         {"event-sourcing", "event-store"},
+		"clean-architecture":     {"clean-architecture", "use-case", "interactor"},
+		"serverless":             {"serverless", "lambda", "function", "faas"},
+	}
+
+	for pattern, indicators := range patternIndicators {
+		for _, indicator := range indicators {
+			if strings.Contains(desc, indicator) {
+				if !contains(patterns, pattern) {
+					patterns = append(patterns, pattern)
+				}
+			}
+		}
+	}
+
+	if len(patterns) == 0 {
+		patterns = append(patterns, "layered-architecture") // Default
+	}
+	return patterns
+}
+
+// detectComponents identifies required components based on app type.
+func detectComponents(desc string, appType string) []string {
+	var components []string
+
+	// Base components common to most applications
+	baseComponents := []string{"config", "logging", "error-handling"}
+
+	// Type-specific components
+	typeComponents := map[string][]string{
+		"web":           {"router", "handler", "template", "static-assets", "session", "middleware"},
+		"api":           {"router", "handler", "middleware", "validator", "auth", "rate-limiter"},
+		"cli":           {"parser", "command", "formatter", "interactive"},
+		"data-pipeline": {"source", "transformer", "sink", "scheduler", "monitoring"},
+		"mobile":        {"screen", "navigation", "storage", "network", "offline"},
+		"microservice":  {"client", "api-gateway", "service-discovery", "load-balancer", "circuit-breaker"},
+	}
+
+	if tc, ok := typeComponents[appType]; ok {
+		components = append(components, tc...)
+	} else {
+		components = append(components, baseComponents...)
+	}
+
+	// Add specific feature components based on keywords
+	featureComponents := map[string][]string{
+		"auth":         {"auth", "session", "token", "jwt", "oauth"},
+		"database":     {"repository", "migration", "connection-pool"},
+		"cache":        {"cache", "redis", "memcached"},
+		"queue":        {"queue", "worker", "job"},
+		"search":       {"search", "index", "query"},
+		"file":         {"upload", "storage", "cdn"},
+		"notification": {"notification", "email", "push", "sms"},
+		"analytics":    {"analytics", "metrics", "dashboard", "reporting"},
+		"realtime":     {"websocket", "sse", "realtime"},
+		"security":     {"auth", "encryption", "sanitization", "cors"},
+		"api-docs":     {"swagger", "openapi", "docs"},
+	}
+
+	for feature, keywords := range featureComponents {
+		for _, keyword := range keywords {
+			if strings.Contains(desc, keyword) {
+				componentName := feature
+				if !contains(components, componentName) {
+					components = append(components, componentName)
+				}
+				break
+			}
+		}
+	}
+
+	return components
+}
+
+// determineLayers determines the layer structure based on app type and patterns.
+func determineLayers(appType string, patterns []string) []string {
+	if contains(patterns, "hexagonal-architecture") {
+		return []string{"adapters", "ports", "domain"}
+	}
+	if contains(patterns, "clean-architecture") {
+		return []string{"controllers", "use-cases", "entities", "gateways"}
+	}
+	if contains(patterns, "layered-architecture") || contains(patterns, "microservices") {
+		return []string{"presentation", "application", "domain", "infrastructure"}
+	}
+
+	// Default layered architecture
+	return []string{"presentation", "business", "data"}
+}
+
+// getTechnologyHints provides technology recommendations.
+func getTechnologyHints(appType string, patterns []string) []string {
+	hints := []string{}
+
+	if appType == "web" {
+		hints = append(hints, "Frontend: React/Vue/Angular", "HTTP Server: Standard library or Gin/Echo")
+	}
+	if appType == "api" {
+		hints = append(hints, "HTTP Framework: Gin/Echo/Fiber", "API Documentation: Swagger/OpenAPI")
+	}
+	if appType == "data-pipeline" {
+		hints = append(hints, "Stream Processing: Kafka/Flink", "Batch: Cron or scheduler library")
+	}
+	if contains(patterns, "microservices") {
+		hints = append(hints, "Service Mesh: Istio/Linkerd", "Container: Docker", "Orchestration: Kubernetes")
+	}
+	if contains(patterns, "event-driven") {
+		hints = append(hints, "Message Broker: Kafka/RabbitMQ/NATS", "Event Store: EventStoreDB")
+	}
+
+	return hints
+}
+
+// getPrimaryPattern returns the main architectural pattern.
+func getPrimaryPattern(patterns []string) string {
+	if len(patterns) > 0 {
+		return patterns[0]
+	}
+	return "layered-architecture"
+}
+
+// contains checks if a string slice contains a value.
+func contains(slice []string, value string) bool {
+	for _, v := range slice {
+		if v == value {
+			return true
+		}
+	}
+	return false
 }
 
 // Run implements the Agent interface - executes design from task map.
@@ -752,7 +1024,48 @@ func (a *ArchitectAgent) HasSkill(name skill.SkillName) bool {
 
 // LearnFromFeedback processes feedback to improve design quality.
 func (a *ArchitectAgent) LearnFromFeedback(feedback contracts.Feedback) error {
-	// TODO: Implement learning mechanism
+	// Update metrics based on feedback type
+	if a.state.Metrics == nil {
+		a.state.Metrics = make(map[string]any)
+	}
+
+	switch feedback.Type {
+	case "positive":
+		a.state.Metrics["positive_feedback_count"] =
+			int64Value(a.state.Metrics["positive_feedback_count"]) + 1
+		a.state.Metrics["design_confidence"] =
+			minFloat64(100, float64Value(a.state.Metrics["design_confidence"], 80)+5)
+	case "negative":
+		a.state.Metrics["negative_feedback_count"] =
+			int64Value(a.state.Metrics["negative_feedback_count"]) + 1
+		a.state.Metrics["design_confidence"] =
+			maxFloat64(0, float64Value(a.state.Metrics["design_confidence"], 80)-10)
+	case "suggestion":
+		a.state.Metrics["suggestion_count"] =
+			int64Value(a.state.Metrics["suggestion_count"]) + 1
+	}
+
+	// Store feedback for pattern learning
+	if a.state.Metrics["recent_feedback"] == nil {
+		a.state.Metrics["recent_feedback"] = []contracts.Feedback{}
+	}
+	recentFeedback := a.state.Metrics["recent_feedback"].([]contracts.Feedback)
+	recentFeedback = append(recentFeedback, feedback)
+	if len(recentFeedback) > 10 {
+		recentFeedback = recentFeedback[len(recentFeedback)-10:]
+	}
+	a.state.Metrics["recent_feedback"] = recentFeedback
+
+	// Learn from design suggestions
+	if strings.Contains(strings.ToLower(feedback.Content), "component") {
+		a.state.Metrics["component_suggestions"] =
+			int64Value(a.state.Metrics["component_suggestions"]) + 1
+	}
+	if strings.Contains(strings.ToLower(feedback.Content), "pattern") {
+		a.state.Metrics["pattern_suggestions"] =
+			int64Value(a.state.Metrics["pattern_suggestions"]) + 1
+	}
+
 	return nil
 }
 
@@ -953,7 +1266,50 @@ func (b *CoderBridge) HasSkill(name skill.SkillName) bool {
 
 // LearnFromFeedback processes feedback to improve coding quality.
 func (b *CoderBridge) LearnFromFeedback(feedback contracts.Feedback) error {
-	// TODO: Implement learning mechanism
+	// Update metrics based on feedback type
+	if b.state.Metrics == nil {
+		b.state.Metrics = make(map[string]any)
+	}
+
+	switch feedback.Type {
+	case "positive":
+		b.state.Metrics["positive_feedback_count"] =
+			int64Value(b.state.Metrics["positive_feedback_count"]) + 1
+		b.state.Metrics["coding_confidence"] =
+			minFloat64(100, float64Value(b.state.Metrics["coding_confidence"], 80)+5)
+	case "negative":
+		b.state.Metrics["negative_feedback_count"] =
+			int64Value(b.state.Metrics["negative_feedback_count"]) + 1
+		b.state.Metrics["coding_confidence"] =
+			maxFloat64(0, float64Value(b.state.Metrics["coding_confidence"], 80)-10)
+	case "suggestion":
+		b.state.Metrics["suggestion_count"] =
+			int64Value(b.state.Metrics["suggestion_count"]) + 1
+	}
+
+	// Store feedback for pattern learning
+	if b.state.Metrics["recent_feedback"] == nil {
+		b.state.Metrics["recent_feedback"] = []contracts.Feedback{}
+	}
+	recentFeedback := b.state.Metrics["recent_feedback"].([]contracts.Feedback)
+	recentFeedback = append(recentFeedback, feedback)
+	if len(recentFeedback) > 10 {
+		recentFeedback = recentFeedback[len(recentFeedback)-10:]
+	}
+	b.state.Metrics["recent_feedback"] = recentFeedback
+
+	// Learn coding patterns from feedback
+	content := strings.ToLower(feedback.Content)
+	if strings.Contains(content, "bug") || strings.Contains(content, "error") {
+		b.state.Metrics["bug_reports"] = int64Value(b.state.Metrics["bug_reports"]) + 1
+	}
+	if strings.Contains(content, "performance") || strings.Contains(content, "slow") {
+		b.state.Metrics["performance_issues"] = int64Value(b.state.Metrics["performance_issues"]) + 1
+	}
+	if strings.Contains(content, "security") || strings.Contains(content, "vulnerability") {
+		b.state.Metrics["security_issues"] = int64Value(b.state.Metrics["security_issues"]) + 1
+	}
+
 	return nil
 }
 
@@ -1011,4 +1367,62 @@ func getString(m map[string]any, key, defaultVal string) string {
 		return v
 	}
 	return defaultVal
+}
+
+// int64Value safely extracts int64 from map.
+func int64Value(v any) int64 {
+	if n, ok := v.(int64); ok {
+		return n
+	}
+	if n, ok := v.(int); ok {
+		return int64(n)
+	}
+	if n, ok := v.(float64); ok {
+		return int64(n)
+	}
+	return 0
+}
+
+// float64Value safely extracts float64 from map.
+func float64Value(v any, defaultVal float64) float64 {
+	if n, ok := v.(float64); ok {
+		return n
+	}
+	return defaultVal
+}
+
+// minFloat64 returns the minimum of two float64 values.
+func minFloat64(a, b float64) float64 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+// maxFloat64 returns the maximum of two float64 values.
+func maxFloat64(a, b float64) float64 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+// appendStringSlice appends a string to a slice stored in a map.
+func appendStringSlice(v any, s string) []string {
+	if slice, ok := v.([]string); ok {
+		return append(slice, s)
+	}
+	return []string{s}
+}
+
+// extractIssueType attempts to extract the type of issue from feedback content.
+func extractIssueType(content string) string {
+	content = strings.ToLower(content)
+	issueTypes := []string{"bug", "security", "performance", "style", "logic", "error"}
+	for _, t := range issueTypes {
+		if strings.Contains(content, t) {
+			return t
+		}
+	}
+	return "unknown"
 }

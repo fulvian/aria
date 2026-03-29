@@ -104,10 +104,12 @@ type Orchestrator interface {
 
 	// GetProactiveSuggestions returns suggestions for proactive behavior.
 	GetProactiveSuggestions(ctx context.Context) ([]Suggestion, error)
+
+	// GetClassifier returns the routing classifier for debugging/inspection.
+	GetClassifier() routing.QueryClassifier
 }
 
 // Classifier returns the routing classifier for debugging/inspection.
 func Classifier(orch Orchestrator) routing.QueryClassifier {
-	// This is a query method - implementations should expose their classifier
-	return nil // TODO: Implement when we have actual orchestrator
+	return orch.GetClassifier()
 }
