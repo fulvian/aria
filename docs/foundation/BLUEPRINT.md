@@ -1,10 +1,10 @@
 # ARIA: Autonomous Reasoning & Intelligent Assistant
 ## Foundation Blueprint Document
 
-> **Version**: 1.8.0-DRAFT  
+> **Version**: 1.9.0-DRAFT  
 > **Date**: 2026-03-29  
-> **Status**: IN_PROGRESS (FASE 1 COMPLETE, FASE 2 IN PROGRESS - 85%, FASE 3 COMPLETE, FASE 4 COMPLETE)  
-> **Base Project**: ARIA CLI  
+> **Status**: IN_PROGRESS (FASE 0-4 COMPLETE, FASE 2 COMPLETE, FASE 5 NOT STARTED)  
+> **Base Project**: ARIA CLI (Isola Autonoma rispetto a OpenCode/KiloCode)  
 
 ---
 
@@ -996,17 +996,38 @@ agents:
 │                             - Enhanced Agent ✓                   │
 │                             - CLI integration ✓                  │
 │                                                                  │
-│  FASE 2: MEMORY & LEARNING  ░░░░░░░░░░░░░░░░░░░░░░░░░░  (0%)   │
+│  FASE 2: MEMORY & LEARNING  ████████████████████████████████  (100%)│
 │  [Mese 4-6]                 Memory system, learning loop        │
+│                             - MemoryService ✓                     │
+│                             - Storage backend ✓                   │
+│                             - Learning loop ✓                    │
+│                             - Self-analysis ✓                    │
+│                             - WS1-WS8 complete ✓                │
+│                             - E2E test ✓                          │
 │                                                                  │
-│  FASE 3: SCHEDULING         ░░░░░░░░░░░░░░░░░░░░░░░░░░  (0%)   │
+│  FASE 3: SCHEDULING         ████████████████████████████████  (100%)│
 │  [Mese 6-7]                 Task scheduler, persistence         │
+│                             - SchedulerService ✓                  │
+│                             - Task persistence ✓                  │
+│                             - Recurring tasks ✓                  │
+│                             - TUI integration ✓                  │
 │                                                                  │
-│  FASE 4: PROACTIVITY        ░░░░░░░░░░░░░░░░░░░░░░░░░░  (0%)   │
-│  [Mese 7-8]                 Proactive behavior, guardrails      │
+│  FASE 4: PROACTIVITY        ████████████████████████████████  (100%)│
+│  [Mese 7-8]                 Proactive behavior, guardrails       │
+│                             - GuardrailService ✓                  │
+│                             - ExtendedPermissionService ✓        │
+│                             - Budget tracking ✓                  │
+│                             - Auto-approve rules ✓               │
+│                             ⚠️ Suggestion engine DEFERRED        │
 │                                                                  │
-│  FASE 5: AGENCIES           ░░░░░░░░░░░░░░░░░░░░░░░░░░  (0%)   │
-│  [Mese 8-12]                Implement specialized agencies      │
+│  FASE 5: AGENCIES           ▓░░░░░░░░░░░░░░░░░░░░░░░░░  (5%)   │
+│  [Mese 8-12]                Planning complete, starting with    │
+│                             Knowledge Agency                     │
+│                             - Knowledge Agency (planning)        │
+│                             - Creative Agency (planning)        │
+│                             - Productivity Agency (planning)     │
+│                             - Personal Agency (planning)        │
+│                             - Analytics Agency (planning)       │
 │                                                                  │
 │  FASE 6: POLISH & EXPAND    ░░░░░░░░░░░░░░░░░░░░░░░░░░  (0%)   │
 │  [Ongoing]                  Refinement, new capabilities        │
@@ -1122,7 +1143,7 @@ agents:
 
 **Durata**: 6-8 settimane  
 **Obiettivo**: Implementare sistema di memoria evolutivo
-**Stato**: IN PROGRESS (~85%) - WS1-WS8 completati, hardening finale
+**Stato**: COMPLETE ✅
 
 #### 8.4.1 Task
 
@@ -1161,8 +1182,8 @@ agents:
 - [x] **WS5**: Procedural learning engine (scoring, discovery)
 - [x] **WS6**: Self-analysis hardening (time-range, persistence)
 - [x] **WS7**: Privacy/Retention (configurable policies)
-- [x] **WS8**: Quality gates (tests, benchmarks)
-- [ ] Integration testing E2E scenario
+- [x] **WS8**: Quality gates (tests and benchmarks)
+- [x] E2E integration test (TestE2E_MemoryLearningFlow with real DB)
 
 ---
 
@@ -1206,11 +1227,11 @@ agents:
 
 **Durata**: 4-6 settimane  
 **Obiettivo**: Comportamento proattivo controllato
-**Stato**: COMPLETE ✅
+**Stato**: COMPLETE ✅ (Guardrails/permissions) - Proactive engine DEFERRED
 
 #### 8.6.1 Task
 
-1. **Proactive engine** ⚠️ DEFERRED
+1. **Proactive engine** ⚠️ DEFERRED to FASE 5+
    - Suggestion generation (deferred to future phase)
    - Action planning (deferred)
    - User notification (deferred)
@@ -1225,7 +1246,7 @@ agents:
    - [x] Action budgets
    - [x] Auto-approval rules
 
-4. **Notification system** ⚠️ DEFERRED
+4. **Notification system** ⚠️ DEFERRED to FASE 5+
    - TUI notifications (deferred)
    - External notifications (deferred)
 
@@ -1243,30 +1264,39 @@ agents:
 
 **Durata**: 8-12 settimane  
 **Obiettivo**: Implementare agencies specializzate
+**Stato**: PLANNING COMPLETE - Implementation not started
+
+#### Implementation Order
+
+1. **Knowledge Agency** (Settimana 1-2) - Research, web search, Q&A
+2. **Creative Agency** (Settimana 3-4) - Writing, translation, content
+3. **Productivity Agency** (Settimana 5-7) - Planning, calendar, organization
+4. **Personal Agency** (Settimana 7-8) - Assistant, wellness, finance
+5. **Analytics Agency** (Settimana 9-11) - Data analysis, visualization
 
 #### 8.7.1 Task
 
-1. **Knowledge Agency**
+1. **Knowledge Agency** ⚠️ NOT STARTED
    - Web research integration
    - Document analysis
    - Q&A capabilities
 
-2. **Creative Agency**
+2. **Creative Agency** ⚠️ NOT STARTED
    - Writing tools
    - Translation
    - Content generation
 
-3. **Productivity Agency**
+3. **Productivity Agency** ⚠️ NOT STARTED
    - Planning tools
    - Calendar integration
    - Task management
 
-4. **Personal Agency**
+4. **Personal Agency** ⚠️ NOT STARTED
    - Personal assistant features
    - Lifestyle tracking
    - Recommendations
 
-5. **Analytics Agency**
+5. **Analytics Agency** ⚠️ NOT STARTED
    - Data analysis
    - Visualization
    - Reporting
@@ -1276,6 +1306,8 @@ agents:
 - [ ] 20+ skills implementati
 - [ ] MCP integrations per external tools
 - [ ] Comprehensive testing
+
+**Piano dettagliato**: `docs/plans/2026-03-29-fase5-agencies-implementation-plan.md`
 
 ---
 
@@ -1310,7 +1342,150 @@ agents:
 | MCP | Standard MCP | Già supportato |
 | ARIA Config | Separated env vars | `ARIA_*` prefix, completely independent from opencode config |
 
-### 9.2 Principi di Design
+### 9.2 Tool Integration Pattern (Best Practices)
+
+### 9.2.1 Problem: MCP Token Overhead
+
+MCP (Model Context Protocol) è dispendioso in termini di token di contesto:
+
+| Pattern | Token/Call | 1000 Calls | Overhead |
+|---------|------------|------------|----------|
+| Native Tool | ~50 | 50K | Baseline |
+| Direct API | ~100 | 100K | +100% |
+| MCP | ~350 | 350K | +600% |
+
+### 9.2.2 Solution: Hybrid Tool Integration
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    TOOL INTEGRATION LAYER                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐   │
+│   │  Native Tools   │  │  Direct APIs    │  │   MCP Servers   │   │
+│   │  (internal)    │  │  (external)     │  │   (last resort) │   │
+│   │                │  │                  │  │                  │   │
+│   │  • bash       │  │  • Weather API  │  │  • Enterprise   │   │
+│   │  • grep       │  │  • Calendar API   │  │    (Slack,     │   │
+│   │  • edit       │  │  • Search API    │  │    Jira)        │   │
+│   │  • glob       │  │  • Database      │  │  • Dynamic      │   │
+│   └─────────────────┘  └─────────────────┘  └─────────────────┘   │
+│                                                                  │
+│   LEGEND:                                                         │
+│   ──────                                                          │
+│   Native Tools: Direct Function Calling - lowest overhead          │
+│   Direct APIs: HTTP calls from Skills - efficient                │
+│   MCP Servers: Only for enterprise + dynamic discovery           │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 9.2.3 When to Use Each Pattern
+
+| Scenario | Pattern | Reason |
+|----------|---------|--------|
+| bash, grep, edit, glob | Native Function Calling | Fixed interface, already implemented |
+| Weather, Calendar, Search | Direct API from Skill | Known endpoints, no discovery needed |
+| Slack, Jira, Enterprise | MCP | Tool discovery, enterprise governance |
+| Filesystem | Native (existing) | Already implemented |
+
+### 9.2.4 Decision Matrix
+
+| Criteria | Native | Direct API | MCP |
+|----------|--------|-----------|-----|
+| Token cost | Lowest | Medium | High |
+| Latency | Lowest | Medium | Medium-High |
+| Tool discovery | No | No | Yes |
+| Enterprise governance | No | No | Yes |
+| Best for | Core tools | External services | Dynamic tools |
+
+### 9.2.5 MCP is NOT appropriate for:
+
+1. **Fixed APIs**: Weather, Calendar, Search (known endpoints)
+2. **Token-sensitive operations**: High-volume tool calls
+3. **Simple integrations**: Direct HTTP is more efficient
+
+### 9.2.6 MCP is appropriate when:
+
+1. **Enterprise governance required**: Centralized tool management
+2. **Dynamic tool discovery**: Tools that change or are added frequently
+3. **Multi-agent scenarios**: Agent-to-agent communication
+4. **Community plugins**: External tool providers
+
+---
+
+## 9.3 L'Isola di ARIA: Architettura di Isolamento
+
+ARIA è progettato come **isola autonoma** all'interno dell'ecosistema OpenCode/KiloCode. Questo approccio garantisce:
+
+#### 9.2.1 Configurazione Completamente Separata
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    ARIA ISLAND (Isola Autonoma)                  │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   ┌─────────────────────────────────────────────────────────┐   │
+│   │  internal/aria/config/  (ARIA_ prefixed env vars ONLY)   │   │
+│   └─────────────────────────────────────────────────────────┘   │
+│                                                                  │
+│   ┌─────────────────────────────────────────────────────────┐   │
+│   │  internal/aria/*  (Namespace isolato)                    │   │
+│   │  - core/          - agency/      - agent/              │   │
+│   │  - skill/         - routing/     - memory/             │   │
+│   │  - scheduler/     - permission/  - guardrail/          │   │
+│   │  - analysis/                                          │   │
+│   └─────────────────────────────────────────────────────────┘   │
+│                                                                  │
+│   ┌─────────────────────────────────────────────────────────┐   │
+│   │  internal/db/migrations/004_aria_* (Tabelle isolate)    │   │
+│   └─────────────────────────────────────────────────────────┘   │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+              │                                    │
+              │         SHARED INFRASTRUCTURE      │
+              │                                    │
+┌─────────────────────────────────────────────────────────────────┐
+│  internal/llm/provider/*  (LLM providers condivisi)             │
+│  internal/llm/tools/*    (Tools condivisi)                      │
+│  internal/tui/*          (UI condivisa)                         │
+│  internal/db/*           (DB engine condiviso, schema isolato) │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### 9.2.2 Principi di Isolamento
+
+1. **Namespace Codice Isolato**: Tutto il codice ARIA vive in `internal/aria/*`, completamente separato da `internal/llm/*`, `internal/tui/*`, etc.
+
+2. **Configurazione Indipendente**: 
+   - OpenCode/KiloCode: `internal/config/config.go` con Viper (formati JSON, env vars `OPENCODE_*`)
+   - ARIA: `internal/aria/config/config.go` con env vars `ARIA_*` (nessuna dipendenza da Viper)
+
+3. **Opt-in Globale**: 
+   - `ARIA_ENABLED=true` attiva la modalità ARIA
+   - `ARIA_ENABLED=false` (default) usa il behavior legacy
+   - Ogni agency/skill/feature può essere abilitata singolarmente
+
+4. **Database Schema Isolato per Dominio**:
+   - Tabelle ARIA: `episodes`, `facts`, `procedures`, `tasks`, `agencies`, `task_events`, `working_memory_contexts`
+   - Tabelle OpenCode esistenti: `sessions`, `messages`, `files` (non toccate)
+
+5. **Runtime Condiviso ma Esecuzione Isolata**:
+   - LLM providers, tools, TUI sono condivisi
+   - L'orchestrator ARIA gestisce solo le query ARIA-mode
+   - Fallback automatico al coder legacy quando necessario
+
+#### 9.2.3 Vantaggi dell'Isola
+
+| Vantaggio | Descrizione |
+|-----------|-------------|
+| **Sicurezza** | Bug in ARIA non compromettono OpenCode e viceversa |
+| **Sviluppo Indipendente** | Team diversi possono lavorare su entrambi senza conflitti |
+| **Migrazione Graduale** | Nuove features ARIA possono essere aggiunte senza toccare il codice esistente |
+| **Rollback Semplice** | Disabilitando `ARIA_ENABLED` si torna al behavior precedente |
+| **Test Indipendenti** | Test ARIA non dipendono dalla configurazione OpenCode |
+
+### 9.3 Principi di Design
 
 1. **Backward Compatibility**: Mantenere compatibilità con configurazioni OpenCode esistenti. ARIA è completamente separato e opt-in.
 2. **Config Separation**: OpenCode/kilocode e ARIA hanno configurazioni indipendenti. OpenCode usa `config.go` con Viper. ARIA usa `internal/aria/config` con env vars `ARIA_*`.
@@ -1370,6 +1545,7 @@ internal/aria/
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.9.0-DRAFT | 2026-03-29 | **FASE 2 COMPLETE (100%)** - E2E test added (`TestE2E_MemoryLearningFlow`). **Isola di ARIA Documented**: Added Section 9.2 documenting the architectural concept of ARIA as an autonomous island within the OpenCode/KiloCode ecosystem. Key aspects: (1) Complete code namespace isolation in `internal/aria/*`, (2) Independent config via `ARIA_*` env vars, (3) Shared infrastructure (LLM providers, tools, TUI, DB engine), (4) Database schema isolation per dominio. **Roadmap Updated**: FASE 0-4 COMPLETE, FASE 5 NOT STARTED. **Next**: Proceed to FASE 5 agencies (Knowledge, Creative, Productivity, Personal, Analytics). |
 | 1.8.0-DRAFT | 2026-03-29 | **FASE 2 ~85% COMPLETE**: Implemented all WS1-WS8: WS1 (Integration backbone - MemoryService + AnalysisService wired to runtime), WS2 (Working memory durability - TTL, GC, context persistence), WS3 (Episodic retrieval 2.0 - full filters + ranking), WS4 (Semantic memory governance - usage tracking, dedup), WS5 (Procedural learning engine - scoring, discovery), WS6 (Self-analysis hardening - time-range, persistence), WS7 (Privacy/Retention - configurable policies), WS8 (Quality gates - tests, benchmarks). **Config separation**: Created independent `internal/aria/config` package for ARIA configuration via env vars (ARIA_* prefix). Removed ARIA defaults from main config.go. This allows opencode/kilocode and ARIA to run side-by-side without interference. **Next**: FASE 2 E2E testing, then FASE 5 agencies. |
 | 1.7.0-DRAFT | 2026-03-28 | **FASE 4 COMPLETE**: Implemented GuardrailService (internal/aria/guardrail/service.go) with CanExecute, GetActionBudget, ConsumeAction, GetUserPreferences, UpdatePreferences, LogAction, GetAuditLog. Budget tracking in-memory with window reset. Audit log in-memory with max limit. QuietHours and ActiveHours validation. AutoApproveRules for low-impact actions. Implemented ExtendedPermissionService (internal/aria/permission/service.go) with Request, Grant, Deny, Check, GetRules, AddRule, RemoveRule, GetEffectiveLevel. App integration wires both services. All tests pass. **Next**: FASE 2 completion and FASE 5 agencies. |
 | 1.6.0-DRAFT | 2026-03-28 | **FASE 3 COMPLETE**: Implemented persistent scheduling system: SchedulerService (internal/aria/scheduler/service.go) with Schedule/GetTask/ListTasks/GetProgress/Subscribe, mapper.go for DB conversions, dispatcher.go for eligibility+priority+dependencies, worker.go for pool execution, recurring.go for cron/interval parsing and instance generation, recovery.go for startup reconciliation, executor.go stub. Config extended with DispatchIntervalMs, RecoveryPolicy, RecurringLookaheadMinutes. App integration wires scheduler with dispatcher/worker/recurring planner. TUI TasksPage for task management. All tests pass. **Next**: FASE 2 completion and FASE 4 guardrails. |

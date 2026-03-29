@@ -29,6 +29,12 @@ type RoutingConfig struct {
 // AgenciesConfig defines which agencies are enabled.
 type AgenciesConfig struct {
 	Development DevelopmentAgencyConfig
+	Weather     WeatherAgencyConfig
+}
+
+// WeatherAgencyConfig defines the weather agency configuration.
+type WeatherAgencyConfig struct {
+	Enabled bool
 }
 
 // DevelopmentAgencyConfig defines the development agency configuration.
@@ -73,6 +79,9 @@ func Load() *Config {
 			Development: DevelopmentAgencyConfig{
 				Enabled:     getEnvBool("ARIA_AGENCIES_DEVELOPMENT_ENABLED", true),
 				CoderBridge: getEnvBool("ARIA_AGENCIES_DEVELOPMENT_CODER_BRIDGE", true),
+			},
+			Weather: WeatherAgencyConfig{
+				Enabled: getEnvBool("ARIA_AGENCIES_WEATHER_ENABLED", true),
 			},
 		},
 		Skills: SkillsConfig{

@@ -2,20 +2,171 @@ package memory
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/fulvian/aria/internal/db"
+	"github.com/fulvian/aria/internal/logging"
+
+	"github.com/pressly/goose/v3"
 )
 
-// TestIntegration_MemoryLearningFlow tests the complete memory-learning flow.
-func TestIntegration_MemoryLearningFlow(t *testing.T) {
+// setupE2EDB creates a temporary database with migrations applied for E2E testing.
+func setupE2EDB(t *testing.T) (*sql.DB, func()) {
+	tmpDir := t.TempDir()
+	dbPath := tmpDir + "/test_e2e.db"
+
+	sqlDB, err := sql.Open("sqlite3", dbPath)
+	require.NoError(t, err)
+
+	// Set pragmas
+	pragmas := []string{
+		"PRAGMA foreign_keys = ON;",
+		"PRAGMA journal_mode = WAL;",
+	}
+	for _, pragma := range pragmas {
+		if _, err = sqlDB.Exec(pragma); err != nil {
+			logging.Error("Failed to set pragma", pragma, err)
+		}
+	}
+
+	// Setup goose
+	goose.SetBaseFS(db.FS)
+	if err := goose.SetDialect("sqlite3"); err != nil {
+		sqlDB.Close()
+		t.Fatalf("failed to set goose dialect: %v", err)
+	}
+
+	// Run migrations
+	if err := goose.Up(sqlDB, "migrations"); err != nil {
+		sqlDB.Close()
+		t.Fatalf("failed to run migrations: %v", err)
+	}
+
+	cleanup := func() {
+		sqlDB.Close()
+	}
+
+	return sqlDB, cleanup
+}
+
+// TestE2E_MemoryLearningFlow tests the complete memory-learning flow with a real database.
+func TestE2E_MemoryLearningFlow(t *testing.T) {
 	t.Parallel()
 
-	// This test would require a full integration setup with DB
-	// For unit testing, we test individual components
-	t.Skip("Integration test requires full app setup")
+	// Create a temporary database for E2E testing
+	sqlDB, cleanup := setupE2EDB(t)
+	defer cleanup()
+
+	// Create the querier (db.Queries implements db.Querier)
+	querier := db.New(sqlDB)
+
+	// Create the memory service
+	svc := NewService(querier, 30*time.Minute)
+	ctx := context.Background()
+
+	// Create a session first for FK constraints (working_memory_contexts references sessions)
+	_, err := querier.CreateSession(ctx, db.CreateSessionParams{
+		ID:               "session-e2e-1",
+		ParentSessionID:  sql.NullString{},
+		Title:            "E2E Test Session",
+		MessageCount:     0,
+		PromptTokens:     0,
+		CompletionTokens: 0,
+		Cost:             0,
+	})
+	require.NoError(t, err)
+
+	// Step 1: Record a coding task episode
+	episode1 := Episode{
+		SessionID: "session-e2e-1",
+		AgencyID:  "development",
+		AgentID:   "coder",
+		Task:      map[string]any{"type": "code_review", "description": "Review PR #123"},
+		Actions: []Action{
+			{Type: "tool_call", Tool: "grep", Timestamp: time.Now()},
+		},
+		Outcome: "success",
+	}
+	err = svc.RecordEpisode(ctx, episode1)
+	require.NoError(t, err)
+
+	// Step 2: Store a semantic fact
+	fact := Fact{
+		Domain:     "development",
+		Category:   "code-review",
+		Content:    "Always check for error handling in Go",
+		Source:     "e2e-test",
+		Confidence: 0.9,
+	}
+	err = svc.StoreFact(ctx, fact)
+	require.NoError(t, err)
+
+	// Step 3: Save a procedure
+	procedure := Procedure{
+		Name:        "go-code-review",
+		Description: "Standard Go code review procedure",
+		Trigger: TriggerCondition{
+			Type:    "task_type",
+			Pattern: "code_review",
+		},
+		Steps: []ProcedureStep{
+			{Order: 1, Name: "grep-errors", Description: "Search for error handling", Action: "grep-error"},
+			{Order: 2, Name: "check-tests", Description: "Verify tests exist", Action: "grep-test"},
+		},
+		SuccessRate: 0.85,
+		UseCount:    10,
+	}
+	err = svc.SaveProcedure(ctx, procedure)
+	require.NoError(t, err)
+
+	// Step 4: Test episodic retrieval
+	episodes, err := svc.SearchEpisodes(ctx, EpisodeQuery{Limit: 10})
+	require.NoError(t, err)
+	assert.NotEmpty(t, episodes)
+
+	// Step 5: Test semantic retrieval
+	facts, err := svc.GetFacts(ctx, "development")
+	require.NoError(t, err)
+	assert.NotEmpty(t, facts)
+
+	// Step 6: Test procedural retrieval
+	procs, err := svc.FindApplicableProcedures(ctx, map[string]any{"type": "code_review"})
+	require.NoError(t, err)
+	assert.NotEmpty(t, procs)
+
+	// Step 7: Test learning from success
+	action := Action{Type: "tool_call", Tool: "bash", Timestamp: time.Now()}
+	err = svc.LearnFromSuccess(ctx, action, "Build successful")
+	require.NoError(t, err)
+
+	// Step 8: Test performance metrics
+	metrics, err := svc.GetPerformanceMetrics(ctx, TimeRange{
+		Start: time.Now().Add(-1 * time.Hour),
+		End:   time.Now(),
+	})
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, metrics.TotalTasks, int64(1))
+
+	// Step 9: Test working memory
+	workCtx := Context{
+		SessionID: "session-e2e-1",
+		TaskID:    "task-1",
+		AgencyID:  "development",
+		AgentID:   "coder",
+		Metadata:  map[string]any{"pr": "123"},
+	}
+	err = svc.SetContext(ctx, "session-e2e-1", workCtx)
+	require.NoError(t, err)
+
+	retrievedCtx, err := svc.GetContext(ctx, "session-e2e-1")
+	require.NoError(t, err)
+	assert.Equal(t, "session-e2e-1", retrievedCtx.SessionID)
+	assert.Equal(t, "123", retrievedCtx.Metadata["pr"])
 }
 
 // TestSearchEpisodes_Filters tests episode search with various filters.

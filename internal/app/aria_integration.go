@@ -6,7 +6,7 @@ import (
 
 	"github.com/fulvian/aria/internal/aria/agency"
 	"github.com/fulvian/aria/internal/aria/analysis"
-	"github.com/fulvian/aria/internal/aria/config"
+	ariaConfig "github.com/fulvian/aria/internal/aria/config"
 	"github.com/fulvian/aria/internal/aria/core"
 	"github.com/fulvian/aria/internal/aria/guardrail"
 	"github.com/fulvian/aria/internal/aria/memory"
@@ -21,6 +21,7 @@ type ARIAComponents struct {
 	Orchestrator      *core.BasicOrchestrator
 	SkillRegistry     *skill.DefaultSkillRegistry
 	DevelopmentAgency *agency.DevelopmentAgency
+	WeatherAgency     *agency.WeatherAgency
 
 	// Scheduler components
 	SchedulerService *scheduler.SchedulerService
@@ -39,7 +40,7 @@ type ARIAComponents struct {
 
 // initARIA initializes ARIA components if enabled.
 func (app *App) initARIA(ctx context.Context) error {
-	ariaCfg := config.Load()
+	ariaCfg := ariaConfig.Load()
 	if ariaCfg == nil || !ariaCfg.Enabled {
 		logging.Info("ARIA mode is disabled, using legacy mode")
 		return nil
@@ -58,6 +59,16 @@ func (app *App) initARIA(ctx context.Context) error {
 	// Initialize development agency with coder agent bridge
 	devAgency := agency.NewDevelopmentAgency(app.CoderAgent, app.Sessions, app.Messages)
 	logging.Info("Initialized development agency", "name", devAgency.Name())
+
+	// Initialize weather agency if enabled
+	weatherCfg := ariaConfig.DefaultWeatherConfig()
+	var weatherAgency *agency.WeatherAgency
+	if ariaCfg.Agencies.Weather.Enabled && weatherCfg.IsConfigured() {
+		weatherAgency = agency.NewWeatherAgency(weatherCfg)
+		logging.Info("Initialized weather agency", "name", weatherAgency.Name(), "provider", weatherCfg.Provider)
+	} else {
+		logging.Info("Weather agency disabled or not configured")
+	}
 
 	// Initialize memory service (FASE 2: Memory & Learning)
 	// 30 minute TTL for working memory context persistence
@@ -78,6 +89,12 @@ func (app *App) initARIA(ctx context.Context) error {
 	// Register development agency with orchestrator
 	orchestrator.RegisterAgency(devAgency)
 	logging.Info("Registered development agency with orchestrator")
+
+	// Register weather agency with orchestrator if available
+	if weatherAgency != nil {
+		orchestrator.RegisterAgency(weatherAgency)
+		logging.Info("Registered weather agency with orchestrator")
+	}
 
 	// Initialize scheduler components
 	maxConcurrent := ariaCfg.Scheduler.MaxConcurrentTasks
@@ -142,6 +159,7 @@ func (app *App) initARIA(ctx context.Context) error {
 		Orchestrator:      orchestrator,
 		SkillRegistry:     registry,
 		DevelopmentAgency: devAgency,
+		WeatherAgency:     weatherAgency,
 		SchedulerService:  schedulerSvc,
 		Dispatcher:        dispatcher,
 		Worker:            worker,
@@ -163,6 +181,6 @@ func (app *App) GetARIA() *ARIAComponents {
 
 // IsARIAMode returns true if ARIA mode is enabled.
 func (app *App) IsARIAMode() bool {
-	ariaCfg := config.Load()
+	ariaCfg := ariaConfig.Load()
 	return ariaCfg != nil && ariaCfg.Enabled
 }

@@ -38,6 +38,12 @@ const (
 	// Analytics skills
 	SkillDataAnalysis  SkillName = "data-analysis"
 	SkillVisualization SkillName = "visualization"
+
+	// Weather skills
+	SkillWeatherCurrent    SkillName = "weather-current"
+	SkillWeatherForecast   SkillName = "weather-forecast"
+	SkillWeatherAlerts     SkillName = "weather-alerts"
+	SkillWeatherHistorical SkillName = "weather-historical"
 )
 
 // ToolName represents the name of a tool required by a skill.
