@@ -66,6 +66,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.deleteAgencyStmt, err = db.PrepareContext(ctx, deleteAgency); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteAgency: %w", err)
 	}
+	if q.deleteAgencyStateStmt, err = db.PrepareContext(ctx, deleteAgencyState); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteAgencyState: %w", err)
+	}
 	if q.deleteEpisodeStmt, err = db.PrepareContext(ctx, deleteEpisode); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteEpisode: %w", err)
 	}
@@ -107,6 +110,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.getAgencyByNameStmt, err = db.PrepareContext(ctx, getAgencyByName); err != nil {
 		return nil, fmt.Errorf("error preparing query GetAgencyByName: %w", err)
+	}
+	if q.getAgencyStateStmt, err = db.PrepareContext(ctx, getAgencyState); err != nil {
+		return nil, fmt.Errorf("error preparing query GetAgencyState: %w", err)
 	}
 	if q.getDependentTasksStmt, err = db.PrepareContext(ctx, getDependentTasks); err != nil {
 		return nil, fmt.Errorf("error preparing query GetDependentTasks: %w", err)
@@ -258,6 +264,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.updateTaskStatusStmt, err = db.PrepareContext(ctx, updateTaskStatus); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateTaskStatus: %w", err)
 	}
+	if q.upsertAgencyStateStmt, err = db.PrepareContext(ctx, upsertAgencyState); err != nil {
+		return nil, fmt.Errorf("error preparing query UpsertAgencyState: %w", err)
+	}
 	return &q, nil
 }
 
@@ -333,6 +342,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing deleteAgencyStmt: %w", cerr)
 		}
 	}
+	if q.deleteAgencyStateStmt != nil {
+		if cerr := q.deleteAgencyStateStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteAgencyStateStmt: %w", cerr)
+		}
+	}
 	if q.deleteEpisodeStmt != nil {
 		if cerr := q.deleteEpisodeStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteEpisodeStmt: %w", cerr)
@@ -401,6 +415,11 @@ func (q *Queries) Close() error {
 	if q.getAgencyByNameStmt != nil {
 		if cerr := q.getAgencyByNameStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getAgencyByNameStmt: %w", cerr)
+		}
+	}
+	if q.getAgencyStateStmt != nil {
+		if cerr := q.getAgencyStateStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getAgencyStateStmt: %w", cerr)
 		}
 	}
 	if q.getDependentTasksStmt != nil {
@@ -653,6 +672,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing updateTaskStatusStmt: %w", cerr)
 		}
 	}
+	if q.upsertAgencyStateStmt != nil {
+		if cerr := q.upsertAgencyStateStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing upsertAgencyStateStmt: %w", cerr)
+		}
+	}
 	return err
 }
 
@@ -706,6 +730,7 @@ type Queries struct {
 	createTaskStmt                *sql.Stmt
 	createTaskEventStmt           *sql.Stmt
 	deleteAgencyStmt              *sql.Stmt
+	deleteAgencyStateStmt         *sql.Stmt
 	deleteEpisodeStmt             *sql.Stmt
 	deleteExpiredContextsStmt     *sql.Stmt
 	deleteFactStmt                *sql.Stmt
@@ -720,6 +745,7 @@ type Queries struct {
 	deleteWorkingContextStmt      *sql.Stmt
 	getAgencyByIDStmt             *sql.Stmt
 	getAgencyByNameStmt           *sql.Stmt
+	getAgencyStateStmt            *sql.Stmt
 	getDependentTasksStmt         *sql.Stmt
 	getEpisodeByIDStmt            *sql.Stmt
 	getFactByIDStmt               *sql.Stmt
@@ -770,6 +796,7 @@ type Queries struct {
 	updateSessionStmt             *sql.Stmt
 	updateTaskProgressStmt        *sql.Stmt
 	updateTaskStatusStmt          *sql.Stmt
+	upsertAgencyStateStmt         *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
@@ -790,6 +817,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		createTaskStmt:                q.createTaskStmt,
 		createTaskEventStmt:           q.createTaskEventStmt,
 		deleteAgencyStmt:              q.deleteAgencyStmt,
+		deleteAgencyStateStmt:         q.deleteAgencyStateStmt,
 		deleteEpisodeStmt:             q.deleteEpisodeStmt,
 		deleteExpiredContextsStmt:     q.deleteExpiredContextsStmt,
 		deleteFactStmt:                q.deleteFactStmt,
@@ -804,6 +832,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		deleteWorkingContextStmt:      q.deleteWorkingContextStmt,
 		getAgencyByIDStmt:             q.getAgencyByIDStmt,
 		getAgencyByNameStmt:           q.getAgencyByNameStmt,
+		getAgencyStateStmt:            q.getAgencyStateStmt,
 		getDependentTasksStmt:         q.getDependentTasksStmt,
 		getEpisodeByIDStmt:            q.getEpisodeByIDStmt,
 		getFactByIDStmt:               q.getFactByIDStmt,
@@ -854,5 +883,6 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		updateSessionStmt:             q.updateSessionStmt,
 		updateTaskProgressStmt:        q.updateTaskProgressStmt,
 		updateTaskStatusStmt:          q.updateTaskStatusStmt,
+		upsertAgencyStateStmt:         q.upsertAgencyStateStmt,
 	}
 }

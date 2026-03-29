@@ -125,6 +125,15 @@ func (m *mockRecoveryQuerier) GetAgencyByID(ctx context.Context, id string) (db.
 func (m *mockRecoveryQuerier) GetAgencyByName(ctx context.Context, name string) (db.Agency, error) {
 	panic("not implemented")
 }
+func (m *mockRecoveryQuerier) GetAgencyState(ctx context.Context, agencyID string) (db.AgencyState, error) {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) UpsertAgencyState(ctx context.Context, arg db.UpsertAgencyStateParams) (db.AgencyState, error) {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) DeleteAgencyState(ctx context.Context, agencyID string) error {
+	panic("not implemented")
+}
 func (m *mockRecoveryQuerier) GetDependentTasks(ctx context.Context, dependsOn string) ([]db.Task, error) {
 	panic("not implemented")
 }

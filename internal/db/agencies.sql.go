@@ -69,6 +69,16 @@ func (q *Queries) DeleteAgency(ctx context.Context, id string) error {
 	return err
 }
 
+const deleteAgencyState = `-- name: DeleteAgencyState :exec
+DELETE FROM agency_states
+WHERE agency_id = ?
+`
+
+func (q *Queries) DeleteAgencyState(ctx context.Context, agencyID string) error {
+	_, err := q.exec(ctx, q.deleteAgencyStateStmt, deleteAgencyState, agencyID)
+	return err
+}
+
 const getAgencyByID = `-- name: GetAgencyByID :one
 SELECT id, name, domain, description, status, created_at, updated_at
 FROM agencies
@@ -106,6 +116,26 @@ func (q *Queries) GetAgencyByName(ctx context.Context, name string) (Agency, err
 		&i.Description,
 		&i.Status,
 		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getAgencyState = `-- name: GetAgencyState :one
+SELECT id, agency_id, status, last_task_id, metrics, updated_at
+FROM agency_states
+WHERE agency_id = ? LIMIT 1
+`
+
+func (q *Queries) GetAgencyState(ctx context.Context, agencyID string) (AgencyState, error) {
+	row := q.queryRow(ctx, q.getAgencyStateStmt, getAgencyState, agencyID)
+	var i AgencyState
+	err := row.Scan(
+		&i.ID,
+		&i.AgencyID,
+		&i.Status,
+		&i.LastTaskID,
+		&i.Metrics,
 		&i.UpdatedAt,
 	)
 	return i, err
@@ -200,4 +230,55 @@ type UpdateAgencyStatusParams struct {
 func (q *Queries) UpdateAgencyStatus(ctx context.Context, arg UpdateAgencyStatusParams) error {
 	_, err := q.exec(ctx, q.updateAgencyStatusStmt, updateAgencyStatus, arg.Status, arg.ID)
 	return err
+}
+
+const upsertAgencyState = `-- name: UpsertAgencyState :one
+INSERT INTO agency_states (
+    id,
+    agency_id,
+    status,
+    last_task_id,
+    metrics,
+    updated_at
+) VALUES (
+    ?,
+    ?,
+    ?,
+    ?,
+    ?,
+    strftime('%s', 'now')
+) ON CONFLICT (id) DO UPDATE SET
+    status = excluded.status,
+    last_task_id = excluded.last_task_id,
+    metrics = excluded.metrics,
+    updated_at = strftime('%s', 'now')
+RETURNING id, agency_id, status, last_task_id, metrics, updated_at
+`
+
+type UpsertAgencyStateParams struct {
+	ID         string         `json:"id"`
+	AgencyID   string         `json:"agency_id"`
+	Status     string         `json:"status"`
+	LastTaskID sql.NullString `json:"last_task_id"`
+	Metrics    sql.NullString `json:"metrics"`
+}
+
+func (q *Queries) UpsertAgencyState(ctx context.Context, arg UpsertAgencyStateParams) (AgencyState, error) {
+	row := q.queryRow(ctx, q.upsertAgencyStateStmt, upsertAgencyState,
+		arg.ID,
+		arg.AgencyID,
+		arg.Status,
+		arg.LastTaskID,
+		arg.Metrics,
+	)
+	var i AgencyState
+	err := row.Scan(
+		&i.ID,
+		&i.AgencyID,
+		&i.Status,
+		&i.LastTaskID,
+		&i.Metrics,
+		&i.UpdatedAt,
+	)
+	return i, err
 }

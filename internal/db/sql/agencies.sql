@@ -46,3 +46,34 @@ WHERE id = ?;
 -- name: DeleteAgency :exec
 DELETE FROM agencies
 WHERE id = ?;
+
+-- name: UpsertAgencyState :one
+INSERT INTO agency_states (
+    id,
+    agency_id,
+    status,
+    last_task_id,
+    metrics,
+    updated_at
+) VALUES (
+    ?,
+    ?,
+    ?,
+    ?,
+    ?,
+    strftime('%s', 'now')
+) ON CONFLICT (id) DO UPDATE SET
+    status = excluded.status,
+    last_task_id = excluded.last_task_id,
+    metrics = excluded.metrics,
+    updated_at = strftime('%s', 'now')
+RETURNING *;
+
+-- name: GetAgencyState :one
+SELECT *
+FROM agency_states
+WHERE agency_id = ? LIMIT 1;
+
+-- name: DeleteAgencyState :exec
+DELETE FROM agency_states
+WHERE agency_id = ?;

@@ -319,6 +319,15 @@ func (m *mockDB) UpdateSession(ctx context.Context, arg db.UpdateSessionParams) 
 func (m *mockDB) UpdateTaskProgress(ctx context.Context, arg db.UpdateTaskProgressParams) error {
 	return nil
 }
+func (m *mockDB) DeleteAgencyState(ctx context.Context, agencyID string) error {
+	return nil
+}
+func (m *mockDB) GetAgencyState(ctx context.Context, agencyID string) (db.AgencyState, error) {
+	return db.AgencyState{}, nil
+}
+func (m *mockDB) UpsertAgencyState(ctx context.Context, arg db.UpsertAgencyStateParams) (db.AgencyState, error) {
+	return db.AgencyState{}, nil
+}
 
 // testSchedulerService creates a scheduler service with a mock DB for testing
 func newTestSchedulerService(mock db.Querier, maxConcurrent int) *SchedulerService {

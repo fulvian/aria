@@ -24,6 +24,7 @@ type Querier interface {
 	CreateTask(ctx context.Context, arg CreateTaskParams) (Task, error)
 	CreateTaskEvent(ctx context.Context, arg CreateTaskEventParams) (TaskEvent, error)
 	DeleteAgency(ctx context.Context, id string) error
+	DeleteAgencyState(ctx context.Context, agencyID string) error
 	DeleteEpisode(ctx context.Context, id string) error
 	DeleteExpiredContexts(ctx context.Context) error
 	DeleteFact(ctx context.Context, id string) error
@@ -38,6 +39,7 @@ type Querier interface {
 	DeleteWorkingContext(ctx context.Context, sessionID string) error
 	GetAgencyByID(ctx context.Context, id string) (Agency, error)
 	GetAgencyByName(ctx context.Context, name string) (Agency, error)
+	GetAgencyState(ctx context.Context, agencyID string) (AgencyState, error)
 	GetDependentTasks(ctx context.Context, dependsOn string) ([]Task, error)
 	GetEpisodeByID(ctx context.Context, id string) (Episode, error)
 	GetFactByID(ctx context.Context, id string) (Fact, error)
@@ -89,6 +91,7 @@ type Querier interface {
 	UpdateSession(ctx context.Context, arg UpdateSessionParams) (Session, error)
 	UpdateTaskProgress(ctx context.Context, arg UpdateTaskProgressParams) error
 	UpdateTaskStatus(ctx context.Context, arg UpdateTaskStatusParams) error
+	UpsertAgencyState(ctx context.Context, arg UpsertAgencyStateParams) (AgencyState, error)
 }
 
 var _ Querier = (*Queries)(nil)

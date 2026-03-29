@@ -121,24 +121,63 @@ func (s *AgencyService) UpdateAgencyStatus(ctx context.Context, name AgencyName,
 }
 
 // SaveAgencyState persists agency state to the database.
-// Currently saves status and basic metrics to the agencies table.
-// A more comprehensive state storage could use a separate agency_states table.
+// Uses the agency_states table for full state including metrics.
 func (s *AgencyService) SaveAgencyState(ctx context.Context, name AgencyName, state AgencyState) error {
-	// Update status
-	params := db.UpdateAgencyStatusParams{
-		Status: state.Status,
-		ID:     string(name),
+	// Serialize metrics to JSON
+	metricsJSON := sql.NullString{String: "{}", Valid: true}
+	if state.Metrics != nil {
+		metricsBytes, err := json.Marshal(state.Metrics)
+		if err == nil {
+			metricsJSON = sql.NullString{String: string(metricsBytes), Valid: true}
+		}
 	}
-	err := s.querier.UpdateAgencyStatus(ctx, params)
+
+	// Upsert full state to agency_states table
+	params := db.UpsertAgencyStateParams{
+		ID:         string(name) + "-state",
+		AgencyID:   string(name),
+		Status:     state.Status,
+		LastTaskID: sql.NullString{String: state.LastTaskID, Valid: state.LastTaskID != ""},
+		Metrics:    metricsJSON,
+	}
+	_, err := s.querier.UpsertAgencyState(ctx, params)
 	if err != nil {
 		return fmt.Errorf("failed to save agency state: %w", err)
 	}
 
-	// TODO: If we need to store LastTaskID and Metrics, we should add
-	// a separate agency_states table or extend the existing queries.
-	// For now, we just update the status in the agencies table.
-
 	return nil
+}
+
+// LoadAgencyState loads agency state from the database.
+func (s *AgencyService) LoadAgencyState(ctx context.Context, name AgencyName) (AgencyState, error) {
+	dbState, err := s.querier.GetAgencyState(ctx, string(name))
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// Return empty state if not found
+			return AgencyState{
+				AgencyID: name,
+				Status:   "active",
+				Metrics:  make(map[string]any),
+			}, nil
+		}
+		return AgencyState{}, fmt.Errorf("failed to load agency state: %w", err)
+	}
+
+	// Parse metrics JSON
+	metrics := make(map[string]any)
+	if dbState.Metrics.Valid && dbState.Metrics.String != "" {
+		if err := json.Unmarshal([]byte(dbState.Metrics.String), &metrics); err != nil {
+			metrics = make(map[string]any)
+		}
+	}
+
+	return AgencyState{
+		AgencyID:   AgencyName(dbState.AgencyID),
+		Status:     dbState.Status,
+		LastTaskID: dbState.LastTaskID.String,
+		Metrics:    metrics,
+		UpdatedAt:  dbState.UpdatedAt,
+	}, nil
 }
 
 // LoadAgenciesFromDB loads all registered agencies from database.
@@ -151,13 +190,22 @@ func (s *AgencyService) LoadAgenciesFromDB(ctx context.Context) (map[AgencyName]
 
 	result := make(map[AgencyName]AgencyState)
 	for _, dbA := range dbAgencies {
-		result[AgencyName(dbA.Name)] = AgencyState{
-			AgencyID:   AgencyName(dbA.Name),
-			Status:     dbA.Status,
-			LastTaskID: "",
-			Metrics:    make(map[string]any),
-			UpdatedAt:  dbA.UpdatedAt,
+		name := AgencyName(dbA.Name)
+
+		// Try to load full state from agency_states table
+		state, err := s.LoadAgencyState(ctx, name)
+		if err != nil {
+			// Fall back to basic agency info
+			state = AgencyState{
+				AgencyID:   name,
+				Status:     dbA.Status,
+				LastTaskID: "",
+				Metrics:    make(map[string]any),
+				UpdatedAt:  dbA.UpdatedAt,
+			}
 		}
+
+		result[name] = state
 	}
 
 	return result, nil

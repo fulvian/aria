@@ -297,6 +297,15 @@ func (m *mockAnalysisQuerier) UpdateTaskProgress(ctx context.Context, arg db.Upd
 func (m *mockAnalysisQuerier) UpdateTaskStatus(ctx context.Context, arg db.UpdateTaskStatusParams) error {
 	return nil
 }
+func (m *mockAnalysisQuerier) DeleteAgencyState(ctx context.Context, agencyID string) error {
+	return nil
+}
+func (m *mockAnalysisQuerier) GetAgencyState(ctx context.Context, agencyID string) (db.AgencyState, error) {
+	return db.AgencyState{}, nil
+}
+func (m *mockAnalysisQuerier) UpsertAgencyState(ctx context.Context, arg db.UpsertAgencyStateParams) (db.AgencyState, error) {
+	return db.AgencyState{}, nil
+}
 func (m *mockAnalysisQuerier) CountTasksByStatus(ctx context.Context, status string) (int64, error) {
 	return 0, nil
 }
