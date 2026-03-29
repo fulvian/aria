@@ -103,3 +103,16 @@ SELECT t.*
 FROM tasks t
 INNER JOIN task_dependencies td ON t.id = td.task_id
 WHERE td.depends_on = ?;
+
+-- name: ListPendingTasks :many
+SELECT *
+FROM tasks
+WHERE status IN (?, ?)
+  AND (scheduled_at IS NULL OR scheduled_at <= ?)
+ORDER BY priority DESC, created_at ASC
+LIMIT 100;
+
+-- name: CountTasksByStatus :one
+SELECT COUNT(*)
+FROM tasks
+WHERE status = ?;

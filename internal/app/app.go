@@ -31,6 +31,9 @@ type App struct {
 
 	CoderAgent agent.Service
 
+	// DB is the database querier for components that need direct DB access
+	DB db.Querier
+
 	LSPClients map[string]*lsp.Client
 
 	// ARIA components (nil when aria.enabled = false)
@@ -54,6 +57,7 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 		Messages:    messages,
 		History:     files,
 		Permissions: permission.NewPermissionService(),
+		DB:          q,
 		LSPClients:  make(map[string]*lsp.Client),
 	}
 
@@ -274,5 +278,21 @@ func (app *App) Shutdown() {
 			logging.Error("Failed to shutdown LSP client", "name", name, "error", err)
 		}
 		cancel()
+	}
+
+	// Shutdown ARIA scheduler components
+	if app.ARIA != nil {
+		if app.ARIA.Dispatcher != nil {
+			app.ARIA.Dispatcher.Stop()
+		}
+		if app.ARIA.Worker != nil {
+			app.ARIA.Worker.Stop()
+		}
+		if app.ARIA.RecurringPlanner != nil {
+			app.ARIA.RecurringPlanner.Stop()
+		}
+		if app.ARIA.SchedulerService != nil {
+			app.ARIA.SchedulerService.Shutdown()
+		}
 	}
 }

@@ -47,6 +47,9 @@ func (m *mockRecoveryQuerier) CancelTask(ctx context.Context, id string) error {
 func (m *mockRecoveryQuerier) CountTasksByStatus(ctx context.Context, status string) (int64, error) {
 	panic("not implemented")
 }
+func (m *mockRecoveryQuerier) CountEpisodesByOutcome(ctx context.Context, arg db.CountEpisodesByOutcomeParams) (db.CountEpisodesByOutcomeRow, error) {
+	panic("not implemented")
+}
 func (m *mockRecoveryQuerier) CreateAgency(ctx context.Context, arg db.CreateAgencyParams) (db.Agency, error) {
 	panic("not implemented")
 }
@@ -222,6 +225,15 @@ func (m *mockRecoveryQuerier) RemoveTaskDependency(ctx context.Context, arg db.R
 	panic("not implemented")
 }
 func (m *mockRecoveryQuerier) SearchEpisodes(ctx context.Context, arg db.SearchEpisodesParams) ([]db.Episode, error) {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) SearchEpisodesByAgent(ctx context.Context, arg db.SearchEpisodesByAgentParams) ([]db.Episode, error) {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) SearchEpisodesByTimeRange(ctx context.Context, arg db.SearchEpisodesByTimeRangeParams) ([]db.Episode, error) {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) SearchEpisodesFull(ctx context.Context, arg db.SearchEpisodesFullParams) ([]db.Episode, error) {
 	panic("not implemented")
 }
 func (m *mockRecoveryQuerier) SearchFacts(ctx context.Context, arg db.SearchFactsParams) ([]db.Fact, error) {

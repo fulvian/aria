@@ -5,14 +5,24 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/fulvian/aria/internal/llm/tools"
 )
 
 // DebuggingSkill implements systematic debugging methodology.
-type DebuggingSkill struct{}
+type DebuggingSkill struct {
+	grepTool tools.BaseTool
+	viewTool tools.BaseTool
+	bashTool tools.BaseTool
+}
 
 // NewDebuggingSkill creates a new debugging skill.
 func NewDebuggingSkill() *DebuggingSkill {
-	return &DebuggingSkill{}
+	return &DebuggingSkill{
+		grepTool: tools.NewGrepTool(),
+		viewTool: tools.NewViewTool(nil),
+		bashTool: tools.NewBashTool(nil), // Permission service not available, will be set during execution if needed
+	}
 }
 
 // Name returns the skill name.
@@ -65,22 +75,93 @@ func (s *DebuggingSkill) Execute(ctx context.Context, params SkillParams) (Skill
 		DurationMs:  10,
 	})
 
-	// Step 2: Isolate
+	// Step 2: Isolate - Search for error patterns in codebase
 	steps = append(steps, SkillStep{Name: "isolate", Description: "Isolating the root cause", Status: "in_progress", DurationMs: 0})
 
-	// Analyze error type
-	var likelyCause string
-	errorLower := strings.ToLower(errorMsg)
-	if strings.Contains(errorLower, "null") || strings.Contains(errorLower, "nil") {
-		likelyCause = "Possible null pointer or nil reference"
-	} else if strings.Contains(errorLower, "index") || strings.Contains(errorLower, "bounds") {
-		likelyCause = "Array or slice index out of bounds"
-	} else if strings.Contains(errorLower, "connection") || strings.Contains(errorLower, "timeout") {
-		likelyCause = "Network or connection issue"
-	} else if strings.Contains(errorLower, "parse") || strings.Contains(errorLower, "invalid") {
-		likelyCause = "Data parsing or validation error"
-	} else {
-		likelyCause = "Unknown - requires manual investigation"
+	// Analyze error type and build search queries
+	errorType, likelyCause := analyzeErrorType(errorMsg)
+
+	// Search for similar errors in the codebase
+	relatedErrors := []map[string]any{}
+
+	// Search for error handling patterns related to this error type
+	switch errorType {
+	case "nil_pointer":
+		grepResult, err := s.grepTool.Run(ctx, tools.ToolCall{
+			ID:   "search-nil",
+			Name: "grep",
+			Input: toJSON(map[string]any{
+				"pattern":      "if.*nil",
+				"include":      "*.go",
+				"literal_text": false,
+			}),
+		})
+		if err == nil && !grepResult.IsError {
+			relatedErrors = parseGrepResults(grepResult.Content)
+		}
+	case "index_out_of_bounds":
+		grepResult, err := s.grepTool.Run(ctx, tools.ToolCall{
+			ID:   "search-bounds",
+			Name: "grep",
+			Input: toJSON(map[string]any{
+				"pattern":      "\\[.*\\]",
+				"include":      "*.go",
+				"literal_text": false,
+			}),
+		})
+		if err == nil && !grepResult.IsError {
+			relatedErrors = parseGrepResults(grepResult.Content)
+		}
+	case "network":
+		grepResult, err := s.grepTool.Run(ctx, tools.ToolCall{
+			ID:   "search-network",
+			Name: "grep",
+			Input: toJSON(map[string]any{
+				"pattern":      "http\\.|Client\\.|Dial\\.|Connect\\(",
+				"include":      "*.go",
+				"literal_text": false,
+			}),
+		})
+		if err == nil && !grepResult.IsError {
+			relatedErrors = parseGrepResults(grepResult.Content)
+		}
+	}
+
+	// Search for the specific error string in the codebase if it's a custom error
+	if len(errorMsg) > 5 && len(errorMsg) < 100 {
+		grepResult, err := s.grepTool.Run(ctx, tools.ToolCall{
+			ID:   "search-error",
+			Name: "grep",
+			Input: toJSON(map[string]any{
+				"pattern":      errorMsg,
+				"include":      "*.go",
+				"literal_text": true,
+			}),
+		})
+		if err == nil && !grepResult.IsError && !strings.Contains(grepResult.Content, "No files found") {
+			relatedErrors = parseGrepResults(grepResult.Content)
+		}
+	}
+
+	// Parse stack trace to find relevant files
+	if stackTrace != "" {
+		filePaths := extractFilePathsFromStack(stackTrace)
+		for _, fp := range filePaths {
+			if fp != "" {
+				viewResult, err := s.viewTool.Run(ctx, tools.ToolCall{
+					ID:    fmt.Sprintf("view-%s", fp),
+					Name:  "view",
+					Input: toJSON(map[string]any{"file_path": fp}),
+				})
+				if err == nil && !viewResult.IsError {
+					relatedErrors = append(relatedErrors, map[string]any{
+						"file":    fp,
+						"context": "stack trace location",
+						"content": viewResult.Content,
+					})
+				}
+			}
+		}
 	}
 
 	steps[2].Status = "completed"
@@ -92,7 +173,11 @@ func (s *DebuggingSkill) Execute(ctx context.Context, params SkillParams) (Skill
 	})
 
 	// Step 3: Identify fix
-	steps = append(steps, SkillStep{Name: "identify_fix", Description: "Identifying potential fix", Status: "completed", DurationMs: 0})
+	steps = append(steps, SkillStep{Name: "identify_fix", Description: "Identifying potential fix", Status: "in_progress", DurationMs: 0})
+
+	suggestions := generateSuggestions(errorType, errorMsg, relatedErrors)
+
+	steps[3].Status = "completed"
 
 	// Step 4: Verify
 	steps = append(steps, SkillStep{Name: "verify", Description: "Verification pending", Status: "completed", DurationMs: 0})
@@ -100,22 +185,157 @@ func (s *DebuggingSkill) Execute(ctx context.Context, params SkillParams) (Skill
 	return SkillResult{
 		Success: true,
 		Output: map[string]any{
-			"task_id":       params.TaskID,
-			"error_message": errorMsg,
-			"stack_trace":   stackTrace,
-			"context":       context_,
-			"likely_cause":  likelyCause,
-			"can_reproduce": canReproduce,
-			"suggestions": []string{
-				"Add null checks before dereferencing",
-				"Validate input parameters at function entry",
-				"Add logging to track variable values",
-			},
-			"summary": fmt.Sprintf("Debugging analysis complete. Likely cause: %s", likelyCause),
+			"task_id":        params.TaskID,
+			"error_message":  errorMsg,
+			"stack_trace":    stackTrace,
+			"context":        context_,
+			"error_type":     errorType,
+			"likely_cause":   likelyCause,
+			"can_reproduce":  canReproduce,
+			"suggestions":    suggestions,
+			"related_errors": relatedErrors,
+			"summary":        fmt.Sprintf("Debugging analysis complete. Likely cause: %s", likelyCause),
 		},
 		DurationMs: time.Since(start).Milliseconds(),
 		Steps:      steps,
 	}, nil
+}
+
+// analyzeErrorType determines the error category and likely cause.
+func analyzeErrorType(errorMsg string) (string, string) {
+	errorLower := strings.ToLower(errorMsg)
+
+	if strings.Contains(errorLower, "null") || strings.Contains(errorLower, "nil") || strings.Contains(errorLower, "nil pointer") {
+		return "nil_pointer", "Possible null pointer or nil reference - add nil checks before dereferencing"
+	}
+	if strings.Contains(errorLower, "index") || strings.Contains(errorLower, "bounds") || strings.Contains(errorLower, "out of range") {
+		return "index_out_of_bounds", "Array or slice index out of bounds - verify index is within valid range"
+	}
+	if strings.Contains(errorLower, "connection") || strings.Contains(errorLower, "timeout") || strings.Contains(errorLower, "network") {
+		return "network", "Network or connection issue - check network connectivity and timeouts"
+	}
+	if strings.Contains(errorLower, "parse") || strings.Contains(errorLower, "invalid") || strings.Contains(errorLower, "syntax") {
+		return "parse", "Data parsing or validation error - verify input format and content"
+	}
+	if strings.Contains(errorLower, "permission") || strings.Contains(errorLower, "denied") || strings.Contains(errorLower, "access") {
+		return "permission", "Permission or access denied - check file/directory permissions"
+	}
+	if strings.Contains(errorLower, "deadlock") || strings.Contains(errorLower, "goroutine") {
+		return "concurrency", "Concurrency issue - review goroutine management and synchronization"
+	}
+	if strings.Contains(errorLower, "memory") || strings.Contains(errorLower, "oom") || strings.Contains(errorLower, "alloc") {
+		return "memory", "Memory issue - check for memory leaks or excessive allocations"
+	}
+
+	return "unknown", "Unknown error type - requires manual investigation"
+}
+
+// generateSuggestions provides fix suggestions based on error type.
+func generateSuggestions(errorType, errorMsg string, relatedErrors []map[string]any) []string {
+	switch errorType {
+	case "nil_pointer":
+		return []string{
+			"Add nil checks before accessing struct fields or slice elements",
+			"Use pointer receivers for methods that can handle nil receivers",
+			"Consider using errors.Is() for error comparison",
+			"Initialize pointers at declaration when possible",
+		}
+	case "index_out_of_bounds":
+		return []string{
+			"Check array/slice length before accessing by index",
+			"Use range loops instead of index-based iteration when possible",
+			"Add bounds checking with if index < len(slice)",
+			"Consider using safe accessor methods",
+		}
+	case "network":
+		return []string{
+			"Add timeout to network operations",
+			"Implement retry logic with exponential backoff",
+			"Check network connectivity before operations",
+			"Use context for cancellation of long-running network calls",
+		}
+	case "parse":
+		return []string{
+			"Validate input format before parsing",
+			"Use strict parsing functions when possible",
+			"Add error messages with context about invalid input",
+			"Consider using schema validation libraries",
+		}
+	case "permission":
+		return []string{
+			"Check file/directory permissions",
+			"Verify user has required access rights",
+			"Use os.Chmod() to fix permission issues",
+			"Check working directory accessibility",
+		}
+	case "concurrency":
+		return []string{
+			"Use mutexes (sync.Mutex or sync.RWMutex) to protect shared state",
+			"Consider using channels for communication between goroutines",
+			"Use context for goroutine cancellation",
+			"Add deadlock detection with timeout",
+		}
+	case "memory":
+		return []string{
+			"Check for memory leaks in long-running operations",
+			"Use pprof to profile memory usage",
+			"Avoid keeping references to large objects",
+			"Consider pooling objects to reduce allocations",
+		}
+	}
+
+	return []string{
+		"Add null checks before dereferencing pointers",
+		"Validate input parameters at function entry",
+		"Add logging to track variable values",
+	}
+}
+
+// parseGrepResults parses grep output into structured findings.
+func parseGrepResults(content string) []map[string]any {
+	findings := []map[string]any{}
+	if content == "" || strings.Contains(content, "No files found") {
+		return findings
+	}
+
+	lines := strings.Split(content, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, ":", 3)
+		if len(parts) >= 2 {
+			findings = append(findings, map[string]any{
+				"file":    parts[0],
+				"line":    parts[1],
+				"content": strings.TrimPrefix(parts[2], " "),
+			})
+		}
+	}
+	return findings
+}
+
+// extractFilePathsFromStack extracts file paths from a stack trace.
+func extractFilePathsFromStack(stackTrace string) []string {
+	var paths []string
+	lines := strings.Split(stackTrace, "\n")
+	for _, line := range lines {
+		// Look for .go files in stack trace
+		if strings.Contains(line, ".go") {
+			fields := strings.Fields(line)
+			for _, part := range fields {
+				if strings.HasSuffix(part, ".go") {
+					// Remove line number if present
+					if idx := strings.LastIndex(part, ":"); idx != -1 {
+						part = part[:idx]
+					}
+					paths = append(paths, part)
+				}
+			}
+		}
+	}
+	return paths
 }
 
 // CanExecute checks if the skill can execute.

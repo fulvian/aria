@@ -89,6 +89,19 @@ func (m *mockAnalysisQuerier) SearchEpisodes(ctx context.Context, arg db.SearchE
 	return m.episodes, nil
 }
 
+func (m *mockAnalysisQuerier) SearchEpisodesByAgent(ctx context.Context, arg db.SearchEpisodesByAgentParams) ([]db.Episode, error) {
+	return m.episodes, nil
+}
+func (m *mockAnalysisQuerier) SearchEpisodesByTimeRange(ctx context.Context, arg db.SearchEpisodesByTimeRangeParams) ([]db.Episode, error) {
+	return m.episodes, nil
+}
+func (m *mockAnalysisQuerier) SearchEpisodesFull(ctx context.Context, arg db.SearchEpisodesFullParams) ([]db.Episode, error) {
+	return m.episodes, nil
+}
+func (m *mockAnalysisQuerier) CountEpisodesByOutcome(ctx context.Context, arg db.CountEpisodesByOutcomeParams) (db.CountEpisodesByOutcomeRow, error) {
+	return db.CountEpisodesByOutcomeRow{}, nil
+}
+
 func (m *mockAnalysisQuerier) ListEpisodesBySession(ctx context.Context, arg db.ListEpisodesBySessionParams) ([]db.Episode, error) {
 	return m.episodes, nil
 }
@@ -319,6 +332,7 @@ func TestSelfAnalysisService_AnalyzePerformance_WithTasks(t *testing.T) {
 				ID:          "task-1",
 				Name:        "Task 1",
 				Status:      "completed",
+				CreatedAt:   now.Add(-5 * time.Minute).Unix(),
 				StartedAt:   sql.NullInt64{Int64: now.Add(-5 * time.Minute).Unix(), Valid: true},
 				CompletedAt: sql.NullInt64{Int64: now.Unix(), Valid: true},
 				Agency:      sql.NullString{String: "agency-1", Valid: true},
@@ -327,6 +341,7 @@ func TestSelfAnalysisService_AnalyzePerformance_WithTasks(t *testing.T) {
 				ID:          "task-2",
 				Name:        "Task 2",
 				Status:      "completed",
+				CreatedAt:   now.Add(-3 * time.Minute).Unix(),
 				StartedAt:   sql.NullInt64{Int64: now.Add(-3 * time.Minute).Unix(), Valid: true},
 				CompletedAt: sql.NullInt64{Int64: now.Unix(), Valid: true},
 				Agency:      sql.NullString{String: "agency-1", Valid: true},
@@ -335,6 +350,7 @@ func TestSelfAnalysisService_AnalyzePerformance_WithTasks(t *testing.T) {
 				ID:          "task-3",
 				Name:        "Task 3",
 				Status:      "failed",
+				CreatedAt:   now.Add(-1 * time.Minute).Unix(),
 				StartedAt:   sql.NullInt64{Int64: now.Add(-1 * time.Minute).Unix(), Valid: true},
 				CompletedAt: sql.NullInt64{Int64: now.Unix(), Valid: true},
 				Agency:      sql.NullString{String: "agency-1", Valid: true},
@@ -500,16 +516,16 @@ func TestSelfAnalysisService_GenerateImprovements_LowSuccessRate(t *testing.T) {
 	now := time.Now()
 	mock := &mockAnalysisQuerier{
 		tasks: []db.Task{
-			{ID: "task-1", Name: "Task 1", Status: "failed", Agency: sql.NullString{String: "a1", Valid: true}},
-			{ID: "task-2", Name: "Task 2", Status: "failed", Agency: sql.NullString{String: "a1", Valid: true}},
-			{ID: "task-3", Name: "Task 3", Status: "failed", Agency: sql.NullString{String: "a1", Valid: true}},
-			{ID: "task-4", Name: "Task 4", Status: "failed", Agency: sql.NullString{String: "a1", Valid: true}},
-			{ID: "task-5", Name: "Task 5", Status: "failed", Agency: sql.NullString{String: "a1", Valid: true}},
-			{ID: "task-6", Name: "Task 6", Status: "failed", Agency: sql.NullString{String: "a1", Valid: true}},
-			{ID: "task-7", Name: "Task 7", Status: "failed", Agency: sql.NullString{String: "a1", Valid: true}},
-			{ID: "task-8", Name: "Task 8", Status: "failed", Agency: sql.NullString{String: "a1", Valid: true}},
-			{ID: "task-9", Name: "Task 9", Status: "completed", Agency: sql.NullString{String: "a1", Valid: true}},
-			{ID: "task-10", Name: "Task 10", Status: "completed", Agency: sql.NullString{String: "a1", Valid: true}},
+			{ID: "task-1", Name: "Task 1", Status: "failed", CreatedAt: now.Add(-30 * time.Minute).Unix(), Agency: sql.NullString{String: "a1", Valid: true}},
+			{ID: "task-2", Name: "Task 2", Status: "failed", CreatedAt: now.Add(-28 * time.Minute).Unix(), Agency: sql.NullString{String: "a1", Valid: true}},
+			{ID: "task-3", Name: "Task 3", Status: "failed", CreatedAt: now.Add(-26 * time.Minute).Unix(), Agency: sql.NullString{String: "a1", Valid: true}},
+			{ID: "task-4", Name: "Task 4", Status: "failed", CreatedAt: now.Add(-24 * time.Minute).Unix(), Agency: sql.NullString{String: "a1", Valid: true}},
+			{ID: "task-5", Name: "Task 5", Status: "failed", CreatedAt: now.Add(-22 * time.Minute).Unix(), Agency: sql.NullString{String: "a1", Valid: true}},
+			{ID: "task-6", Name: "Task 6", Status: "failed", CreatedAt: now.Add(-20 * time.Minute).Unix(), Agency: sql.NullString{String: "a1", Valid: true}},
+			{ID: "task-7", Name: "Task 7", Status: "failed", CreatedAt: now.Add(-18 * time.Minute).Unix(), Agency: sql.NullString{String: "a1", Valid: true}},
+			{ID: "task-8", Name: "Task 8", Status: "failed", CreatedAt: now.Add(-15 * time.Minute).Unix(), Agency: sql.NullString{String: "a1", Valid: true}},
+			{ID: "task-9", Name: "Task 9", Status: "completed", CreatedAt: now.Add(-10 * time.Minute).Unix(), Agency: sql.NullString{String: "a1", Valid: true}},
+			{ID: "task-10", Name: "Task 10", Status: "completed", CreatedAt: now.Add(-5 * time.Minute).Unix(), Agency: sql.NullString{String: "a1", Valid: true}},
 		},
 		taskEvents: []db.TaskEvent{
 			{ID: "e1", TaskID: "task-1", EventType: "failed", CreatedAt: now.Unix()},

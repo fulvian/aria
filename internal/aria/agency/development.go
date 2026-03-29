@@ -5,6 +5,10 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/fulvian/aria/internal/llm/agent"
+	"github.com/fulvian/aria/internal/message"
+	"github.com/fulvian/aria/internal/session"
 )
 
 // DevelopmentAgency is the development-focused agency.
@@ -15,6 +19,11 @@ type DevelopmentAgency struct {
 	state       AgencyState
 	memory      *AgencyMemory
 
+	// Lifecycle state
+	status    AgencyStatus
+	startTime time.Time
+	pauseTime time.Time
+
 	// Legacy agent bridge
 	coderBridge AgentBridge
 
@@ -23,7 +32,7 @@ type DevelopmentAgency struct {
 }
 
 // NewDevelopmentAgency creates a new development agency.
-func NewDevelopmentAgency(coderAgent any) *DevelopmentAgency {
+func NewDevelopmentAgency(coderAgent agent.Service, sessions session.Service, messages message.Service) *DevelopmentAgency {
 	return &DevelopmentAgency{
 		name:        AgencyDevelopment,
 		domain:      "development",
@@ -35,7 +44,7 @@ func NewDevelopmentAgency(coderAgent any) *DevelopmentAgency {
 		},
 		memory:      NewAgencyMemory("development"),
 		sub:         NewAgencyEventBroker(),
-		coderBridge: NewCoderBridge(coderAgent),
+		coderBridge: NewCoderBridge(coderAgent, sessions, messages),
 	}
 }
 
@@ -184,6 +193,96 @@ func (a *DevelopmentAgency) Subscribe(ctx context.Context) <-chan AgencyEvent {
 	return a.sub.Subscribe(ctx)
 }
 
+// Start starts the development agency.
+func (a *DevelopmentAgency) Start(ctx context.Context) error {
+	switch a.status {
+	case AgencyStatusRunning:
+		return fmt.Errorf("agency already running")
+	case AgencyStatusPaused:
+		return fmt.Errorf("agency is paused, use Resume instead")
+	}
+
+	a.status = AgencyStatusRunning
+	a.startTime = time.Now()
+
+	a.sub.Publish(AgencyEvent{
+		AgencyID:  a.name,
+		Type:      "agency_started",
+		Payload:   map[string]any{"start_time": a.startTime},
+		Timestamp: time.Now(),
+	})
+
+	return nil
+}
+
+// Stop stops the development agency.
+func (a *DevelopmentAgency) Stop(ctx context.Context) error {
+	if a.status == AgencyStatusStopped {
+		return fmt.Errorf("agency already stopped")
+	}
+
+	a.status = AgencyStatusStopped
+	a.pauseTime = time.Time{}
+
+	a.sub.Publish(AgencyEvent{
+		AgencyID:  a.name,
+		Type:      "agency_stopped",
+		Payload:   map[string]any{},
+		Timestamp: time.Now(),
+	})
+
+	return nil
+}
+
+// Pause pauses the development agency.
+func (a *DevelopmentAgency) Pause(ctx context.Context) error {
+	if a.status == AgencyStatusStopped {
+		return fmt.Errorf("cannot pause stopped agency")
+	}
+	if a.status == AgencyStatusPaused {
+		return fmt.Errorf("agency already paused")
+	}
+
+	a.status = AgencyStatusPaused
+	a.pauseTime = time.Now()
+
+	a.sub.Publish(AgencyEvent{
+		AgencyID:  a.name,
+		Type:      "agency_paused",
+		Payload:   map[string]any{"pause_time": a.pauseTime},
+		Timestamp: time.Now(),
+	})
+
+	return nil
+}
+
+// Resume resumes the development agency.
+func (a *DevelopmentAgency) Resume(ctx context.Context) error {
+	if a.status == AgencyStatusStopped {
+		return fmt.Errorf("cannot resume stopped agency, use Start instead")
+	}
+	if a.status == AgencyStatusRunning {
+		return fmt.Errorf("agency already running")
+	}
+
+	a.status = AgencyStatusRunning
+	a.pauseTime = time.Time{}
+
+	a.sub.Publish(AgencyEvent{
+		AgencyID:  a.name,
+		Type:      "agency_resumed",
+		Payload:   map[string]any{},
+		Timestamp: time.Now(),
+	})
+
+	return nil
+}
+
+// Status returns the current agency status.
+func (a *DevelopmentAgency) Status() AgencyStatus {
+	return a.status
+}
+
 // AgencyEventBroker is a simple broker for agency events.
 type AgencyEventBroker struct {
 	ch chan AgencyEvent
@@ -294,13 +393,17 @@ type AgentBridge interface {
 // CoderBridge wraps the legacy coder agent for ARIA.
 type CoderBridge struct {
 	// agent is the legacy coder agent service
-	agent any // agent.Service - using any to avoid import cycle
+	agent    agent.Service
+	sessions session.Service
+	messages message.Service
 }
 
 // NewCoderBridge creates a new CoderBridge.
-func NewCoderBridge(agentService any) *CoderBridge {
+func NewCoderBridge(agentService agent.Service, sessions session.Service, messages message.Service) *CoderBridge {
 	return &CoderBridge{
-		agent: agentService,
+		agent:    agentService,
+		sessions: sessions,
+		messages: messages,
 	}
 }
 
@@ -315,15 +418,46 @@ func (b *CoderBridge) RunTask(ctx context.Context, task Task) (map[string]any, e
 		prompt = task.Name
 	}
 
-	// Return a result indicating delegation to legacy agent
-	// Full integration will pass session context properly
+	if prompt == "" {
+		return nil, fmt.Errorf("no prompt provided for task %s", task.ID)
+	}
+
+	// Create a session for this task
+	sess, err := b.sessions.Create(ctx, "ARIA: "+truncateString(prompt, 50))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create session: %w", err)
+	}
+
+	// Run the agent and collect the response
+	events, err := b.agent.Run(ctx, sess.ID, prompt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start agent: %w", err)
+	}
+
+	// Collect the response from the event stream
+	var responseContent string
+	var agentErr error
+
+	for event := range events {
+		switch event.Type {
+		case agent.AgentEventTypeResponse:
+			responseContent = event.Message.Content().String()
+		case agent.AgentEventTypeError:
+			agentErr = event.Error
+		}
+	}
+
+	if agentErr != nil {
+		return nil, fmt.Errorf("agent error: %w", agentErr)
+	}
+
 	return map[string]any{
 		"type":           "coder-task",
 		"task_id":        task.ID,
-		"task_name":      task.Name,
+		"session_id":     sess.ID,
 		"prompt_preview": truncateString(prompt, 100),
-		"status":         "delegated_to_legacy",
-		"note":           "CoderBridge integration pending full session context",
+		"response":       responseContent,
+		"status":         "completed",
 	}, nil
 }
 

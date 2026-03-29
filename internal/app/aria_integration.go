@@ -6,13 +6,13 @@ import (
 
 	"github.com/fulvian/aria/internal/aria/agency"
 	"github.com/fulvian/aria/internal/aria/analysis"
+	"github.com/fulvian/aria/internal/aria/config"
 	"github.com/fulvian/aria/internal/aria/core"
 	"github.com/fulvian/aria/internal/aria/guardrail"
 	"github.com/fulvian/aria/internal/aria/memory"
 	"github.com/fulvian/aria/internal/aria/permission"
 	"github.com/fulvian/aria/internal/aria/scheduler"
 	"github.com/fulvian/aria/internal/aria/skill"
-	"github.com/fulvian/aria/internal/config"
 	"github.com/fulvian/aria/internal/logging"
 )
 
@@ -39,13 +39,13 @@ type ARIAComponents struct {
 
 // initARIA initializes ARIA components if enabled.
 func (app *App) initARIA(ctx context.Context) error {
-	cfg := config.Get()
-	if cfg == nil || !cfg.ARIA.Enabled {
+	ariaCfg := config.Load()
+	if ariaCfg == nil || !ariaCfg.Enabled {
 		logging.Info("ARIA mode is disabled, using legacy mode")
 		return nil
 	}
 
-	logging.Info("Initializing ARIA mode", "config", cfg.ARIA)
+	logging.Info("Initializing ARIA mode", "config", ariaCfg)
 
 	// Initialize skill registry with default skills
 	registry := skill.NewDefaultSkillRegistry()
@@ -70,9 +70,9 @@ func (app *App) initARIA(ctx context.Context) error {
 
 	// Initialize orchestrator with memory and analysis services
 	orchestrator := core.NewBasicOrchestrator(core.OrchestratorConfig{
-		EnableFallback:      cfg.ARIA.Routing.EnableFallback,
-		DefaultAgency:       agency.AgencyName(cfg.ARIA.Routing.DefaultAgency),
-		ConfidenceThreshold: cfg.ARIA.Routing.ConfidenceThreshold,
+		EnableFallback:      ariaCfg.Routing.EnableFallback,
+		DefaultAgency:       agency.AgencyName(ariaCfg.Routing.DefaultAgency),
+		ConfidenceThreshold: ariaCfg.Routing.ConfidenceThreshold,
 	}, memorySvc, analysisSvc)
 
 	// Register development agency with orchestrator
@@ -80,7 +80,7 @@ func (app *App) initARIA(ctx context.Context) error {
 	logging.Info("Registered development agency with orchestrator")
 
 	// Initialize scheduler components
-	maxConcurrent := cfg.ARIA.Scheduler.MaxConcurrentTasks
+	maxConcurrent := ariaCfg.Scheduler.MaxConcurrentTasks
 	if maxConcurrent <= 0 {
 		maxConcurrent = 3
 	}
@@ -89,7 +89,7 @@ func (app *App) initARIA(ctx context.Context) error {
 	schedulerSvc := scheduler.NewSchedulerService(app.DB, maxConcurrent)
 
 	// Create dispatcher
-	dispatchInterval := time.Duration(cfg.ARIA.Scheduler.DispatchIntervalMs) * time.Millisecond
+	dispatchInterval := time.Duration(ariaCfg.Scheduler.DispatchIntervalMs) * time.Millisecond
 	if dispatchInterval <= 0 {
 		dispatchInterval = 1 * time.Second
 	}
@@ -104,14 +104,14 @@ func (app *App) initARIA(ctx context.Context) error {
 	worker := scheduler.NewWorker(schedulerSvc, maxConcurrent, pollInterval, executor)
 
 	// Create recurring planner
-	lookAhead := time.Duration(cfg.ARIA.Scheduler.RecurringLookaheadMinutes) * time.Minute
+	lookAhead := time.Duration(ariaCfg.Scheduler.RecurringLookaheadMinutes) * time.Minute
 	if lookAhead <= 0 {
 		lookAhead = 60 * time.Minute
 	}
 	recurringPlanner := scheduler.NewRecurringPlanner(schedulerSvc, lookAhead, 5*time.Minute)
 
 	// Create recovery manager and run recovery on startup
-	recoveryPolicy := scheduler.RecoveryPolicy(cfg.ARIA.Scheduler.RecoveryPolicy)
+	recoveryPolicy := scheduler.RecoveryPolicy(ariaCfg.Scheduler.RecoveryPolicy)
 	if recoveryPolicy == "" {
 		recoveryPolicy = scheduler.PolicyRequeue
 	}
@@ -132,7 +132,7 @@ func (app *App) initARIA(ctx context.Context) error {
 	recurringPlanner.Run(ctx)
 
 	// Initialize guardrail service
-	guardrailSvc := guardrail.NewService(cfg.ARIA.Guardrails)
+	guardrailSvc := guardrail.NewService(ariaCfg.Guardrails)
 
 	// Initialize permission service
 	permissionSvc := permission.NewService()
@@ -163,6 +163,6 @@ func (app *App) GetARIA() *ARIAComponents {
 
 // IsARIAMode returns true if ARIA mode is enabled.
 func (app *App) IsARIAMode() bool {
-	cfg := config.Get()
-	return cfg != nil && cfg.ARIA.Enabled
+	ariaCfg := config.Load()
+	return ariaCfg != nil && ariaCfg.Enabled
 }

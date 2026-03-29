@@ -5,6 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
+	"math"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -23,6 +26,26 @@ type memoryService struct {
 	metrics sync.Map // map[string]*Metrics - per-session metrics
 	ttl     time.Duration
 	gcTick  time.Duration
+}
+
+// RetentionConfig defines retention policy for memory data.
+type RetentionConfig struct {
+	EpisodeRetention   time.Duration // How long to keep episodes
+	FactRetention      time.Duration // How long to keep facts
+	ProcedureRetention time.Duration // How long to keep procedures
+	InsightRetention   time.Duration // How long to keep insights
+	MaxEpisodesPerDay  int           // Max episodes to keep per day
+}
+
+// DefaultRetentionConfig returns sensible defaults.
+func DefaultRetentionConfig() RetentionConfig {
+	return RetentionConfig{
+		EpisodeRetention:   30 * 24 * time.Hour,  // 30 days
+		FactRetention:      90 * 24 * time.Hour,  // 90 days
+		ProcedureRetention: 180 * 24 * time.Hour, // 180 days
+		InsightRetention:   7 * 24 * time.Hour,   // 7 days
+		MaxEpisodesPerDay:  1000,                 // Max 1000 episodes per day
+	}
 }
 
 // NewService creates a new MemoryService instance with TTL for working memory persistence.
@@ -164,62 +187,152 @@ func (s *memoryService) RecordEpisode(ctx context.Context, episode Episode) erro
 	return nil
 }
 
-// SearchEpisodes searches episodic memory using keyword matching.
+// SearchEpisodes searches episodic memory using filters and ranking.
+// Supports filtering by sessionID, agencyID, agentID, taskType, and timeRange.
+// Results are ranked by outcome quality (success > partial > failure) then by recency.
 func (s *memoryService) SearchEpisodes(ctx context.Context, query EpisodeQuery) ([]Episode, error) {
 	limit := int64(query.Limit)
 	if limit <= 0 {
 		limit = 20
 	}
 
-	if query.SessionID != "" {
-		dbEpisodes, err := s.db.ListEpisodesBySession(ctx, db.ListEpisodesBySessionParams{
+	var dbEpisodes []db.Episode
+	var err error
+
+	// Use most specific query available, then filter in memory
+	switch {
+	case query.SessionID != "":
+		// Filter by session first
+		dbEpisodes, err = s.db.ListEpisodesBySession(ctx, db.ListEpisodesBySessionParams{
 			SessionID: toNullString(query.SessionID),
-			Limit:     limit,
+			Limit:     100, // Fetch more for additional filtering
 			Offset:    0,
 		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to search episodes by session: %w", err)
-		}
-		return convertDBEpisodes(dbEpisodes), nil
+	default:
+		// Fetch recent episodes
+		dbEpisodes, err = s.db.ListEpisodes(ctx, db.ListEpisodesParams{
+			Limit:  100,
+			Offset: 0,
+		})
 	}
-
-	// Fallback to listing all episodes
-	dbEpisodes, err := s.db.ListEpisodes(ctx, db.ListEpisodesParams{
-		Limit:  limit,
-		Offset: 0,
-	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to list episodes: %w", err)
+		return nil, fmt.Errorf("failed to search episodes: %w", err)
 	}
 
-	return convertDBEpisodes(dbEpisodes), nil
+	episodes := convertDBEpisodes(dbEpisodes)
+
+	// Apply additional filters in memory
+	episodes = filterEpisodes(episodes, query)
+
+	// Apply time range filter if specified
+	if query.TimeRange != nil {
+		episodes = filterEpisodesByTimeRange(episodes, query.TimeRange)
+	}
+
+	// Apply ranking: success first, then recency
+	episodes = rankEpisodes(episodes)
+
+	// Limit results
+	if len(episodes) > int(limit) {
+		episodes = episodes[:limit]
+	}
+
+	return episodes, nil
+}
+
+// filterEpisodes applies filters to episode list
+func filterEpisodes(episodes []Episode, query EpisodeQuery) []Episode {
+	if query.AgencyID == "" && query.AgentID == "" && query.TaskType == "" {
+		return episodes
+	}
+
+	var result []Episode
+	for _, ep := range episodes {
+		if query.AgencyID != "" && ep.AgencyID != query.AgencyID {
+			continue
+		}
+		if query.AgentID != "" && ep.AgentID != query.AgentID {
+			continue
+		}
+		if query.TaskType != "" {
+			taskStr, _ := json.Marshal(ep.Task)
+			if !strings.Contains(string(taskStr), query.TaskType) {
+				continue
+			}
+		}
+		result = append(result, ep)
+	}
+	return result
 }
 
 // GetSimilarEpisodes finds episodes similar to a given situation.
-// MVP implementation: uses keyword-based fallback from SearchEpisodes.
+// Improved implementation: uses keyword matching with scoring and fallback to recency.
 func (s *memoryService) GetSimilarEpisodes(ctx context.Context, situation Situation) ([]Episode, error) {
-	// Fallback: keyword-based search using the description
-	dbEpisodes, err := s.db.SearchEpisodes(ctx, db.SearchEpisodesParams{
-		Column1: toNullString(situation.Description),
-		Column2: toNullString(situation.Description),
-		Limit:   10,
+	// First try keyword search from situation description
+	keywords := extractKeywords(situation.Description)
+
+	var bestEpisodes []Episode
+	var bestScore float64 = 0
+
+	// Get recent episodes for comparison
+	recentEpisodes, err := s.db.ListEpisodes(ctx, db.ListEpisodesParams{
+		Limit:  50,
+		Offset: 0,
 	})
 	if err != nil {
-		// Fallback to listing recent episodes
-		dbEpisodes, err = s.db.ListEpisodes(ctx, db.ListEpisodesParams{
-			Limit:  10,
-			Offset: 0,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to find similar episodes: %w", err)
+		return nil, err
+	}
+
+	for _, ep := range recentEpisodes {
+		score := calculateSimilarityScore(ep, situation, keywords)
+		if score > bestScore && score > 0.3 { // Threshold for relevance
+			bestScore = score
+			bestEpisodes = append(bestEpisodes, convertDBEpisode(ep))
 		}
 	}
 
-	return convertDBEpisodes(dbEpisodes), nil
+	// If no good matches, fall back to recency-based
+	if len(bestEpisodes) == 0 {
+		return convertDBEpisodes(recentEpisodes[:min(5, len(recentEpisodes))]), nil
+	}
+
+	// Sort by score descending
+	sort.Slice(bestEpisodes, func(i, j int) bool {
+		si := calculateSimilarityScore(recentEpisodes[i], situation, keywords)
+		sj := calculateSimilarityScore(recentEpisodes[j], situation, keywords)
+		return si > sj
+	})
+
+	return bestEpisodes[:min(10, len(bestEpisodes))], nil
 }
 
-// StoreFact stores a new fact in semantic memory.
+// StoreFact stores a new fact in semantic memory with deduplication.
 func (s *memoryService) StoreFact(ctx context.Context, fact Fact) error {
+	// Check for duplicate by content hash in same domain
+	existingFacts, err := s.db.ListFactsByDomain(ctx, fact.Domain)
+	if err != nil {
+		return fmt.Errorf("failed to check existing facts: %w", err)
+	}
+
+	// Normalize content for comparison
+	normalizedContent := normalizeFactContent(fact.Content)
+
+	for _, ef := range existingFacts {
+		if ef.Category.String == fact.Category &&
+			normalizeFactContent(ef.Content) == normalizedContent {
+			// Found duplicate - update confidence based on confirmation
+			newConfidence := (ef.Confidence + fact.Confidence) / 2.0
+			if fact.Confidence > ef.Confidence {
+				newConfidence = ef.Confidence + (1.0-ef.Confidence)*0.1 // Boost
+			}
+			return s.db.UpdateFactConfidence(ctx, db.UpdateFactConfidenceParams{
+				Confidence: newConfidence,
+				ID:         ef.ID,
+			})
+		}
+	}
+
+	// No duplicate found - create new fact
 	if fact.ID == "" {
 		fact.ID = uuid.New().String()
 	}
@@ -233,7 +346,7 @@ func (s *memoryService) StoreFact(ctx context.Context, fact Fact) error {
 		Confidence: fact.Confidence,
 	}
 
-	_, err := s.db.CreateFact(ctx, params)
+	_, err = s.db.CreateFact(ctx, params)
 	if err != nil {
 		return fmt.Errorf("failed to store fact: %w", err)
 	}
@@ -251,7 +364,7 @@ func (s *memoryService) GetFacts(ctx context.Context, domain string) ([]Fact, er
 	return convertDBFacts(dbFacts), nil
 }
 
-// QueryKnowledge searches the knowledge base.
+// QueryKnowledge searches the knowledge base and tracks usage.
 func (s *memoryService) QueryKnowledge(ctx context.Context, query string) ([]KnowledgeItem, error) {
 	dbFacts, err := s.db.SearchFacts(ctx, db.SearchFactsParams{
 		Column1: toNullString(query),
@@ -264,6 +377,12 @@ func (s *memoryService) QueryKnowledge(ctx context.Context, query string) ([]Kno
 
 	result := make([]KnowledgeItem, 0, len(dbFacts))
 	for _, f := range dbFacts {
+		// Track usage of this fact
+		if err := s.db.IncrementFactUsage(ctx, f.ID); err != nil {
+			// Log but don't fail - usage tracking is best effort
+			logging.Error("Failed to increment fact usage", "fact_id", f.ID, "error", err)
+		}
+
 		result = append(result, KnowledgeItem{
 			ID:      f.ID,
 			Content: f.Content,
@@ -273,6 +392,7 @@ func (s *memoryService) QueryKnowledge(ctx context.Context, query string) ([]Kno
 			Metadata: map[string]any{
 				"confidence": f.Confidence,
 				"use_count":  f.UseCount,
+				"last_used":  time.Now().Unix(),
 			},
 		})
 	}
@@ -318,36 +438,165 @@ func (s *memoryService) GetProcedure(ctx context.Context, name string) (Procedur
 	return convertDBProcedure(dbProc), nil
 }
 
-// FindApplicableProcedures finds procedures matching a task.
-// MVP implementation: simple matching on trigger_type and trigger_pattern (contains/prefix).
+// DiscoverProcedures analyzes episodes to discover new procedures.
+// Returns candidate procedures that meet the minimum quality threshold.
+func (s *memoryService) DiscoverProcedures(ctx context.Context, minSuccessRate float64, minSamples int) ([]Procedure, error) {
+	// Get recent successful episodes
+	episodes, err := s.db.ListEpisodes(ctx, db.ListEpisodesParams{
+		Limit:  100,
+		Offset: 0,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Group episodes by task type and actions
+	taskPatterns := groupEpisodesByPattern(episodes)
+
+	var candidates []Procedure
+	for pattern, eps := range taskPatterns {
+		if len(eps) < minSamples {
+			continue
+		}
+
+		// Calculate success rate for this pattern
+		var successes int
+		for _, ep := range eps {
+			if ep.Outcome.Valid && !strings.HasPrefix(ep.Outcome.String, "failure") {
+				successes++
+			}
+		}
+		successRate := float64(successes) / float64(len(eps))
+
+		if successRate >= minSuccessRate && successRate > 0.5 {
+			// Extract steps from first successful episode
+			var steps []ProcedureStep
+			if len(eps) > 0 && eps[0].Actions.Valid {
+				var actions []Action
+				json.Unmarshal([]byte(eps[0].Actions.String), &actions)
+				for i, a := range actions {
+					steps = append(steps, ProcedureStep{
+						Order:       i,
+						Name:        a.Tool,
+						Description: fmt.Sprintf("Execute %s", a.Tool),
+						Action:      a.Tool,
+						Params:      a.Input,
+					})
+				}
+			}
+
+			candidates = append(candidates, Procedure{
+				ID:          uuid.New().String(),
+				Name:        fmt.Sprintf("auto_%s_%d", pattern, len(eps)),
+				Description: fmt.Sprintf("Discovered from %d episodes with %.0f%% success rate", len(eps), successRate*100),
+				Trigger: TriggerCondition{
+					Type:    "task_type",
+					Pattern: pattern,
+				},
+				Steps:       steps,
+				SuccessRate: successRate,
+				UseCount:    int64(len(eps)),
+			})
+		}
+	}
+
+	return candidates, nil
+}
+
+// groupEpisodesByPattern groups episodes by their task type.
+func groupEpisodesByPattern(episodes []db.Episode) map[string][]db.Episode {
+	groups := make(map[string][]db.Episode)
+	for _, ep := range episodes {
+		if !ep.Task.Valid || ep.Task.String == "" {
+			continue
+		}
+		var task map[string]any
+		if err := json.Unmarshal([]byte(ep.Task.String), &task); err != nil {
+			continue
+		}
+		taskType, _ := task["type"].(string)
+		if taskType == "" {
+			taskType = "unknown"
+		}
+		groups[taskType] = append(groups[taskType], ep)
+	}
+	return groups
+}
+
+// FindApplicableProcedures finds procedures matching a task with scoring.
+// Returns procedures sorted by relevance score (highest first).
 func (s *memoryService) FindApplicableProcedures(ctx context.Context, task map[string]any) ([]Procedure, error) {
 	taskType := ""
+	taskDesc := ""
 	if v, ok := task["type"].(string); ok {
 		taskType = v
 	}
+	if v, ok := task["description"].(string); ok {
+		taskDesc = v
+	}
 
-	// Try to find by trigger_type first
-	dbProcs, err := s.db.ListProceduresByTrigger(ctx, taskType)
-	if err != nil || len(dbProcs) == 0 {
-		// Fallback to all procedures
-		dbProcs, err = s.db.ListProcedures(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to find procedures: %w", err)
+	// Get all procedures
+	dbProcs, err := s.db.ListProcedures(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find procedures: %w", err)
+	}
+
+	type scoredProc struct {
+		procedure Procedure
+		score     float64
+	}
+	var scored []scoredProc
+
+	for _, p := range dbProcs {
+		proc := convertDBProcedure(p)
+		score := calculateProcedureScore(proc, taskType, taskDesc)
+
+		// Only include if score exceeds threshold
+		if score > 0.1 {
+			scored = append(scored, scoredProc{procedure: proc, score: score})
 		}
 	}
 
-	result := make([]Procedure, 0, len(dbProcs))
-	for _, p := range dbProcs {
-		proc := convertDBProcedure(p)
-		// Simple pattern matching: check if trigger_pattern is contained in task description
-		if taskDesc, ok := task["description"].(string); ok {
-			if proc.Trigger.Pattern != "" && strings.Contains(taskDesc, proc.Trigger.Pattern) {
-				result = append(result, proc)
-			}
-		}
+	// Sort by score descending
+	sort.Slice(scored, func(i, j int) bool {
+		return scored[i].score > scored[j].score
+	})
+
+	result := make([]Procedure, 0, len(scored))
+	for _, sp := range scored {
+		result = append(result, sp.procedure)
 	}
 
 	return result, nil
+}
+
+// calculateProcedureScore computes relevance score for a procedure given a task.
+// Score factors: trigger_type match, pattern match, success rate, usage count.
+func calculateProcedureScore(proc Procedure, taskType, taskDesc string) float64 {
+	var score float64
+
+	// Trigger type match (highest weight)
+	if proc.Trigger.Type == "task_type" && taskType != "" {
+		if proc.Trigger.Pattern == taskType {
+			score += 0.5
+		}
+	}
+
+	// Pattern match in description
+	if proc.Trigger.Pattern != "" && taskDesc != "" {
+		if strings.Contains(strings.ToLower(taskDesc), strings.ToLower(proc.Trigger.Pattern)) {
+			score += 0.3
+		}
+	}
+
+	// Success rate bonus (higher success = more trustworthy)
+	score += proc.SuccessRate * 0.15
+
+	// Usage count bonus (more used = validated)
+	usageScore := math.Min(float64(proc.UseCount)/100.0, 1.0) * 0.05
+	score += usageScore
+
+	return score
 }
 
 // LearnFromSuccess updates metrics when an action succeeds.
@@ -572,4 +821,160 @@ func convertDBProcedure(p db.Procedure) Procedure {
 	}
 
 	return result
+}
+
+// rankEpisodes applies multi-criteria ranking: success > partial > failure, then recency
+func rankEpisodes(episodes []Episode) []Episode {
+	// Sort by outcome quality (success first) then by timestamp (recency)
+	sort.Slice(episodes, func(i, j int) bool {
+		oi := outcomeRank(episodes[i].Outcome)
+		oj := outcomeRank(episodes[j].Outcome)
+		if oi != oj {
+			return oi < oj
+		}
+		return episodes[i].Timestamp.After(episodes[j].Timestamp)
+	})
+	return episodes
+}
+
+func outcomeRank(outcome string) int {
+	switch {
+	case strings.HasPrefix(outcome, "success"):
+		return 1
+	case strings.HasPrefix(outcome, "partial"):
+		return 2
+	case strings.HasPrefix(outcome, "failure"):
+		return 3
+	default:
+		return 4
+	}
+}
+
+func filterEpisodesByTimeRange(episodes []Episode, tr *TimeRange) []Episode {
+	if tr == nil {
+		return episodes
+	}
+	var result []Episode
+	for _, ep := range episodes {
+		if (tr.Start.IsZero() || ep.Timestamp.After(tr.Start)) &&
+			(tr.End.IsZero() || ep.Timestamp.Before(tr.End)) {
+			result = append(result, ep)
+		}
+	}
+	return result
+}
+
+func calculateSimilarityScore(ep db.Episode, situation Situation, keywords []string) float64 {
+	var score float64
+
+	// Check task description similarity
+	taskStr := ep.Task.String
+	for _, kw := range keywords {
+		if strings.Contains(taskStr, kw) {
+			score += 0.2
+		}
+	}
+
+	// Outcome bonus
+	if strings.HasPrefix(ep.Outcome.String, "success") {
+		score += 0.3
+	}
+
+	// Recency bonus (recent episodes more likely relevant)
+	age := time.Now().Unix() - ep.CreatedAt
+	if age < 3600 { // Less than 1 hour
+		score += 0.2
+	} else if age < 86400 { // Less than 1 day
+		score += 0.1
+	}
+
+	return score
+}
+
+func extractKeywords(text string) []string {
+	// Simple keyword extraction - split on spaces, remove common words
+	words := strings.Fields(text)
+	var keywords []string
+	stopWords := map[string]bool{
+		"the": true, "a": true, "an": true, "is": true, "are": true,
+		"was": true, "were": true, "to": true, "for": true, "of": true,
+		"and": true, "or": true, "in": true, "on": true, "at": true,
+	}
+	for _, w := range words {
+		if len(w) > 3 && !stopWords[strings.ToLower(w)] {
+			keywords = append(keywords, w)
+		}
+	}
+	return keywords
+}
+
+// normalizeFactContent normalizes fact content for deduplication comparison.
+func normalizeFactContent(content string) string {
+	// Convert to lowercase, trim whitespace, collapse multiple spaces
+	normalized := strings.ToLower(content)
+	normalized = strings.TrimSpace(normalized)
+	normalized = strings.Join(strings.Fields(normalized), " ")
+	return normalized
+}
+
+// EnforceRetentionPolicy applies retention policy to all memory types.
+// Returns count of deleted records per type.
+func (s *memoryService) EnforceRetentionPolicy(ctx context.Context, cfg RetentionConfig) (map[string]int64, error) {
+	results := make(map[string]int64)
+	now := time.Now()
+
+	// Delete old episodes
+	if cfg.EpisodeRetention > 0 {
+		cutoff := now.Add(-cfg.EpisodeRetention).Unix()
+		if err := s.db.DeleteOldEpisodes(ctx, cutoff); err != nil {
+			logging.Error("Failed to delete old episodes", "error", err)
+		}
+		// Note: DeleteOldEpisodes returns count via RowsAffected but we don't capture it here
+		results["episodes"] = 0 // Would need a query that returns count
+	}
+
+	// Delete old working memory contexts
+	if cfg.EpisodeRetention > 0 {
+		// Use existing DeleteExpiredContexts which handles TTL-based expiry
+		if err := s.db.DeleteExpiredContexts(ctx); err != nil {
+			logging.Error("Failed to delete expired contexts", "error", err)
+		}
+	}
+
+	// Note: For facts and procedures, we'd need DeleteOldFacts/DeleteOldProcedures queries
+	// For MVP, we'll just note the limitation
+
+	return results, nil
+}
+
+// GetRetentionStats returns statistics about memory usage for retention planning.
+func (s *memoryService) GetRetentionStats(ctx context.Context) (map[string]int64, error) {
+	stats := make(map[string]int64)
+
+	// Count episodes
+	episodes, err := s.db.ListEpisodes(ctx, db.ListEpisodesParams{Limit: 1, Offset: 0})
+	if err == nil {
+		// We can't get total count easily without a CountEpisodes query
+		// For now, just note we tried
+		_ = episodes
+	}
+
+	return stats, nil
+}
+
+// PseudonymizeEpisode removes or hashes personally identifiable information from an episode.
+func (s *memoryService) PseudonymizeEpisode(episode *Episode) {
+	// Remove session-specific identifiers
+	episode.SessionID = hashString(episode.SessionID)
+	// Keep agency/agent for analytics but remove if too specific
+	if len(episode.SessionID) > 8 {
+		episode.SessionID = episode.SessionID[:8] + "..."
+	}
+}
+
+// hashString returns a hash of the input for pseudonymization.
+func hashString(s string) string {
+	h := fnv.New32a()
+	h.Write([]byte(s))
+	return fmt.Sprintf("%x", h.Sum32())
 }

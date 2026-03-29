@@ -30,6 +30,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.cancelTaskStmt, err = db.PrepareContext(ctx, cancelTask); err != nil {
 		return nil, fmt.Errorf("error preparing query CancelTask: %w", err)
 	}
+	if q.countEpisodesByOutcomeStmt, err = db.PrepareContext(ctx, countEpisodesByOutcome); err != nil {
+		return nil, fmt.Errorf("error preparing query CountEpisodesByOutcome: %w", err)
+	}
+	if q.countTasksByStatusStmt, err = db.PrepareContext(ctx, countTasksByStatus); err != nil {
+		return nil, fmt.Errorf("error preparing query CountTasksByStatus: %w", err)
+	}
 	if q.createAgencyStmt, err = db.PrepareContext(ctx, createAgency); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateAgency: %w", err)
 	}
@@ -63,6 +69,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.deleteEpisodeStmt, err = db.PrepareContext(ctx, deleteEpisode); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteEpisode: %w", err)
 	}
+	if q.deleteExpiredContextsStmt, err = db.PrepareContext(ctx, deleteExpiredContexts); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteExpiredContexts: %w", err)
+	}
 	if q.deleteFactStmt, err = db.PrepareContext(ctx, deleteFact); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteFact: %w", err)
 	}
@@ -89,6 +98,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.deleteTaskStmt, err = db.PrepareContext(ctx, deleteTask); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteTask: %w", err)
+	}
+	if q.deleteWorkingContextStmt, err = db.PrepareContext(ctx, deleteWorkingContext); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteWorkingContext: %w", err)
 	}
 	if q.getAgencyByIDStmt, err = db.PrepareContext(ctx, getAgencyByID); err != nil {
 		return nil, fmt.Errorf("error preparing query GetAgencyByID: %w", err)
@@ -135,6 +147,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getTaskEventsStmt, err = db.PrepareContext(ctx, getTaskEvents); err != nil {
 		return nil, fmt.Errorf("error preparing query GetTaskEvents: %w", err)
 	}
+	if q.getWorkingContextStmt, err = db.PrepareContext(ctx, getWorkingContext); err != nil {
+		return nil, fmt.Errorf("error preparing query GetWorkingContext: %w", err)
+	}
 	if q.incrementFactUsageStmt, err = db.PrepareContext(ctx, incrementFactUsage); err != nil {
 		return nil, fmt.Errorf("error preparing query IncrementFactUsage: %w", err)
 	}
@@ -174,6 +189,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.listNewFilesStmt, err = db.PrepareContext(ctx, listNewFiles); err != nil {
 		return nil, fmt.Errorf("error preparing query ListNewFiles: %w", err)
 	}
+	if q.listPendingTasksStmt, err = db.PrepareContext(ctx, listPendingTasks); err != nil {
+		return nil, fmt.Errorf("error preparing query ListPendingTasks: %w", err)
+	}
 	if q.listProceduresStmt, err = db.PrepareContext(ctx, listProcedures); err != nil {
 		return nil, fmt.Errorf("error preparing query ListProcedures: %w", err)
 	}
@@ -195,8 +213,20 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.removeTaskDependencyStmt, err = db.PrepareContext(ctx, removeTaskDependency); err != nil {
 		return nil, fmt.Errorf("error preparing query RemoveTaskDependency: %w", err)
 	}
+	if q.saveWorkingContextStmt, err = db.PrepareContext(ctx, saveWorkingContext); err != nil {
+		return nil, fmt.Errorf("error preparing query SaveWorkingContext: %w", err)
+	}
 	if q.searchEpisodesStmt, err = db.PrepareContext(ctx, searchEpisodes); err != nil {
 		return nil, fmt.Errorf("error preparing query SearchEpisodes: %w", err)
+	}
+	if q.searchEpisodesByAgentStmt, err = db.PrepareContext(ctx, searchEpisodesByAgent); err != nil {
+		return nil, fmt.Errorf("error preparing query SearchEpisodesByAgent: %w", err)
+	}
+	if q.searchEpisodesByTimeRangeStmt, err = db.PrepareContext(ctx, searchEpisodesByTimeRange); err != nil {
+		return nil, fmt.Errorf("error preparing query SearchEpisodesByTimeRange: %w", err)
+	}
+	if q.searchEpisodesFullStmt, err = db.PrepareContext(ctx, searchEpisodesFull); err != nil {
+		return nil, fmt.Errorf("error preparing query SearchEpisodesFull: %w", err)
 	}
 	if q.searchFactsStmt, err = db.PrepareContext(ctx, searchFacts); err != nil {
 		return nil, fmt.Errorf("error preparing query SearchFacts: %w", err)
@@ -241,6 +271,16 @@ func (q *Queries) Close() error {
 	if q.cancelTaskStmt != nil {
 		if cerr := q.cancelTaskStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing cancelTaskStmt: %w", cerr)
+		}
+	}
+	if q.countEpisodesByOutcomeStmt != nil {
+		if cerr := q.countEpisodesByOutcomeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing countEpisodesByOutcomeStmt: %w", cerr)
+		}
+	}
+	if q.countTasksByStatusStmt != nil {
+		if cerr := q.countTasksByStatusStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing countTasksByStatusStmt: %w", cerr)
 		}
 	}
 	if q.createAgencyStmt != nil {
@@ -298,6 +338,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing deleteEpisodeStmt: %w", cerr)
 		}
 	}
+	if q.deleteExpiredContextsStmt != nil {
+		if cerr := q.deleteExpiredContextsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteExpiredContextsStmt: %w", cerr)
+		}
+	}
 	if q.deleteFactStmt != nil {
 		if cerr := q.deleteFactStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteFactStmt: %w", cerr)
@@ -341,6 +386,11 @@ func (q *Queries) Close() error {
 	if q.deleteTaskStmt != nil {
 		if cerr := q.deleteTaskStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteTaskStmt: %w", cerr)
+		}
+	}
+	if q.deleteWorkingContextStmt != nil {
+		if cerr := q.deleteWorkingContextStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteWorkingContextStmt: %w", cerr)
 		}
 	}
 	if q.getAgencyByIDStmt != nil {
@@ -418,6 +468,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getTaskEventsStmt: %w", cerr)
 		}
 	}
+	if q.getWorkingContextStmt != nil {
+		if cerr := q.getWorkingContextStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getWorkingContextStmt: %w", cerr)
+		}
+	}
 	if q.incrementFactUsageStmt != nil {
 		if cerr := q.incrementFactUsageStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing incrementFactUsageStmt: %w", cerr)
@@ -483,6 +538,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing listNewFilesStmt: %w", cerr)
 		}
 	}
+	if q.listPendingTasksStmt != nil {
+		if cerr := q.listPendingTasksStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listPendingTasksStmt: %w", cerr)
+		}
+	}
 	if q.listProceduresStmt != nil {
 		if cerr := q.listProceduresStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listProceduresStmt: %w", cerr)
@@ -518,9 +578,29 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing removeTaskDependencyStmt: %w", cerr)
 		}
 	}
+	if q.saveWorkingContextStmt != nil {
+		if cerr := q.saveWorkingContextStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing saveWorkingContextStmt: %w", cerr)
+		}
+	}
 	if q.searchEpisodesStmt != nil {
 		if cerr := q.searchEpisodesStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing searchEpisodesStmt: %w", cerr)
+		}
+	}
+	if q.searchEpisodesByAgentStmt != nil {
+		if cerr := q.searchEpisodesByAgentStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing searchEpisodesByAgentStmt: %w", cerr)
+		}
+	}
+	if q.searchEpisodesByTimeRangeStmt != nil {
+		if cerr := q.searchEpisodesByTimeRangeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing searchEpisodesByTimeRangeStmt: %w", cerr)
+		}
+	}
+	if q.searchEpisodesFullStmt != nil {
+		if cerr := q.searchEpisodesFullStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing searchEpisodesFullStmt: %w", cerr)
 		}
 	}
 	if q.searchFactsStmt != nil {
@@ -610,149 +690,169 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 }
 
 type Queries struct {
-	db                          DBTX
-	tx                          *sql.Tx
-	addTaskDependencyStmt       *sql.Stmt
-	cancelTaskStmt              *sql.Stmt
-	createAgencyStmt            *sql.Stmt
-	createEpisodeStmt           *sql.Stmt
-	createFactStmt              *sql.Stmt
-	createFileStmt              *sql.Stmt
-	createMessageStmt           *sql.Stmt
-	createProcedureStmt         *sql.Stmt
-	createSessionStmt           *sql.Stmt
-	createTaskStmt              *sql.Stmt
-	createTaskEventStmt         *sql.Stmt
-	deleteAgencyStmt            *sql.Stmt
-	deleteEpisodeStmt           *sql.Stmt
-	deleteFactStmt              *sql.Stmt
-	deleteFileStmt              *sql.Stmt
-	deleteMessageStmt           *sql.Stmt
-	deleteOldEpisodesStmt       *sql.Stmt
-	deleteProcedureStmt         *sql.Stmt
-	deleteSessionStmt           *sql.Stmt
-	deleteSessionFilesStmt      *sql.Stmt
-	deleteSessionMessagesStmt   *sql.Stmt
-	deleteTaskStmt              *sql.Stmt
-	getAgencyByIDStmt           *sql.Stmt
-	getAgencyByNameStmt         *sql.Stmt
-	getDependentTasksStmt       *sql.Stmt
-	getEpisodeByIDStmt          *sql.Stmt
-	getFactByIDStmt             *sql.Stmt
-	getFileStmt                 *sql.Stmt
-	getFileByPathAndSessionStmt *sql.Stmt
-	getMessageStmt              *sql.Stmt
-	getProcedureByIDStmt        *sql.Stmt
-	getProcedureByNameStmt      *sql.Stmt
-	getRecentTaskEventsStmt     *sql.Stmt
-	getSessionByIDStmt          *sql.Stmt
-	getTaskByIDStmt             *sql.Stmt
-	getTaskDependenciesStmt     *sql.Stmt
-	getTaskEventsStmt           *sql.Stmt
-	incrementFactUsageStmt      *sql.Stmt
-	listAgenciesStmt            *sql.Stmt
-	listAgenciesByStatusStmt    *sql.Stmt
-	listEpisodesStmt            *sql.Stmt
-	listEpisodesByAgencyStmt    *sql.Stmt
-	listEpisodesBySessionStmt   *sql.Stmt
-	listFactsByCategoryStmt     *sql.Stmt
-	listFactsByDomainStmt       *sql.Stmt
-	listFilesByPathStmt         *sql.Stmt
-	listFilesBySessionStmt      *sql.Stmt
-	listLatestSessionFilesStmt  *sql.Stmt
-	listMessagesBySessionStmt   *sql.Stmt
-	listNewFilesStmt            *sql.Stmt
-	listProceduresStmt          *sql.Stmt
-	listProceduresByTriggerStmt *sql.Stmt
-	listSessionsStmt            *sql.Stmt
-	listTasksStmt               *sql.Stmt
-	listTasksByAgencyStmt       *sql.Stmt
-	listTasksByStatusStmt       *sql.Stmt
-	removeTaskDependencyStmt    *sql.Stmt
-	searchEpisodesStmt          *sql.Stmt
-	searchFactsStmt             *sql.Stmt
-	searchProceduresStmt        *sql.Stmt
-	updateAgencyStatusStmt      *sql.Stmt
-	updateFactConfidenceStmt    *sql.Stmt
-	updateFileStmt              *sql.Stmt
-	updateMessageStmt           *sql.Stmt
-	updateProcedureStatsStmt    *sql.Stmt
-	updateSessionStmt           *sql.Stmt
-	updateTaskProgressStmt      *sql.Stmt
-	updateTaskStatusStmt        *sql.Stmt
+	db                            DBTX
+	tx                            *sql.Tx
+	addTaskDependencyStmt         *sql.Stmt
+	cancelTaskStmt                *sql.Stmt
+	countEpisodesByOutcomeStmt    *sql.Stmt
+	countTasksByStatusStmt        *sql.Stmt
+	createAgencyStmt              *sql.Stmt
+	createEpisodeStmt             *sql.Stmt
+	createFactStmt                *sql.Stmt
+	createFileStmt                *sql.Stmt
+	createMessageStmt             *sql.Stmt
+	createProcedureStmt           *sql.Stmt
+	createSessionStmt             *sql.Stmt
+	createTaskStmt                *sql.Stmt
+	createTaskEventStmt           *sql.Stmt
+	deleteAgencyStmt              *sql.Stmt
+	deleteEpisodeStmt             *sql.Stmt
+	deleteExpiredContextsStmt     *sql.Stmt
+	deleteFactStmt                *sql.Stmt
+	deleteFileStmt                *sql.Stmt
+	deleteMessageStmt             *sql.Stmt
+	deleteOldEpisodesStmt         *sql.Stmt
+	deleteProcedureStmt           *sql.Stmt
+	deleteSessionStmt             *sql.Stmt
+	deleteSessionFilesStmt        *sql.Stmt
+	deleteSessionMessagesStmt     *sql.Stmt
+	deleteTaskStmt                *sql.Stmt
+	deleteWorkingContextStmt      *sql.Stmt
+	getAgencyByIDStmt             *sql.Stmt
+	getAgencyByNameStmt           *sql.Stmt
+	getDependentTasksStmt         *sql.Stmt
+	getEpisodeByIDStmt            *sql.Stmt
+	getFactByIDStmt               *sql.Stmt
+	getFileStmt                   *sql.Stmt
+	getFileByPathAndSessionStmt   *sql.Stmt
+	getMessageStmt                *sql.Stmt
+	getProcedureByIDStmt          *sql.Stmt
+	getProcedureByNameStmt        *sql.Stmt
+	getRecentTaskEventsStmt       *sql.Stmt
+	getSessionByIDStmt            *sql.Stmt
+	getTaskByIDStmt               *sql.Stmt
+	getTaskDependenciesStmt       *sql.Stmt
+	getTaskEventsStmt             *sql.Stmt
+	getWorkingContextStmt         *sql.Stmt
+	incrementFactUsageStmt        *sql.Stmt
+	listAgenciesStmt              *sql.Stmt
+	listAgenciesByStatusStmt      *sql.Stmt
+	listEpisodesStmt              *sql.Stmt
+	listEpisodesByAgencyStmt      *sql.Stmt
+	listEpisodesBySessionStmt     *sql.Stmt
+	listFactsByCategoryStmt       *sql.Stmt
+	listFactsByDomainStmt         *sql.Stmt
+	listFilesByPathStmt           *sql.Stmt
+	listFilesBySessionStmt        *sql.Stmt
+	listLatestSessionFilesStmt    *sql.Stmt
+	listMessagesBySessionStmt     *sql.Stmt
+	listNewFilesStmt              *sql.Stmt
+	listPendingTasksStmt          *sql.Stmt
+	listProceduresStmt            *sql.Stmt
+	listProceduresByTriggerStmt   *sql.Stmt
+	listSessionsStmt              *sql.Stmt
+	listTasksStmt                 *sql.Stmt
+	listTasksByAgencyStmt         *sql.Stmt
+	listTasksByStatusStmt         *sql.Stmt
+	removeTaskDependencyStmt      *sql.Stmt
+	saveWorkingContextStmt        *sql.Stmt
+	searchEpisodesStmt            *sql.Stmt
+	searchEpisodesByAgentStmt     *sql.Stmt
+	searchEpisodesByTimeRangeStmt *sql.Stmt
+	searchEpisodesFullStmt        *sql.Stmt
+	searchFactsStmt               *sql.Stmt
+	searchProceduresStmt          *sql.Stmt
+	updateAgencyStatusStmt        *sql.Stmt
+	updateFactConfidenceStmt      *sql.Stmt
+	updateFileStmt                *sql.Stmt
+	updateMessageStmt             *sql.Stmt
+	updateProcedureStatsStmt      *sql.Stmt
+	updateSessionStmt             *sql.Stmt
+	updateTaskProgressStmt        *sql.Stmt
+	updateTaskStatusStmt          *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db:                          tx,
-		tx:                          tx,
-		addTaskDependencyStmt:       q.addTaskDependencyStmt,
-		cancelTaskStmt:              q.cancelTaskStmt,
-		createAgencyStmt:            q.createAgencyStmt,
-		createEpisodeStmt:           q.createEpisodeStmt,
-		createFactStmt:              q.createFactStmt,
-		createFileStmt:              q.createFileStmt,
-		createMessageStmt:           q.createMessageStmt,
-		createProcedureStmt:         q.createProcedureStmt,
-		createSessionStmt:           q.createSessionStmt,
-		createTaskStmt:              q.createTaskStmt,
-		createTaskEventStmt:         q.createTaskEventStmt,
-		deleteAgencyStmt:            q.deleteAgencyStmt,
-		deleteEpisodeStmt:           q.deleteEpisodeStmt,
-		deleteFactStmt:              q.deleteFactStmt,
-		deleteFileStmt:              q.deleteFileStmt,
-		deleteMessageStmt:           q.deleteMessageStmt,
-		deleteOldEpisodesStmt:       q.deleteOldEpisodesStmt,
-		deleteProcedureStmt:         q.deleteProcedureStmt,
-		deleteSessionStmt:           q.deleteSessionStmt,
-		deleteSessionFilesStmt:      q.deleteSessionFilesStmt,
-		deleteSessionMessagesStmt:   q.deleteSessionMessagesStmt,
-		deleteTaskStmt:              q.deleteTaskStmt,
-		getAgencyByIDStmt:           q.getAgencyByIDStmt,
-		getAgencyByNameStmt:         q.getAgencyByNameStmt,
-		getDependentTasksStmt:       q.getDependentTasksStmt,
-		getEpisodeByIDStmt:          q.getEpisodeByIDStmt,
-		getFactByIDStmt:             q.getFactByIDStmt,
-		getFileStmt:                 q.getFileStmt,
-		getFileByPathAndSessionStmt: q.getFileByPathAndSessionStmt,
-		getMessageStmt:              q.getMessageStmt,
-		getProcedureByIDStmt:        q.getProcedureByIDStmt,
-		getProcedureByNameStmt:      q.getProcedureByNameStmt,
-		getRecentTaskEventsStmt:     q.getRecentTaskEventsStmt,
-		getSessionByIDStmt:          q.getSessionByIDStmt,
-		getTaskByIDStmt:             q.getTaskByIDStmt,
-		getTaskDependenciesStmt:     q.getTaskDependenciesStmt,
-		getTaskEventsStmt:           q.getTaskEventsStmt,
-		incrementFactUsageStmt:      q.incrementFactUsageStmt,
-		listAgenciesStmt:            q.listAgenciesStmt,
-		listAgenciesByStatusStmt:    q.listAgenciesByStatusStmt,
-		listEpisodesStmt:            q.listEpisodesStmt,
-		listEpisodesByAgencyStmt:    q.listEpisodesByAgencyStmt,
-		listEpisodesBySessionStmt:   q.listEpisodesBySessionStmt,
-		listFactsByCategoryStmt:     q.listFactsByCategoryStmt,
-		listFactsByDomainStmt:       q.listFactsByDomainStmt,
-		listFilesByPathStmt:         q.listFilesByPathStmt,
-		listFilesBySessionStmt:      q.listFilesBySessionStmt,
-		listLatestSessionFilesStmt:  q.listLatestSessionFilesStmt,
-		listMessagesBySessionStmt:   q.listMessagesBySessionStmt,
-		listNewFilesStmt:            q.listNewFilesStmt,
-		listProceduresStmt:          q.listProceduresStmt,
-		listProceduresByTriggerStmt: q.listProceduresByTriggerStmt,
-		listSessionsStmt:            q.listSessionsStmt,
-		listTasksStmt:               q.listTasksStmt,
-		listTasksByAgencyStmt:       q.listTasksByAgencyStmt,
-		listTasksByStatusStmt:       q.listTasksByStatusStmt,
-		removeTaskDependencyStmt:    q.removeTaskDependencyStmt,
-		searchEpisodesStmt:          q.searchEpisodesStmt,
-		searchFactsStmt:             q.searchFactsStmt,
-		searchProceduresStmt:        q.searchProceduresStmt,
-		updateAgencyStatusStmt:      q.updateAgencyStatusStmt,
-		updateFactConfidenceStmt:    q.updateFactConfidenceStmt,
-		updateFileStmt:              q.updateFileStmt,
-		updateMessageStmt:           q.updateMessageStmt,
-		updateProcedureStatsStmt:    q.updateProcedureStatsStmt,
-		updateSessionStmt:           q.updateSessionStmt,
-		updateTaskProgressStmt:      q.updateTaskProgressStmt,
-		updateTaskStatusStmt:        q.updateTaskStatusStmt,
+		db:                            tx,
+		tx:                            tx,
+		addTaskDependencyStmt:         q.addTaskDependencyStmt,
+		cancelTaskStmt:                q.cancelTaskStmt,
+		countEpisodesByOutcomeStmt:    q.countEpisodesByOutcomeStmt,
+		countTasksByStatusStmt:        q.countTasksByStatusStmt,
+		createAgencyStmt:              q.createAgencyStmt,
+		createEpisodeStmt:             q.createEpisodeStmt,
+		createFactStmt:                q.createFactStmt,
+		createFileStmt:                q.createFileStmt,
+		createMessageStmt:             q.createMessageStmt,
+		createProcedureStmt:           q.createProcedureStmt,
+		createSessionStmt:             q.createSessionStmt,
+		createTaskStmt:                q.createTaskStmt,
+		createTaskEventStmt:           q.createTaskEventStmt,
+		deleteAgencyStmt:              q.deleteAgencyStmt,
+		deleteEpisodeStmt:             q.deleteEpisodeStmt,
+		deleteExpiredContextsStmt:     q.deleteExpiredContextsStmt,
+		deleteFactStmt:                q.deleteFactStmt,
+		deleteFileStmt:                q.deleteFileStmt,
+		deleteMessageStmt:             q.deleteMessageStmt,
+		deleteOldEpisodesStmt:         q.deleteOldEpisodesStmt,
+		deleteProcedureStmt:           q.deleteProcedureStmt,
+		deleteSessionStmt:             q.deleteSessionStmt,
+		deleteSessionFilesStmt:        q.deleteSessionFilesStmt,
+		deleteSessionMessagesStmt:     q.deleteSessionMessagesStmt,
+		deleteTaskStmt:                q.deleteTaskStmt,
+		deleteWorkingContextStmt:      q.deleteWorkingContextStmt,
+		getAgencyByIDStmt:             q.getAgencyByIDStmt,
+		getAgencyByNameStmt:           q.getAgencyByNameStmt,
+		getDependentTasksStmt:         q.getDependentTasksStmt,
+		getEpisodeByIDStmt:            q.getEpisodeByIDStmt,
+		getFactByIDStmt:               q.getFactByIDStmt,
+		getFileStmt:                   q.getFileStmt,
+		getFileByPathAndSessionStmt:   q.getFileByPathAndSessionStmt,
+		getMessageStmt:                q.getMessageStmt,
+		getProcedureByIDStmt:          q.getProcedureByIDStmt,
+		getProcedureByNameStmt:        q.getProcedureByNameStmt,
+		getRecentTaskEventsStmt:       q.getRecentTaskEventsStmt,
+		getSessionByIDStmt:            q.getSessionByIDStmt,
+		getTaskByIDStmt:               q.getTaskByIDStmt,
+		getTaskDependenciesStmt:       q.getTaskDependenciesStmt,
+		getTaskEventsStmt:             q.getTaskEventsStmt,
+		getWorkingContextStmt:         q.getWorkingContextStmt,
+		incrementFactUsageStmt:        q.incrementFactUsageStmt,
+		listAgenciesStmt:              q.listAgenciesStmt,
+		listAgenciesByStatusStmt:      q.listAgenciesByStatusStmt,
+		listEpisodesStmt:              q.listEpisodesStmt,
+		listEpisodesByAgencyStmt:      q.listEpisodesByAgencyStmt,
+		listEpisodesBySessionStmt:     q.listEpisodesBySessionStmt,
+		listFactsByCategoryStmt:       q.listFactsByCategoryStmt,
+		listFactsByDomainStmt:         q.listFactsByDomainStmt,
+		listFilesByPathStmt:           q.listFilesByPathStmt,
+		listFilesBySessionStmt:        q.listFilesBySessionStmt,
+		listLatestSessionFilesStmt:    q.listLatestSessionFilesStmt,
+		listMessagesBySessionStmt:     q.listMessagesBySessionStmt,
+		listNewFilesStmt:              q.listNewFilesStmt,
+		listPendingTasksStmt:          q.listPendingTasksStmt,
+		listProceduresStmt:            q.listProceduresStmt,
+		listProceduresByTriggerStmt:   q.listProceduresByTriggerStmt,
+		listSessionsStmt:              q.listSessionsStmt,
+		listTasksStmt:                 q.listTasksStmt,
+		listTasksByAgencyStmt:         q.listTasksByAgencyStmt,
+		listTasksByStatusStmt:         q.listTasksByStatusStmt,
+		removeTaskDependencyStmt:      q.removeTaskDependencyStmt,
+		saveWorkingContextStmt:        q.saveWorkingContextStmt,
+		searchEpisodesStmt:            q.searchEpisodesStmt,
+		searchEpisodesByAgentStmt:     q.searchEpisodesByAgentStmt,
+		searchEpisodesByTimeRangeStmt: q.searchEpisodesByTimeRangeStmt,
+		searchEpisodesFullStmt:        q.searchEpisodesFullStmt,
+		searchFactsStmt:               q.searchFactsStmt,
+		searchProceduresStmt:          q.searchProceduresStmt,
+		updateAgencyStatusStmt:        q.updateAgencyStatusStmt,
+		updateFactConfidenceStmt:      q.updateFactConfidenceStmt,
+		updateFileStmt:                q.updateFileStmt,
+		updateMessageStmt:             q.updateMessageStmt,
+		updateProcedureStatsStmt:      q.updateProcedureStatsStmt,
+		updateSessionStmt:             q.updateSessionStmt,
+		updateTaskProgressStmt:        q.updateTaskProgressStmt,
+		updateTaskStatusStmt:          q.updateTaskStatusStmt,
 	}
 }

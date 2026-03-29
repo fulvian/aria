@@ -85,6 +85,10 @@ func (m *mockDB) CountTasksByStatus(ctx context.Context, status string) (int64, 
 	return count, nil
 }
 
+func (m *mockDB) CountEpisodesByOutcome(ctx context.Context, arg db.CountEpisodesByOutcomeParams) (db.CountEpisodesByOutcomeRow, error) {
+	return db.CountEpisodesByOutcomeRow{}, nil
+}
+
 func (m *mockDB) GetTaskDependencies(ctx context.Context, taskID string) ([]db.Task, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -279,6 +283,15 @@ func (m *mockDB) RemoveTaskDependency(ctx context.Context, arg db.RemoveTaskDepe
 	return nil
 }
 func (m *mockDB) SearchEpisodes(ctx context.Context, arg db.SearchEpisodesParams) ([]db.Episode, error) {
+	return nil, nil
+}
+func (m *mockDB) SearchEpisodesByAgent(ctx context.Context, arg db.SearchEpisodesByAgentParams) ([]db.Episode, error) {
+	return nil, nil
+}
+func (m *mockDB) SearchEpisodesByTimeRange(ctx context.Context, arg db.SearchEpisodesByTimeRangeParams) ([]db.Episode, error) {
+	return nil, nil
+}
+func (m *mockDB) SearchEpisodesFull(ctx context.Context, arg db.SearchEpisodesFullParams) ([]db.Episode, error) {
 	return nil, nil
 }
 func (m *mockDB) SearchFacts(ctx context.Context, arg db.SearchFactsParams) ([]db.Fact, error) {

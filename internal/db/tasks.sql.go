@@ -38,6 +38,19 @@ func (q *Queries) CancelTask(ctx context.Context, id string) error {
 	return err
 }
 
+const countTasksByStatus = `-- name: CountTasksByStatus :one
+SELECT COUNT(*)
+FROM tasks
+WHERE status = ?
+`
+
+func (q *Queries) CountTasksByStatus(ctx context.Context, status string) (int64, error) {
+	row := q.queryRow(ctx, q.countTasksByStatusStmt, countTasksByStatus, status)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createTask = `-- name: CreateTask :one
 INSERT INTO tasks (
     id,
@@ -231,6 +244,64 @@ WHERE td.task_id = ?
 
 func (q *Queries) GetTaskDependencies(ctx context.Context, taskID string) ([]Task, error) {
 	rows, err := q.query(ctx, q.getTaskDependenciesStmt, getTaskDependencies, taskID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Task{}
+	for rows.Next() {
+		var i Task
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.Type,
+			&i.Priority,
+			&i.ScheduledAt,
+			&i.Deadline,
+			&i.ScheduleExpr,
+			&i.Agency,
+			&i.Agent,
+			&i.Skills,
+			&i.Parameters,
+			&i.Status,
+			&i.Progress,
+			&i.CreatedAt,
+			&i.StartedAt,
+			&i.CompletedAt,
+			&i.Result,
+			&i.Error,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPendingTasks = `-- name: ListPendingTasks :many
+SELECT id, name, description, type, priority, scheduled_at, deadline, schedule_expr, agency, agent, skills, parameters, status, progress, created_at, started_at, completed_at, result, error
+FROM tasks
+WHERE status IN (?, ?)
+  AND (scheduled_at IS NULL OR scheduled_at <= ?)
+ORDER BY priority DESC, created_at ASC
+LIMIT 100
+`
+
+type ListPendingTasksParams struct {
+	Status      string        `json:"status"`
+	Status_2    string        `json:"status_2"`
+	ScheduledAt sql.NullInt64 `json:"scheduled_at"`
+}
+
+func (q *Queries) ListPendingTasks(ctx context.Context, arg ListPendingTasksParams) ([]Task, error) {
+	rows, err := q.query(ctx, q.listPendingTasksStmt, listPendingTasks, arg.Status, arg.Status_2, arg.ScheduledAt)
 	if err != nil {
 		return nil, err
 	}

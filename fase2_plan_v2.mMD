@@ -1,0 +1,174 @@
+# ARIA FASE 2: Memory & Learning — Piano v2 (Allineato e YAGNI)
+
+## 1) Esito Analisi del piano precedente
+
+### Allineamento con BLUEPRINT.md
+- ✅ Coerente con **Parte III (Memory Service)** e **Parte VI (Self-Analysis)**.
+- ✅ Coerente con roadmap **8.4 FASE 2**: Memory service, storage backend, learning loop, self-analysis.
+- ⚠️ Da ridurre: alcune parti anticipano troppo FASE 3 (scheduler dedicato) e introducono complessità non necessaria per MVP.
+
+### Allineamento con codebase attuale
+- ✅ Esistono già schema e query DB per `episodes`, `facts`, `procedures` (sqlc pronto).
+- ✅ Esistono interfacce e tipi in `internal/aria/memory/memory.go` e `internal/aria/analysis/self_analysis.go`.
+- ✅ Esistono `tasks`/`task_events` query utili per metriche.
+- ⚠️ Non esiste ancora implementazione concreta MemoryService/SelfAnalysisService.
+
+### Over-engineering da evitare
+1. **sqlite-vec subito**: utile ma non bloccante per MVP.
+2. **Troppe nuove unità** (`patterns.go`, `procedures.go`, `analysis/scheduler.go`) nella prima iterazione.
+3. **Auto-generation aggressiva di procedure** senza validazione minima.
+4. **Dipendenza da scheduler service** in FASE 2: usare prima chiamate on-demand + job semplice.
+
+---
+
+## 2) Obiettivo FASE 2 (versione pragmatica)
+
+Implementare un **MVP robusto** che consegni subito i 4 deliverable blueprint:
+1. Memory service completo
+2. Storage backend funzionante (riuso DB/sqlc già presente)
+3. Learning loop base
+4. Self-analysis reports
+
+Senza introdurre dipendenze opzionali finché non servono.
+
+---
+
+## 3) Piano v2 per incrementi (phase gates)
+
+## Fase A — MemoryService MVP (core)
+**Target**: `internal/aria/memory/service.go`
+
+Implementare in un unico servizio concreto:
+- Working memory: `GetContext`, `SetContext` (in-memory `sync.Map`)
+- Episodic memory: `RecordEpisode`, `SearchEpisodes`, `GetSimilarEpisodes`
+- Semantic memory: `StoreFact`, `GetFacts`, `QueryKnowledge`
+- Procedural memory: `SaveProcedure`, `GetProcedure`, `FindApplicableProcedures`
+- Learning hooks minimi: `LearnFromSuccess`, `LearnFromFailure`
+- Metrics base: `GetPerformanceMetrics`, `GenerateInsights`
+
+### Regole MVP
+- `GetSimilarEpisodes`: **fallback keyword-based** su `SearchEpisodes` (no vector DB in A).
+- `FindApplicableProcedures`: matching semplice su `trigger_type` + `trigger_pattern` (contains/prefix).
+- Nessuna automazione complessa: solo registrazione eventi e statistiche base.
+
+**Deliverable Gate A**
+- Build verde
+- Metodi interfaccia implementati
+- Test unitari base memory
+
+---
+
+## Fase B — Learning loop base (senza overfit)
+**Target**: inizialmente nello stesso `service.go` (o `learning.go` solo se il file cresce troppo)
+
+Implementare solo:
+- `LearnFromSuccess`: aggiorna metriche minime + `use_count/success_rate` procedure correlate.
+- `LearnFromFailure`: registra episodio/fact di failure con reason sintetica.
+- Nessuna auto-creazione sofisticata di nuove procedure in MVP.
+
+**Principio**: prima raccolta dati affidabile, poi euristiche avanzate.
+
+**Deliverable Gate B**
+- Test su aggiornamento statistiche
+- Nessuna regressione su CRUD memory
+
+---
+
+## Fase C — Self-Analysis MVP
+**Target**: `internal/aria/analysis/service.go`
+
+Implementare:
+- `AnalyzePerformance`: metriche aggregate da `tasks` + memory
+- `AnalyzeFailures`: top failure reasons da `task_events`/episodes
+- `AnalyzePatterns`: pattern semplici (task frequenti, skill più usate)
+- `GenerateImprovements`: max 3 suggerimenti rule-based
+- `RunPeriodicAnalysis`: inizialmente esecuzione manuale + timer semplice (no scheduler avanzato)
+- `ApplyInsights`: applicazione solo per insight non distruttivi
+
+**No FASE 3 bleed**
+- Non introdurre dipendenza forte da `scheduler` runtime complesso.
+- Un ticker semplice o trigger on-demand è sufficiente in FASE 2.
+
+**Deliverable Gate C**
+- Report performance/failures/patterns generabili
+- Test unitari analysis
+
+---
+
+## Fase D — Hardening + test integrazione
+
+- Test integrazione DB (episodic/facts/procedures)
+- Verifica concorrenza su working memory
+- Verifica compatibilità backward
+- Validazione output report (shape e campi)
+
+**Deliverable Gate D (chiusura FASE 2)**
+- `go build` ✅
+- test memory + analysis ✅
+- deliverable blueprint 8.4.2 marcabili come completati
+
+---
+
+## 4) Scope: In / Out
+
+### In scope (FASE 2)
+- Implementazioni concrete dei servizi memory e analysis
+- Learning loop base (registrazione + aggiornamento statistiche)
+- Insight generation rule-based
+
+### Out scope (rimandato)
+- sqlite-vec e embedding reali (stretch task fine fase)
+- Procedure auto-generate avanzate con pipeline multi-step
+- Scheduler avanzato cron/dependency-aware (FASE 3)
+
+---
+
+## 5) Struttura file consigliata (minimal)
+
+### Creazioni minime
+- `internal/aria/memory/service.go`
+- `internal/aria/analysis/service.go`
+
+### Creazioni opzionali (solo se necessarie)
+- `internal/aria/memory/learning.go` (se `service.go` supera soglia leggibilità)
+- `internal/aria/analysis/metrics.go`
+
+### Da evitare subito
+- `analysis/scheduler.go` dedicato
+- `memory/embedder.go` con dipendenze nuove, salvo stretch finale
+
+---
+
+## 6) Acceptance Criteria (pratici)
+
+1. **Memory API completa**: tutti i metodi `MemoryService` implementati e testati.
+2. **Data persistence**: episodes/facts/procedures effettivamente scritti e letti via sqlc.
+3. **Learning base attivo**: success/failure aggiornano stato conoscenza.
+4. **Self-analysis reports**: output consistente per performance/pattern/failures.
+5. **No regressioni**: build+vet+test verdi.
+
+---
+
+## 7) Stima rivista (anti-overengineering)
+
+- Fase A: 10-14h
+- Fase B: 4-6h
+- Fase C: 8-10h
+- Fase D: 6-8h
+
+**Totale v2:** 28-38h (vs 40-54h del piano precedente)
+
+---
+
+## 8) Stretch Goal (solo dopo Gate D)
+
+Se resta tempo:
+- Prototipo `Embedder` + keyword/vec hybrid retrieval dietro feature flag.
+
+---
+
+## 9) Decisione operativa raccomandata
+
+- Procedere con **Piano v2**.
+- Adottare policy: "prima dati affidabili e report utili, poi ML/embedding avanzati".
+- Mantenere FASE 2 indipendente da complessità di FASE 3.

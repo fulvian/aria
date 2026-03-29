@@ -141,6 +141,15 @@ type SchedulerConfig struct {
 
 	// DefaultPriority is the default priority for scheduled tasks.
 	DefaultPriority int `json:"defaultPriority,omitempty"`
+
+	// DispatchIntervalMs is the interval for the dispatcher in milliseconds.
+	DispatchIntervalMs int `json:"dispatchIntervalMs,omitempty"`
+
+	// RecurringLookaheadMinutes is the look-ahead time for recurring tasks in minutes.
+	RecurringLookaheadMinutes int `json:"recurringLookaheadMinutes,omitempty"`
+
+	// RecoveryPolicy defines what to do with tasks that were running when the app crashed.
+	RecoveryPolicy string `json:"recoveryPolicy,omitempty"`
 }
 
 // GuardrailsConfig defines guardrail behavior.
@@ -313,21 +322,6 @@ func setDefaults(debug bool) {
 	viper.SetDefault("contextPaths", defaultContextPaths)
 	viper.SetDefault("tui.theme", "opencode")
 	viper.SetDefault("autoCompact", true)
-
-	// ARIA defaults - enabled by default for new installations
-	viper.SetDefault("aria.enabled", true)
-	viper.SetDefault("aria.routing.defaultAgency", "development")
-	viper.SetDefault("aria.routing.confidenceThreshold", 0.7)
-	viper.SetDefault("aria.routing.enableFallback", true)
-	viper.SetDefault("aria.agencies.development.enabled", true)
-	viper.SetDefault("aria.agencies.development.coderBridge", true)
-	viper.SetDefault("aria.skills.codeReview", true)
-	viper.SetDefault("aria.skills.tdd", true)
-	viper.SetDefault("aria.skills.debugging", true)
-	viper.SetDefault("aria.scheduler.maxConcurrentTasks", 3)
-	viper.SetDefault("aria.scheduler.defaultPriority", 50)
-	viper.SetDefault("aria.guardrails.allowProactive", false)
-	viper.SetDefault("aria.guardrails.maxDailyActions", 10)
 
 	// Set default shell from environment or fallback to /bin/bash
 	shellPath := os.Getenv("SHELL")

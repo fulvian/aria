@@ -30,6 +30,7 @@ type Message struct {
 // EpisodeQuery represents a query for episodic memory search.
 type EpisodeQuery struct {
 	SessionID string
+	AgencyID  string
 	AgentID   string
 	TaskType  string
 	TimeRange *TimeRange

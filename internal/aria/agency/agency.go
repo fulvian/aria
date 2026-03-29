@@ -6,7 +6,36 @@ package agency
 
 import (
 	"context"
+	"time"
 )
+
+// AgencyStatus represents the current status of an agency.
+type AgencyStatus string
+
+// Agency status constants.
+const (
+	AgencyStatusStopped AgencyStatus = "stopped"
+	AgencyStatusRunning AgencyStatus = "running"
+	AgencyStatusPaused  AgencyStatus = "paused"
+)
+
+// AgencyLifecycle defines lifecycle management for an agency.
+type AgencyLifecycle interface {
+	// Start starts the agency.
+	Start(ctx context.Context) error
+
+	// Stop stops the agency.
+	Stop(ctx context.Context) error
+
+	// Pause pauses the agency.
+	Pause(ctx context.Context) error
+
+	// Resume resumes the agency.
+	Resume(ctx context.Context) error
+
+	// Status returns the current agency status.
+	Status() AgencyStatus
+}
 
 // AgencyName identifies a specific agency.
 type AgencyName string
@@ -23,10 +52,11 @@ const (
 
 // AgencyEvent represents events emitted by an agency.
 type AgencyEvent struct {
-	AgencyID AgencyName
-	Type     string
-	Payload  map[string]any
-	AgentID  string
+	AgencyID  AgencyName
+	Type      string
+	Payload   map[string]any
+	AgentID   string
+	Timestamp time.Time
 }
 
 // AgencyState represents the persistent state of an agency.
@@ -75,6 +105,9 @@ type DomainMemory interface {
 //
 // Reference: Blueprint Section 2.2.2
 type Agency interface {
+	// Lifecycle management
+	AgencyLifecycle
+
 	// Subscribe returns a channel for receiving agency events.
 	Subscribe(ctx context.Context) <-chan AgencyEvent
 

@@ -98,23 +98,3 @@ type EnhancedAgent interface {
 	// State
 	GetState() AgentState
 }
-
-// LegacyAgentWrapper wraps an existing internal/llm/agent.Agent
-// to conform to the EnhancedAgent interface.
-type LegacyAgentWrapper struct {
-	// agent is the wrapped legacy agent
-	agent any // TODO: internal/llm/agent.Agent
-	// agencyName is the agency this agent belongs to
-	agencyName agency.AgencyName
-	// skills are the skills available to this agent
-	skills []skill.Skill
-}
-
-// NewLegacyAgentWrapper creates a wrapper around a legacy agent.
-func NewLegacyAgentWrapper(agent any, agencyName agency.AgencyName, skills []skill.Skill) *LegacyAgentWrapper {
-	return &LegacyAgentWrapper{
-		agent:      agent,
-		agencyName: agencyName,
-		skills:     skills,
-	}
-}

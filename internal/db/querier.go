@@ -12,6 +12,7 @@ import (
 type Querier interface {
 	AddTaskDependency(ctx context.Context, arg AddTaskDependencyParams) error
 	CancelTask(ctx context.Context, id string) error
+	CountEpisodesByOutcome(ctx context.Context, arg CountEpisodesByOutcomeParams) (CountEpisodesByOutcomeRow, error)
 	CountTasksByStatus(ctx context.Context, status string) (int64, error)
 	CreateAgency(ctx context.Context, arg CreateAgencyParams) (Agency, error)
 	CreateEpisode(ctx context.Context, arg CreateEpisodeParams) (Episode, error)
@@ -74,6 +75,10 @@ type Querier interface {
 	RemoveTaskDependency(ctx context.Context, arg RemoveTaskDependencyParams) error
 	SaveWorkingContext(ctx context.Context, arg SaveWorkingContextParams) (WorkingMemoryContext, error)
 	SearchEpisodes(ctx context.Context, arg SearchEpisodesParams) ([]Episode, error)
+	SearchEpisodesByAgent(ctx context.Context, arg SearchEpisodesByAgentParams) ([]Episode, error)
+	SearchEpisodesByTimeRange(ctx context.Context, arg SearchEpisodesByTimeRangeParams) ([]Episode, error)
+	// Advanced episode search with all filters
+	SearchEpisodesFull(ctx context.Context, arg SearchEpisodesFullParams) ([]Episode, error)
 	SearchFacts(ctx context.Context, arg SearchFactsParams) ([]Fact, error)
 	SearchProcedures(ctx context.Context, arg SearchProceduresParams) ([]Procedure, error)
 	UpdateAgencyStatus(ctx context.Context, arg UpdateAgencyStatusParams) error
