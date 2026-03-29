@@ -22,6 +22,7 @@ type ARIAComponents struct {
 	SkillRegistry     *skill.DefaultSkillRegistry
 	DevelopmentAgency *agency.DevelopmentAgency
 	WeatherAgency     *agency.WeatherAgency
+	AgencyService     *agency.AgencyService
 
 	// Scheduler components
 	SchedulerService *scheduler.SchedulerService
@@ -86,13 +87,23 @@ func (app *App) initARIA(ctx context.Context) error {
 		ConfidenceThreshold: ariaCfg.Routing.ConfidenceThreshold,
 	}, memorySvc, analysisSvc)
 
-	// Register development agency with orchestrator
+	// Initialize agency service for persistence
+	agencyService := agency.NewAgencyService(app.DB)
+	logging.Info("Initialized agency service")
+
+	// Register development agency with orchestrator and persist
 	orchestrator.RegisterAgency(devAgency)
+	if err := agencyService.RegisterAgency(ctx, devAgency); err != nil {
+		logging.Warn("Failed to persist development agency", "error", err)
+	}
 	logging.Info("Registered development agency with orchestrator")
 
-	// Register weather agency with orchestrator if available
+	// Register weather agency with orchestrator and persist if available
 	if weatherAgency != nil {
 		orchestrator.RegisterAgency(weatherAgency)
+		if err := agencyService.RegisterAgency(ctx, weatherAgency); err != nil {
+			logging.Warn("Failed to persist weather agency", "error", err)
+		}
 		logging.Info("Registered weather agency with orchestrator")
 	}
 
@@ -160,6 +171,7 @@ func (app *App) initARIA(ctx context.Context) error {
 		SkillRegistry:     registry,
 		DevelopmentAgency: devAgency,
 		WeatherAgency:     weatherAgency,
+		AgencyService:     agencyService,
 		SchedulerService:  schedulerSvc,
 		Dispatcher:        dispatcher,
 		Worker:            worker,
