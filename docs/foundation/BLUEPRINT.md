@@ -1,9 +1,9 @@
 # ARIA: Autonomous Reasoning & Intelligent Assistant
 ## Foundation Blueprint Document
 
-> **Version**: 1.10.0-DRAFT  
+> **Version**: 1.11.0-DRAFT  
 > **Date**: 2026-03-29  
-> **Status**: IN_PROGRESS (FASE 0-4 COMPLETE, FASE 5 IN PROGRESS ~5%)  
+> **Status**: IN_PROGRESS (FASE 0-4 COMPLETE, FASE 5 IN PROGRESS ~15%)  
 > **Base Project**: ARIA CLI (Isola Autonoma rispetto a OpenCode/KiloCode)  
 
 ---
@@ -1020,9 +1020,10 @@ agents:
 │                             - Auto-approve rules ✓               │
 │                             ⚠️ Suggestion engine DEFERRED        │
 │                                                                  │
-│  FASE 5: AGENCIES           ███░░░░░░░░░░░░░░░░░░░░░░░  (10%)   │
+│  FASE 5: AGENCIES           █████░░░░░░░░░░░░░░░░░░░░░░  (15%)   │
 │  [Mese 8-12]                Weather Agency POC ✓                │
 │                             AgencyService persistence ✓          │
+│                             Development Agency agents ✓ (typed) │
 │                             - Weather Agency ✓ (POC)            │
 │                             - Knowledge Agency (planning)        │
 │                             - Creative Agency (planning)        │
@@ -1265,7 +1266,7 @@ agents:
 
 **Durata**: 8-12 settimane  
 **Obiettivo**: Implementare agencies specializzate
-**Stato**: IN PROGRESS (~10%) - Weather Agency POC complete
+**Stato**: IN PROGRESS (~15%) - Weather Agency POC complete, Development Agency agents fully typed
 
 #### Implementation Order
 
@@ -1559,7 +1560,8 @@ internal/aria/
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 1.9.0-DRAFT | 2026-03-29 | **FASE 2 COMPLETE (100%)** - E2E test added (`TestE2E_MemoryLearningFlow`). **Isola di ARIA Documented**: Added Section 9.2 documenting the architectural concept of ARIA as an autonomous island within the OpenCode/KiloCode ecosystem. Key aspects: (1) Complete code namespace isolation in `internal/aria/*`, (2) Independent config via `ARIA_*` env vars, (3) Shared infrastructure (LLM providers, tools, TUI, DB engine), (4) Database schema isolation per dominio. **Roadmap Updated**: FASE 0-4 COMPLETE, FASE 5 NOT STARTED. **Next**: Proceed to FASE 5 agencies (Knowledge, Creative, Productivity, Personal, Analytics). |
+| 1.11.0-DRAFT | 2026-03-29 | **P0-1 INTERFACE CONTRACT DRIFT RESOLVED** - Phase 1-6 COMPLETE: (1) Created `internal/aria/contracts/` package with shared types (AgencyName, AgentName, Task, Result, etc.) breaking import cycle between agency and agent packages, (2) Canonicalized `Agent` interface (renamed from `EnhancedAgent`, added `EnhancedAgent = Agent` alias for backward compatibility), (3) Updated `Agency.Agents()` to return `[]contracts.AgentName` and `Agency.GetAgent()` to accept `contracts.AgentName`, (4) Completed `ReviewerAgent`, `ArchitectAgent`, and `CoderBridge` with full `Agent` interface implementation including event brokers, state management, and skill support, (5) Updated all call sites across core, analysis, and app packages to use `contracts.AgencyName`, (6) All verification gates pass (`go build`, `go vet`, `go test`, `go test -race`). **FASE 5 progress**: Development Agency agents now fully typed. **Roadmap Updated**: FASE 0-4 COMPLETE, FASE 5 ~15%. **Next**: Weather Agency completion, Knowledge/Creative/Productivity agencies. |
+| 1.10.0-DRAFT | 2026-03-29 | **FASE 5 STARTED**: Weather Agency POC complete with direct OpenWeatherMap API integration. AgencyService with full CRUD and state persistence. Load/SaveAgencyState for full state persistence with agency_states table. PersistableAgencyRegistry for auto-persist on changes. **Roadmap Updated**: FASE 0-4 COMPLETE, FASE 5 ~10%. **Next**: Complete P0-1 interface contract drift resolution, then proceed to Knowledge/Creative/Productivity agencies. |
 | 1.8.0-DRAFT | 2026-03-29 | **FASE 2 ~85% COMPLETE**: Implemented all WS1-WS8: WS1 (Integration backbone - MemoryService + AnalysisService wired to runtime), WS2 (Working memory durability - TTL, GC, context persistence), WS3 (Episodic retrieval 2.0 - full filters + ranking), WS4 (Semantic memory governance - usage tracking, dedup), WS5 (Procedural learning engine - scoring, discovery), WS6 (Self-analysis hardening - time-range, persistence), WS7 (Privacy/Retention - configurable policies), WS8 (Quality gates - tests, benchmarks). **Config separation**: Created independent `internal/aria/config` package for ARIA configuration via env vars (ARIA_* prefix). Removed ARIA defaults from main config.go. This allows opencode/kilocode and ARIA to run side-by-side without interference. **Next**: FASE 2 E2E testing, then FASE 5 agencies. |
 | 1.7.0-DRAFT | 2026-03-28 | **FASE 4 COMPLETE**: Implemented GuardrailService (internal/aria/guardrail/service.go) with CanExecute, GetActionBudget, ConsumeAction, GetUserPreferences, UpdatePreferences, LogAction, GetAuditLog. Budget tracking in-memory with window reset. Audit log in-memory with max limit. QuietHours and ActiveHours validation. AutoApproveRules for low-impact actions. Implemented ExtendedPermissionService (internal/aria/permission/service.go) with Request, Grant, Deny, Check, GetRules, AddRule, RemoveRule, GetEffectiveLevel. App integration wires both services. All tests pass. **Next**: FASE 2 completion and FASE 5 agencies. |
 | 1.6.0-DRAFT | 2026-03-28 | **FASE 3 COMPLETE**: Implemented persistent scheduling system: SchedulerService (internal/aria/scheduler/service.go) with Schedule/GetTask/ListTasks/GetProgress/Subscribe, mapper.go for DB conversions, dispatcher.go for eligibility+priority+dependencies, worker.go for pool execution, recurring.go for cron/interval parsing and instance generation, recovery.go for startup reconciliation, executor.go stub. Config extended with DispatchIntervalMs, RecoveryPolicy, RecurringLookaheadMinutes. App integration wires scheduler with dispatcher/worker/recurring planner. TUI TasksPage for task management. All tests pass. **Next**: FASE 2 completion and FASE 4 guardrails. |

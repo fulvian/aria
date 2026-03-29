@@ -261,6 +261,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.updateTaskProgressStmt, err = db.PrepareContext(ctx, updateTaskProgress); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateTaskProgress: %w", err)
 	}
+	if q.updateTaskScheduleExprStmt, err = db.PrepareContext(ctx, updateTaskScheduleExpr); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateTaskScheduleExpr: %w", err)
+	}
 	if q.updateTaskStatusStmt, err = db.PrepareContext(ctx, updateTaskStatus); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateTaskStatus: %w", err)
 	}
@@ -667,6 +670,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing updateTaskProgressStmt: %w", cerr)
 		}
 	}
+	if q.updateTaskScheduleExprStmt != nil {
+		if cerr := q.updateTaskScheduleExprStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateTaskScheduleExprStmt: %w", cerr)
+		}
+	}
 	if q.updateTaskStatusStmt != nil {
 		if cerr := q.updateTaskStatusStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateTaskStatusStmt: %w", cerr)
@@ -795,6 +803,7 @@ type Queries struct {
 	updateProcedureStatsStmt      *sql.Stmt
 	updateSessionStmt             *sql.Stmt
 	updateTaskProgressStmt        *sql.Stmt
+	updateTaskScheduleExprStmt    *sql.Stmt
 	updateTaskStatusStmt          *sql.Stmt
 	upsertAgencyStateStmt         *sql.Stmt
 }
@@ -882,6 +891,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		updateProcedureStatsStmt:      q.updateProcedureStatsStmt,
 		updateSessionStmt:             q.updateSessionStmt,
 		updateTaskProgressStmt:        q.updateTaskProgressStmt,
+		updateTaskScheduleExprStmt:    q.updateTaskScheduleExprStmt,
 		updateTaskStatusStmt:          q.updateTaskStatusStmt,
 		upsertAgencyStateStmt:         q.upsertAgencyStateStmt,
 	}

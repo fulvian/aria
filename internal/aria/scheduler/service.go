@@ -522,11 +522,44 @@ func (s *SchedulerService) UpdateSchedule(ctx context.Context, taskID TaskID, sc
 		return fmt.Errorf("%w: schedule expression is required", ErrInvalidTask)
 	}
 
-	// Note: Full schedule_expr update requires a DB migration and additional query.
-	// The current implementation validates the input but cannot persist the changes
-	// until FASE 3.4 or a follow-up migration.
-	// For now, we log the intended update.
-	logging.Info("schedule update validated",
+	// Serialize schedule to JSON
+	scheduleJSON, err := json.Marshal(schedule)
+	if err != nil {
+		return fmt.Errorf("failed to serialize schedule: %w", err)
+	}
+
+	// Update schedule in database
+	err = s.db.UpdateTaskScheduleExpr(ctx, db.UpdateTaskScheduleExprParams{
+		ScheduleExpr: string(scheduleJSON),
+		ID:           string(taskID),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update schedule: %w", err)
+	}
+
+	// Create schedule_updated event
+	event := TaskEvent{
+		TaskID:    taskID,
+		Type:      "schedule_updated",
+		Progress:  task.Progress,
+		Message:   fmt.Sprintf("Schedule updated to %s: %s", schedule.Type, schedule.Expression),
+		Timestamp: time.Now(),
+	}
+
+	// Log task event to database
+	dbEventParams, err := taskEventToDB(event)
+	if err != nil {
+		logging.Error("failed to convert task event to db params", "error", err)
+	} else {
+		if _, err := s.db.CreateTaskEvent(ctx, dbEventParams); err != nil {
+			logging.Error("failed to create task event", "error", err)
+		}
+	}
+
+	// Publish event
+	s.eventBroker.Publish(pubsub.UpdatedEvent, event)
+
+	logging.Info("schedule updated",
 		"task_id", taskID,
 		"schedule_type", schedule.Type,
 		"schedule_expr", schedule.Expression)

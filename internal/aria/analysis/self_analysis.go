@@ -8,7 +8,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/fulvian/aria/internal/aria/agency"
+	"github.com/fulvian/aria/internal/aria/contracts"
 	"github.com/fulvian/aria/internal/aria/scheduler"
 	"github.com/fulvian/aria/internal/aria/skill"
 )
@@ -26,7 +26,7 @@ type PerformanceReport struct {
 	SuccessRate   float64
 	AverageTimeMs int64
 
-	ByAgency map[agency.AgencyName]AgencyMetrics
+	ByAgency map[contracts.AgencyName]AgencyMetrics
 	ByAgent  map[string]AgentMetrics
 	BySkill  map[skill.SkillName]SkillMetrics
 

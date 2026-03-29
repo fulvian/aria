@@ -73,6 +73,11 @@ UPDATE tasks
 SET progress = ?
 WHERE id = ?;
 
+-- name: UpdateTaskScheduleExpr :exec
+UPDATE tasks
+SET schedule_expr = ?
+WHERE id = ?;
+
 -- name: CancelTask :exec
 UPDATE tasks
 SET status = 'cancelled',

@@ -272,6 +272,9 @@ func (m *mockRecoveryQuerier) UpdateSession(ctx context.Context, arg db.UpdateSe
 func (m *mockRecoveryQuerier) UpdateTaskProgress(ctx context.Context, arg db.UpdateTaskProgressParams) error {
 	panic("not implemented")
 }
+func (m *mockRecoveryQuerier) UpdateTaskScheduleExpr(ctx context.Context, arg db.UpdateTaskScheduleExprParams) error {
+	panic("not implemented")
+}
 
 func TestRecoveryManager_Recover_NoOrphanedTasks(t *testing.T) {
 	t.Parallel()

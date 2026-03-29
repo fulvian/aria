@@ -6,7 +6,8 @@ package agency
 
 import (
 	"context"
-	"time"
+
+	"github.com/fulvian/aria/internal/aria/contracts"
 )
 
 // AgencyStatus represents the current status of an agency.
@@ -37,54 +38,13 @@ type AgencyLifecycle interface {
 	Status() AgencyStatus
 }
 
-// AgencyName identifies a specific agency.
-type AgencyName string
-
-// Agency state constants
-const (
-	AgencyKnowledge    AgencyName = "knowledge"    // Research, learning, Q&A
-	AgencyDevelopment  AgencyName = "development"  // Coding, devops, testing
-	AgencyCreative     AgencyName = "creative"     // Writing, design, art
-	AgencyProductivity AgencyName = "productivity" // Planning, scheduling, organization
-	AgencyPersonal     AgencyName = "personal"     // Health, finance, lifestyle
-	AgencyAnalytics    AgencyName = "analytics"    // Data analysis, visualization
-)
-
-// AgencyEvent represents events emitted by an agency.
-type AgencyEvent struct {
-	AgencyID  AgencyName
-	Type      string
-	Payload   map[string]any
-	AgentID   string
-	Timestamp time.Time
-}
-
 // AgencyState represents the persistent state of an agency.
 type AgencyState struct {
-	AgencyID   AgencyName
+	AgencyID   contracts.AgencyName
 	Status     string
 	LastTaskID string
 	Metrics    map[string]any
 	UpdatedAt  int64
-}
-
-// Task represents a unit of work to be executed by an agency.
-type Task struct {
-	ID          string
-	Name        string
-	Description string
-	Parameters  map[string]any
-	Skills      []string
-	Priority    int
-}
-
-// Result represents the outcome of a task execution.
-type Result struct {
-	TaskID     string
-	Success    bool
-	Output     map[string]any
-	Error      string
-	DurationMs int64
 }
 
 // DomainMemory represents an agency's domain-specific memory.
@@ -96,7 +56,7 @@ type DomainMemory interface {
 	AddExperience(ctx context.Context, exp map[string]any) error
 
 	// GetRelevant returns relevant memories for a task.
-	GetRelevant(ctx context.Context, task Task) ([]map[string]any, error)
+	GetRelevant(ctx context.Context, task contracts.Task) ([]map[string]any, error)
 }
 
 // Agency coordinates multiple agents for a specific domain.
@@ -109,19 +69,21 @@ type Agency interface {
 	AgencyLifecycle
 
 	// Subscribe returns a channel for receiving agency events.
-	Subscribe(ctx context.Context) <-chan AgencyEvent
+	Subscribe(ctx context.Context) <-chan contracts.AgencyEvent
 
 	// Identity
-	Name() AgencyName
+	Name() contracts.AgencyName
 	Domain() string
 	Description() string
 
 	// Agent management
-	Agents() []string                  // Returns agent names
-	GetAgent(name string) (any, error) // Returns agent implementation
+	// Note: Agents() returns agent names, GetAgent returns the agent implementation
+	// During Phase 4, this will return the proper agent.Agent type
+	Agents() []contracts.AgentName
+	GetAgent(name contracts.AgentName) (interface{}, error)
 
 	// Task execution
-	Execute(ctx context.Context, task Task) (Result, error)
+	Execute(ctx context.Context, task contracts.Task) (contracts.Result, error)
 
 	// State management
 	GetState() AgencyState

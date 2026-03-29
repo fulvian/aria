@@ -10,6 +10,7 @@ import (
 
 	"github.com/fulvian/aria/internal/aria/agency"
 	"github.com/fulvian/aria/internal/aria/analysis"
+	"github.com/fulvian/aria/internal/aria/contracts"
 	"github.com/fulvian/aria/internal/aria/memory"
 	"github.com/fulvian/aria/internal/aria/routing"
 )
@@ -20,7 +21,7 @@ type OrchestratorConfig struct {
 	EnableFallback bool
 
 	// DefaultAgency is the agency to use when no specific routing matches.
-	DefaultAgency agency.AgencyName
+	DefaultAgency contracts.AgencyName
 
 	// ConfidenceThreshold is the minimum confidence for routing decisions.
 	ConfidenceThreshold float64
@@ -34,7 +35,7 @@ type BasicOrchestrator struct {
 	config     OrchestratorConfig
 
 	// agencyRegistry maps agency names to agency instances
-	agencyRegistry map[agency.AgencyName]agency.Agency
+	agencyRegistry map[contracts.AgencyName]agency.Agency
 
 	// taskQueue stores scheduled tasks
 	taskQueue []Task
@@ -55,7 +56,7 @@ func NewBasicOrchestrator(config OrchestratorConfig, memorySvc memory.MemoryServ
 		classifier:      routing.NewBaselineClassifier(),
 		router:          routing.NewDefaultRouter(),
 		config:          config,
-		agencyRegistry:  make(map[agency.AgencyName]agency.Agency),
+		agencyRegistry:  make(map[contracts.AgencyName]agency.Agency),
 		memoryService:   memorySvc,
 		analysisService: analysisSvc,
 	}
@@ -124,7 +125,7 @@ func (o *BasicOrchestrator) ProcessQuery(ctx context.Context, query Query) (Resp
 	}
 
 	// Get agency name
-	agencyName := agency.AgencyName(o.getAgencyName(decision))
+	agencyName := contracts.AgencyName(o.getAgencyName(decision))
 
 	// Get the agency from registry
 	o.mu.RLock()
@@ -141,7 +142,7 @@ func (o *BasicOrchestrator) ProcessQuery(ctx context.Context, query Query) (Resp
 	}
 
 	// Create task from query
-	task := agency.Task{
+	task := contracts.Task{
 		ID:          uuid.New().String(),
 		Name:        "query-task",
 		Description: query.Text,
@@ -249,7 +250,7 @@ func (o *BasicOrchestrator) RouteToAgency(ctx context.Context, query Query) (age
 		return nil, err
 	}
 
-	agencyName := agency.AgencyName(o.getAgencyName(decision))
+	agencyName := contracts.AgencyName(o.getAgencyName(decision))
 	if ag, ok := o.agencyRegistry[agencyName]; ok {
 		return ag, nil
 	}
@@ -259,14 +260,14 @@ func (o *BasicOrchestrator) RouteToAgency(ctx context.Context, query Query) (age
 }
 
 // RouteToAgent determines which agent should handle the query.
-func (o *BasicOrchestrator) RouteToAgent(ctx context.Context, query Query) (string, error) {
+func (o *BasicOrchestrator) RouteToAgent(ctx context.Context, query Query) (routing.AgentID, error) {
 	class, err := o.classifier.Classify(ctx, routing.Query{
 		Text:      query.Text,
 		SessionID: query.SessionID,
 		UserID:    query.UserID,
 	})
 	if err != nil {
-		return "", err
+		return routing.AgentID{}, err
 	}
 
 	decision, err := o.router.Route(ctx, routing.Query{
@@ -275,14 +276,22 @@ func (o *BasicOrchestrator) RouteToAgent(ctx context.Context, query Query) (stri
 		UserID:    query.UserID,
 	}, class)
 	if err != nil {
-		return "", err
+		return routing.AgentID{}, err
 	}
 
 	if decision.Agent != nil {
-		return *decision.Agent, nil
+		agency := ""
+		if decision.Agency != nil {
+			agency = *decision.Agency
+		}
+		return routing.AgentID{
+			Name:   *decision.Agent,
+			Agency: agency,
+			Skills: decision.Skills,
+		}, nil
 	}
 
-	return "", nil
+	return routing.AgentID{}, nil
 }
 
 // ScheduleTask schedules a task for future execution.
@@ -390,7 +399,7 @@ func (o *BasicOrchestrator) RegisterAgency(ag agency.Agency) {
 }
 
 // UnregisterAgency removes an agency from the orchestrator.
-func (o *BasicOrchestrator) UnregisterAgency(name agency.AgencyName) {
+func (o *BasicOrchestrator) UnregisterAgency(name contracts.AgencyName) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	delete(o.agencyRegistry, name)

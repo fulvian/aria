@@ -9,15 +9,13 @@ import (
 	"time"
 
 	ariaConfig "github.com/fulvian/aria/internal/aria/config"
+	"github.com/fulvian/aria/internal/aria/contracts"
 	"github.com/fulvian/aria/internal/llm/tools"
 )
 
-// WeatherAgencyName is the agency name constant.
-const WeatherAgencyName AgencyName = "weather"
-
 // WeatherAgency is the weather-focused agency for weather information tasks.
 type WeatherAgency struct {
-	name        AgencyName
+	name        contracts.AgencyName
 	domain      string
 	description string
 	state       AgencyState
@@ -38,11 +36,11 @@ type WeatherAgency struct {
 // NewWeatherAgency creates a new weather agency.
 func NewWeatherAgency(cfg ariaConfig.WeatherConfig) *WeatherAgency {
 	return &WeatherAgency{
-		name:        WeatherAgencyName,
+		name:        contracts.AgencyName("weather"),
 		domain:      "weather",
 		description: "Weather information, forecasts, alerts, and historical weather data",
 		state: AgencyState{
-			AgencyID: WeatherAgencyName,
+			AgencyID: contracts.AgencyName("weather"),
 			Status:   "active",
 			Metrics:  make(map[string]any),
 		},
@@ -53,7 +51,7 @@ func NewWeatherAgency(cfg ariaConfig.WeatherConfig) *WeatherAgency {
 }
 
 // Name returns the agency name.
-func (a *WeatherAgency) Name() AgencyName {
+func (a *WeatherAgency) Name() contracts.AgencyName {
 	return a.name
 }
 
@@ -68,12 +66,12 @@ func (a *WeatherAgency) Description() string {
 }
 
 // Agents returns the list of agent names.
-func (a *WeatherAgency) Agents() []string {
-	return []string{"weather"}
+func (a *WeatherAgency) Agents() []contracts.AgentName {
+	return []contracts.AgentName{"weather"}
 }
 
 // GetAgent returns an agent by name.
-func (a *WeatherAgency) GetAgent(name string) (any, error) {
+func (a *WeatherAgency) GetAgent(name contracts.AgentName) (interface{}, error) {
 	switch name {
 	case "weather":
 		return a.weatherBridge, nil
@@ -83,11 +81,11 @@ func (a *WeatherAgency) GetAgent(name string) (any, error) {
 }
 
 // Execute executes a task in the weather agency.
-func (a *WeatherAgency) Execute(ctx context.Context, task Task) (Result, error) {
+func (a *WeatherAgency) Execute(ctx context.Context, task contracts.Task) (contracts.Result, error) {
 	start := time.Now()
 
 	// Emit task started event
-	a.sub.Publish(AgencyEvent{
+	a.sub.Publish(contracts.AgencyEvent{
 		AgencyID: a.name,
 		Type:     "task_started",
 		Payload: map[string]any{
@@ -106,7 +104,7 @@ func (a *WeatherAgency) Execute(ctx context.Context, task Task) (Result, error) 
 	result, err := a.weatherBridge.GetWeather(ctx, task, skillName)
 	if err != nil {
 		// Emit task failed event
-		a.sub.Publish(AgencyEvent{
+		a.sub.Publish(contracts.AgencyEvent{
 			AgencyID: a.name,
 			Type:     "task_failed",
 			Payload: map[string]any{
@@ -114,7 +112,7 @@ func (a *WeatherAgency) Execute(ctx context.Context, task Task) (Result, error) 
 				"error":   err.Error(),
 			},
 		})
-		return Result{
+		return contracts.Result{
 			TaskID:     task.ID,
 			Success:    false,
 			Error:      err.Error(),
@@ -123,7 +121,7 @@ func (a *WeatherAgency) Execute(ctx context.Context, task Task) (Result, error) 
 	}
 
 	// Emit task completed event
-	a.sub.Publish(AgencyEvent{
+	a.sub.Publish(contracts.AgencyEvent{
 		AgencyID: a.name,
 		Type:     "task_completed",
 		Payload: map[string]any{
@@ -132,7 +130,7 @@ func (a *WeatherAgency) Execute(ctx context.Context, task Task) (Result, error) 
 		},
 	})
 
-	return Result{
+	return contracts.Result{
 		TaskID:     task.ID,
 		Success:    true,
 		Output:     result,
@@ -157,7 +155,7 @@ func (a *WeatherAgency) Memory() DomainMemory {
 }
 
 // Subscribe returns a channel for receiving agency events.
-func (a *WeatherAgency) Subscribe(ctx context.Context) <-chan AgencyEvent {
+func (a *WeatherAgency) Subscribe(ctx context.Context) <-chan contracts.AgencyEvent {
 	return a.sub.Subscribe(ctx)
 }
 
@@ -173,7 +171,7 @@ func (a *WeatherAgency) Start(ctx context.Context) error {
 	a.status = AgencyStatusRunning
 	a.startTime = time.Now()
 
-	a.sub.Publish(AgencyEvent{
+	a.sub.Publish(contracts.AgencyEvent{
 		AgencyID:  a.name,
 		Type:      "agency_started",
 		Payload:   map[string]any{"start_time": a.startTime},
@@ -192,7 +190,7 @@ func (a *WeatherAgency) Stop(ctx context.Context) error {
 	a.status = AgencyStatusStopped
 	a.pauseTime = time.Time{}
 
-	a.sub.Publish(AgencyEvent{
+	a.sub.Publish(contracts.AgencyEvent{
 		AgencyID:  a.name,
 		Type:      "agency_stopped",
 		Payload:   map[string]any{},
@@ -214,7 +212,7 @@ func (a *WeatherAgency) Pause(ctx context.Context) error {
 	a.status = AgencyStatusPaused
 	a.pauseTime = time.Now()
 
-	a.sub.Publish(AgencyEvent{
+	a.sub.Publish(contracts.AgencyEvent{
 		AgencyID:  a.name,
 		Type:      "agency_paused",
 		Payload:   map[string]any{"pause_time": a.pauseTime},
@@ -236,7 +234,7 @@ func (a *WeatherAgency) Resume(ctx context.Context) error {
 	a.status = AgencyStatusRunning
 	a.pauseTime = time.Time{}
 
-	a.sub.Publish(AgencyEvent{
+	a.sub.Publish(contracts.AgencyEvent{
 		AgencyID:  a.name,
 		Type:      "agency_resumed",
 		Payload:   map[string]any{},
@@ -253,7 +251,7 @@ func (a *WeatherAgency) Status() AgencyStatus {
 
 // WeatherAgentBridge defines the interface for weather agent operations.
 type WeatherAgentBridge interface {
-	GetWeather(ctx context.Context, task Task, skillName string) (map[string]any, error)
+	GetWeather(ctx context.Context, task contracts.Task, skillName string) (map[string]any, error)
 }
 
 // WeatherBridge implements WeatherAgentBridge using direct API calls.
@@ -269,7 +267,7 @@ func NewWeatherBridge(apiKey string) *WeatherBridge {
 }
 
 // GetWeather handles weather-related tasks using direct API calls (NOT MCP).
-func (b *WeatherBridge) GetWeather(ctx context.Context, task Task, skillName string) (map[string]any, error) {
+func (b *WeatherBridge) GetWeather(ctx context.Context, task contracts.Task, skillName string) (map[string]any, error) {
 	// Extract location from task parameters
 	location, ok := task.Parameters["location"].(string)
 	if !ok || location == "" {

@@ -9,7 +9,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/fulvian/aria/internal/aria/agency"
+	"github.com/fulvian/aria/internal/aria/contracts"
 	"github.com/fulvian/aria/internal/aria/skill"
 	llmagent "github.com/fulvian/aria/internal/llm/agent"
 	"github.com/fulvian/aria/internal/logging"
@@ -17,30 +17,30 @@ import (
 )
 
 // LegacyAgentWrapper wraps an existing internal/llm/agent.Service
-// to conform to the EnhancedAgent interface.
+// to conform to the Agent interface.
 type LegacyAgentWrapper struct {
 	agent      llmagent.Service
-	agencyName agency.AgencyName
+	agencyName contracts.AgencyName
 	skills     []skill.Skill
-	broker     *pubsub.Broker[AgentEvent]
-	name       AgentName
-	state      AgentState
+	broker     *pubsub.Broker[contracts.AgentEvent]
+	name       contracts.AgentName
+	state      contracts.AgentState
 }
 
 // NewLegacyAgentWrapper creates a wrapper around a legacy agent.
 func NewLegacyAgentWrapper(
 	legacyAgent llmagent.Service,
-	name AgentName,
-	agencyName agency.AgencyName,
+	name contracts.AgentName,
+	agencyName contracts.AgencyName,
 	skills []skill.Skill,
 ) *LegacyAgentWrapper {
 	wrapper := &LegacyAgentWrapper{
 		agent:      legacyAgent,
 		agencyName: agencyName,
 		skills:     skills,
-		broker:     pubsub.NewBroker[AgentEvent](),
+		broker:     pubsub.NewBroker[contracts.AgentEvent](),
 		name:       name,
-		state: AgentState{
+		state: contracts.AgentState{
 			AgentID: string(name),
 			Status:  "idle",
 			Metrics: make(map[string]any),
@@ -59,7 +59,7 @@ func NewLegacyAgentWrapper(
 func (w *LegacyAgentWrapper) forwardEvents(sub <-chan pubsub.Event[llmagent.AgentEvent]) {
 	for event := range sub {
 		legacyEvent := event.Payload
-		ariaEvent := AgentEvent{
+		ariaEvent := contracts.AgentEvent{
 			AgentID: string(w.name),
 			Type:    string(legacyEvent.Type),
 			Payload: map[string]any{
@@ -76,18 +76,18 @@ func (w *LegacyAgentWrapper) forwardEvents(sub <-chan pubsub.Event[llmagent.Agen
 }
 
 // Name returns the agent name.
-func (w *LegacyAgentWrapper) Name() AgentName {
+func (w *LegacyAgentWrapper) Name() contracts.AgentName {
 	return w.name
 }
 
 // Agency returns the agency this agent belongs to.
-func (w *LegacyAgentWrapper) Agency() agency.AgencyName {
+func (w *LegacyAgentWrapper) Agency() contracts.AgencyName {
 	return w.agencyName
 }
 
 // Capabilities returns the capabilities of this agent.
-func (w *LegacyAgentWrapper) Capabilities() []Capability {
-	capabilities := []Capability{
+func (w *LegacyAgentWrapper) Capabilities() []contracts.Capability {
+	capabilities := []contracts.Capability{
 		{
 			Name:        "code-generation",
 			Description: "Generates code based on natural language descriptions",
@@ -107,7 +107,7 @@ func (w *LegacyAgentWrapper) Capabilities() []Capability {
 
 	// Add skill capabilities
 	for _, s := range w.skills {
-		capabilities = append(capabilities, Capability{
+		capabilities = append(capabilities, contracts.Capability{
 			Name:        string(s.Name()),
 			Description: s.Description(),
 			Tools:       toolNamesToStrings(s.RequiredTools()),
@@ -178,7 +178,7 @@ func (w *LegacyAgentWrapper) Run(ctx context.Context, task map[string]any) (map[
 }
 
 // Stream streams the legacy agent response.
-func (w *LegacyAgentWrapper) Stream(ctx context.Context, task map[string]any) (<-chan Event, error) {
+func (w *LegacyAgentWrapper) Stream(ctx context.Context, task map[string]any) (<-chan contracts.Event, error) {
 	// Extract session_id and content from task map
 	sessionID, _ := task["session_id"].(string)
 	content, _ := task["content"].(string)
@@ -190,7 +190,7 @@ func (w *LegacyAgentWrapper) Stream(ctx context.Context, task map[string]any) (<
 		return nil, fmt.Errorf("content is required")
 	}
 
-	events := make(chan Event)
+	events := make(chan contracts.Event)
 
 	// Call the legacy agent
 	legacyEvents, err := w.agent.Run(ctx, sessionID, content)
@@ -201,7 +201,7 @@ func (w *LegacyAgentWrapper) Stream(ctx context.Context, task map[string]any) (<
 	go func() {
 		defer close(events)
 		for legacyEvent := range legacyEvents {
-			event := Event{
+			event := contracts.Event{
 				Type: string(legacyEvent.Type),
 			}
 			if legacyEvent.Message.ID != "" {
@@ -231,7 +231,7 @@ func (w *LegacyAgentWrapper) HasSkill(name skill.SkillName) bool {
 
 // LearnFromFeedback processes feedback to improve agent performance.
 // Currently a no-op as the legacy agent doesn't support learning.
-func (w *LegacyAgentWrapper) LearnFromFeedback(feedback Feedback) error {
+func (w *LegacyAgentWrapper) LearnFromFeedback(feedback contracts.Feedback) error {
 	logging.Debug("LearnFromFeedback called", "agent", w.name, "feedback", feedback.Type)
 	// TODO: Implement learning mechanism if needed
 	// For now, this is a placeholder as the legacy agent doesn't have learning
@@ -239,16 +239,16 @@ func (w *LegacyAgentWrapper) LearnFromFeedback(feedback Feedback) error {
 }
 
 // GetState returns the current state of the agent.
-func (w *LegacyAgentWrapper) GetState() AgentState {
+func (w *LegacyAgentWrapper) GetState() contracts.AgentState {
 	w.state.AgentID = string(w.name)
 	return w.state
 }
 
 // Subscribe returns a channel for receiving agent events.
 // It wraps the internal broker subscription to provide AgentEvent directly.
-func (w *LegacyAgentWrapper) Subscribe(ctx context.Context) <-chan AgentEvent {
+func (w *LegacyAgentWrapper) Subscribe(ctx context.Context) <-chan contracts.AgentEvent {
 	// Create a channel that will receive unwrapped AgentEvent
-	agentEvents := make(chan AgentEvent)
+	agentEvents := make(chan contracts.AgentEvent)
 
 	// Subscribe to the broker
 	sub := w.broker.Subscribe(ctx)

@@ -543,6 +543,22 @@ func (q *Queries) UpdateTaskProgress(ctx context.Context, arg UpdateTaskProgress
 	return err
 }
 
+const updateTaskScheduleExpr = `-- name: UpdateTaskScheduleExpr :exec
+UPDATE tasks
+SET schedule_expr = ?
+WHERE id = ?
+`
+
+type UpdateTaskScheduleExprParams struct {
+	ScheduleExpr string `json:"schedule_expr"`
+	ID           string `json:"id"`
+}
+
+func (q *Queries) UpdateTaskScheduleExpr(ctx context.Context, arg UpdateTaskScheduleExprParams) error {
+	_, err := q.exec(ctx, q.updateTaskScheduleExprStmt, updateTaskScheduleExpr, arg.ScheduleExpr, arg.ID)
+	return err
+}
+
 const updateTaskStatus = `-- name: UpdateTaskStatus :exec
 UPDATE tasks
 SET status = ?,

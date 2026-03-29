@@ -1,6 +1,75 @@
 # ARIA Implementation Progress Log
 
-## Session: 2026-03-29
+## Session: 2026-03-29 (P0 Critical Remediation)
+
+### Actions Taken
+
+1. **Blueprint Alignment Analysis**
+   - Analyzed `docs/analysis/blueprint-alignment-report.md`
+   - Identified 5 Critical Issues and 4 High-Severity Bugs
+   - Prioritized P0 items before FASE 5 expansion
+
+2. **P0-4: Fix Failing Test Panic** ✅ COMPLETE
+   - Issue: `TestLsTool_Run/handles_empty_path_parameter` panics with "config not loaded"
+   - Root cause: `ls.go:99` calls `config.WorkingDirectory()` without loaded config
+   - Fix: Added `TryWorkingDirectory()` to config package returning `(string, error)`
+   - Fix: Updated `ls.go` to use defensive fallback to "." when config unavailable
+   - Verification: `go test ./...` now passes
+
+3. **Verification**
+   - `go build ./...` - PASSES
+   - `go vet ./...` - PASSES
+   - `go test ./...` - PASSES (all tests)
+
+### Current Phase
+**P0 CRITICAL REMEDIATION - COMPLETE** (except P0-1 Agency/Agent contract drift)
+- [x] P0-4: Fix failing test panic
+- [x] P0-2: Event Broker Is Not Broadcast-safe
+- [x] P0-3: Scheduler UpdateSchedule Not Persisted ✅ COMPLETE
+- [x] P0-1: RouteToAgent returns routing.AgentID (partial fix)
+- [x] P0-1: Full handoff plan created (`docs/plans/P0-1-INTERFACE-CONTRACT-DRIFT-PLAN.mmd`)
+
+### P0-2: Event Broker Fix Details
+- Replaced custom single-channel broker with `pubsub.Broker[AgencyEvent]`
+- Each subscriber now receives ALL events (broadcast semantics)
+- Added proper fan-out via pubsub broker's Subscribe/Publish model
+- File: `internal/aria/agency/development.go`
+
+### P0-3: Scheduler UpdateSchedule Details
+- Since sqlc was not available, manually added the generated code:
+  - Added `UpdateTaskScheduleExpr` SQL query to `tasks.sql.go`
+  - Added `UpdateTaskScheduleExprParams` struct
+  - Added method implementation on `*Queries`
+  - Added prepared statement field to `Queries` struct
+  - Added statement preparation in `Prepare()` function
+  - Added statement cleanup in `Close()` method
+  - Added to transaction copy in `WithTx()` method
+  - Added to `Querier` interface
+- Updated `UpdateSchedule` in scheduler/service.go to:
+  - Serialize schedule to JSON
+  - Call `db.UpdateTaskScheduleExpr()`
+  - Create and persist `schedule_updated` event
+  - Publish event via broker
+- Fixed 3 test mock files to implement the new interface method
+
+### P0-1: Interface Drift Partial Fix
+- Created `routing.AgentID` type for type-safe agent identification
+- Updated `Orchestrator.RouteToAgent` to return `routing.AgentID` instead of `string`
+- Partial fix only - full Agency/Agent interface alignment requires:
+  - Implementing full Agent interface on CoderBridge, ReviewerAgent, ArchitectAgent
+  - Resolving import cycles between agent and agency packages
+  - This is a larger refactoring effort
+
+### P0-1: Interface Drift Analysis
+- Completed detailed analysis of interface contract drift
+- Found import cycle risk (agent ↔ agency packages)
+- Found ReviewerAgent/ArchitectAgent are incomplete stubs
+- Requires: shared types file, full Agent interface implementation, call site updates
+- HIGH RISK refactoring - recommended as separate effort with thorough testing
+
+---
+
+## Session: 2026-03-29 (Earlier)
 
 ### Actions Taken
 
@@ -32,15 +101,8 @@
    - Stilata implementation order (Knowledge → Creative → Productivity → Personal → Analytics)
    - Aggiornato task_plan.md con FASE 5
 
-### Build Verification
-- ✅ `go build ./...` - PASSES
-- ✅ `go test ./internal/aria/...` - ALL PASS
-- ✅ `go vet ./...` - PASSES
-
 ### Current Phase
-**FASE 0-4: COMPLETE ✅**  
-**FASE 2: COMPLETE ✅ (100%)**  
-**FASE 5: PLANNING COMPLETE, READY TO START**
+**P0 CRITICAL REMEDIATION - IN PROGRESS**
 
 ---
 
@@ -118,14 +180,15 @@
 
 ---
 
-## Files Created/Modified During FASE 5 Planning
+## Files Created/Modified During P0 Remediation
 
-- `docs/plans/2026-03-29-fase5-agencies-implementation-plan.md` (NEW)
-- `task_plan.md` (UPDATED - FASE 5 added)
-- `progress.md` (UPDATED - this log)
+- `internal/config/config.go` - Added `TryWorkingDirectory()` function
+- `internal/llm/tools/ls.go` - Defensive fallback for working directory
+- `task_plan.md` - Updated with P0 priority items
+- `progress.md` - Updated with this session
 
-## Next Steps: Start FASE 5 Implementation
+## Next Steps: Continue P0 Remediation
 
-1. Iniziare con Knowledge Agency (più immediato utilità)
-2. Implementare web search/scrape tools
-3. Creare Researcher agent con skills di web-research
+1. P0-2: Replace custom `AgencyEventBroker` with `pubsub.Broker[AgencyEvent]`
+2. P0-3: Implement `SchedulerService.UpdateSchedule` persistence
+3. P0-1: Refactor interface drifts (Orchestrator, Agency, Agent)

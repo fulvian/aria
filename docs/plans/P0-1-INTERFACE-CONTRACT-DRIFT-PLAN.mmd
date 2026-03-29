@@ -1,0 +1,315 @@
+# P0-1 Interface Contract Drift — Full Resolution Plan
+
+**Generated**: 2026-03-29 21:58:00 +02:00  
+**Priority**: P0 — CRITICAL  
+**Status**: Ready for implementation  
+**Source**: `docs/plans/P0-1-INTERFACE-CONTRACT-DRIFT-HANDOFF.md`
+
+---
+
+## 1) Executive Summary
+
+The current ARIA codebase still has a critical interface contract drift between blueprint Section 2.2.2/2.2.3 and runtime implementation:
+
+- `Agency.Agents()` currently returns `[]string` instead of typed agents.
+- `Agency.GetAgent()` currently returns `(any, error)` instead of typed agent lookup.
+- Agent contract is exposed as `EnhancedAgent` rather than canonical `Agent`.
+- `ReviewerAgent` and `ArchitectAgent` are partial stubs and not contract-complete.
+
+`RouteToAgent` has already been partially corrected via `routing.AgentID`, but the Agency/Agent type boundary is still weak and blocks safe multi-agency orchestration.
+
+---
+
+## 2) Problem Statement
+
+### 2.1 Current vs Blueprint Contract
+
+| Interface | Method | Blueprint Signature | Current Signature | Drift |
+|---|---|---|---|---|
+| Agency | `Agents()` | `[]Agent` | `[]string` | High |
+| Agency | `GetAgent()` | `(AgentName) (Agent, error)` | `(string) (any, error)` | High |
+| Agent | Interface name | `Agent` | `EnhancedAgent` | High |
+
+### 2.2 Why This Is Blocking
+
+1. Runtime casts (`any`) remove compile-time safety.
+2. Agency composition cannot rely on stable typed contracts.
+3. New agencies/agents increase fragility in routing/execution code paths.
+4. FASE 5 expansion becomes high-risk without canonical interfaces.
+
+---
+
+## 3) Detailed Analysis
+
+### 3.1 Import Cycle Analysis
+
+#### Current import graph (problematic for typed Agency→Agent)
+
+```mermaid
+flowchart LR
+  A[internal/aria/agency] -->|wants Agent type| B[internal/aria/agent]
+  B -->|imports AgencyName| A
+  A -.-> C[cycle risk]
+```
+
+Current hard coupling:
+- `internal/aria/agent/agent.go` imports `internal/aria/agency` for `AgencyName`.
+- If `internal/aria/agency/agency.go` imports `agent.Agent`, cycle appears.
+
+#### Options evaluated
+
+- **Option A: Shared types package** (**recommended**)  
+  Move shared identifiers/contracts into a neutral package (e.g. `internal/aria/contracts` or `internal/aria/types`) imported by both `agent` and `agency`.
+- Option B: Interface-only decoupling  
+  Reduces some coupling but still tends to leak package references across boundaries.
+- Option C: Use `routing.AgentID` aliases only  
+  Good for routing identity, insufficient for full Agent execution contract.
+
+#### Recommended resolution
+
+**Adopt Option A (shared types package)**:
+- Define canonical shared types there (`AgencyName`, `AgentName`, plus task/result aliases needed by Agent interface).
+- Keep `routing.AgentID` as routing-level identifier, not as full agent contract replacement.
+- Make both `agency` and `agent` import shared contracts package.
+
+#### Target import graph
+
+```mermaid
+flowchart LR
+  C[internal/aria/contracts]
+  A[internal/aria/agency] --> C
+  B[internal/aria/agent] --> C
+  A -. no direct import .-> B
+  B -. no direct import .-> A
+```
+
+---
+
+### 3.2 Interface Gap Analysis
+
+#### Blueprint 2.2.2 Agency (required)
+- `Agents() []Agent`
+- `GetAgent(name AgentName) (Agent, error)`
+
+#### Blueprint 2.2.3 Agent (required)
+- Canonical interface name `Agent`
+- Identity: `Name()`, `Agency()`, `Capabilities()`
+- Execution: `Run()`, `Stream()`
+- Skills: `Skills()`, `HasSkill()`
+- Learning/State: `LearnFromFeedback()`, `GetState()`
+
+#### Current implementation gap
+- Agency surface is untyped (`[]string`, `any`) in:
+  - `internal/aria/agency/agency.go`
+  - `internal/aria/agency/development.go`
+  - `internal/aria/agency/weather.go`
+  - `internal/aria/agency/service.go` (`dbAgencyWrapper`)
+- Agent surface is named `EnhancedAgent` in:
+  - `internal/aria/agent/agent.go`
+
+---
+
+### 3.3 Stub Completeness Report
+
+| Agent | Current state | Missing for full contract |
+|---|---|---|
+| `ReviewerAgent` | only `Review(ctx, task)` | `Subscribe`, `Name`, `Agency`, `Capabilities`, `Run`, `Stream`, `Skills`, `HasSkill`, `LearnFromFeedback`, `GetState` |
+| `ArchitectAgent` | only `Design(ctx, task)` | same set as above |
+| `CoderBridge` | only `RunTask(ctx, task)` | adapter to full typed Agent contract or dedicated wrapper implementing full methods |
+
+Notes:
+- `LegacyAgentWrapper` in `internal/aria/agent/legacy_wrapper.go` is already the closest complete implementation and should be leveraged as compatibility bridge pattern.
+
+---
+
+### 3.4 Call Site Inventory
+
+Confirmed usages of old signatures:
+
+- `internal/aria/agency/agency.go`
+  - `Agents() []string`
+  - `GetAgent(name string) (any, error)`
+- `internal/aria/agency/development.go`
+  - implementation of old signatures + runtime type-switch on `any`
+- `internal/aria/agency/weather.go`
+  - implementation of old signatures
+- `internal/aria/agency/service.go`
+  - `dbAgencyWrapper` with old signatures
+
+Requested-impact files audit:
+- `internal/app/aria_integration.go`: **no direct call** to `Agents()/GetAgent()` found, but compile impact is expected through changed constructors/types.
+
+---
+
+## 4) Implementation Plan (Phased)
+
+### 4.1 Phase 1 — Break Import Cycle (Contracts Extraction)
+
+1. Create neutral package: `internal/aria/contracts/` (or `internal/aria/types/`).
+2. Move shared identifiers:
+   - `AgencyName`
+   - `AgentName`
+3. Move or alias shared execution/state primitives used by both interfaces.
+4. Update imports in `agent` and `agency` to consume contracts package.
+5. Keep compatibility aliases in legacy locations temporarily to reduce blast radius.
+
+Validation:
+- `go build ./...`
+- `go vet ./...`
+
+---
+
+### 4.2 Phase 2 — Canonicalize Agent Interface
+
+1. In `internal/aria/agent/agent.go`, introduce canonical `type Agent interface { ... }`.
+2. Keep temporary compatibility alias:
+   - `type EnhancedAgent = Agent` (transitional only)
+3. Ensure method signatures are blueprint-aligned to current practical models (typed where possible).
+4. Add compile-time assertions for concrete wrappers.
+
+Validation:
+- `go build ./...`
+- targeted package tests for `internal/aria/agent/...`
+
+---
+
+### 4.3 Phase 3 — Update Agency Interface to Typed Methods
+
+1. In `internal/aria/agency/agency.go`:
+   - `Agents() []agent.Agent` (or contracts-level agent interface)
+   - `GetAgent(name contracts.AgentName) (agent.Agent, error)`
+2. Update implementations:
+   - `DevelopmentAgency`
+   - `WeatherAgency`
+   - `dbAgencyWrapper`
+3. Remove `any` return and runtime casts.
+
+Validation:
+- `go build ./...`
+- `go test ./internal/aria/agency/...`
+
+---
+
+### 4.4 Phase 4 — Complete Stub Agents and Bridge Adapters
+
+1. Implement full contract on `ReviewerAgent` (lightweight functional implementation + event broker).
+2. Implement full contract on `ArchitectAgent`.
+3. Wrap `CoderBridge` with a full Agent-compatible adapter (or implement directly).
+4. Ensure all three are returned as typed Agent instances.
+
+Validation:
+- compile-time interface assertions:
+  - `var _ agent.Agent = (*ReviewerAgent)(nil)`
+  - `var _ agent.Agent = (*ArchitectAgent)(nil)`
+  - `var _ agent.Agent = (*CoderBridgeAdapter)(nil)`
+
+---
+
+### 4.5 Phase 5 — Update Call Sites and Remove Transitional Paths
+
+1. Replace `string` agent lookup calls with typed `AgentName`.
+2. Replace `any` type-switch logic with direct typed interface dispatch.
+3. Update comments/docs referencing `EnhancedAgent` as canonical interface.
+4. Keep backward compatibility alias for one release window, then remove.
+
+Validation:
+- `go build ./...`
+- `go test ./...`
+
+---
+
+### 4.6 Phase 6 — Testing & Verification
+
+Run full gates:
+
+```bash
+go build ./...
+go vet ./...
+go test ./...
+go test -race ./internal/aria/...
+```
+
+Manual checklist:
+- Development agency routes to coder/reviewer/architect and executes without type assertions.
+- Weather agency remains functional under typed interface updates.
+- No import cycles introduced.
+- Event subscriptions still function.
+
+---
+
+## 5) Risk Assessment
+
+### 5.1 Migration Risks
+
+1. **Breaking API changes** in core interfaces used across multiple packages.
+2. **Partial refactor risk** if aliases remain too long and drift persists.
+3. **Regression risk** in execution dispatch paths previously guarded by runtime assertions.
+4. **Concurrency risk** in new stub-agent event brokers if not aligned with pubsub semantics.
+
+### 5.2 Mitigation Strategies
+
+1. Perform changes in incremental commits per phase.
+2. Add compile-time assertions immediately after each interface change.
+3. Maintain short-lived compatibility aliases only during migration.
+4. Add/expand tests in `agency`, `agent`, and orchestration integration paths.
+5. Use `-race` suite before merge.
+
+---
+
+## 6) Success Criteria
+
+### 6.1 Compile-Time Contract
+- `go build ./...` passes.
+- No interface conformance errors.
+- No `any` in Agency agent retrieval APIs.
+
+### 6.2 Runtime Contract
+- `go test ./...` passes.
+- `go test -race ./internal/aria/...` passes.
+- No runtime panic from agent type assertions (removed path).
+
+### 6.3 Blueprint Compliance
+- `Agency` signatures match Section 2.2.2 intent.
+- Canonical `Agent` interface exists and is used as primary contract per Section 2.2.3.
+- `EnhancedAgent` is compatibility alias only (or removed after migration window).
+
+### 6.4 Interface Conformance Map (target)
+
+```mermaid
+flowchart TD
+  A[agency.Agency interface] -->|typed| B[agent.Agent interface]
+  C[DevelopmentAgency] --> A
+  D[WeatherAgency] --> A
+  E[ReviewerAgent] --> B
+  F[ArchitectAgent] --> B
+  G[CoderBridgeAdapter] --> B
+  H[Orchestrator] --> A
+```
+
+---
+
+## 7) Files Reference
+
+| File | Current state | Target state |
+|---|---|---|
+| `internal/aria/agency/agency.go` | `Agents() []string`, `GetAgent(name string) (any,error)` | Typed agent list and typed lookup |
+| `internal/aria/agent/agent.go` | Canonical interface named `EnhancedAgent` | Canonical interface named `Agent` (+ temporary alias if needed) |
+| `internal/aria/agency/development.go` | `ReviewerAgent`/`ArchitectAgent` stubs, `any` dispatch | Full typed agent implementations and typed dispatch |
+| `internal/aria/agency/weather.go` | old signature methods | typed signature methods |
+| `internal/aria/agency/service.go` | `dbAgencyWrapper` old signatures | `dbAgencyWrapper` updated to typed signatures |
+| `internal/aria/agent/legacy_wrapper.go` | legacy wrapper complete but tied to old naming | used as compatibility implementation under canonical `Agent` contract |
+| `internal/app/aria_integration.go` | no direct old-signature usage | compile-compatible with new contracts |
+| `internal/aria/routing/router.go` | `routing.AgentID` introduced | keep as routing identity type (not replacement for `agent.Agent`) |
+
+---
+
+## Recommended Execution Order
+
+1. Contracts extraction (cycle break)
+2. Canonical Agent interface and alias
+3. Agency interface typing
+4. Stub agent completion
+5. Call-site cleanup
+6. Full verification gates
+
+This order minimizes import-cycle failures and keeps intermediate builds green at each step.

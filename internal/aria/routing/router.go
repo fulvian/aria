@@ -4,6 +4,14 @@ import (
 	"context"
 )
 
+// AgentID is a type-safe identifier for an agent.
+// This is used by the orchestrator to route queries to specific agents.
+type AgentID struct {
+	Name   string
+	Agency string
+	Skills []string
+}
+
 // RoutingDecision contains the routing decision for a query.
 type RoutingDecision struct {
 	// Target is where the query should be routed.

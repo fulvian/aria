@@ -7,6 +7,7 @@ import (
 	"github.com/fulvian/aria/internal/aria/agency"
 	"github.com/fulvian/aria/internal/aria/analysis"
 	ariaConfig "github.com/fulvian/aria/internal/aria/config"
+	"github.com/fulvian/aria/internal/aria/contracts"
 	"github.com/fulvian/aria/internal/aria/core"
 	"github.com/fulvian/aria/internal/aria/guardrail"
 	"github.com/fulvian/aria/internal/aria/memory"
@@ -83,7 +84,7 @@ func (app *App) initARIA(ctx context.Context) error {
 	// Initialize orchestrator with memory and analysis services
 	orchestrator := core.NewBasicOrchestrator(core.OrchestratorConfig{
 		EnableFallback:      ariaCfg.Routing.EnableFallback,
-		DefaultAgency:       agency.AgencyName(ariaCfg.Routing.DefaultAgency),
+		DefaultAgency:       contracts.AgencyName(ariaCfg.Routing.DefaultAgency),
 		ConfidenceThreshold: ariaCfg.Routing.ConfidenceThreshold,
 	}, memorySvc, analysisSvc)
 

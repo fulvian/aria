@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"github.com/fulvian/aria/internal/aria/agency"
+	"github.com/fulvian/aria/internal/aria/contracts"
 	"github.com/fulvian/aria/internal/aria/routing"
 )
 
@@ -22,7 +23,7 @@ type Query struct {
 // Response represents the orchestrator's answer to a Query.
 type Response struct {
 	Text       string
-	Agency     agency.AgencyName
+	Agency     contracts.AgencyName
 	Agent      string
 	Skills     []string
 	Confidence float64
@@ -87,7 +88,7 @@ type Orchestrator interface {
 	RouteToAgency(ctx context.Context, query Query) (agency.Agency, error)
 
 	// RouteToAgent determines which agent should handle the query.
-	RouteToAgent(ctx context.Context, query Query) (string, error)
+	RouteToAgent(ctx context.Context, query Query) (routing.AgentID, error)
 
 	// ScheduleTask schedules a task for future execution.
 	ScheduleTask(ctx context.Context, task Task) (TaskID, error)

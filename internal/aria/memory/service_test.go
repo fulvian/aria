@@ -384,6 +384,9 @@ func (m *mockQuerier) UpdateSession(ctx context.Context, arg db.UpdateSessionPar
 func (m *mockQuerier) UpdateTaskProgress(ctx context.Context, arg db.UpdateTaskProgressParams) error {
 	return nil
 }
+func (m *mockQuerier) UpdateTaskScheduleExpr(ctx context.Context, arg db.UpdateTaskScheduleExprParams) error {
+	return nil
+}
 func (m *mockQuerier) UpdateTaskStatus(ctx context.Context, arg db.UpdateTaskStatusParams) error {
 	return nil
 }

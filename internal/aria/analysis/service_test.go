@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/fulvian/aria/internal/aria/agency"
+	"github.com/fulvian/aria/internal/aria/contracts"
 	"github.com/fulvian/aria/internal/db"
 )
 
@@ -294,6 +294,9 @@ func (m *mockAnalysisQuerier) UpdateSession(ctx context.Context, arg db.UpdateSe
 func (m *mockAnalysisQuerier) UpdateTaskProgress(ctx context.Context, arg db.UpdateTaskProgressParams) error {
 	return nil
 }
+func (m *mockAnalysisQuerier) UpdateTaskScheduleExpr(ctx context.Context, arg db.UpdateTaskScheduleExprParams) error {
+	return nil
+}
 func (m *mockAnalysisQuerier) UpdateTaskStatus(ctx context.Context, arg db.UpdateTaskStatusParams) error {
 	return nil
 }
@@ -382,8 +385,8 @@ func TestSelfAnalysisService_AnalyzePerformance_WithTasks(t *testing.T) {
 	assert.Greater(t, report.AverageTimeMs, int64(0))
 
 	// Check agency metrics
-	assert.Contains(t, report.ByAgency, agency.AgencyName("agency-1"))
-	agencyMetrics := report.ByAgency[agency.AgencyName("agency-1")]
+	assert.Contains(t, report.ByAgency, contracts.AgencyName("agency-1"))
+	agencyMetrics := report.ByAgency[contracts.AgencyName("agency-1")]
 	assert.Equal(t, int64(3), agencyMetrics.TotalTasks)
 	assert.InDelta(t, 0.667, agencyMetrics.SuccessRate, 0.01)
 }

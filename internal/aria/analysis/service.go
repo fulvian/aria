@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fulvian/aria/internal/aria/agency"
+	"github.com/fulvian/aria/internal/aria/contracts"
 	"github.com/fulvian/aria/internal/aria/scheduler"
 	"github.com/fulvian/aria/internal/aria/skill"
 	"github.com/fulvian/aria/internal/db"
@@ -86,7 +86,7 @@ func (s *selfAnalysisService) runAnalysis(ctx context.Context) error {
 func (s *selfAnalysisService) AnalyzePerformance(ctx context.Context, timeRange TimeRange) (PerformanceReport, error) {
 	report := PerformanceReport{
 		Period:    timeRange,
-		ByAgency:  make(map[agency.AgencyName]AgencyMetrics),
+		ByAgency:  make(map[contracts.AgencyName]AgencyMetrics),
 		ByAgent:   make(map[string]AgentMetrics),
 		BySkill:   make(map[skill.SkillName]SkillMetrics),
 		Trends:    []Trend{},
@@ -162,7 +162,7 @@ func (s *selfAnalysisService) AnalyzePerformance(ctx context.Context, timeRange 
 			avgDuration = (stats.duration * 1000) / stats.success
 		}
 
-		report.ByAgency[agency.AgencyName(agencyID)] = AgencyMetrics{
+		report.ByAgency[contracts.AgencyName(agencyID)] = AgencyMetrics{
 			TotalTasks:    stats.total,
 			SuccessRate:   rate,
 			AverageTimeMs: avgDuration,

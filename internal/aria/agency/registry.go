@@ -6,6 +6,8 @@ import (
 	"context"
 	"fmt"
 	"sync"
+
+	"github.com/fulvian/aria/internal/aria/contracts"
 )
 
 // AgencyRegistry manages multiple agencies.
@@ -14,10 +16,10 @@ type AgencyRegistry interface {
 	Register(agency Agency) error
 
 	// Unregister removes an agency from the registry.
-	Unregister(name AgencyName) error
+	Unregister(name contracts.AgencyName) error
 
 	// Get returns an agency by name.
-	Get(name AgencyName) (Agency, error)
+	Get(name contracts.AgencyName) (Agency, error)
 
 	// List returns all registered agencies.
 	List() []Agency
@@ -32,13 +34,13 @@ type AgencyRegistry interface {
 // DefaultAgencyRegistry is the default implementation of AgencyRegistry.
 type DefaultAgencyRegistry struct {
 	mu       sync.RWMutex
-	agencies map[AgencyName]Agency
+	agencies map[contracts.AgencyName]Agency
 }
 
 // NewDefaultAgencyRegistry creates a new default agency registry.
 func NewDefaultAgencyRegistry() *DefaultAgencyRegistry {
 	return &DefaultAgencyRegistry{
-		agencies: make(map[AgencyName]Agency),
+		agencies: make(map[contracts.AgencyName]Agency),
 	}
 }
 
@@ -57,7 +59,7 @@ func (r *DefaultAgencyRegistry) Register(ag Agency) error {
 }
 
 // Unregister removes an agency from the registry.
-func (r *DefaultAgencyRegistry) Unregister(name AgencyName) error {
+func (r *DefaultAgencyRegistry) Unregister(name contracts.AgencyName) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -70,7 +72,7 @@ func (r *DefaultAgencyRegistry) Unregister(name AgencyName) error {
 }
 
 // Get returns an agency by name.
-func (r *DefaultAgencyRegistry) Get(name AgencyName) (Agency, error) {
+func (r *DefaultAgencyRegistry) Get(name contracts.AgencyName) (Agency, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -167,7 +169,7 @@ func (r *PersistableAgencyRegistry) Register(ag Agency) error {
 }
 
 // Unregister removes an agency from the registry and database.
-func (r *PersistableAgencyRegistry) Unregister(name AgencyName) error {
+func (r *PersistableAgencyRegistry) Unregister(name contracts.AgencyName) error {
 	// First remove from database (if service is available)
 	if r.service != nil {
 		ctx := context.Background()

@@ -90,6 +90,7 @@ type Querier interface {
 	UpdateProcedureStats(ctx context.Context, arg UpdateProcedureStatsParams) error
 	UpdateSession(ctx context.Context, arg UpdateSessionParams) (Session, error)
 	UpdateTaskProgress(ctx context.Context, arg UpdateTaskProgressParams) error
+	UpdateTaskScheduleExpr(ctx context.Context, arg UpdateTaskScheduleExprParams) error
 	UpdateTaskStatus(ctx context.Context, arg UpdateTaskStatusParams) error
 	UpsertAgencyState(ctx context.Context, arg UpsertAgencyStateParams) (AgencyState, error)
 }

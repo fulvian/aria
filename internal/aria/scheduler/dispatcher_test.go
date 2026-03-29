@@ -319,6 +319,9 @@ func (m *mockDB) UpdateSession(ctx context.Context, arg db.UpdateSessionParams) 
 func (m *mockDB) UpdateTaskProgress(ctx context.Context, arg db.UpdateTaskProgressParams) error {
 	return nil
 }
+func (m *mockDB) UpdateTaskScheduleExpr(ctx context.Context, arg db.UpdateTaskScheduleExprParams) error {
+	return nil
+}
 func (m *mockDB) DeleteAgencyState(ctx context.Context, agencyID string) error {
 	return nil
 }

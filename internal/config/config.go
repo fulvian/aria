@@ -959,11 +959,24 @@ func Get() *Config {
 }
 
 // WorkingDirectory returns the current working directory from the configuration.
+// Panics if config is not loaded.
 func WorkingDirectory() string {
 	if cfg == nil {
 		panic("config not loaded")
 	}
 	return cfg.WorkingDir
+}
+
+// TryWorkingDirectory returns the current working directory from the configuration.
+// Returns an error if config is not loaded or working directory is not set.
+func TryWorkingDirectory() (string, error) {
+	if cfg == nil {
+		return "", fmt.Errorf("config not loaded")
+	}
+	if cfg.WorkingDir == "" {
+		return "", fmt.Errorf("working directory not set")
+	}
+	return cfg.WorkingDir, nil
 }
 
 func UpdateAgentModel(agentName AgentName, modelID models.ModelID) error {
