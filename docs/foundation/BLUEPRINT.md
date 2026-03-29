@@ -1,9 +1,9 @@
 # ARIA: Autonomous Reasoning & Intelligent Assistant
 ## Foundation Blueprint Document
 
-> **Version**: 1.9.0-DRAFT  
+> **Version**: 1.10.0-DRAFT  
 > **Date**: 2026-03-29  
-> **Status**: IN_PROGRESS (FASE 0-4 COMPLETE, FASE 2 COMPLETE, FASE 5 NOT STARTED)  
+> **Status**: IN_PROGRESS (FASE 0-4 COMPLETE, FASE 5 IN PROGRESS ~5%)  
 > **Base Project**: ARIA CLI (Isola Autonoma rispetto a OpenCode/KiloCode)  
 
 ---
@@ -1020,9 +1020,10 @@ agents:
 │                             - Auto-approve rules ✓               │
 │                             ⚠️ Suggestion engine DEFERRED        │
 │                                                                  │
-│  FASE 5: AGENCIES           ▓░░░░░░░░░░░░░░░░░░░░░░░░░  (5%)   │
-│  [Mese 8-12]                Planning complete, starting with    │
-│                             Knowledge Agency                     │
+│  FASE 5: AGENCIES           ███░░░░░░░░░░░░░░░░░░░░░░░  (10%)   │
+│  [Mese 8-12]                Weather Agency POC ✓                │
+│                             AgencyService persistence ✓          │
+│                             - Weather Agency ✓ (POC)            │
 │                             - Knowledge Agency (planning)        │
 │                             - Creative Agency (planning)        │
 │                             - Productivity Agency (planning)     │
@@ -1264,39 +1265,52 @@ agents:
 
 **Durata**: 8-12 settimane  
 **Obiettivo**: Implementare agencies specializzate
-**Stato**: PLANNING COMPLETE - Implementation not started
+**Stato**: IN PROGRESS (~10%) - Weather Agency POC complete
 
 #### Implementation Order
 
-1. **Knowledge Agency** (Settimana 1-2) - Research, web search, Q&A
-2. **Creative Agency** (Settimana 3-4) - Writing, translation, content
-3. **Productivity Agency** (Settimana 5-7) - Planning, calendar, organization
-4. **Personal Agency** (Settimana 7-8) - Assistant, wellness, finance
-5. **Analytics Agency** (Settimana 9-11) - Data analysis, visualization
+1. **Weather Agency** ✅ COMPLETE (POC) - Direct API integration, ~100 tokens/call
+2. **Knowledge Agency** (Settimana 1-2) - Research, web search, Q&A
+3. **Creative Agency** (Settimana 3-4) - Writing, translation, content
+4. **Productivity Agency** (Settimana 5-7) - Planning, calendar, organization
+5. **Personal Agency** (Settimana 7-8) - Assistant, wellness, finance
+6. **Analytics Agency** (Settimana 9-11) - Data analysis, visualization
 
 #### 8.7.1 Task
 
-1. **Knowledge Agency** ⚠️ NOT STARTED
+1. **Agency Persistence Layer** ✅ COMPLETE
+   - [x] AgencyService with CRUD operations
+   - [x] Load/SaveAgencyState for full state persistence
+   - [x] agency_states table with metrics JSON support
+   - [x] PersistableAgencyRegistry for auto-persist
+
+2. **Weather Agency** ✅ COMPLETE (POC)
+   - [x] Direct OpenWeatherMap API integration (~100 tokens/call vs ~350 for MCP)
+   - [x] Skills: weather-current, weather-forecast, weather-alerts
+   - [x] Tool: internal/llm/tools/weather.go
+   - [x] Bridge pattern for agency integration
+
+3. **Knowledge Agency** ⚠️ NOT STARTED
    - Web research integration
    - Document analysis
    - Q&A capabilities
 
-2. **Creative Agency** ⚠️ NOT STARTED
+4. **Creative Agency** ⚠️ NOT STARTED
    - Writing tools
    - Translation
    - Content generation
 
-3. **Productivity Agency** ⚠️ NOT STARTED
+5. **Productivity Agency** ⚠️ NOT STARTED
    - Planning tools
    - Calendar integration
    - Task management
 
-4. **Personal Agency** ⚠️ NOT STARTED
+6. **Personal Agency** ⚠️ NOT STARTED
    - Personal assistant features
    - Lifestyle tracking
    - Recommendations
 
-5. **Analytics Agency** ⚠️ NOT STARTED
+7. **Analytics Agency** ⚠️ NOT STARTED
    - Data analysis
    - Visualization
    - Reporting
