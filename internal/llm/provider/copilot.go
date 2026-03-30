@@ -10,14 +10,14 @@ import (
 	"os"
 	"time"
 
-	"github.com/openai/openai-go"
-	"github.com/openai/openai-go/option"
-	"github.com/openai/openai-go/shared"
 	"github.com/fulvian/aria/internal/config"
 	"github.com/fulvian/aria/internal/llm/models"
 	toolsPkg "github.com/fulvian/aria/internal/llm/tools"
 	"github.com/fulvian/aria/internal/logging"
 	"github.com/fulvian/aria/internal/message"
+	"github.com/openai/openai-go"
+	"github.com/openai/openai-go/option"
+	"github.com/openai/openai-go/shared"
 )
 
 type copilotOptions struct {
@@ -62,7 +62,7 @@ func (c *copilotClient) exchangeGitHubToken(githubToken string) (string, error) 
 	}
 
 	req.Header.Set("Authorization", "Token "+githubToken)
-	req.Header.Set("User-Agent", "OpenCode/1.0")
+	req.Header.Set("User-Agent", "ARIA/1.0")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -124,7 +124,7 @@ func newCopilotClient(opts providerClientOptions) CopilotClient {
 		}
 
 		if githubToken == "" {
-			logging.Error("GitHub token is required for Copilot provider. Set GITHUB_TOKEN environment variable, configure it in opencode.json, or ensure GitHub CLI/Copilot is properly authenticated.")
+			logging.Error("GitHub token is required for Copilot provider. Set GITHUB_TOKEN environment variable, configure it in aria.json, or ensure GitHub CLI/Copilot is properly authenticated.")
 			return &copilotClient{
 				providerOptions: opts,
 				options:         copilotOpts,
@@ -164,8 +164,8 @@ func newCopilotClient(opts providerClientOptions) CopilotClient {
 
 	// Add GitHub Copilot specific headers
 	openaiClientOptions = append(openaiClientOptions,
-		option.WithHeader("Editor-Version", "OpenCode/1.0"),
-		option.WithHeader("Editor-Plugin-Version", "OpenCode/1.0"),
+		option.WithHeader("Editor-Version", "ARIA/1.0"),
+		option.WithHeader("Editor-Plugin-Version", "ARIA/1.0"),
 		option.WithHeader("Copilot-Integration-Id", "vscode-chat"),
 	)
 
@@ -668,4 +668,3 @@ func WithCopilotBearerToken(bearerToken string) CopilotOption {
 		options.bearerToken = bearerToken
 	}
 }
-

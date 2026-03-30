@@ -8,7 +8,6 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	zone "github.com/lrstanley/bubblezone"
 	"github.com/fulvian/aria/internal/app"
 	"github.com/fulvian/aria/internal/config"
 	"github.com/fulvian/aria/internal/db"
@@ -18,33 +17,34 @@ import (
 	"github.com/fulvian/aria/internal/pubsub"
 	"github.com/fulvian/aria/internal/tui"
 	"github.com/fulvian/aria/internal/version"
+	zone "github.com/lrstanley/bubblezone"
 	"github.com/spf13/cobra"
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "opencode",
-	Short: "Terminal-based AI assistant for software development",
-	Long: `OpenCode is a powerful terminal-based AI assistant that helps with software development tasks.
+	Use:   "aria",
+	Short: "ARIA - Autonomous Reasoning & Intelligent Assistant",
+	Long: `ARIA is a powerful terminal-based AI assistant that helps with software development tasks.
 It provides an interactive chat interface with AI capabilities, code analysis, and LSP integration
 to assist developers in writing, debugging, and understanding code directly from the terminal.`,
 	Example: `
   # Run in interactive mode
-  opencode
+  aria
 
   # Run with debug logging
-  opencode -d
+  aria -d
 
   # Run with debug logging in a specific directory
-  opencode -d -c /path/to/project
+  aria -d -c /path/to/project
 
   # Print version
-  opencode -v
+  aria -v
 
   # Run a single non-interactive prompt
-  opencode -p "Explain the use of context in Go"
+  aria -p "Explain the use of context in Go"
 
   # Run a single non-interactive prompt with JSON output format
-  opencode -p "Explain the use of context in Go" -f json
+  aria -p "Explain the use of context in Go" -f json
   `,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// If the help flag is set, show the help message

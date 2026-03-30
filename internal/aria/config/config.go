@@ -1,5 +1,5 @@
 // Package config provides ARIA-specific configuration loaded from environment variables.
-// This is completely separate from opencode/kilocode config via viper.
+// This is completely separate from the main application config via viper.
 package config
 
 import (
@@ -8,7 +8,7 @@ import (
 )
 
 // Config holds ARIA-specific configuration loaded from environment variables.
-// This is completely separate from opencode/kilocode config.
+// This is completely separate from the main application config.
 type Config struct {
 	Enabled bool
 

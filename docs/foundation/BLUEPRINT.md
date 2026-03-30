@@ -1,10 +1,10 @@
 # ARIA: Autonomous Reasoning & Intelligent Assistant
 ## Foundation Blueprint Document
 
-> **Version**: 1.13.0-DRAFT  
+> **Version**: 1.14.0-DRAFT  
 > **Date**: 2026-03-30  
-> **Status**: IN_PROGRESS (FASE 0-5 COMPLETE, ORCHESTRATOR ENHANCEMENT O1-O5 COMPLETE)  
-> **Base Project**: ARIA CLI (Isola Autonoma rispetto a OpenCode/KiloCode)  
+> **Status**: IN_PROGRESS (FASE 0-5 COMPLETE, ORCHESTRATOR ENHANCEMENT O1-O5 COMPLETE, ARIA STANDALONE SEPARATION V4 COMPLETE)  
+> **Base Project**: ARIA CLI (Standalone - completamente separato da OpenCode/KiloCode)  
 
 ---
 
@@ -21,15 +21,15 @@ ARIA sarà caratterizzato da:
 
 ---
 
-## Parte I: Analisi del Sistema Esistente (OpenCode CLI)
+## Parte I: Analisi del Sistema Esistente (ARIA CLI)
 
 ### 1.1 Architettura Corrente
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        OpenCode CLI                              │
+│                          ARIA CLI                                │
 ├─────────────────────────────────────────────────────────────────┤
-│  cmd/                     │  Entry point (Cobra CLI)             │
+│  cmd/                     │  Entry point (Cobra CLI) - "aria"   │
 │  internal/app/            │  Application orchestration           │
 │  internal/llm/agent/      │  Agent implementation                │
 │  internal/llm/provider/   │  LLM providers (Anthropic, OpenAI..) │
@@ -1472,42 +1472,46 @@ ARIA è progettato come **isola autonoma** all'interno dell'ecosistema OpenCode/
 
 1. **Namespace Codice Isolato**: Tutto il codice ARIA vive in `internal/aria/*`, completamente separato da `internal/llm/*`, `internal/tui/*`, etc.
 
-2. **Configurazione Indipendente**: 
-   - OpenCode/KiloCode: `internal/config/config.go` con Viper (formati JSON, env vars `OPENCODE_*`)
-   - ARIA: `internal/aria/config/config.go` con env vars `ARIA_*` (nessuna dipendenza da Viper)
+2. **Configurazione Completamente Separata**: 
+   - ARIA: `internal/config/config.go` con Viper (formati JSON, env vars `ARIA_*`)
+   - Data directory: `.aria` (precedentemente `.opencode`)
+   - Config file: `aria.json` opzionale
+   - Database: `aria.db` (precedentemente `opencode.db`)
+   - **Nota**: OpenCode/KiloCode non è più supportato come base - ARIA è ora standalone
 
 3. **Opt-in Globale**: 
-   - `ARIA_ENABLED=true` attiva la modalità ARIA
-   - `ARIA_ENABLED=false` (default) usa il behavior legacy
+   - Modalità ARIA attiva di default
    - Ogni agency/skill/feature può essere abilitata singolarmente
 
 4. **Database Schema Isolato per Dominio**:
    - Tabelle ARIA: `episodes`, `facts`, `procedures`, `tasks`, `agencies`, `task_events`, `working_memory_contexts`
-   - Tabelle OpenCode esistenti: `sessions`, `messages`, `files` (non toccate)
+   - Tabelle esistenti: `sessions`, `messages`, `files` (non toccate)
 
 5. **Runtime Condiviso ma Esecuzione Isolata**:
    - LLM providers, tools, TUI sono condivisi
    - L'orchestrator ARIA gestisce solo le query ARIA-mode
    - Fallback automatico al coder legacy quando necessario
 
-#### 9.2.3 Vantaggi dell'Isola
+#### 9.2.3 Vantaggi dell'Isola Standalone
 
 | Vantaggio | Descrizione |
 |-----------|-------------|
-| **Sicurezza** | Bug in ARIA non compromettono OpenCode e viceversa |
-| **Sviluppo Indipendente** | Team diversi possono lavorare su entrambi senza conflitti |
-| **Migrazione Graduale** | Nuove features ARIA possono essere aggiunte senza toccare il codice esistente |
-| **Rollback Semplice** | Disabilitando `ARIA_ENABLED` si torna al behavior precedente |
-| **Test Indipendenti** | Test ARIA non dipendono dalla configurazione OpenCode |
+| **Clean Architecture** | ARIA è completamente separato, nessuna contaminazione OpenCode nel codice |
+| **Brand Identity** | Identità di prodotto chiara: ARIA |
+| **Sviluppo Indipendente** | Team possono lavorare senza conflitti o riferimenti legacy |
+| **Migrazione Completata** | Separazione terminata - nessun mapping backward-compat necessario |
+| **Test Indipendenti** | Test ARIA non dipendono da configurazione OpenCode |
+| **CI/CD Semplificato** | Pipeline unico per prodotto singolo |
 
 ### 9.3 Principi di Design
 
-1. **Backward Compatibility**: Mantenere compatibilità con configurazioni OpenCode esistenti. ARIA è completamente separato e opt-in.
-2. **Config Separation**: OpenCode/kilocode e ARIA hanno configurazioni indipendenti. OpenCode usa `config.go` con Viper. ARIA usa `internal/aria/config` con env vars `ARIA_*`.
+1. **Standalone Product**: ARIA è un prodotto completamente standalone, separato da OpenCode/KiloCode.
+2. **Config Separation**: ARIA usa configurazione indipendente con env vars `ARIA_*`, data directory `.aria`, config file `aria.json`.
 3. **Opt-in Complexity**: Features avanzate opt-in, behavior di default semplice
 4. **Offline-First**: Funzionalità core senza dipendenze internet
 5. **Privacy-First**: Dati locali, nessuna telemetria senza consenso
 6. **Extensibility**: Plugin system per estensioni community
+7. **Credits**: Attribuzione a OpenCode mantenuta solo in documentazione ufficiale (`ACKNOWLEDGEMENTS.md`)
 
 ### 9.3 Testing Strategy
 
@@ -1560,6 +1564,7 @@ internal/aria/
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.14.0-DRAFT | 2026-03-30 | **ARIA STANDALONE SEPARATION V4 COMPLETE** - (1) **V4-0**: Created boundary audit inventory and policy docs (`aria-opencode-cleanup-inventory.md`, `aria-boundary-policy.md`). (2) **V4-1**: CLI renamed from `opencode` to `aria`, help/description/examples updated. (3) **V4-3**: All 76 OpenCode references removed from Go code - prompts, user-agents, temp files, panic logs, diff styles, ignored directories. (4) **V4-4**: Config now uses `.aria` data directory, `aria.json` config file, `aria.db` database. Context paths updated to ARIA.md. (5) **V4-5**: Created `internal/tui/theme/aria.go` (replacing opencode.go), ARIAIcon, "ARIA" logo, ARIA.md memory file guidance. (6) **V4-6**: Created `ACKNOWLEDGEMENTS.md` with official credits. **Verification**: `go build`, `go vet`, `go test` all pass. `grep -r "opencode" *.go` returns no matches in runtime code. |
 | 1.13.0-DRAFT | 2026-03-30 | **ORCHESTRATOR ENHANCEMENT O1-O5 COMPLETE** - (1) **O1 Decision Core**: DecisionEngine with ComplexityAnalyzer (93% coverage), RiskAnalyzer, TriggerPolicy for sequential-thinking gating, PathSelector for Fast/Deep path, (2) **O2 Planner/Executor/Reviewer**: Plan types, Planner.CreatePlan/CreatePlanWithThinking, Executor.Execute/ExecuteStep, Reviewer.Review/ShouldReplan, OrchestratorPipeline skeleton (80.7% coverage), (3) **O3 Routing 2.0**: CapabilityRegistry for agency/agent matching, PolicyRouter with confidence calibration and policy override (71.9% coverage), (4) **O4 Prompt & Command Layer**: Orchestrator prompts (planner/executor/reviewer), Slash commands /plan /decide-agent /debug-plan /review-response, (5) **O5 Telemetry**: TelemetryService for decision/execution/review events, KPI calculator (RoutingAccuracy, FallbackRate, ReplanRate, etc.), FeedbackLoop for continuous learning (95.2% coverage). **Config**: Updated .opencode.json with aria.orchestrator config and commands section. **Branch**: feature/orchestrator-enhancement. |
 | 1.12.0-DRAFT | 2026-03-29 | **STUB IMPLEMENTATION COMPLETE** - Priority 1-3 stubs resolved in existing code: (1) **ReviewerAgent.Review()**: Integrated CodeReviewSkill with grep/glob/view tools, (2) **ArchitectAgent.Design()**: Real architectural pattern detection, (3) **LearnFromFeedback (3 agents)**: Metrics tracking, confidence scores, (4) **extractLocation()**: Regex-based location extraction, (5) **GetProactiveSuggestions()**: Full implementation, (6) **History pass-through**: Fixed classifier history, (7) **Classifier()**: Added GetClassifier() interface, (8) **TDD Skill**: Proper parallel tests and benchmarks, (9) **Debugging Skill**: Build/test verification, (10) **Memory Retention**: Enhanced stats and enforcement. **Note**: FASE 5 progress ~17% - only Weather Agency POC complete. Knowledge/Creative/Productivity/Personal/Analytics agencies NOT STARTED. |
 | 1.11.0-DRAFT | 2026-03-29 | **P0-1 INTERFACE CONTRACT DRIFT RESOLVED** - Phase 1-6 COMPLETE: (1) Created `internal/aria/contracts/` package with shared types (AgencyName, AgentName, Task, Result, etc.) breaking import cycle between agency and agent packages, (2) Canonicalized `Agent` interface (renamed from `EnhancedAgent`, added `EnhancedAgent = Agent` alias for backward compatibility), (3) Updated `Agency.Agents()` to return `[]contracts.AgentName` and `Agency.GetAgent()` to accept `contracts.AgentName`, (4) Completed `ReviewerAgent`, `ArchitectAgent`, and `CoderBridge` with full `Agent` interface implementation including event brokers, state management, and skill support, (5) Updated all call sites across core, analysis, and app packages to use `contracts.AgencyName`, (6) All verification gates pass (`go build`, `go vet`, `go test`, `go test -race`). **FASE 5 progress**: Development Agency agents now fully typed. **Roadmap Updated**: FASE 0-4 COMPLETE, FASE 5 ~15%. **Next**: Weather Agency completion, Knowledge/Creative/Productivity agencies. |
