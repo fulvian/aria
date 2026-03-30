@@ -59,3 +59,4 @@ opencode.md
 *.key
 credentials.json
 secrets.json
+.worktrees/

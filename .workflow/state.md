@@ -1,47 +1,66 @@
 # Project State
 
-## Current Phase: Phase 5 - Delivery (Branch Complete)
-## Started: 2026-03-29T21:53:32+02:00
-## PRD: docs/plans/2026-03-30-orchestrator-enhancement-master-plan.md
-## TDD: docs/plans/tdd/2026-03-30-orchestrator-enhancement-TDD.md
-## Implementation: 100% (O1-O5 COMPLETE)
-## Tests: ALL PASSING (coverage: O1 93%, O2 80.7%, O3 71.9%, O4 56.4%, O5 95.2%)
-## Deployment: Ready for PR to main
+## Current Phase: Phase 5 - Delivery (Nutrition Agency PR Open)
+## Started: 2026-03-30T15:00:00+02:00
+## Branch: feature/nutrition-agency
+## Commit: f277893 (18 files, +4160 lines)
+## PR: https://github.com/fulvian/aria/pull/3
+
+## Nutrition Agency Implementation Summary
+
+### Phases Completed
+
+| Phase | Status | Files |
+|-------|--------|-------|
+| N0 - Foundation | ✅ Complete | contracts.go, classifier.go, skill.go, config.go, nutrition.go |
+| N1 - Tools MVP | ✅ Complete | nutrition_usda.go, nutrition_openfoodfacts.go, recipes_mealdb.go, food_safety_openfda.go |
+| N2 - Skills MVP | ✅ Complete | nutrition_analysis.go, recipe_search.go, diet_plan_generation.go, food_recall_monitoring.go |
+| N3 - Agency | ✅ Complete | nutrition.go (5 agent bridges) |
+| N4 - Integration | ✅ Complete | aria_integration.go |
+| N5 - Docs/Metrics | ✅ Complete | BLUEPRINT.md (v1.15.0-DRAFT), runbook, metrics |
+
+### New Entities
+
+- **Agency**: nutrition
+- **Domain**: nutrition
+- **Agents**: CulinaryAgent, DietPlannerAgent, NutritionAnalystAgent, HealthyLifestyleCoachAgent, FoodSafetyAgent
+- **Skills**: recipe-search, nutrition-analysis, diet-plan-generation, food-recall-monitoring (+ 4 V1.1 skills)
+- **Tools**: USDA FDC, Open Food Facts, TheMealDB, openFDA
+
+### Verification
+
+- `go build ./...` ✅
+- `go vet ./...` ✅
+- `go test ./...` ✅
+
+### Worktree Location
+
+`.worktrees/nutrition-agency`
 
 ## Agent History
+
 | Timestamp | Agent | Action | Status |
 |-----------|-------|--------|--------|
-| 2026-03-29T21:54:25+02:00 | General Manager | Recovered prior session context via planning-with-files catchup | completed |
-| 2026-03-29T21:58:00+02:00 | General Manager | Produced P0-1 interface drift implementation plan from handoff | completed |
-| 2026-03-29T21:58:30+02:00 | General Manager | Updated planning artifacts and workflow state | completed |
-| 2026-03-30T00:10:16+02:00 | General Manager | Produced orchestrator enhancement master plan with sequential-thinking integration policy | completed |
-| 2026-03-30T00:35:33+02:00 | General Manager | User approved PRD - started implementation | completed |
-| 2026-03-30T01:00:00+02:00 | Coder | O1 Decision Core Hardening implemented | completed |
-| 2026-03-30T01:30:00+02:00 | Coder | O2 Planner/Executor/Reviewer implemented | completed |
-| 2026-03-30T02:00:00+02:00 | Coder | O3 Routing 2.0 + Capability Governance implemented | completed |
-| 2026-03-30T02:30:00+02:00 | Coder | O4 Prompt & Command Layer implemented | completed |
-| 2026-03-30T03:00:00+02:00 | Coder | O5 Telemetria + Feedback Loop implemented | completed |
-| 2026-03-30T03:30:00+02:00 | General Manager | Verification (build/vet/test) completed | completed |
-| 2026-03-30T03:45:00+02:00 | General Manager | Documentation updated (BLUEPRINT.md) | completed |
+| 2026-03-30T15:00:00+02:00 | General Manager | Started Nutrition Agency implementation | completed |
+| 2026-03-30T15:05:00+02:00 | Coder | Phase N0 - Foundation & contracts | completed |
+| 2026-03-30T15:08:00+02:00 | Coder | Phase N1 - Tools MVP | completed |
+| 2026-03-30T15:10:00+02:00 | Coder | Phase N2 - Skills MVP | completed |
+| 2026-03-30T15:12:00+02:00 | Coder | Phase N3 - Agency & agent bridge | completed |
+| 2026-03-30T15:14:00+02:00 | Coder | Phase N4 - Integration | completed |
+| 2026-03-30T15:15:00+02:00 | Coder | Phase N5 - Quality/docs | completed |
+| 2026-03-30T15:16:00+02:00 | General Manager | Branch committed and PR created | completed |
 
 ## Skills Invoked
+
 | Phase | Skill | Outcome |
 |-------|-------|---------|
-| Step 0 - Session Recovery | planning-with-files | loaded and applied |
-| Step 0 - Session Recovery | planning-with-files | reused for orchestrator enhancement planning |
-| Phase 2 - TDD | subagent-driven-development | TDD produced |
-| Phase 3 - Implementation | subagent-driven-development | O1-O5 implementation delegated to coder agents |
-| Phase 3 - Implementation | using-git-worktrees | verified branch isolation |
-
-## Deliverables
-- Branch: `feature/orchestrator-enhancement`
-- Commits: 4 (O1, O2, O3+O4, O5+config+docs)
-- Files created: ~30
-- Tests: 140+ passing
-- Coverage: >70% on all core packages
+| All | planning-with-files | Session planning and tracking |
+| All | using-git-worktrees | Isolated workspace for implementation |
 
 ## Next Steps
-1. Create PR from `feature/orchestrator-enhancement` to `main`
-2. User reviews and approves PR
-3. Merge to main
-4. Update BLUEPRINT.md status to COMPLETED after merge
+
+1. User reviews and approves PR #3
+2. Merge PR to main
+3. V1.1 skills: recipe-adaptation, meal-plan-optimization, healthy-habits-coaching, nutrition-education
+4. Add unit tests for tools with HTTP mock
+5. Add integration tests for agency execution
