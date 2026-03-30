@@ -530,7 +530,7 @@ func (s *SchedulerService) UpdateSchedule(ctx context.Context, taskID TaskID, sc
 
 	// Update schedule in database
 	err = s.db.UpdateTaskScheduleExpr(ctx, db.UpdateTaskScheduleExprParams{
-		ScheduleExpr: string(scheduleJSON),
+		ScheduleExpr: sql.NullString{String: string(scheduleJSON), Valid: true},
 		ID:           string(taskID),
 	})
 	if err != nil {

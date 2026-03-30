@@ -429,6 +429,77 @@ func (m *mockQuerier) DeleteWorkingContext(ctx context.Context, sessionID string
 	return nil
 }
 
+// Guardrail and Permission mock methods
+func (m *mockQuerier) CreateGuardrailAuditEntry(ctx context.Context, arg db.CreateGuardrailAuditEntryParams) (db.GuardrailAudit, error) {
+	return db.GuardrailAudit{}, nil
+}
+func (m *mockQuerier) CreatePermissionRequest(ctx context.Context, arg db.CreatePermissionRequestParams) (db.PermissionRequest, error) {
+	return db.PermissionRequest{}, nil
+}
+func (m *mockQuerier) CreatePermissionResponse(ctx context.Context, arg db.CreatePermissionResponseParams) (db.PermissionResponse, error) {
+	return db.PermissionResponse{}, nil
+}
+func (m *mockQuerier) CreatePermissionRule(ctx context.Context, arg db.CreatePermissionRuleParams) (db.PermissionRule, error) {
+	return db.PermissionRule{}, nil
+}
+func (m *mockQuerier) DeleteExpiredPermissionRules(ctx context.Context) error {
+	return nil
+}
+func (m *mockQuerier) DeleteOldGuardrailAudit(ctx context.Context, dollar_1 sql.NullString) error {
+	return nil
+}
+func (m *mockQuerier) DeleteOldPermissionRequests(ctx context.Context, dollar_1 sql.NullString) error {
+	return nil
+}
+func (m *mockQuerier) DeletePermissionRule(ctx context.Context, id string) error {
+	return nil
+}
+func (m *mockQuerier) GetGuardrailBudget(ctx context.Context, actionType string) (db.GuardrailBudget, error) {
+	return db.GuardrailBudget{}, nil
+}
+func (m *mockQuerier) GetGuardrailPreferences(ctx context.Context) (db.GuardrailPreference, error) {
+	return db.GuardrailPreference{}, nil
+}
+func (m *mockQuerier) GetPermissionRequestByID(ctx context.Context, id string) (db.PermissionRequest, error) {
+	return db.PermissionRequest{}, sql.ErrNoRows
+}
+func (m *mockQuerier) GetPermissionResponseByRequestID(ctx context.Context, requestID string) (db.PermissionResponse, error) {
+	return db.PermissionResponse{}, sql.ErrNoRows
+}
+func (m *mockQuerier) GetPermissionRuleByID(ctx context.Context, id string) (db.PermissionRule, error) {
+	return db.PermissionRule{}, sql.ErrNoRows
+}
+func (m *mockQuerier) ListGuardrailAuditByTimeRange(ctx context.Context, arg db.ListGuardrailAuditByTimeRangeParams) ([]db.GuardrailAudit, error) {
+	return []db.GuardrailAudit{}, nil
+}
+func (m *mockQuerier) ListGuardrailAuditByType(ctx context.Context, arg db.ListGuardrailAuditByTypeParams) ([]db.GuardrailAudit, error) {
+	return []db.GuardrailAudit{}, nil
+}
+func (m *mockQuerier) ListGuardrailBudgets(ctx context.Context) ([]db.GuardrailBudget, error) {
+	return []db.GuardrailBudget{}, nil
+}
+func (m *mockQuerier) ListPermissionRequestsByAgency(ctx context.Context, arg db.ListPermissionRequestsByAgencyParams) ([]db.PermissionRequest, error) {
+	return []db.PermissionRequest{}, nil
+}
+func (m *mockQuerier) ListPermissionRequestsByAgent(ctx context.Context, arg db.ListPermissionRequestsByAgentParams) ([]db.PermissionRequest, error) {
+	return []db.PermissionRequest{}, nil
+}
+func (m *mockQuerier) ListPermissionRulesByAgency(ctx context.Context, agencyID string) ([]db.PermissionRule, error) {
+	return []db.PermissionRule{}, nil
+}
+func (m *mockQuerier) ResetGuardrailBudgets(ctx context.Context, resetAt int64) error {
+	return nil
+}
+func (m *mockQuerier) UpdateGuardrailBudgetUsed(ctx context.Context, arg db.UpdateGuardrailBudgetUsedParams) error {
+	return nil
+}
+func (m *mockQuerier) UpsertGuardrailBudget(ctx context.Context, arg db.UpsertGuardrailBudgetParams) (db.GuardrailBudget, error) {
+	return db.GuardrailBudget{}, nil
+}
+func (m *mockQuerier) UpsertGuardrailPreferences(ctx context.Context, arg db.UpsertGuardrailPreferencesParams) (db.GuardrailPreference, error) {
+	return db.GuardrailPreference{}, nil
+}
+
 func TestMemoryService_GetContext_SetContext(t *testing.T) {
 	t.Parallel()
 

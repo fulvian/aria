@@ -332,6 +332,77 @@ func (m *mockDB) UpsertAgencyState(ctx context.Context, arg db.UpsertAgencyState
 	return db.AgencyState{}, nil
 }
 
+// Guardrail and Permission mock methods for scheduler
+func (m *mockDB) CreateGuardrailAuditEntry(ctx context.Context, arg db.CreateGuardrailAuditEntryParams) (db.GuardrailAudit, error) {
+	return db.GuardrailAudit{}, nil
+}
+func (m *mockDB) CreatePermissionRequest(ctx context.Context, arg db.CreatePermissionRequestParams) (db.PermissionRequest, error) {
+	return db.PermissionRequest{}, nil
+}
+func (m *mockDB) CreatePermissionResponse(ctx context.Context, arg db.CreatePermissionResponseParams) (db.PermissionResponse, error) {
+	return db.PermissionResponse{}, nil
+}
+func (m *mockDB) CreatePermissionRule(ctx context.Context, arg db.CreatePermissionRuleParams) (db.PermissionRule, error) {
+	return db.PermissionRule{}, nil
+}
+func (m *mockDB) DeleteExpiredPermissionRules(ctx context.Context) error {
+	return nil
+}
+func (m *mockDB) DeleteOldGuardrailAudit(ctx context.Context, dollar_1 sql.NullString) error {
+	return nil
+}
+func (m *mockDB) DeleteOldPermissionRequests(ctx context.Context, dollar_1 sql.NullString) error {
+	return nil
+}
+func (m *mockDB) DeletePermissionRule(ctx context.Context, id string) error {
+	return nil
+}
+func (m *mockDB) GetGuardrailBudget(ctx context.Context, actionType string) (db.GuardrailBudget, error) {
+	return db.GuardrailBudget{}, nil
+}
+func (m *mockDB) GetGuardrailPreferences(ctx context.Context) (db.GuardrailPreference, error) {
+	return db.GuardrailPreference{}, nil
+}
+func (m *mockDB) GetPermissionRequestByID(ctx context.Context, id string) (db.PermissionRequest, error) {
+	return db.PermissionRequest{}, sql.ErrNoRows
+}
+func (m *mockDB) GetPermissionResponseByRequestID(ctx context.Context, requestID string) (db.PermissionResponse, error) {
+	return db.PermissionResponse{}, sql.ErrNoRows
+}
+func (m *mockDB) GetPermissionRuleByID(ctx context.Context, id string) (db.PermissionRule, error) {
+	return db.PermissionRule{}, sql.ErrNoRows
+}
+func (m *mockDB) ListGuardrailAuditByTimeRange(ctx context.Context, arg db.ListGuardrailAuditByTimeRangeParams) ([]db.GuardrailAudit, error) {
+	return []db.GuardrailAudit{}, nil
+}
+func (m *mockDB) ListGuardrailAuditByType(ctx context.Context, arg db.ListGuardrailAuditByTypeParams) ([]db.GuardrailAudit, error) {
+	return []db.GuardrailAudit{}, nil
+}
+func (m *mockDB) ListGuardrailBudgets(ctx context.Context) ([]db.GuardrailBudget, error) {
+	return []db.GuardrailBudget{}, nil
+}
+func (m *mockDB) ListPermissionRequestsByAgency(ctx context.Context, arg db.ListPermissionRequestsByAgencyParams) ([]db.PermissionRequest, error) {
+	return []db.PermissionRequest{}, nil
+}
+func (m *mockDB) ListPermissionRequestsByAgent(ctx context.Context, arg db.ListPermissionRequestsByAgentParams) ([]db.PermissionRequest, error) {
+	return []db.PermissionRequest{}, nil
+}
+func (m *mockDB) ListPermissionRulesByAgency(ctx context.Context, agencyID string) ([]db.PermissionRule, error) {
+	return []db.PermissionRule{}, nil
+}
+func (m *mockDB) ResetGuardrailBudgets(ctx context.Context, resetAt int64) error {
+	return nil
+}
+func (m *mockDB) UpdateGuardrailBudgetUsed(ctx context.Context, arg db.UpdateGuardrailBudgetUsedParams) error {
+	return nil
+}
+func (m *mockDB) UpsertGuardrailBudget(ctx context.Context, arg db.UpsertGuardrailBudgetParams) (db.GuardrailBudget, error) {
+	return db.GuardrailBudget{}, nil
+}
+func (m *mockDB) UpsertGuardrailPreferences(ctx context.Context, arg db.UpsertGuardrailPreferencesParams) (db.GuardrailPreference, error) {
+	return db.GuardrailPreference{}, nil
+}
+
 // testSchedulerService creates a scheduler service with a mock DB for testing
 func newTestSchedulerService(mock db.Querier, maxConcurrent int) *SchedulerService {
 	ctx, cancel := context.WithCancel(context.Background())

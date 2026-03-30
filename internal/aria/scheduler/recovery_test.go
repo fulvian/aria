@@ -276,6 +276,77 @@ func (m *mockRecoveryQuerier) UpdateTaskScheduleExpr(ctx context.Context, arg db
 	panic("not implemented")
 }
 
+// Guardrail and Permission mock methods
+func (m *mockRecoveryQuerier) CreateGuardrailAuditEntry(ctx context.Context, arg db.CreateGuardrailAuditEntryParams) (db.GuardrailAudit, error) {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) CreatePermissionRequest(ctx context.Context, arg db.CreatePermissionRequestParams) (db.PermissionRequest, error) {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) CreatePermissionResponse(ctx context.Context, arg db.CreatePermissionResponseParams) (db.PermissionResponse, error) {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) CreatePermissionRule(ctx context.Context, arg db.CreatePermissionRuleParams) (db.PermissionRule, error) {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) DeleteExpiredPermissionRules(ctx context.Context) error {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) DeleteOldGuardrailAudit(ctx context.Context, dollar_1 sql.NullString) error {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) DeleteOldPermissionRequests(ctx context.Context, dollar_1 sql.NullString) error {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) DeletePermissionRule(ctx context.Context, id string) error {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) GetGuardrailBudget(ctx context.Context, actionType string) (db.GuardrailBudget, error) {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) GetGuardrailPreferences(ctx context.Context) (db.GuardrailPreference, error) {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) GetPermissionRequestByID(ctx context.Context, id string) (db.PermissionRequest, error) {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) GetPermissionResponseByRequestID(ctx context.Context, requestID string) (db.PermissionResponse, error) {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) GetPermissionRuleByID(ctx context.Context, id string) (db.PermissionRule, error) {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) ListGuardrailAuditByTimeRange(ctx context.Context, arg db.ListGuardrailAuditByTimeRangeParams) ([]db.GuardrailAudit, error) {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) ListGuardrailAuditByType(ctx context.Context, arg db.ListGuardrailAuditByTypeParams) ([]db.GuardrailAudit, error) {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) ListGuardrailBudgets(ctx context.Context) ([]db.GuardrailBudget, error) {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) ListPermissionRequestsByAgency(ctx context.Context, arg db.ListPermissionRequestsByAgencyParams) ([]db.PermissionRequest, error) {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) ListPermissionRequestsByAgent(ctx context.Context, arg db.ListPermissionRequestsByAgentParams) ([]db.PermissionRequest, error) {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) ListPermissionRulesByAgency(ctx context.Context, agencyID string) ([]db.PermissionRule, error) {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) ResetGuardrailBudgets(ctx context.Context, resetAt int64) error {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) UpdateGuardrailBudgetUsed(ctx context.Context, arg db.UpdateGuardrailBudgetUsedParams) error {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) UpsertGuardrailBudget(ctx context.Context, arg db.UpsertGuardrailBudgetParams) (db.GuardrailBudget, error) {
+	panic("not implemented")
+}
+func (m *mockRecoveryQuerier) UpsertGuardrailPreferences(ctx context.Context, arg db.UpsertGuardrailPreferencesParams) (db.GuardrailPreference, error) {
+	panic("not implemented")
+}
+
 func TestRecoveryManager_Recover_NoOrphanedTasks(t *testing.T) {
 	t.Parallel()
 

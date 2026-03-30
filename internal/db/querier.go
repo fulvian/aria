@@ -18,7 +18,15 @@ type Querier interface {
 	CreateEpisode(ctx context.Context, arg CreateEpisodeParams) (Episode, error)
 	CreateFact(ctx context.Context, arg CreateFactParams) (Fact, error)
 	CreateFile(ctx context.Context, arg CreateFileParams) (File, error)
+	// Guardrail Audit queries
+	CreateGuardrailAuditEntry(ctx context.Context, arg CreateGuardrailAuditEntryParams) (GuardrailAudit, error)
 	CreateMessage(ctx context.Context, arg CreateMessageParams) (Message, error)
+	// Permission Requests queries
+	CreatePermissionRequest(ctx context.Context, arg CreatePermissionRequestParams) (PermissionRequest, error)
+	// Permission Responses queries
+	CreatePermissionResponse(ctx context.Context, arg CreatePermissionResponseParams) (PermissionResponse, error)
+	// Permission Rules queries
+	CreatePermissionRule(ctx context.Context, arg CreatePermissionRuleParams) (PermissionRule, error)
 	CreateProcedure(ctx context.Context, arg CreateProcedureParams) (Procedure, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateTask(ctx context.Context, arg CreateTaskParams) (Task, error)
@@ -27,10 +35,14 @@ type Querier interface {
 	DeleteAgencyState(ctx context.Context, agencyID string) error
 	DeleteEpisode(ctx context.Context, id string) error
 	DeleteExpiredContexts(ctx context.Context) error
+	DeleteExpiredPermissionRules(ctx context.Context) error
 	DeleteFact(ctx context.Context, id string) error
 	DeleteFile(ctx context.Context, id string) error
 	DeleteMessage(ctx context.Context, id string) error
 	DeleteOldEpisodes(ctx context.Context, createdAt int64) error
+	DeleteOldGuardrailAudit(ctx context.Context, dollar_1 sql.NullString) error
+	DeleteOldPermissionRequests(ctx context.Context, dollar_1 sql.NullString) error
+	DeletePermissionRule(ctx context.Context, id string) error
 	DeleteProcedure(ctx context.Context, id string) error
 	DeleteSession(ctx context.Context, id string) error
 	DeleteSessionFiles(ctx context.Context, sessionID string) error
@@ -45,7 +57,12 @@ type Querier interface {
 	GetFactByID(ctx context.Context, id string) (Fact, error)
 	GetFile(ctx context.Context, id string) (File, error)
 	GetFileByPathAndSession(ctx context.Context, arg GetFileByPathAndSessionParams) (File, error)
+	GetGuardrailBudget(ctx context.Context, actionType string) (GuardrailBudget, error)
+	GetGuardrailPreferences(ctx context.Context) (GuardrailPreference, error)
 	GetMessage(ctx context.Context, id string) (Message, error)
+	GetPermissionRequestByID(ctx context.Context, id string) (PermissionRequest, error)
+	GetPermissionResponseByRequestID(ctx context.Context, requestID string) (PermissionResponse, error)
+	GetPermissionRuleByID(ctx context.Context, id string) (PermissionRule, error)
 	GetProcedureByID(ctx context.Context, id string) (Procedure, error)
 	GetProcedureByName(ctx context.Context, name string) (Procedure, error)
 	GetRecentTaskEvents(ctx context.Context, limit int64) ([]TaskEvent, error)
@@ -64,10 +81,16 @@ type Querier interface {
 	ListFactsByDomain(ctx context.Context, domain string) ([]Fact, error)
 	ListFilesByPath(ctx context.Context, path string) ([]File, error)
 	ListFilesBySession(ctx context.Context, sessionID string) ([]File, error)
+	ListGuardrailAuditByTimeRange(ctx context.Context, arg ListGuardrailAuditByTimeRangeParams) ([]GuardrailAudit, error)
+	ListGuardrailAuditByType(ctx context.Context, arg ListGuardrailAuditByTypeParams) ([]GuardrailAudit, error)
+	ListGuardrailBudgets(ctx context.Context) ([]GuardrailBudget, error)
 	ListLatestSessionFiles(ctx context.Context, sessionID string) ([]File, error)
 	ListMessagesBySession(ctx context.Context, sessionID string) ([]Message, error)
 	ListNewFiles(ctx context.Context) ([]File, error)
 	ListPendingTasks(ctx context.Context, arg ListPendingTasksParams) ([]Task, error)
+	ListPermissionRequestsByAgency(ctx context.Context, arg ListPermissionRequestsByAgencyParams) ([]PermissionRequest, error)
+	ListPermissionRequestsByAgent(ctx context.Context, arg ListPermissionRequestsByAgentParams) ([]PermissionRequest, error)
+	ListPermissionRulesByAgency(ctx context.Context, agencyID string) ([]PermissionRule, error)
 	ListProcedures(ctx context.Context) ([]Procedure, error)
 	ListProceduresByTrigger(ctx context.Context, triggerType string) ([]Procedure, error)
 	ListSessions(ctx context.Context) ([]Session, error)
@@ -75,6 +98,7 @@ type Querier interface {
 	ListTasksByAgency(ctx context.Context, arg ListTasksByAgencyParams) ([]Task, error)
 	ListTasksByStatus(ctx context.Context, arg ListTasksByStatusParams) ([]Task, error)
 	RemoveTaskDependency(ctx context.Context, arg RemoveTaskDependencyParams) error
+	ResetGuardrailBudgets(ctx context.Context, resetAt int64) error
 	SaveWorkingContext(ctx context.Context, arg SaveWorkingContextParams) (WorkingMemoryContext, error)
 	SearchEpisodes(ctx context.Context, arg SearchEpisodesParams) ([]Episode, error)
 	SearchEpisodesByAgent(ctx context.Context, arg SearchEpisodesByAgentParams) ([]Episode, error)
@@ -86,6 +110,7 @@ type Querier interface {
 	UpdateAgencyStatus(ctx context.Context, arg UpdateAgencyStatusParams) error
 	UpdateFactConfidence(ctx context.Context, arg UpdateFactConfidenceParams) error
 	UpdateFile(ctx context.Context, arg UpdateFileParams) (File, error)
+	UpdateGuardrailBudgetUsed(ctx context.Context, arg UpdateGuardrailBudgetUsedParams) error
 	UpdateMessage(ctx context.Context, arg UpdateMessageParams) error
 	UpdateProcedureStats(ctx context.Context, arg UpdateProcedureStatsParams) error
 	UpdateSession(ctx context.Context, arg UpdateSessionParams) (Session, error)
@@ -93,6 +118,10 @@ type Querier interface {
 	UpdateTaskScheduleExpr(ctx context.Context, arg UpdateTaskScheduleExprParams) error
 	UpdateTaskStatus(ctx context.Context, arg UpdateTaskStatusParams) error
 	UpsertAgencyState(ctx context.Context, arg UpsertAgencyStateParams) (AgencyState, error)
+	// Guardrail Budgets queries
+	UpsertGuardrailBudget(ctx context.Context, arg UpsertGuardrailBudgetParams) (GuardrailBudget, error)
+	// Guardrail Preferences queries
+	UpsertGuardrailPreferences(ctx context.Context, arg UpsertGuardrailPreferencesParams) (GuardrailPreference, error)
 }
 
 var _ Querier = (*Queries)(nil)

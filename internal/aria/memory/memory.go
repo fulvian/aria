@@ -132,6 +132,10 @@ type ProcedureStep struct {
 //
 // Reference: Blueprint Section 3.2
 type MemoryService interface {
+	// Close stops the memory service and cleans up resources.
+	// It is safe to call multiple times.
+	Close() error
+
 	// Working memory - session context
 	GetContext(ctx context.Context, sessionID string) (Context, error)
 	SetContext(ctx context.Context, sessionID string, context Context) error
