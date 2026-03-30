@@ -550,8 +550,8 @@ WHERE id = ?
 `
 
 type UpdateTaskScheduleExprParams struct {
-	ScheduleExpr string `json:"schedule_expr"`
-	ID           string `json:"id"`
+	ScheduleExpr sql.NullString `json:"schedule_expr"`
+	ID           string         `json:"id"`
 }
 
 func (q *Queries) UpdateTaskScheduleExpr(ctx context.Context, arg UpdateTaskScheduleExprParams) error {

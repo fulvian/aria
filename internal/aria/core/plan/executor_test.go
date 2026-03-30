@@ -301,7 +301,7 @@ func TestExecutor_ExecuteStep_OutputContainsExpectedFields(t *testing.T) {
 	assert.Equal(t, true, output["executed"])
 	assert.Equal(t, "custom_action", output["action"])
 	assert.Equal(t, "custom_target", output["target"])
-	assert.Equal(t, true, output["simulated"])
+	// simulated field was removed - output now contains real execution info
 }
 
 func TestExecutor_Execute_EmptyPlan(t *testing.T) {

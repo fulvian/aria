@@ -21,11 +21,13 @@ import (
 // memoryService implements MemoryService using sync.Map for working memory
 // and the existing sqlc-generated queries for persistent storage.
 type memoryService struct {
-	db      db.Querier
-	working sync.Map // map[string]Context - session context cache
-	metrics sync.Map // map[string]*Metrics - per-session metrics
-	ttl     time.Duration
-	gcTick  time.Duration
+	db       db.Querier
+	working  sync.Map // map[string]Context - session context cache
+	metrics  sync.Map // map[string]*Metrics - per-session metrics
+	ttl      time.Duration
+	gcTick   time.Duration
+	stopCh   chan struct{}
+	stopOnce sync.Once // Ensures Close() is idempotent
 }
 
 // RetentionConfig defines retention policy for memory data.
@@ -54,10 +56,20 @@ func NewService(q db.Querier, ttl time.Duration) MemoryService {
 		db:     q,
 		ttl:    ttl,
 		gcTick: 5 * time.Minute,
+		stopCh: make(chan struct{}),
 	}
 	// Start GC goroutine for expired context cleanup
 	go svc.runGC()
 	return svc
+}
+
+// Close stops the memory service and cleans up resources.
+// It is safe to call multiple times - subsequent calls are no-ops.
+func (s *memoryService) Close() error {
+	s.stopOnce.Do(func() {
+		close(s.stopCh)
+	})
+	return nil
 }
 
 // GetContext retrieves the working memory context for a session.
@@ -130,12 +142,15 @@ func (s *memoryService) RestoreContext(ctx context.Context, sessionID string) (C
 }
 
 // runGC periodically cleans up expired contexts from the database.
+// It stops when the stop channel is closed.
 func (s *memoryService) runGC() {
 	defer logging.RecoverPanic("memoryService.runGC", nil)
 	ticker := time.NewTicker(s.gcTick)
 	defer ticker.Stop()
 	for {
 		select {
+		case <-s.stopCh:
+			return
 		case <-ticker.C:
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			if err := s.db.DeleteExpiredContexts(ctx); err != nil {

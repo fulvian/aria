@@ -315,6 +315,75 @@ func (m *mockAnalysisQuerier) CountTasksByStatus(ctx context.Context, status str
 func (m *mockAnalysisQuerier) ListPendingTasks(ctx context.Context, arg db.ListPendingTasksParams) ([]db.Task, error) {
 	return []db.Task{}, nil
 }
+func (m *mockAnalysisQuerier) CreateGuardrailAuditEntry(ctx context.Context, arg db.CreateGuardrailAuditEntryParams) (db.GuardrailAudit, error) {
+	return db.GuardrailAudit{}, nil
+}
+func (m *mockAnalysisQuerier) CreatePermissionRequest(ctx context.Context, arg db.CreatePermissionRequestParams) (db.PermissionRequest, error) {
+	return db.PermissionRequest{}, nil
+}
+func (m *mockAnalysisQuerier) CreatePermissionResponse(ctx context.Context, arg db.CreatePermissionResponseParams) (db.PermissionResponse, error) {
+	return db.PermissionResponse{}, nil
+}
+func (m *mockAnalysisQuerier) CreatePermissionRule(ctx context.Context, arg db.CreatePermissionRuleParams) (db.PermissionRule, error) {
+	return db.PermissionRule{}, nil
+}
+func (m *mockAnalysisQuerier) DeleteOldGuardrailAudit(ctx context.Context, dollar_1 sql.NullString) error {
+	return nil
+}
+func (m *mockAnalysisQuerier) DeleteOldPermissionRequests(ctx context.Context, dollar_1 sql.NullString) error {
+	return nil
+}
+func (m *mockAnalysisQuerier) DeleteExpiredPermissionRules(ctx context.Context) error {
+	return nil
+}
+func (m *mockAnalysisQuerier) DeletePermissionRule(ctx context.Context, id string) error {
+	return nil
+}
+func (m *mockAnalysisQuerier) GetGuardrailBudget(ctx context.Context, actionType string) (db.GuardrailBudget, error) {
+	return db.GuardrailBudget{}, nil
+}
+func (m *mockAnalysisQuerier) GetGuardrailPreferences(ctx context.Context) (db.GuardrailPreference, error) {
+	return db.GuardrailPreference{}, nil
+}
+func (m *mockAnalysisQuerier) GetPermissionRequestByID(ctx context.Context, id string) (db.PermissionRequest, error) {
+	return db.PermissionRequest{}, sql.ErrNoRows
+}
+func (m *mockAnalysisQuerier) GetPermissionResponseByRequestID(ctx context.Context, requestID string) (db.PermissionResponse, error) {
+	return db.PermissionResponse{}, sql.ErrNoRows
+}
+func (m *mockAnalysisQuerier) GetPermissionRuleByID(ctx context.Context, id string) (db.PermissionRule, error) {
+	return db.PermissionRule{}, sql.ErrNoRows
+}
+func (m *mockAnalysisQuerier) ListGuardrailAuditByTimeRange(ctx context.Context, arg db.ListGuardrailAuditByTimeRangeParams) ([]db.GuardrailAudit, error) {
+	return []db.GuardrailAudit{}, nil
+}
+func (m *mockAnalysisQuerier) ListGuardrailAuditByType(ctx context.Context, arg db.ListGuardrailAuditByTypeParams) ([]db.GuardrailAudit, error) {
+	return []db.GuardrailAudit{}, nil
+}
+func (m *mockAnalysisQuerier) ListGuardrailBudgets(ctx context.Context) ([]db.GuardrailBudget, error) {
+	return []db.GuardrailBudget{}, nil
+}
+func (m *mockAnalysisQuerier) ListPermissionRequestsByAgency(ctx context.Context, arg db.ListPermissionRequestsByAgencyParams) ([]db.PermissionRequest, error) {
+	return []db.PermissionRequest{}, nil
+}
+func (m *mockAnalysisQuerier) ListPermissionRequestsByAgent(ctx context.Context, arg db.ListPermissionRequestsByAgentParams) ([]db.PermissionRequest, error) {
+	return []db.PermissionRequest{}, nil
+}
+func (m *mockAnalysisQuerier) ListPermissionRulesByAgency(ctx context.Context, agencyID string) ([]db.PermissionRule, error) {
+	return []db.PermissionRule{}, nil
+}
+func (m *mockAnalysisQuerier) ResetGuardrailBudgets(ctx context.Context, resetAt int64) error {
+	return nil
+}
+func (m *mockAnalysisQuerier) UpdateGuardrailBudgetUsed(ctx context.Context, arg db.UpdateGuardrailBudgetUsedParams) error {
+	return nil
+}
+func (m *mockAnalysisQuerier) UpsertGuardrailBudget(ctx context.Context, arg db.UpsertGuardrailBudgetParams) (db.GuardrailBudget, error) {
+	return db.GuardrailBudget{}, nil
+}
+func (m *mockAnalysisQuerier) UpsertGuardrailPreferences(ctx context.Context, arg db.UpsertGuardrailPreferencesParams) (db.GuardrailPreference, error) {
+	return db.GuardrailPreference{}, nil
+}
 
 func TestSelfAnalysisService_AnalyzePerformance_NoTasks(t *testing.T) {
 	t.Parallel()

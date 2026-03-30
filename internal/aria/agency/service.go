@@ -10,6 +10,7 @@ import (
 
 	"github.com/fulvian/aria/internal/aria/contracts"
 	"github.com/fulvian/aria/internal/db"
+	"github.com/fulvian/aria/internal/logging"
 )
 
 // AgencyService handles persistence of agency data to the database.
@@ -330,7 +331,7 @@ func (a *AutoPersistAgency) autoPersistLoop(ctx context.Context) {
 			return
 		case <-ticker.C:
 			if err := a.PersistState(ctx, a.service); err != nil {
-				fmt.Printf("auto-persist error: %v\n", err)
+				logging.Warn("auto-persist error", "error", err)
 			}
 		}
 	}

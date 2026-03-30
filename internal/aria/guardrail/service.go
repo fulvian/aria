@@ -4,13 +4,79 @@ package guardrail
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
 	"slices"
 	"sync"
 	"time"
 
 	"github.com/fulvian/aria/internal/aria/config"
 )
+
+// PersistenceManager handles saving and loading guardrail state.
+type PersistenceManager interface {
+	Save(ctx context.Context, data *PersistenceData) error
+	Load(ctx context.Context) (*PersistenceData, error)
+}
+
+// FilePersistenceManager implements PersistenceManager using JSON files.
+type FilePersistenceManager struct {
+	mu       sync.RWMutex
+	filePath string
+}
+
+// NewFilePersistenceManager creates a file-based persistence manager.
+func NewFilePersistenceManager(filePath string) *FilePersistenceManager {
+	return &FilePersistenceManager{
+		filePath: filePath,
+	}
+}
+
+// PersistenceData represents the serializable state of the guardrail service.
+type PersistenceData struct {
+	Budgets  map[string]Budget    `json:"budgets"`
+	Prefs    ProactivePreferences `json:"prefs"`
+	AuditLog []AuditEntry         `json:"audit_log"`
+}
+
+// Save saves the guardrail state to a file.
+func (f *FilePersistenceManager) Save(ctx context.Context, data *PersistenceData) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	jsonData, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal guardrail state: %w", err)
+	}
+
+	if err := os.WriteFile(f.filePath, jsonData, 0o644); err != nil {
+		return fmt.Errorf("failed to write guardrail state file: %w", err)
+	}
+
+	return nil
+}
+
+// Load loads the guardrail state from a file.
+func (f *FilePersistenceManager) Load(ctx context.Context) (*PersistenceData, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
+	jsonData, err := os.ReadFile(f.filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil // No file exists yet
+		}
+		return nil, fmt.Errorf("failed to read guardrail state file: %w", err)
+	}
+
+	var data PersistenceData
+	if err := json.Unmarshal(jsonData, &data); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal guardrail state: %w", err)
+	}
+
+	return &data, nil
+}
 
 // Action type constants for proactive actions
 const (
@@ -26,12 +92,13 @@ const defaultMaxAuditEntries = 1000
 
 // guardrailService implements the GuardrailService interface.
 type guardrailService struct {
-	config   config.GuardrailsConfig
-	mu       sync.RWMutex
-	budgets  map[ActionType]*Budget
-	prefs    ProactivePreferences
-	auditLog []AuditEntry
-	maxAudit int
+	config      config.GuardrailsConfig
+	mu          sync.RWMutex
+	budgets     map[ActionType]*Budget
+	prefs       ProactivePreferences
+	auditLog    []AuditEntry
+	maxAudit    int
+	persistence PersistenceManager
 }
 
 // NewService creates a new GuardrailService with the given configuration.
@@ -43,6 +110,65 @@ func NewService(cfg config.GuardrailsConfig) GuardrailService {
 		auditLog: make([]AuditEntry, 0, defaultMaxAuditEntries),
 		maxAudit: defaultMaxAuditEntries,
 	}
+}
+
+// NewServiceWithPersistence creates a new service with persistence manager.
+func NewServiceWithPersistence(cfg config.GuardrailsConfig, persistence PersistenceManager) GuardrailService {
+	svc := &guardrailService{
+		config:      cfg,
+		budgets:     make(map[ActionType]*Budget),
+		prefs:       defaultPreferences(),
+		auditLog:    make([]AuditEntry, 0, defaultMaxAuditEntries),
+		maxAudit:    defaultMaxAuditEntries,
+		persistence: persistence,
+	}
+
+	// Try to load existing state
+	if persistence != nil {
+		if data, err := persistence.Load(context.Background()); err == nil && data != nil {
+			// Restore budgets
+			for actionType, budget := range data.Budgets {
+				svc.budgets[ActionType(actionType)] = &budget
+			}
+			// Restore preferences
+			svc.prefs = data.Prefs
+			// Restore audit log
+			svc.auditLog = data.AuditLog
+		}
+	}
+
+	return svc
+}
+
+// persistIfEnabled saves state if persistence is configured.
+func (s *guardrailService) persistIfEnabled() {
+	if s.persistence != nil {
+		data := &PersistenceData{
+			Budgets:  make(map[string]Budget),
+			AuditLog: s.auditLog,
+		}
+		for actionType, budget := range s.budgets {
+			data.Budgets[string(actionType)] = *budget
+		}
+		// Fire and forget persistence save
+		go s.persistence.Save(context.Background(), data)
+	}
+}
+
+// SavePersistence exports the current state for external persistence.
+func (s *guardrailService) SavePersistence(ctx context.Context) error {
+	if s.persistence == nil {
+		return fmt.Errorf("no persistence manager configured")
+	}
+	data := &PersistenceData{
+		Budgets: make(map[string]Budget),
+		Prefs:   s.prefs,
+	}
+	for actionType, budget := range s.budgets {
+		data.Budgets[string(actionType)] = *budget
+	}
+	data.AuditLog = s.auditLog
+	return s.persistence.Save(ctx, data)
 }
 
 // defaultPreferences returns sensible defaults for proactive preferences.
