@@ -11,6 +11,8 @@ import (
 	"github.com/fulvian/aria/internal/aria/agency"
 	"github.com/fulvian/aria/internal/aria/analysis"
 	"github.com/fulvian/aria/internal/aria/contracts"
+	"github.com/fulvian/aria/internal/aria/core/decision"
+	"github.com/fulvian/aria/internal/aria/core/plan"
 	"github.com/fulvian/aria/internal/aria/memory"
 	"github.com/fulvian/aria/internal/aria/routing"
 )
@@ -48,6 +50,21 @@ type BasicOrchestrator struct {
 
 	// analysisService provides self-analysis capabilities
 	analysisService analysis.SelfAnalysisService
+
+	// decisionEngine for slash command support
+	decisionEngine *decision.DefaultDecisionEngine
+
+	// planner for slash command support (interface for testability)
+	planner interface {
+		CreatePlan(ctx context.Context, query routing.Query, class routing.Classification, decision_ decision.ExecutionDecision) (*plan.Plan, error)
+		CreatePlanWithThinking(ctx context.Context, query routing.Query, class routing.Classification, decision_ decision.ExecutionDecision) (*plan.Plan, error)
+	}
+
+	// reviewer for slash command support (interface for testability)
+	reviewer interface {
+		Review(ctx context.Context, plan *plan.Plan, result *plan.ExecutionResult) (*plan.ReviewResult, error)
+		ShouldReplan(ctx context.Context, review plan.ReviewResult) (bool, plan.ReplanReason)
+	}
 }
 
 // NewBasicOrchestrator creates a new basic orchestrator.
@@ -59,6 +76,9 @@ func NewBasicOrchestrator(config OrchestratorConfig, memorySvc memory.MemoryServ
 		agencyRegistry:  make(map[contracts.AgencyName]agency.Agency),
 		memoryService:   memorySvc,
 		analysisService: analysisSvc,
+		decisionEngine:  decision.NewDecisionEngineWithDefaults(),
+		planner:         plan.NewPlanner(),
+		reviewer:        plan.NewReviewer(),
 	}
 }
 
@@ -563,6 +583,27 @@ func (o *BasicOrchestrator) getAgencyName(decision routing.RoutingDecision) stri
 		return *decision.Agency
 	}
 	return string(o.config.DefaultAgency)
+}
+
+// GetDecisionEngine returns the decision engine for slash command support.
+func (o *BasicOrchestrator) GetDecisionEngine() *decision.DefaultDecisionEngine {
+	return o.decisionEngine
+}
+
+// GetPlanner returns the planner for slash command support.
+func (o *BasicOrchestrator) GetPlanner() interface {
+	CreatePlan(ctx context.Context, query routing.Query, class routing.Classification, decision_ decision.ExecutionDecision) (*plan.Plan, error)
+	CreatePlanWithThinking(ctx context.Context, query routing.Query, class routing.Classification, decision_ decision.ExecutionDecision) (*plan.Plan, error)
+} {
+	return o.planner
+}
+
+// GetReviewer returns the reviewer for slash command support.
+func (o *BasicOrchestrator) GetReviewer() interface {
+	Review(ctx context.Context, plan *plan.Plan, result *plan.ExecutionResult) (*plan.ReviewResult, error)
+	ShouldReplan(ctx context.Context, review plan.ReviewResult) (bool, plan.ReplanReason)
+} {
+	return o.reviewer
 }
 
 // ptrInt64 returns a pointer to an int64 value.

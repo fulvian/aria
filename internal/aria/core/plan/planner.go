@@ -20,12 +20,19 @@ type Planner interface {
 
 // defaultPlanner is the base implementation of Planner.
 type defaultPlanner struct {
-	// config can be added later for customization
+	sequentialThinking *SequentialThinkingCaller
 }
 
 // NewPlanner creates a new defaultPlanner.
 func NewPlanner() *defaultPlanner {
 	return &defaultPlanner{}
+}
+
+// NewPlannerWithThinking creates a planner with sequential-thinking enabled.
+func NewPlannerWithThinking(caller *SequentialThinkingCaller) *defaultPlanner {
+	return &defaultPlanner{
+		sequentialThinking: caller,
+	}
 }
 
 // CreatePlan generates a plan using the fast path (no sequential-thinking).
@@ -53,8 +60,22 @@ func (p *defaultPlanner) CreatePlan(ctx context.Context, query routing.Query, cl
 	}, nil
 }
 
-// CreatePlanWithThinking generates a plan using the deep path (with sequential-thinking simulation).
+// CreatePlanWithThinking generates a plan using the deep path (with sequential-thinking).
 func (p *defaultPlanner) CreatePlanWithThinking(ctx context.Context, query routing.Query, class routing.Classification, decision_ decision.ExecutionDecision) (*Plan, error) {
+	// Se sequential-thinking è disponibile, usalo
+	if p.sequentialThinking != nil {
+		result, err := p.sequentialThinking.Deliberate(ctx, query.Text,
+			decision_.Complexity.Value, decision_.Risk.Value)
+		if err != nil {
+			// Fallback to CreatePlan if sequential-thinking fails
+			return p.CreatePlan(ctx, query, class, decision_)
+		}
+
+		// Converti DeliberationResult a Plan
+		return deliberationResultToPlan(result, query.Text, decision_), nil
+	}
+
+	// Altrimenti usa il deep path locale (metodo esistente)
 	planID := fmt.Sprintf("plan-deep-%d", time.Now().UnixNano())
 	objective := extractObjective(query.Text)
 
@@ -82,6 +103,81 @@ func (p *defaultPlanner) CreatePlanWithThinking(ctx context.Context, query routi
 			"used_thinking": true,
 		},
 	}, nil
+}
+
+// deliberationResultToPlan converts a DeliberationResult to a Plan.
+func deliberationResultToPlan(result *DeliberationResult, queryText string, decision_ decision.ExecutionDecision) *Plan {
+	planID := fmt.Sprintf("plan-deep-%d", time.Now().UnixNano())
+
+	// Convert deliberation steps to PlanSteps
+	steps := make([]PlanStep, len(result.Steps))
+	for i, step := range result.Steps {
+		steps[i] = PlanStep{
+			Index:       i,
+			Action:      "deliberated",
+			Target:      "sequential-thinking",
+			Inputs:      map[string]any{"thought": step},
+			ExpectedOut: map[string]any{"completed": true},
+			Constraints: []string{},
+			Timeout:     30 * time.Second,
+		}
+	}
+
+	// Convert deliberation hypotheses
+	hypotheses := make([]Hypothesis, len(result.Hypotheses))
+	for i, h := range result.Hypotheses {
+		hypotheses[i] = Hypothesis{
+			Description: h,
+			Confidence:  0.8,
+			Conditions:  []string{"reasoning valid"},
+		}
+	}
+
+	// Convert deliberation risks
+	risks := make([]PlanRisk, len(result.Risks))
+	for i, r := range result.Risks {
+		risks[i] = PlanRisk{
+			Description: r,
+			Probability: 0.2,
+			Impact:      "medium",
+			Mitigation:  "monitor and adjust",
+		}
+	}
+
+	// Convert deliberation fallbacks
+	fallbacks := make([]FallbackStrategy, len(result.Fallbacks))
+	for i, f := range result.Fallbacks {
+		fallbacks[i] = FallbackStrategy{
+			Condition: "execution failed",
+			Action:    f,
+			Target:    "fallback",
+		}
+	}
+
+	doneCriteria := result.DoneCriteria
+	if doneCriteria == "" {
+		doneCriteria = "all acceptance criteria met with score >= 0.75"
+	}
+
+	return &Plan{
+		ID:           planID,
+		Query:        queryText,
+		Objective:    result.Objective,
+		Steps:        steps,
+		Hypotheses:   hypotheses,
+		Risks:        risks,
+		Fallbacks:    fallbacks,
+		DoneCriteria: doneCriteria,
+		CreatedAt:    time.Now(),
+		Metadata: map[string]any{
+			"path":                "deep",
+			"complexity":          decision_.Complexity.Value,
+			"risk":                decision_.Risk.Value,
+			"used_thinking":       true,
+			"sequential_thinking": true,
+			"confidence":          result.Confidence,
+		},
+	}
 }
 
 // extractObjective extracts and normalizes the objective from the query.
