@@ -9,27 +9,22 @@ Please follow [Crush][crush] for ongoing development.
 [crush]: https://github.com/charmbracelet/crush
 
 
-# ⌬ OpenCode
+# ⌬ ARIA
 
 <p align="center"><img src="https://github.com/user-attachments/assets/9ae61ef6-70e5-4876-bc45-5bcb4e52c714" width="800"></p>
 
 > **⚠️ Early Development Notice:** This project is in early development and is not yet ready for production use. Features may change, break, or be incomplete. Use at your own risk.
 
-A powerful terminal-based AI assistant for developers, providing intelligent coding assistance directly in your terminal.
+**ARIA** è unfork di OpenCode, un assistente AI terminal-based per sviluppatori. Questa release (v0-alfa) include il supporto nativo per **Z.AI Coding Plan** con i modelli GLM.
 
 ## Overview
 
-OpenCode is a Go-based CLI application that brings AI assistance to your terminal. It provides a TUI (Terminal User Interface) for interacting with various AI models to help with coding tasks, debugging, and more.
-
-<p>For a quick video overview, check out
-<a href="https://www.youtube.com/watch?v=P8luPmEa1QI"><img width="25" src="https://upload.wikimedia.org/wikipedia/commons/0/09/YouTube_full-color_icon_%282017%29.svg"> OpenCode + Gemini 2.5 Pro: BYE Claude Code! I'm SWITCHING To the FASTEST AI Coder!</a></p>
-
-<a href="https://www.youtube.com/watch?v=P8luPmEa1QI"><img width="550" src="https://i3.ytimg.com/vi/P8luPmEa1QI/maxresdefault.jpg"></a><p>
+ARIA è un'applicazione CLI Go che porta l'assistenza AI nel terminale. Fornisce una TUI (Terminal User Interface) per interagire con vari modelli AI per aiutare con attività di coding, debugging e altro.
 
 ## Features
 
 - **Interactive TUI**: Built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) for a smooth terminal experience
-- **Multiple AI Providers**: Support for OpenAI, Anthropic Claude, Google Gemini, AWS Bedrock, Groq, Azure OpenAI, and OpenRouter
+- **Multiple AI Providers**: Support for OpenAI, Anthropic Claude, Google Gemini, AWS Bedrock, Groq, Azure OpenAI, OpenRouter, **Z.AI (GLM)**
 - **Session Management**: Save and manage multiple conversation sessions
 - **Tool Integration**: AI can execute commands, search files, and modify code
 - **Vim-like Editor**: Integrated editor with text input capabilities
@@ -118,6 +113,7 @@ You can configure OpenCode using environment variables:
 | `AZURE_OPENAI_API_KEY`     | For Azure OpenAI models (optional when using Entra ID)                           |
 | `AZURE_OPENAI_API_VERSION` | For Azure OpenAI models                                                          |
 | `LOCAL_ENDPOINT`           | For self-hosted models                                                           |
+| `ZAI_API_KEY`              | For Z.AI Coding Plan (GLM models)                                                 |
 | `SHELL`                    | Default shell to use (if not specified in config)                                |
 
 ### Shell Configuration
@@ -276,17 +272,52 @@ OpenCode supports a variety of AI models from different providers:
 - Gemini 2.5
 - Gemini 2.5 Flash
 
+### Z.AI (GLM Models)
+
+Z.AI Coding Plan provides access to advanced GLM models optimized for coding tasks.
+
+- GLM-5.1 (recommended for complex tasks)
+- GLM-5 Turbo
+- GLM-4.7
+- GLM-4.6
+- GLM-4.5 Air
+
+**Configuration:**
+
+```json
+{
+  "providers": {
+    "zai": {
+      "apiKey": "YOUR_ZAI_API_KEY"
+    }
+  },
+  "agents": {
+    "coder": {
+      "model": "glm-5.1"
+    },
+    "task": {
+      "model": "glm-5.1"
+    },
+    "title": {
+      "model": "glm-4.5-air"
+    }
+  }
+}
+```
+
+API Endpoint: `https://api.z.ai/api/coding/paas/v4`
+
 ## Usage
 
 ```bash
-# Start OpenCode
-opencode
+# Start ARIA (interactive mode)
+ariacli
 
 # Start with debug logging
-opencode -d
+ariacli -d
 
 # Start with a specific working directory
-opencode -c /path/to/project
+ariacli -c /path/to/project
 ```
 
 ## Non-interactive Prompt Mode

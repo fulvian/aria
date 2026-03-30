@@ -46,3 +46,16 @@ Thumbs.db
 opencode
 opencode.md
 /aria
+
+# Production environment
+/aria-prod/
+.aria.json
+.aria/
+*.aria.json
+*-prod.json
+
+# Credentials and secrets
+*.pem
+*.key
+credentials.json
+secrets.json

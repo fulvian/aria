@@ -1,0 +1,430 @@
+# ARIA — Piano di Implementazione FASE 3 (Scheduling)
+
+Data: 2026-03-28  
+Stato piano: PROPOSTA TECNICA (pronta per esecuzione)  
+Riferimenti blueprint: Parte IV (4.1, 4.2, 4.3), Parte II (2.2.1), Parte IX (9.1, 9.2, 9.3)
+
+---
+
+## 1) Contesto e baseline reale
+
+Dall’analisi della codebase attuale:
+
+- `internal/aria/scheduler/scheduler.go` contiene **tipi e interfaccia**, ma **nessuna implementazione concreta** del servizio.
+- `internal/db/migrations/20260328120000_aria_baseline.sql` ha già tabelle e indici per:
+  - `tasks`
+  - `task_dependencies`
+  - `task_events`
+- `internal/db/sql/tasks.sql` e `internal/db/sql/task_events.sql` forniscono query SQLC per CRUD base + eventi + dipendenze.
+- `internal/aria/core/orchestrator_impl.go` usa ancora una coda in-memory (`taskQueue`) in `ScheduleTask/MonitorTasks`.
+- `internal/config/config.go` include configurazione scheduler minima (`maxConcurrentTasks`, `defaultPriority`), ma non copre cron/retry/recovery avanzati.
+- `internal/aria/analysis/service.go` dipende già dai dati task/eventi e include nota: periodic analysis MVP, integrazione scheduler prevista in FASE 3.
+- TUI task management (deliverable blueprint FASE 3) **non presente**.
+
+Conclusione: la base dati e i contratti sono pronti; manca il motore scheduler persistente e l’integrazione end-to-end.
+
+---
+
+## 2) Obiettivi FASE 3
+
+Implementare un sistema di scheduling persistente, robusto e recuperabile con:
+
+1. **Scheduler service completo**
+   - queue management
+   - priority handling
+   - dependency resolution
+2. **Persistence layer operativa**
+   - salvataggio stato task/eventi
+   - restart recovery
+3. **Recurring tasks**
+   - one-time (scheduled_at)
+   - interval-based
+   - cron-like
+4. **Monitoring + history**
+   - progress tracking
+   - event stream
+   - task history
+5. **TUI task management (MVP robusto)**
+   - list/filter task
+   - inspect task details/events
+   - azioni: cancel/pause/resume
+
+---
+
+## 3) Requisiti funzionali e non funzionali
+
+### 3.1 Funzionali
+
+- `Schedule(...)` crea task persistito + evento `created`.
+- Dispatcher porta task in `queued` quando eleggibile (tempo + dipendenze).
+- Worker porta task `queued -> running -> completed/failed`.
+- `Pause/Resume/Cancel` aggiornano stato e audit event.
+- `ScheduleRecurring(...)` crea template ricorrente e istanze esecutive.
+- `Subscribe(...)` emette eventi scheduler in real-time (con fallback polling-safe).
+- `GetTask/ListTasks/GetProgress` coerenti con DB.
+
+### 3.2 Non funzionali
+
+- **Durabilità**: nessuna perdita stato task su riavvio.
+- **Idempotenza**: recovery sicuro (non rieseguire task completed).
+- **Concorrenza**: rispetto `maxConcurrentTasks`.
+- **Osservabilità**: eventi persistiti + log coerenti.
+- **Backward compatibility**: ARIA mode continua a funzionare con fallback legacy.
+
+---
+
+## 4) Disegno architetturale FASE 3
+
+```mermaid
+flowchart TD
+    A[Orchestrator.ScheduleTask] --> B[Scheduler.Schedule]
+    B --> C[(tasks table)]
+    B --> D[(task_events table)]
+
+    E[Dispatcher Loop] --> C
+    E --> F{Ready?\nTime + Dependencies}
+    F -->|yes| G[Mark QUEUED + event]
+    F -->|no| H[Stay CREATED/DEFERRED]
+
+    I[Worker Pool] --> G
+    I --> J[Mark RUNNING + event]
+    J --> K[Execute via Agency/Agent bridge]
+    K --> L{Outcome}
+    L -->|success| M[COMPLETED + result + event]
+    L -->|error| N[FAILED + error + event]
+
+    O[Recurring Planner] --> P[Parse schedule_expr]
+    P --> Q[Generate next instance task]
+    Q --> C
+
+    R[Recovery on startup] --> C
+    R --> S[Requeue stranded RUNNING/QUEUED]
+```
+
+Componenti proposti:
+
+1. **SchedulerService (nuovo)**
+   - API concreta di `scheduler.Scheduler`
+2. **Dispatcher**
+   - selezione task pronti (time + dependencies)
+3. **Executor/Worker pool**
+   - run task attraverso orchestrator/agency
+4. **RecurringPlanner**
+   - cron/interval parser + next run computation
+5. **RecoveryManager**
+   - startup scan + reconciliation stati
+6. **EventPublisher**
+   - bridge DB events -> subscribers in-memory
+
+---
+
+## 5) Strategia di implementazione dettagliata
+
+## FASE 3.1 — Core scheduler persistente (fondazione)
+
+### Deliverable
+- Implementazione concreta `internal/aria/scheduler/service.go`
+- Persistenza completa task/eventi
+- API base: `Schedule/GetTask/ListTasks/Subscribe/GetProgress`
+
+### Attività
+1. Definire struct service:
+   - `db db.Querier`
+   - `orchestrator core.Orchestrator` (o executor interface)
+   - `events pubsub/broker`
+   - `maxConcurrent int`
+   - mutex + lifecycle context/cancel
+2. Implementare mapping robusto `scheduler.Task <-> db.Task`
+   - JSON encode/decode per `Skills`, `Params`, `Result`, `Error`
+3. Implementare `Schedule(...)`
+   - validazioni (name/type/priority)
+   - default status `created`
+   - insert su `tasks`
+   - insert su `task_events` (`created`)
+4. Implementare `GetTask/ListTasks/GetProgress`
+   - mapping stato, progress, tempi
+5. Implementare `Subscribe(...)`
+   - channel per consumer runtime
+   - pubblicazione eventi ad ogni state transition
+
+### Criteri di accettazione
+- Task creato via API appare in DB con evento `created`
+- Query API restituiscono dati coerenti
+- No panic su payload JSON vuoti/corrotti (fallback safe)
+
+---
+
+## FASE 3.2 — Dispatcher, priorità e dipendenze
+
+### Deliverable
+- Queue management reale
+- Priority handling e dependency resolution
+
+### Attività
+1. Ciclo dispatcher periodico (es. 500ms–2s configurabile):
+   - carica candidati `created/deferred`
+   - filtra per `scheduled_at <= now` (o immediate)
+   - verifica dipendenze da `task_dependencies`
+2. Regole dependency:
+   - tutte le dipendenze devono essere `completed`
+   - se dipendenza `failed/cancelled` -> task dipendente `failed` (configurabile)
+3. Priority ordering:
+   - `priority DESC`, `created_at ASC`
+4. Promozione a `queued` + evento
+5. Gestione backpressure:
+   - non mettere in running oltre `maxConcurrentTasks`
+
+### Criteri di accettazione
+- Task ad alta priorità parte prima di task bassa priorità
+- Task con dipendenze non parte finché blocchi non risolti
+- Eventi di coda coerenti (`created -> queued`)
+
+---
+
+## FASE 3.3 — Worker execution e lifecycle stati
+
+### Deliverable
+- Worker pool concorrente
+- Transizioni di stato complete
+
+### Attività
+1. Worker loop:
+   - pick task `queued`
+   - set `running` + started_at + event
+   - esecuzione task via agency/agent bridge
+2. Esiti:
+   - success -> `completed`, result JSON, progress=1.0, completed_at + event
+   - failure -> `failed`, error JSON + event
+3. Supportare controlli runtime:
+   - `Cancel(taskID)`
+   - `Pause(taskID)` (se running: cooperative stop per MVP, hard-stop deferred)
+   - `Resume(taskID)`
+4. Task progress:
+   - aggiornamenti `UpdateTaskProgress`
+   - `GetProgress` con fallback sensato
+
+### Criteri di accettazione
+- Transizioni valide in ordine
+- Nessun task resta indefinitamente in `running` senza evento finale (salvo crash)
+- Cancel/pause/resume funzionano su task eleggibili
+
+---
+
+## FASE 3.4 — Recurring scheduling (cron/interval/one-time)
+
+### Deliverable
+- `ScheduleRecurring(...)` e `UpdateSchedule(...)`
+- Planner per prossime istanze
+
+### Attività
+1. Standardizzare `schedule_expr`:
+   - cron: string cron valida
+   - interval: es. `every:5m`
+   - specific_times: serializzazione JSON ISO datetimes
+2. Parser/validator schedule
+3. Recurring planner loop:
+   - calcola next run
+   - crea nuova istanza task (`type=recurring` derivata)
+   - previene duplicati (idempotency key: parent+scheduled_at)
+4. Gestione timezone
+
+### Criteri di accettazione
+- Task ricorrente genera istanze corrette nel tempo
+- Nessuna duplicazione su restart
+- `UpdateSchedule` aggiorna effettivamente le esecuzioni future
+
+---
+
+## FASE 3.5 — Recovery & resilienza restart
+
+### Deliverable
+- Recovery deterministic all’avvio
+
+### Attività
+1. Startup reconciliation:
+   - task `running` -> `queued` o `failed` con policy configurabile
+   - task `queued` -> rivalutati da dispatcher
+2. Ripristino recurring planner state
+3. Ricostruzione canale eventi runtime (DB come source of truth)
+4. Test crash/restart
+
+### Criteri di accettazione
+- Dopo restart non si perde backlog
+- Nessuna riesecuzione di `completed`
+- `running` orfani gestiti con policy esplicita
+
+---
+
+## FASE 3.6 — Integrazione Orchestrator + App
+
+### Deliverable
+- Orchestrator usa scheduler persistente invece di coda in-memory
+
+### Attività
+1. Aggiornare wiring in `internal/app/aria_integration.go`
+   - inizializzare scheduler con config
+   - iniettare scheduler in orchestrator
+2. Refactor `ScheduleTask/MonitorTasks` in `orchestrator_impl.go`
+   - delega al scheduler service
+3. Mantenere fallback behavior invariato
+
+### Criteri di accettazione
+- `ScheduleTask` non usa più `taskQueue` locale
+- monitor eventi passa dal scheduler
+
+---
+
+## FASE 3.7 — TUI task management (MVP robusto)
+
+### Deliverable
+- UI minima ma completa per gestione task
+
+### Attività
+1. Nuova pagina/componente tasks (`internal/tui/page/tasks.go` + componenti)
+2. Funzionalità:
+   - elenco task con filtro per status/agency
+   - dettaglio task (result/error/event history)
+   - azioni rapide: cancel/pause/resume
+3. Refresh real-time o polling breve
+4. Shortcut da chat/logs
+
+### Criteri di accettazione
+- Utente vede stato task live
+- può operare sui task senza CLI esterna
+
+---
+
+## 6) Piano file-by-file (proposto)
+
+## Nuovi file (target)
+- `internal/aria/scheduler/service.go` — implementazione principale scheduler
+- `internal/aria/scheduler/dispatcher.go` — eligibility + priority + dependencies
+- `internal/aria/scheduler/worker.go` — pool esecuzione task
+- `internal/aria/scheduler/recurring.go` — parser/planner recurring
+- `internal/aria/scheduler/recovery.go` — startup reconciliation
+- `internal/aria/scheduler/mapper.go` — conversioni db/task JSON-safe
+- `internal/aria/scheduler/service_test.go` — unit tests scheduler
+- `internal/aria/integration/scheduler_test.go` — test integrazione orchestrator+db
+- `internal/tui/page/tasks.go` — pagina task management
+- `internal/tui/components/tasks/*.go` — lista/dettaglio/actions
+
+## Modifiche file esistenti
+- `internal/aria/core/orchestrator_impl.go` — delega scheduler persistente
+- `internal/aria/core/orchestrator.go` — eventuale allineamento tipi task
+- `internal/app/aria_integration.go` — wiring scheduler
+- `internal/config/config.go` — estensione opzioni scheduler
+- `docs/foundation/BLUEPRINT.md` — update progress/status/changelog post-implementazione
+
+## SQL/DB (se necessario)
+- Potenziale migrazione aggiuntiva per:
+  - indice composto (`status, priority, scheduled_at`)
+  - colonna `recurring_parent_id` (se utile per lineage)
+  - colonna `idempotency_key` (univoca su recurring instances)
+
+> Nota: partire con schema esistente; introdurre migrazione solo se emergono limiti reali in implementazione/test.
+
+---
+
+## 7) Configurazione scheduler da aggiungere
+
+Estendere `ARIA.Scheduler` con campi (compatibili default):
+
+- `maxConcurrentTasks` (esistente)
+- `defaultPriority` (esistente)
+- `dispatchIntervalMs` (nuovo)
+- `recoveryPolicy` (`requeue_running` | `fail_running`) (nuovo)
+- `recurringLookaheadMinutes` (nuovo)
+- `maxRetries` + `retryBackoffMs` (nuovo, opzionale in FASE 3)
+
+---
+
+## 8) Strategia test completa
+
+## 8.1 Unit test scheduler
+
+- schedule/get/list/progress
+- transizioni stato valide
+- gestione errori JSON mapping
+- dependency resolver
+- priority ordering
+- recurring parser
+
+## 8.2 Integration test (DB reale sqlite temp)
+
+- lifecycle end-to-end task
+- restart recovery scenario
+- recurring no-duplicate after restart
+- cancel/pause/resume con race-safe checks
+
+## 8.3 E2E smoke
+
+- `app.runARIA` + orchestrator + scheduler + dev agency
+- verifica event history e output finale
+
+## 8.4 Commandi verifica
+
+- `go test ./internal/aria/scheduler/...`
+- `go test ./internal/aria/integration/...`
+- `go test ./internal/aria/...`
+- `go test ./...`
+- `go build -o opencode ./main.go`
+
+---
+
+## 9) Rischi principali e mitigazioni
+
+1. **Race condition su stato task**
+   - mitigazione: update atomici lato DB + lock mirati lato service
+2. **Duplicazione recurring dopo restart**
+   - mitigazione: idempotency key e vincolo univoco
+3. **Task stuck in running**
+   - mitigazione: recovery policy + heartbeat/event timeout (MVP: reconcile on startup)
+4. **Crescita task_events**
+   - mitigazione: retention policy in FASE 6 (non blocca FASE 3)
+5. **Integrazione TUI impattante**
+   - mitigazione: rilasciare TUI MVP separato dopo core scheduler stabile
+
+---
+
+## 10) Milestone operativi e stime
+
+- M1 (2-3 giorni): Core scheduler + persistence APIs
+- M2 (2-3 giorni): Dispatcher + dependencies + priority
+- M3 (2-3 giorni): Worker execution + lifecycle actions
+- M4 (2 giorni): Recurring planner
+- M5 (1-2 giorni): Recovery restart
+- M6 (1-2 giorni): Orchestrator/App wiring
+- M7 (2-3 giorni): TUI task management MVP
+- M8 (2-3 giorni): test hardening + docs update
+
+Totale stimato: **14–21 giorni lavorativi** (in base al grado di hardening richiesto).
+
+---
+
+## 11) Definition of Done FASE 3
+
+FASE 3 è considerata completa quando:
+
+- [ ] `internal/aria/scheduler` contiene implementazione concreta usata in runtime
+- [ ] Task persistenti sopravvivono a restart
+- [ ] Dependency + priority funzionanti con test automatici
+- [ ] Recurring scheduling operativo (cron/interval/one-time)
+- [ ] Orchestrator usa scheduler persistente (no queue in-memory)
+- [ ] TUI task management disponibile (list/detail/actions)
+- [ ] Test suite scheduler/integration green
+- [ ] BLUEPRINT aggiornato (versione, stato fase, changelog)
+
+---
+
+## 12) Sequenza di esecuzione raccomandata (ordine vincolante)
+
+1. Core scheduler persistente
+2. Dispatcher/priorità/dipendenze
+3. Worker + lifecycle
+4. Recovery
+5. Recurring planner
+6. Integrazione orchestrator/app
+7. TUI task management
+8. Hardening test + update blueprint
+
+Questo ordine minimizza regressioni e permette verifiche progressive con rollback semplice.

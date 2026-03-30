@@ -359,6 +359,9 @@ func setProviderDefaults() {
 	if apiKey := os.Getenv("XAI_API_KEY"); apiKey != "" {
 		viper.SetDefault("providers.xai.apiKey", apiKey)
 	}
+	if apiKey := os.Getenv("ZAI_API_KEY"); apiKey != "" {
+		viper.SetDefault("providers.zai.apiKey", apiKey)
+	}
 	if apiKey := os.Getenv("AZURE_OPENAI_ENDPOINT"); apiKey != "" {
 		// api-key may be empty when using Entra ID credentials – that's okay
 		viper.SetDefault("providers.azure.apiKey", os.Getenv("AZURE_OPENAI_API_KEY"))
@@ -423,6 +426,15 @@ func setProviderDefaults() {
 		viper.SetDefault("agents.summarizer.model", models.QWENQwq)
 		viper.SetDefault("agents.task.model", models.QWENQwq)
 		viper.SetDefault("agents.title.model", models.QWENQwq)
+		return
+	}
+
+	// ZAI configuration
+	if key := viper.GetString("providers.zai.apiKey"); strings.TrimSpace(key) != "" {
+		viper.SetDefault("agents.coder.model", models.GLM51)
+		viper.SetDefault("agents.summarizer.model", models.GLM51)
+		viper.SetDefault("agents.task.model", models.GLM51)
+		viper.SetDefault("agents.title.model", models.GLM45Air)
 		return
 	}
 
@@ -741,6 +753,8 @@ func getProviderAPIKey(provider models.ModelProvider) string {
 		return os.Getenv("AZURE_OPENAI_API_KEY")
 	case models.ProviderOpenRouter:
 		return os.Getenv("OPENROUTER_API_KEY")
+	case models.ProviderZAI:
+		return os.Getenv("ZAI_API_KEY")
 	case models.ProviderBedrock:
 		if hasAWSCredentials() {
 			return "aws-credentials-available"
