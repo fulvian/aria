@@ -27,6 +27,24 @@
       "maxDailyActions": 10
     }
   },
+  "commands": {
+    "/plan": {
+      "description": "Force planner to generate execution plan",
+      "agent": "orchestrator"
+    },
+    "/decide-agent": {
+      "description": "Invoke decision engine for query analysis",
+      "agent": "orchestrator"
+    },
+    "/debug-plan": {
+      "description": "Post-mortem deliberative analysis",
+      "agent": "orchestrator"
+    },
+    "/review-response": {
+      "description": "Review output candidate with reviewer",
+      "agent": "orchestrator"
+    }
+  },
   "lsp": {
     "gopls": {
       "command": "gopls"

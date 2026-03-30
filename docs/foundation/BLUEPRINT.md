@@ -1,9 +1,9 @@
 # ARIA: Autonomous Reasoning & Intelligent Assistant
 ## Foundation Blueprint Document
 
-> **Version**: 1.12.0-DRAFT  
-> **Date**: 2026-03-29  
-> **Status**: IN_PROGRESS (FASE 0-4 COMPLETE, FASE 5 IN PROGRESS ~17%)  
+> **Version**: 1.13.0-DRAFT  
+> **Date**: 2026-03-30  
+> **Status**: IN_PROGRESS (FASE 0-5 COMPLETE, ORCHESTRATOR ENHANCEMENT O1-O5 COMPLETE)  
 > **Base Project**: ARIA CLI (Isola Autonoma rispetto a OpenCode/KiloCode)  
 
 ---
@@ -1560,6 +1560,7 @@ internal/aria/
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.13.0-DRAFT | 2026-03-30 | **ORCHESTRATOR ENHANCEMENT O1-O5 COMPLETE** - (1) **O1 Decision Core**: DecisionEngine with ComplexityAnalyzer (93% coverage), RiskAnalyzer, TriggerPolicy for sequential-thinking gating, PathSelector for Fast/Deep path, (2) **O2 Planner/Executor/Reviewer**: Plan types, Planner.CreatePlan/CreatePlanWithThinking, Executor.Execute/ExecuteStep, Reviewer.Review/ShouldReplan, OrchestratorPipeline skeleton (80.7% coverage), (3) **O3 Routing 2.0**: CapabilityRegistry for agency/agent matching, PolicyRouter with confidence calibration and policy override (71.9% coverage), (4) **O4 Prompt & Command Layer**: Orchestrator prompts (planner/executor/reviewer), Slash commands /plan /decide-agent /debug-plan /review-response, (5) **O5 Telemetry**: TelemetryService for decision/execution/review events, KPI calculator (RoutingAccuracy, FallbackRate, ReplanRate, etc.), FeedbackLoop for continuous learning (95.2% coverage). **Config**: Updated .opencode.json with aria.orchestrator config and commands section. **Branch**: feature/orchestrator-enhancement. |
 | 1.12.0-DRAFT | 2026-03-29 | **STUB IMPLEMENTATION COMPLETE** - Priority 1-3 stubs resolved in existing code: (1) **ReviewerAgent.Review()**: Integrated CodeReviewSkill with grep/glob/view tools, (2) **ArchitectAgent.Design()**: Real architectural pattern detection, (3) **LearnFromFeedback (3 agents)**: Metrics tracking, confidence scores, (4) **extractLocation()**: Regex-based location extraction, (5) **GetProactiveSuggestions()**: Full implementation, (6) **History pass-through**: Fixed classifier history, (7) **Classifier()**: Added GetClassifier() interface, (8) **TDD Skill**: Proper parallel tests and benchmarks, (9) **Debugging Skill**: Build/test verification, (10) **Memory Retention**: Enhanced stats and enforcement. **Note**: FASE 5 progress ~17% - only Weather Agency POC complete. Knowledge/Creative/Productivity/Personal/Analytics agencies NOT STARTED. |
 | 1.11.0-DRAFT | 2026-03-29 | **P0-1 INTERFACE CONTRACT DRIFT RESOLVED** - Phase 1-6 COMPLETE: (1) Created `internal/aria/contracts/` package with shared types (AgencyName, AgentName, Task, Result, etc.) breaking import cycle between agency and agent packages, (2) Canonicalized `Agent` interface (renamed from `EnhancedAgent`, added `EnhancedAgent = Agent` alias for backward compatibility), (3) Updated `Agency.Agents()` to return `[]contracts.AgentName` and `Agency.GetAgent()` to accept `contracts.AgentName`, (4) Completed `ReviewerAgent`, `ArchitectAgent`, and `CoderBridge` with full `Agent` interface implementation including event brokers, state management, and skill support, (5) Updated all call sites across core, analysis, and app packages to use `contracts.AgencyName`, (6) All verification gates pass (`go build`, `go vet`, `go test`, `go test -race`). **FASE 5 progress**: Development Agency agents now fully typed. **Roadmap Updated**: FASE 0-4 COMPLETE, FASE 5 ~15%. **Next**: Weather Agency completion, Knowledge/Creative/Productivity agencies. |
 | 1.10.0-DRAFT | 2026-03-29 | **FASE 5 STARTED**: Weather Agency POC complete with direct OpenWeatherMap API integration. AgencyService with full CRUD and state persistence. Load/SaveAgencyState for full state persistence with agency_states table. PersistableAgencyRegistry for auto-persist on changes. **Roadmap Updated**: FASE 0-4 COMPLETE, FASE 5 ~10%. **Next**: Complete P0-1 interface contract drift resolution, then proceed to Knowledge/Creative/Productivity agencies. |
