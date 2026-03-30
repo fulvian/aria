@@ -1,25 +1,28 @@
-# Archived: Project has Moved
-
-This repository is no longer maintained and has been archived for provenance.
-
-The project has continued under the name [Crush][crush], developed by the original author and the Charm team.
-
-Please follow [Crush][crush] for ongoing development.
-
-[crush]: https://github.com/charmbracelet/crush
-
-
 # ⌬ ARIA
 
 <p align="center"><img src="https://github.com/user-attachments/assets/9ae61ef6-70e5-4876-bc45-5bcb4e52c714" width="800"></p>
 
 > **⚠️ Early Development Notice:** This project is in early development and is not yet ready for production use. Features may change, break, or be incomplete. Use at your own risk.
 
-**ARIA** è unfork di OpenCode, un assistente AI terminal-based per sviluppatori. Questa release (v0-alfa) include il supporto nativo per **Z.AI Coding Plan** con i modelli GLM.
+**ARIA** è unfork di OpenCode, un assistente AI terminal-based per sviluppatori. Questa release include il supporto nativo per **Z.AI Coding Plan** con i modelli GLM e la nuova **ARIA Agency Architecture**.
 
 ## Overview
 
 ARIA è un'applicazione CLI Go che porta l'assistenza AI nel terminale. Fornisce una TUI (Terminal User Interface) per interagire con vari modelli AI per aiutare con attività di coding, debugging e altro.
+
+### ARIA Mode (Agency Architecture)
+
+ARIA include una **Agency Architecture** sperimentale che abilita domini specializzati:
+
+- **Development Agency**: Coding, devops, testing
+- **Weather Agency**: Previsioni meteo e alert
+- **Nutrition Agency** ⭐ NEW: Ricette, nutrizione, piani alimentari, sicurezza alimentare
+
+Per abilitare ARIA Mode:
+```bash
+source .env
+aria
+```
 
 ## Features
 
@@ -115,6 +118,23 @@ You can configure OpenCode using environment variables:
 | `LOCAL_ENDPOINT`           | For self-hosted models                                                           |
 | `ZAI_API_KEY`              | For Z.AI Coding Plan (GLM models)                                                 |
 | `SHELL`                    | Default shell to use (if not specified in config)                                |
+
+### ARIA Mode Environment Variables
+
+Per abilitare ARIA Mode con le Agencies:
+
+| Environment Variable | Purpose |
+|---------------------|---------|
+| `ARIA_ENABLED` | Enable ARIA mode (default: false) |
+| `ARIA_AGENCIES_NUTRITION_ENABLED` | Enable Nutrition Agency |
+| `ARIA_NUTRITION_USDA_API_KEY` | USDA FoodData Central API key |
+| `ARIA_NUTRITION_OPENFOODFACTS_USER_AGENT` | OpenFoodFacts User-Agent |
+| `ARIA_NUTRITION_MEALDB_API_KEY` | TheMealDB API key (use "1" for dev) |
+| `ARIA_NUTRITION_OPENFDA_API_KEY` | openFDA API key (optional) |
+| `ARIA_NUTRITION_DEFAULT_LOCALE` | Default locale (default: en-US) |
+| `ARIA_NUTRITION_DEFAULT_COUNTRY` | Default country (default: US) |
+| `ARIA_AGENCIES_WEATHER_ENABLED` | Enable Weather Agency |
+| `ARIA_WEATHER_API_KEY` | Weather API key |
 
 ### Shell Configuration
 
