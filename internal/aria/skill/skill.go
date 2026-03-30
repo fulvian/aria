@@ -44,6 +44,16 @@ const (
 	SkillWeatherForecast   SkillName = "weather-forecast"
 	SkillWeatherAlerts     SkillName = "weather-alerts"
 	SkillWeatherHistorical SkillName = "weather-historical"
+
+	// Nutrition skills
+	SkillRecipeSearch          SkillName = "recipe-search"
+	SkillNutritionAnalysis     SkillName = "nutrition-analysis"
+	SkillDietPlanGeneration    SkillName = "diet-plan-generation"
+	SkillFoodRecallMonitoring  SkillName = "food-recall-monitoring"
+	SkillRecipeAdaptation      SkillName = "recipe-adaptation"
+	SkillMealPlanOptimization  SkillName = "meal-plan-optimization"
+	SkillHealthyHabitsCoaching SkillName = "healthy-habits-coaching"
+	SkillNutritionEducation    SkillName = "nutrition-education"
 )
 
 // ToolName represents the name of a tool required by a skill.

@@ -30,6 +30,7 @@ type RoutingConfig struct {
 type AgenciesConfig struct {
 	Development DevelopmentAgencyConfig
 	Weather     WeatherAgencyConfig
+	Nutrition   NutritionAgencyConfig
 }
 
 // WeatherAgencyConfig defines the weather agency configuration.
@@ -41,6 +42,11 @@ type WeatherAgencyConfig struct {
 type DevelopmentAgencyConfig struct {
 	Enabled     bool
 	CoderBridge bool
+}
+
+// NutritionAgencyConfig defines the nutrition agency configuration.
+type NutritionAgencyConfig struct {
+	Enabled bool
 }
 
 // SkillsConfig defines skill availability.
@@ -82,6 +88,9 @@ func Load() *Config {
 			},
 			Weather: WeatherAgencyConfig{
 				Enabled: getEnvBool("ARIA_AGENCIES_WEATHER_ENABLED", true),
+			},
+			Nutrition: NutritionAgencyConfig{
+				Enabled: getEnvBool("ARIA_AGENCIES_NUTRITION_ENABLED", false),
 			},
 		},
 		Skills: SkillsConfig{

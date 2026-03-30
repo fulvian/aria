@@ -1,9 +1,9 @@
 # ARIA: Autonomous Reasoning & Intelligent Assistant
 ## Foundation Blueprint Document
 
-> **Version**: 1.14.0-DRAFT  
+> **Version**: 1.15.0-DRAFT  
 > **Date**: 2026-03-30  
-> **Status**: IN_PROGRESS (FASE 0-5 COMPLETE, ORCHESTRATOR ENHANCEMENT O1-O5 COMPLETE, ARIA STANDALONE SEPARATION V4 COMPLETE)  
+> **Status**: IN_PROGRESS (FASE 0-5 COMPLETE, ORCHESTRATOR ENHANCEMENT O1-O5 COMPLETE, ARIA STANDALONE SEPARATION V4 COMPLETE, NUTRITION AGENCY COMPLETE)  
 > **Base Project**: ARIA CLI (Standalone - completamente separato da OpenCode/KiloCode)  
 
 ---
@@ -971,6 +971,49 @@ agents:
       skills: [budgeting, expense-tracking, investment]
 ```
 
+### 7.6 Nutrition Agency
+
+Dominio: Nutrizione, ricette, pianificazione dietetica, sicurezza alimentare
+
+```yaml
+name: nutrition
+description: "Nutrition, recipes, meal planning, diet analysis, and food safety"
+agents:
+  - nutrition-analyst:
+      description: "Analyzes nutritional content of foods"
+      skills: [nutrition-analysis]
+      tools: [nutrition_usda, nutrition_openfoodfacts]
+  - culinary:
+      description: "Recipe search and meal ideas"
+      skills: [recipe-search]
+      tools: [recipes_mealdb]
+  - diet-planner:
+      description: "Generates personalized diet plans"
+      skills: [diet-plan-generation]
+  - food-safety:
+      description: "Monitors food recalls and safety alerts"
+      skills: [food-recall-monitoring]
+      tools: [openfda]
+  - healthy-lifestyle-coach:
+      description: "Provides healthy lifestyle coaching"
+      skills: [healthy-habits-coaching]
+```
+
+**Skills Implementate:**
+- `nutrition-analysis`: Analisi nutrienti tramite USDA FDC API
+- `recipe-search`: Ricerca ricette tramite TheMealDB e Open Food Facts
+- `diet-plan-generation`: Generazione piani dietetici personalizzati
+- `food-recall-monitoring`: Monitoraggio richiami alimentari FDA
+- `healthy-habits-coaching`: Coaching per stili di vita sani
+
+**Provider API:**
+- USDA FoodData Central (~1000 req/hour)
+- Open Food Facts (100 req/min product, 10 req/min search)
+- TheMealDB (rate limit varies by tier)
+- openFDA (240 req/min)
+
+**Documentazione:** `docs/runbooks/nutrition-agency.md`
+
 ---
 
 ## Parte VIII: Roadmap di Implementazione
@@ -1020,11 +1063,13 @@ agents:
 │                             - Auto-approve rules ✓               │
 │                             ⚠️ Suggestion engine DEFERRED        │
 │                                                                  │
-│  FASE 5: AGENCIES           ███░░░░░░░░░░░░░░░░░░░░░░░░  (17%)   │
+│  FASE 5: AGENCIES           ██████░░░░░░░░░░░░░░░░░░░░░░  (25%)   │
 │  [Mese 8-12]                Weather Agency POC ✓                │
+│                             Nutrition Agency ✓✓✓✓✓              │
 │                             AgencyService persistence ✓          │
 │                             Development Agency agents ✓ (typed) │
 │                             - Weather Agency ✓ (POC)            │
+│                             - Nutrition Agency ✓ (COMPLETE)     │
 │                             - Knowledge Agency (planning)        │
 │                             - Creative Agency (planning)        │
 │                             - Productivity Agency (planning)     │
@@ -1266,16 +1311,17 @@ agents:
 
 **Durata**: 8-12 settimane  
 **Obiettivo**: Implementare agencies specializzate
-**Stato**: IN PROGRESS (~15%) - Weather Agency POC complete, Development Agency agents fully typed
+**Stato**: IN PROGRESS (~25%) - Weather Agency POC complete, Development Agency agents fully typed, Nutrition Agency COMPLETE
 
 #### Implementation Order
 
 1. **Weather Agency** ✅ COMPLETE (POC) - Direct API integration, ~100 tokens/call
-2. **Knowledge Agency** (Settimana 1-2) - Research, web search, Q&A
-3. **Creative Agency** (Settimana 3-4) - Writing, translation, content
-4. **Productivity Agency** (Settimana 5-7) - Planning, calendar, organization
-5. **Personal Agency** (Settimana 7-8) - Assistant, wellness, finance
-6. **Analytics Agency** (Settimana 9-11) - Data analysis, visualization
+2. **Nutrition Agency** ✅ COMPLETE - USDA, Open Food Facts, MealDB, openFDA integration
+3. **Knowledge Agency** (Settimana 1-2) - Research, web search, Q&A
+4. **Creative Agency** (Settimana 3-4) - Writing, translation, content
+5. **Productivity Agency** (Settimana 5-7) - Planning, calendar, organization
+6. **Personal Agency** (Settimana 7-8) - Assistant, wellness, finance
+7. **Analytics Agency** (Settimana 9-11) - Data analysis, visualization
 
 #### 8.7.1 Task
 
@@ -1291,7 +1337,20 @@ agents:
    - [x] Tool: internal/llm/tools/weather.go
    - [x] Bridge pattern for agency integration
 
-3. **Knowledge Agency** ⚠️ NOT STARTED
+3. **Nutrition Agency** ✅ COMPLETE (N5)
+   - [x] NutritionAgency implementation with 5 agents
+   - [x] USDA FDC API tool (nutrition_usda.go)
+   - [x] Open Food Facts tool (nutrition_openfoodfacts.go)
+   - [x] TheMealDB tool (recipes_mealdb.go)
+   - [x] openFDA tool (integrated)
+   - [x] Skills: nutrition-analysis, recipe-search, diet-plan-generation, food-recall-monitoring, healthy-habits-coaching
+   - [x] Metrics package for observability (provider success/error rates, latencies, cache hits)
+   - [x] Rate limits documentation (USDA ~1000/hr, Open Food Facts 100/min, MealDB varies, openFDA 240/min)
+   - [x] Configuration via ARIA_NUTRITION_* env vars
+   - [x] Medical guardrails support
+   - [x] Runbook: docs/runbooks/nutrition-agency.md
+
+4. **Knowledge Agency** ⚠️ NOT STARTED
    - Web research integration
    - Document analysis
    - Q&A capabilities
@@ -1564,6 +1623,7 @@ internal/aria/
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.15.0-DRAFT | 2026-03-30 | **NUTRITION AGENCY COMPLETE (Phase N5)** - (1) **Nutrition Agency**: Full implementation with 5 agents (nutrition-analyst, culinary, diet-planner, food-safety, healthy-lifestyle-coach). (2) **Provider Tools**: USDA FDC API (nutrition_usda.go), Open Food Facts (nutrition_openfoodfacts.go), TheMealDB (recipes_mealdb.go), openFDA integration. (3) **Skills**: nutrition-analysis, recipe-search, diet-plan-generation, food-recall-monitoring, healthy-habits-coaching. (4) **Metrics**: `internal/aria/agency/nutrition/metrics` package with provider success/error rates, API latencies, cache hit rates, fallback tracking. (5) **Documentation**: `docs/runbooks/nutrition-agency.md` with rate limits (USDA ~1000/hr, Open Food Facts 100/min product/10/min search, MealDB varies, openFDA 240/min), API key configuration, guardrails policy. (6) **Config**: ARIA_NUTRITION_* env vars for all settings. **Roadmap**: FASE 5 ~17% → ~25%. |
 | 1.14.0-DRAFT | 2026-03-30 | **ARIA STANDALONE SEPARATION V4 COMPLETE** - (1) **V4-0**: Created boundary audit inventory and policy docs (`aria-opencode-cleanup-inventory.md`, `aria-boundary-policy.md`). (2) **V4-1**: CLI renamed from `opencode` to `aria`, help/description/examples updated. (3) **V4-3**: All 76 OpenCode references removed from Go code - prompts, user-agents, temp files, panic logs, diff styles, ignored directories. (4) **V4-4**: Config now uses `.aria` data directory, `aria.json` config file, `aria.db` database. Context paths updated to ARIA.md. (5) **V4-5**: Created `internal/tui/theme/aria.go` (replacing opencode.go), ARIAIcon, "ARIA" logo, ARIA.md memory file guidance. (6) **V4-6**: Created `ACKNOWLEDGEMENTS.md` with official credits. **Verification**: `go build`, `go vet`, `go test` all pass. `grep -r "opencode" *.go` returns no matches in runtime code. |
 | 1.13.0-DRAFT | 2026-03-30 | **ORCHESTRATOR ENHANCEMENT O1-O5 COMPLETE** - (1) **O1 Decision Core**: DecisionEngine with ComplexityAnalyzer (93% coverage), RiskAnalyzer, TriggerPolicy for sequential-thinking gating, PathSelector for Fast/Deep path, (2) **O2 Planner/Executor/Reviewer**: Plan types, Planner.CreatePlan/CreatePlanWithThinking, Executor.Execute/ExecuteStep, Reviewer.Review/ShouldReplan, OrchestratorPipeline skeleton (80.7% coverage), (3) **O3 Routing 2.0**: CapabilityRegistry for agency/agent matching, PolicyRouter with confidence calibration and policy override (71.9% coverage), (4) **O4 Prompt & Command Layer**: Orchestrator prompts (planner/executor/reviewer), Slash commands /plan /decide-agent /debug-plan /review-response, (5) **O5 Telemetry**: TelemetryService for decision/execution/review events, KPI calculator (RoutingAccuracy, FallbackRate, ReplanRate, etc.), FeedbackLoop for continuous learning (95.2% coverage). **Config**: Updated .opencode.json with aria.orchestrator config and commands section. **Branch**: feature/orchestrator-enhancement. |
 | 1.12.0-DRAFT | 2026-03-29 | **STUB IMPLEMENTATION COMPLETE** - Priority 1-3 stubs resolved in existing code: (1) **ReviewerAgent.Review()**: Integrated CodeReviewSkill with grep/glob/view tools, (2) **ArchitectAgent.Design()**: Real architectural pattern detection, (3) **LearnFromFeedback (3 agents)**: Metrics tracking, confidence scores, (4) **extractLocation()**: Regex-based location extraction, (5) **GetProactiveSuggestions()**: Full implementation, (6) **History pass-through**: Fixed classifier history, (7) **Classifier()**: Added GetClassifier() interface, (8) **TDD Skill**: Proper parallel tests and benchmarks, (9) **Debugging Skill**: Build/test verification, (10) **Memory Retention**: Enhanced stats and enforcement. **Note**: FASE 5 progress ~17% - only Weather Agency POC complete. Knowledge/Creative/Productivity/Personal/Analytics agencies NOT STARTED. |

@@ -34,6 +34,7 @@ const (
 	DomainProductivity DomainName = "productivity"
 	DomainPersonal     DomainName = "personal"
 	DomainAnalytics    DomainName = "analytics"
+	DomainNutrition    DomainName = "nutrition"
 )
 
 // ComplexityLevel indicates query complexity.

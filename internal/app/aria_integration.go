@@ -23,6 +23,7 @@ type ARIAComponents struct {
 	SkillRegistry     *skill.DefaultSkillRegistry
 	DevelopmentAgency *agency.DevelopmentAgency
 	WeatherAgency     *agency.WeatherAgency
+	NutritionAgency   *agency.NutritionAgency
 	AgencyService     *agency.AgencyService
 
 	// Scheduler components
@@ -72,6 +73,16 @@ func (app *App) initARIA(ctx context.Context) error {
 		logging.Info("Weather agency disabled or not configured")
 	}
 
+	// Initialize nutrition agency if enabled
+	nutritionCfg := ariaConfig.DefaultNutritionConfig()
+	var nutritionAgency *agency.NutritionAgency
+	if ariaCfg.Agencies.Nutrition.Enabled && nutritionCfg.IsConfigured() {
+		nutritionAgency = agency.NewNutritionAgency(nutritionCfg)
+		logging.Info("Initialized nutrition agency", "name", nutritionAgency.Name())
+	} else {
+		logging.Info("Nutrition agency disabled or not configured")
+	}
+
 	// Initialize memory service (FASE 2: Memory & Learning)
 	// 30 minute TTL for working memory context persistence
 	memorySvc := memory.NewService(app.DB, 30*time.Minute)
@@ -106,6 +117,15 @@ func (app *App) initARIA(ctx context.Context) error {
 			logging.Warn("Failed to persist weather agency", "error", err)
 		}
 		logging.Info("Registered weather agency with orchestrator")
+	}
+
+	// Register nutrition agency with orchestrator and persist if available
+	if nutritionAgency != nil {
+		orchestrator.RegisterAgency(nutritionAgency)
+		if err := agencyService.RegisterAgency(ctx, nutritionAgency); err != nil {
+			logging.Warn("Failed to persist nutrition agency", "error", err)
+		}
+		logging.Info("Registered nutrition agency with orchestrator")
 	}
 
 	// Initialize scheduler components
@@ -172,6 +192,7 @@ func (app *App) initARIA(ctx context.Context) error {
 		SkillRegistry:     registry,
 		DevelopmentAgency: devAgency,
 		WeatherAgency:     weatherAgency,
+		NutritionAgency:   nutritionAgency,
 		AgencyService:     agencyService,
 		SchedulerService:  schedulerSvc,
 		Dispatcher:        dispatcher,
