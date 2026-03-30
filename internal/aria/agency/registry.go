@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/fulvian/aria/internal/aria/contracts"
+	"github.com/fulvian/aria/internal/logging"
 )
 
 // AgencyRegistry manages multiple agencies.
@@ -161,7 +162,7 @@ func (r *PersistableAgencyRegistry) Register(ag Agency) error {
 		ctx := context.Background()
 		if err := r.service.RegisterAgency(ctx, ag); err != nil {
 			// Log but don't fail - agency is registered in memory
-			fmt.Printf("warning: failed to persist agency: %v\n", err)
+			logging.Warn("failed to persist agency", "error", err, "agency", ag.Name())
 		}
 	}
 
@@ -175,7 +176,7 @@ func (r *PersistableAgencyRegistry) Unregister(name contracts.AgencyName) error 
 		ctx := context.Background()
 		if err := r.service.UnregisterAgency(ctx, name); err != nil {
 			// Log but don't fail - try to remove from memory anyway
-			fmt.Printf("warning: failed to remove agency from DB: %v\n", err)
+			logging.Warn("failed to remove agency from DB", "error", err, "agency", name)
 		}
 	}
 
@@ -202,7 +203,7 @@ func (r *PersistableAgencyRegistry) LoadFromDatabase(ctx context.Context) error 
 			continue // already exists
 		}
 		if err := r.DefaultAgencyRegistry.Register(ag); err != nil {
-			fmt.Printf("warning: failed to register agency from DB: %v\n", err)
+			logging.Warn("failed to register agency from DB", "error", err, "agency", ag.Name())
 		}
 	}
 

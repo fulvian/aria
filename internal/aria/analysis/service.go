@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,6 +22,7 @@ import (
 type selfAnalysisService struct {
 	db       db.Querier
 	stopCh   chan struct{}
+	stopOnce sync.Once // Ensures Stop() is idempotent
 	interval time.Duration
 }
 
@@ -54,8 +56,11 @@ func (s *selfAnalysisService) RunPeriodicAnalysis(ctx context.Context) error {
 }
 
 // Stop stops the periodic analysis loop.
+// It is safe to call multiple times - subsequent calls are no-ops.
 func (s *selfAnalysisService) Stop() {
-	close(s.stopCh)
+	s.stopOnce.Do(func() {
+		close(s.stopCh)
+	})
 }
 
 // runAnalysis performs a complete analysis cycle.

@@ -15,6 +15,7 @@ import (
 	"github.com/fulvian/aria/internal/aria/core/plan"
 	"github.com/fulvian/aria/internal/aria/memory"
 	"github.com/fulvian/aria/internal/aria/routing"
+	"github.com/fulvian/aria/internal/logging"
 )
 
 // OrchestratorConfig contains configuration for the orchestrator.
@@ -31,10 +32,12 @@ type OrchestratorConfig struct {
 
 // BasicOrchestrator is a basic implementation of the Orchestrator interface.
 type BasicOrchestrator struct {
-	mu         sync.RWMutex
-	classifier routing.QueryClassifier
-	router     routing.Router
-	config     OrchestratorConfig
+	mu           sync.RWMutex
+	classifier   routing.QueryClassifier
+	router       routing.Router
+	policyRouter routing.PolicyRouter
+	capRegistry  routing.CapabilityRegistry
+	config       OrchestratorConfig
 
 	// agencyRegistry maps agency names to agency instances
 	agencyRegistry map[contracts.AgencyName]agency.Agency
@@ -65,13 +68,35 @@ type BasicOrchestrator struct {
 		Review(ctx context.Context, plan *plan.Plan, result *plan.ExecutionResult) (*plan.ReviewResult, error)
 		ShouldReplan(ctx context.Context, review plan.ReviewResult) (bool, plan.ReplanReason)
 	}
+
+	// routingPolicy is the current routing policy
+	routingPolicy routing.RoutingPolicy
+
+	// routingFeedback tracks routing decisions and outcomes for auto-tuning
+	routingFeedback []RoutingFeedback
+	feedbackMu      sync.Mutex
+}
+
+// RoutingFeedback records a routing decision and its outcome for feedback loop.
+type RoutingFeedback struct {
+	Decision  routing.RoutingDecision
+	Agency    string
+	Success   bool
+	TaskID    string
+	Timestamp time.Time
 }
 
 // NewBasicOrchestrator creates a new basic orchestrator.
 func NewBasicOrchestrator(config OrchestratorConfig, memorySvc memory.MemoryService, analysisSvc analysis.SelfAnalysisService) *BasicOrchestrator {
-	return &BasicOrchestrator{
+	baseRouter := routing.NewDefaultRouter()
+	capRegistry := routing.NewCapabilityRegistry()
+	policyRouter := routing.NewPolicyRouter(baseRouter, capRegistry)
+
+	orch := &BasicOrchestrator{
 		classifier:      routing.NewBaselineClassifier(),
-		router:          routing.NewDefaultRouter(),
+		router:          baseRouter,
+		policyRouter:    policyRouter,
+		capRegistry:     capRegistry,
 		config:          config,
 		agencyRegistry:  make(map[contracts.AgencyName]agency.Agency),
 		memoryService:   memorySvc,
@@ -79,7 +104,13 @@ func NewBasicOrchestrator(config OrchestratorConfig, memorySvc memory.MemoryServ
 		decisionEngine:  decision.NewDecisionEngineWithDefaults(),
 		planner:         plan.NewPlanner(),
 		reviewer:        plan.NewReviewer(),
+		routingPolicy: routing.RoutingPolicy{
+			ConfidenceThreshold: config.ConfidenceThreshold,
+			CapabilityMatch:     true,
+		},
 	}
+
+	return orch
 }
 
 // ProcessQuery handles a user query and returns a response.
@@ -148,12 +179,12 @@ func (o *BasicOrchestrator) ProcessQuery(ctx context.Context, query Query) (Resp
 		return Response{}, err
 	}
 
-	// Route the query
-	decision, err := o.router.Route(ctx, routing.Query{
+	// Route the query using PolicyRouter with routing policy
+	decision, err := o.policyRouter.RouteWithPolicy(ctx, routing.Query{
 		Text:      query.Text,
 		SessionID: query.SessionID,
 		UserID:    query.UserID,
-	}, class)
+	}, class, o.routingPolicy)
 	if err != nil {
 		return Response{}, err
 	}
@@ -199,6 +230,10 @@ func (o *BasicOrchestrator) ProcessQuery(ctx context.Context, query Query) (Resp
 
 	// Execute the task
 	result, err := ag.Execute(ctx, task)
+
+	// Record routing feedback for auto-tuning (regardless of outcome)
+	o.RecordRoutingFeedback(decision, string(agencyName), result.Success, task.ID)
+
 	if err != nil {
 		// AFTER execution: Learn from failure
 		if o.memoryService != nil {
@@ -254,7 +289,7 @@ func (o *BasicOrchestrator) ProcessQuery(ctx context.Context, query Query) (Resp
 		// Record the episode
 		if recErr := o.memoryService.RecordEpisode(ctx, episode); recErr != nil {
 			// Log but don't fail the request
-			fmt.Printf("failed to record episode: %v\n", recErr)
+			logging.Warn("failed to record episode", "error", recErr, "session_id", query.SessionID)
 		}
 
 		// Learn from success if the task was successful
@@ -568,6 +603,55 @@ func (o *BasicOrchestrator) RegisterAgency(ag agency.Agency) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	o.agencyRegistry[ag.Name()] = ag
+
+	// Also register with capability registry for routing
+	if o.capRegistry != nil {
+		agencyName := routing.AgencyName(ag.Name())
+		domain := routing.DomainName(ag.Domain())
+
+		// Convert agent names to routing SkillName
+		agentNames := ag.Agents()
+		skills := make([]routing.SkillName, len(agentNames))
+		routingAgents := make([]routing.AgentName, len(agentNames))
+		for i, name := range agentNames {
+			skills[i] = routing.SkillName(name)
+			routingAgents[i] = routing.AgentName(name)
+		}
+
+		// Register agency capability
+		agencyCap := routing.AgencyCapability{
+			Name:      agencyName,
+			Domain:    domain,
+			Skills:    skills,
+			Agents:    routingAgents,
+			CostHint:  routing.CostHint{TokenBudget: 5000, TimeBudgetMs: 30000},
+			RiskClass: routing.RiskClassMedium,
+			Health: routing.HealthIndicator{
+				Level:      routing.HealthLevelHealthy,
+				Score:      100,
+				LastUpdate: time.Now().Unix(),
+			},
+		}
+		_ = o.capRegistry.RegisterAgency(agencyCap)
+
+		// Register each agent capability
+		for _, agentName := range agentNames {
+			agentCap := routing.AgentCapability{
+				Name:      routing.AgentName(agentName),
+				Agency:    agencyName,
+				Skills:    skills,
+				Tools:     []string{}, // Tools would be populated by agency
+				CostHint:  routing.CostHint{TokenBudget: 3000, TimeBudgetMs: 20000},
+				RiskClass: routing.RiskClassMedium,
+				Health: routing.HealthIndicator{
+					Level:      routing.HealthLevelHealthy,
+					Score:      100,
+					LastUpdate: time.Now().Unix(),
+				},
+			}
+			_ = o.capRegistry.RegisterAgent(string(agencyName), agentCap)
+		}
+	}
 }
 
 // UnregisterAgency removes an agency from the orchestrator.
@@ -609,4 +693,152 @@ func (o *BasicOrchestrator) GetReviewer() interface {
 // ptrInt64 returns a pointer to an int64 value.
 func ptrInt64(v int64) *int64 {
 	return &v
+}
+
+// RecordRoutingFeedback records feedback about a routing decision for auto-tuning.
+// This is used to build a feedback loop that adjusts routing policy over time.
+func (o *BasicOrchestrator) RecordRoutingFeedback(decision routing.RoutingDecision, agency string, success bool, taskID string) {
+	o.feedbackMu.Lock()
+	defer o.feedbackMu.Unlock()
+
+	o.routingFeedback = append(o.routingFeedback, RoutingFeedback{
+		Decision:  decision,
+		Agency:    agency,
+		Success:   success,
+		TaskID:    taskID,
+		Timestamp: time.Now(),
+	})
+
+	// Keep only last 100 feedback entries
+	if len(o.routingFeedback) > 100 {
+		o.routingFeedback = o.routingFeedback[len(o.routingFeedback)-100:]
+	}
+}
+
+// AdjustRoutingPolicy adjusts the routing policy based on accumulated feedback.
+// It analyzes success rates per agency/confidence level and tunes thresholds.
+func (o *BasicOrchestrator) AdjustRoutingPolicy() {
+	o.feedbackMu.Lock()
+	defer o.feedbackMu.Unlock()
+
+	if len(o.routingFeedback) < 10 {
+		// Not enough data to adjust
+		return
+	}
+
+	// Calculate success rates by agency
+	type statPair struct{ total, success int }
+	agencyStats := make(map[string]*statPair)
+	// Calculate success rates by confidence bucket
+	confidenceStats := make(map[string]*statPair)
+
+	for _, fb := range o.routingFeedback {
+		agency := fb.Agency
+		if agency == "" {
+			agency = "unknown"
+		}
+
+		if agencyStats[agency] == nil {
+			agencyStats[agency] = &statPair{}
+		}
+		agencyStats[agency].total++
+		if fb.Success {
+			agencyStats[agency].success++
+		}
+
+		// Bucket confidence into low/medium/high
+		confBucket := "low"
+		if fb.Decision.Confidence >= 0.7 {
+			confBucket = "high"
+		} else if fb.Decision.Confidence >= 0.4 {
+			confBucket = "medium"
+		}
+
+		if confidenceStats[confBucket] == nil {
+			confidenceStats[confBucket] = &statPair{}
+		}
+		confidenceStats[confBucket].total++
+		if fb.Success {
+			confidenceStats[confBucket].success++
+		}
+	}
+
+	// Adjust confidence threshold based on feedback
+	currentThreshold := o.routingPolicy.ConfidenceThreshold
+
+	// If low confidence decisions have high success rate, we can lower the threshold
+	if low, ok := confidenceStats["low"]; ok && low.total >= 5 {
+		lowSuccessRate := float64(low.success) / float64(low.total)
+		if lowSuccessRate > 0.85 {
+			// Lower threshold by 0.05 (but not below 0.3)
+			currentThreshold = maxFloat64(0.3, currentThreshold-0.05)
+			logging.Info("routing threshold adjusted down", "new_threshold", currentThreshold, "reason", "low_confidence_success_rate", lowSuccessRate)
+		}
+	}
+
+	// If high confidence decisions have low success rate, we might need to raise threshold
+	if high, ok := confidenceStats["high"]; ok && high.total >= 5 {
+		highSuccessRate := float64(high.success) / float64(high.total)
+		if highSuccessRate < 0.7 {
+			// Raise threshold by 0.05 (but not above 0.9)
+			currentThreshold = minFloat64(0.9, currentThreshold+0.05)
+			logging.Info("routing threshold adjusted up", "new_threshold", currentThreshold, "reason", "high_confidence_success_rate", highSuccessRate)
+		}
+	}
+
+	// Update the policy if changed
+	if currentThreshold != o.routingPolicy.ConfidenceThreshold {
+		o.routingPolicy.ConfidenceThreshold = currentThreshold
+		_ = o.policyRouter.SetRoutingPolicy(o.routingPolicy)
+	}
+}
+
+// GetRoutingFeedbackStats returns statistics about routing feedback for monitoring.
+func (o *BasicOrchestrator) GetRoutingFeedbackStats() map[string]any {
+	o.feedbackMu.Lock()
+	defer o.feedbackMu.Unlock()
+
+	if len(o.routingFeedback) == 0 {
+		return map[string]any{"total_feedback": 0}
+	}
+
+	stats := map[string]any{
+		"total_feedback":    len(o.routingFeedback),
+		"current_threshold": o.routingPolicy.ConfidenceThreshold,
+	}
+
+	// Calculate agency stats
+	agencyStats := make(map[string]map[string]any)
+	for _, fb := range o.routingFeedback {
+		agency := fb.Agency
+		if agency == "" {
+			agency = "unknown"
+		}
+		if _, ok := agencyStats[agency]; !ok {
+			agencyStats[agency] = map[string]any{"total": 0, "success": 0}
+		}
+		agencyStats[agency]["total"] = agencyStats[agency]["total"].(int) + 1
+		if fb.Success {
+			agencyStats[agency]["success"] = agencyStats[agency]["success"].(int) + 1
+		}
+	}
+	stats["agency_stats"] = agencyStats
+
+	return stats
+}
+
+// maxFloat64 returns the maximum of two float64 values.
+func maxFloat64(a, b float64) float64 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+// minFloat64 returns the minimum of two float64 values.
+func minFloat64(a, b float64) float64 {
+	if a < b {
+		return a
+	}
+	return b
 }

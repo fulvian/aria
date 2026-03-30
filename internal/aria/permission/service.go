@@ -4,19 +4,86 @@ package permission
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
 )
 
-// permissionService implements ExtendedPermissionService.
+// PersistenceManager handles saving and loading permission state.
+type PersistenceManager interface {
+	Save(ctx context.Context, data *PersistenceData) error
+	Load(ctx context.Context) (*PersistenceData, error)
+}
+
+// FilePersistenceManager implements PersistenceManager using JSON files.
+type FilePersistenceManager struct {
+	mu       sync.RWMutex
+	filePath string
+}
+
+// NewFilePersistenceManager creates a file-based persistence manager.
+func NewFilePersistenceManager(filePath string) *FilePersistenceManager {
+	return &FilePersistenceManager{
+		filePath: filePath,
+	}
+}
+
+// PersistenceData represents the serializable state of the permission service.
+type PersistenceData struct {
+	Rules     []PermissionRule `json:"rules"`
+	Requests  []Request        `json:"requests"`
+	Responses []Response       `json:"responses"`
+}
+
+// Save saves the permission state to a file.
+func (f *FilePersistenceManager) Save(ctx context.Context, data *PersistenceData) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	jsonData, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal permission state: %w", err)
+	}
+
+	if err := os.WriteFile(f.filePath, jsonData, 0o644); err != nil {
+		return fmt.Errorf("failed to write permission state file: %w", err)
+	}
+
+	return nil
+}
+
+// Load loads the permission state from a file.
+func (f *FilePersistenceManager) Load(ctx context.Context) (*PersistenceData, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
+	jsonData, err := os.ReadFile(f.filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil // No file exists yet
+		}
+		return nil, fmt.Errorf("failed to read permission state file: %w", err)
+	}
+
+	var data PersistenceData
+	if err := json.Unmarshal(jsonData, &data); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal permission state: %w", err)
+	}
+
+	return &data, nil
+}
+
+// permissionService implements ExtendedPermissionService with optional persistence.
 type permissionService struct {
-	mu        sync.RWMutex
-	rules     map[string][]PermissionRule // agencyID -> rules
-	requests  map[string]Request          // requestID -> request
-	responses map[string]Response         // requestID -> response
+	mu          sync.RWMutex
+	rules       map[string][]PermissionRule // agencyID -> rules
+	requests    map[string]Request          // requestID -> request
+	responses   map[string]Response         // requestID -> response
+	persistence PersistenceManager
 }
 
 // NewService creates a new ExtendedPermissionService.
@@ -26,6 +93,76 @@ func NewService() ExtendedPermissionService {
 		requests:  make(map[string]Request),
 		responses: make(map[string]Response),
 	}
+}
+
+// NewServiceWithPersistence creates a new service with persistence manager.
+func NewServiceWithPersistence(persistence PersistenceManager) ExtendedPermissionService {
+	svc := &permissionService{
+		rules:       make(map[string][]PermissionRule),
+		requests:    make(map[string]Request),
+		responses:   make(map[string]Response),
+		persistence: persistence,
+	}
+
+	// Try to load existing state
+	if persistence != nil {
+		if data, err := persistence.Load(context.Background()); err == nil && data != nil {
+			// Restore rules
+			for _, rule := range data.Rules {
+				svc.rules[rule.CreatedBy] = append(svc.rules[rule.CreatedBy], rule)
+			}
+			// Restore requests
+			for _, req := range data.Requests {
+				svc.requests[req.ID] = req
+			}
+			// Restore responses
+			for _, resp := range data.Responses {
+				svc.responses[resp.RequestID] = resp
+			}
+		}
+	}
+
+	return svc
+}
+
+// persistIfEnabled saves state if persistence is configured.
+func (s *permissionService) persistIfEnabled() {
+	if s.persistence != nil {
+		data := &PersistenceData{
+			Rules:     make([]PermissionRule, 0),
+			Responses: make([]Response, 0),
+		}
+		for _, rules := range s.rules {
+			data.Rules = append(data.Rules, rules...)
+		}
+		for _, resp := range s.responses {
+			data.Responses = append(data.Responses, resp)
+		}
+		// Fire and forget persistence save
+		go s.persistence.Save(context.Background(), data)
+	}
+}
+
+// SavePersistence exports the current state for external persistence.
+func (s *permissionService) SavePersistence(ctx context.Context) error {
+	if s.persistence == nil {
+		return fmt.Errorf("no persistence manager configured")
+	}
+	data := &PersistenceData{
+		Rules:     make([]PermissionRule, 0),
+		Requests:  make([]Request, 0),
+		Responses: make([]Response, 0),
+	}
+	for _, rules := range s.rules {
+		data.Rules = append(data.Rules, rules...)
+	}
+	for _, req := range s.requests {
+		data.Requests = append(data.Requests, req)
+	}
+	for _, resp := range s.responses {
+		data.Responses = append(data.Responses, resp)
+	}
+	return s.persistence.Save(ctx, data)
 }
 
 // Request creates a new permission request.
@@ -93,6 +230,9 @@ func (s *permissionService) Grant(ctx context.Context, requestID string, level P
 		s.rules[req.AgencyID] = append(s.rules[req.AgencyID], rule)
 	}
 
+	// Trigger persistence save
+	s.persistIfEnabled()
+
 	return nil
 }
 
@@ -115,6 +255,9 @@ func (s *permissionService) Deny(ctx context.Context, requestID string, reason s
 		RespondedAt: time.Now(),
 	}
 	s.responses[requestID] = resp
+
+	// Trigger persistence save
+	s.persistIfEnabled()
 
 	return nil
 }
@@ -150,8 +293,6 @@ func (s *permissionService) GetRules(ctx context.Context, agencyID string) ([]Pe
 }
 
 // AddRule adds a new permission rule.
-// Since PermissionRule doesn't have an AgencyID field, we use the CreatedBy as the agency key
-// or default to "global" if CreatedBy is empty.
 func (s *permissionService) AddRule(ctx context.Context, rule PermissionRule) error {
 	if rule.Action == "" {
 		return fmt.Errorf("action is required")
@@ -173,6 +314,9 @@ func (s *permissionService) AddRule(ctx context.Context, rule PermissionRule) er
 	}
 	s.rules[agencyKey] = append(s.rules[agencyKey], rule)
 
+	// Trigger persistence save
+	s.persistIfEnabled()
+
 	return nil
 }
 
@@ -185,6 +329,8 @@ func (s *permissionService) RemoveRule(ctx context.Context, ruleID string) error
 		for i, rule := range rules {
 			if rule.ID == ruleID {
 				s.rules[agencyID] = append(rules[:i], rules[i+1:]...)
+				// Trigger persistence save
+				s.persistIfEnabled()
 				return nil
 			}
 		}

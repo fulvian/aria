@@ -62,6 +62,37 @@ type File struct {
 	UpdatedAt int64  `json:"updated_at"`
 }
 
+type GuardrailAudit struct {
+	ID            string         `json:"id"`
+	ActionType    string         `json:"action_type"`
+	ActionDetails sql.NullString `json:"action_details"`
+	Result        string         `json:"result"`
+	Reason        sql.NullString `json:"reason"`
+	Timestamp     int64          `json:"timestamp"`
+}
+
+type GuardrailBudget struct {
+	ActionType  string `json:"action_type"`
+	BudgetLimit int64  `json:"budget_limit"`
+	UsedCount   int64  `json:"used_count"`
+	WindowHours int64  `json:"window_hours"`
+	ResetAt     int64  `json:"reset_at"`
+}
+
+type GuardrailPreference struct {
+	ID                    int64          `json:"id"`
+	AllowedActions        sql.NullString `json:"allowed_actions"`
+	ForbiddenActions      sql.NullString `json:"forbidden_actions"`
+	NotificationLevel     string         `json:"notification_level"`
+	NotifyChannels        sql.NullString `json:"notify_channels"`
+	MaxDailyActions       int64          `json:"max_daily_actions"`
+	MaxPendingSuggestions int64          `json:"max_pending_suggestions"`
+	AutoApproveRules      sql.NullString `json:"auto_approve_rules"`
+	QuietHours            sql.NullString `json:"quiet_hours"`
+	ActiveHours           sql.NullString `json:"active_hours"`
+	UpdatedAt             int64          `json:"updated_at"`
+}
+
 type Message struct {
 	ID         string         `json:"id"`
 	SessionID  string         `json:"session_id"`
@@ -71,6 +102,38 @@ type Message struct {
 	CreatedAt  int64          `json:"created_at"`
 	UpdatedAt  int64          `json:"updated_at"`
 	FinishedAt sql.NullInt64  `json:"finished_at"`
+}
+
+type PermissionRequest struct {
+	ID          string `json:"id"`
+	AgencyID    string `json:"agency_id"`
+	AgentID     string `json:"agent_id"`
+	Action      string `json:"action"`
+	Resource    string `json:"resource"`
+	RequestedAt int64  `json:"requested_at"`
+}
+
+type PermissionResponse struct {
+	RequestID   string         `json:"request_id"`
+	Granted     int64          `json:"granted"`
+	Level       string         `json:"level"`
+	Scope       string         `json:"scope"`
+	Reason      sql.NullString `json:"reason"`
+	RespondedAt int64          `json:"responded_at"`
+	ExpiresAt   sql.NullInt64  `json:"expires_at"`
+}
+
+type PermissionRule struct {
+	ID              string        `json:"id"`
+	AgencyID        string        `json:"agency_id"`
+	Action          string        `json:"action"`
+	ResourceType    string        `json:"resource_type"`
+	ResourcePattern string        `json:"resource_pattern"`
+	Level           string        `json:"level"`
+	Scope           string        `json:"scope"`
+	ExpiresAt       sql.NullInt64 `json:"expires_at"`
+	CreatedAt       int64         `json:"created_at"`
+	CreatedBy       string        `json:"created_by"`
 }
 
 type Procedure struct {
