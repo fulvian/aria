@@ -60,3 +60,6 @@ opencode.md
 credentials.json
 secrets.json
 .worktrees/
+
+# Build artifacts
+ariacli
