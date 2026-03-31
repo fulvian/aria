@@ -38,6 +38,11 @@ type PolicyRouter interface {
 	RouteWithPolicy(ctx context.Context, query Query, class Classification, policy RoutingPolicy) (RoutingDecision, error)
 	SetRoutingPolicy(policy RoutingPolicy) error
 	GetRoutingPolicy() RoutingPolicy
+
+	// BoostAgencyConfidence increases confidence for a high-performing agency.
+	BoostAgencyConfidence(agency string, boost float64)
+	// ReduceAgencyConfidence decreases confidence for a low-performing agency.
+	ReduceAgencyConfidence(agency string, penalty float64)
 }
 
 // RoutingPolicy is a configurable routing policy.
@@ -64,9 +69,10 @@ type PriorityRule struct {
 
 // defaultPolicyRouter is the default implementation of PolicyRouter.
 type defaultPolicyRouter struct {
-	baseRouter   Router
-	policy       RoutingPolicy
-	capabilities CapabilityRegistry
+	baseRouter        Router
+	policy            RoutingPolicy
+	capabilities      CapabilityRegistry
+	agencyConfidences map[string]float64 // agency name -> confidence adjustment
 }
 
 // NewPolicyRouter creates a new PolicyRouter with the given base router and capability registry.
@@ -78,6 +84,7 @@ func NewPolicyRouter(base Router, capabilities CapabilityRegistry) *defaultPolic
 			ConfidenceThreshold: 0.5,
 			CapabilityMatch:     false,
 		},
+		agencyConfidences: make(map[string]float64),
 	}
 }
 
@@ -144,6 +151,36 @@ func (r *defaultPolicyRouter) SetRoutingPolicy(policy RoutingPolicy) error {
 // GetRoutingPolicy returns the current routing policy.
 func (r *defaultPolicyRouter) GetRoutingPolicy() RoutingPolicy {
 	return r.policy
+}
+
+// BoostAgencyConfidence increases confidence for a high-performing agency.
+func (r *defaultPolicyRouter) BoostAgencyConfidence(agency string, boost float64) {
+	if agency == "" {
+		return
+	}
+	// Get current adjustment (default 0)
+	current := r.agencyConfidences[agency]
+	// Add boost, capped at +0.3
+	newVal := current + boost
+	if newVal > 0.3 {
+		newVal = 0.3
+	}
+	r.agencyConfidences[agency] = newVal
+}
+
+// ReduceAgencyConfidence decreases confidence for a low-performing agency.
+func (r *defaultPolicyRouter) ReduceAgencyConfidence(agency string, penalty float64) {
+	if agency == "" {
+		return
+	}
+	// Get current adjustment (default 0)
+	current := r.agencyConfidences[agency]
+	// Subtract penalty, floor at -0.3
+	newVal := current - penalty
+	if newVal < -0.3 {
+		newVal = -0.3
+	}
+	r.agencyConfidences[agency] = newVal
 }
 
 // Route delegates to base router.
