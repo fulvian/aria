@@ -24,7 +24,8 @@ const (
 
 // TaskRouter routes tasks to appropriate agents based on capabilities.
 type TaskRouter struct {
-	agentRegistry *AgentRegistry
+	agentRegistry  *AgentRegistry
+	semanticRouter *SemanticTaskRouter // Optional semantic routing for intelligent matching
 }
 
 // AgentRegistry maintains a registry of available agents and their capabilities.
@@ -95,7 +96,15 @@ func NewTaskRouter(registry *AgentRegistry) *TaskRouter {
 }
 
 // Route determines which agent should handle a task.
+// If a semantic router is configured, it uses semantic similarity matching first.
+// Falls back to keyword-based classification if semantic routing fails or is unavailable.
 func (r *TaskRouter) Route(task contracts.Task) (*RegisteredAgent, error) {
+	// Use semantic routing if available
+	if r.semanticRouter != nil {
+		return r.semanticRouter.Route(context.Background(), task)
+	}
+
+	// Fallback to keyword-based routing
 	category := r.classifyTask(task)
 
 	// Get agents for this category
@@ -118,7 +127,14 @@ func (r *TaskRouter) Route(task contracts.Task) (*RegisteredAgent, error) {
 }
 
 // RouteWithFallback routes to primary agent with fallback chain.
+// If a semantic router is configured, it uses semantic matching with fallback.
 func (r *TaskRouter) RouteWithFallback(task contracts.Task) ([]*RegisteredAgent, error) {
+	// Use semantic routing if available
+	if r.semanticRouter != nil {
+		return r.semanticRouter.RouteWithFallback(context.Background(), task)
+	}
+
+	// Fallback to keyword-based routing
 	category := r.classifyTask(task)
 
 	// Get agents for this category

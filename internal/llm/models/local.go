@@ -3,11 +3,13 @@ package models
 import (
 	"cmp"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/fulvian/aria/internal/logging"
@@ -19,7 +21,10 @@ const (
 
 	localModelsPath        = "v1/models"
 	lmStudioBetaModelsPath = "api/v0/models"
+	localModelsHTTPTimeout = 2 * time.Second
 )
+
+var localHTTPClient = &http.Client{Timeout: localModelsHTTPTimeout}
 
 func init() {
 	if endpoint := os.Getenv("LOCAL_ENDPOINT"); endpoint != "" {
@@ -75,11 +80,21 @@ type localModel struct {
 }
 
 func listLocalModels(modelsEndpoint string) []localModel {
-	res, err := http.Get(modelsEndpoint)
+	req, err := http.NewRequest(http.MethodGet, modelsEndpoint, nil)
 	if err != nil {
-		logging.Debug("Failed to list local models",
+		logging.Debug("Failed to build local models request",
 			"error", err,
 			"endpoint", modelsEndpoint,
+		)
+		return []localModel{}
+	}
+
+	res, err := localHTTPClient.Do(req)
+	if err != nil {
+		logging.Debug("Failed to list local models",
+			"error", fmt.Errorf("request failed: %w", err),
+			"endpoint", modelsEndpoint,
+			"timeout", localModelsHTTPTimeout,
 		)
 		return []localModel{}
 	}

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	ariaConfig "github.com/fulvian/aria/internal/aria/config"
@@ -62,8 +63,11 @@ func NewKnowledgeAgency(cfg ariaConfig.KnowledgeConfig) *KnowledgeAgency {
 	registry := NewAgentRegistry()
 	registerKnowledgeAgents(registry, knowledgeCfg)
 
-	// Initialize supervisor with registry
+	// Initialize supervisor with semantic routing capabilities
+	// The TaskRouter uses embeddings for intelligent routing with keyword fallback
+	embedder := NewSimpleEmbedder()
 	supervisor := NewTaskRouter(registry)
+	supervisor.semanticRouter = NewSemanticTaskRouter(registry, embedder)
 
 	// Initialize workflow engine
 	executor := NewWorkflowEngine(supervisor, 60*time.Second)
@@ -348,29 +352,50 @@ func (a *KnowledgeAgency) executeParallel(ctx context.Context, task contracts.Ta
 		return a.executeAgentTask(ctx, task, primary)
 	}
 
-	// Execute all agents in parallel
-	var results []map[string]any
+	// Limit concurrent executions
+	maxConcurrent := 3
+	if maxConcurrent > len(agents) {
+		maxConcurrent = len(agents)
+	}
+	sem := make(chan struct{}, maxConcurrent)
+
+	var wg sync.WaitGroup
+	mu := sync.Mutex{}
+	results := []map[string]any{}
 	var lastErr error
 
 	for _, agent := range agents {
-		result, err := a.executeAgentTask(ctx, task, agent)
-		if err != nil {
-			lastErr = err
-			continue
-		}
-		results = append(results, result)
+		wg.Add(1)
+		go func(ag *RegisteredAgent) {
+			defer wg.Done()
+
+			// Acquire semaphore
+			select {
+			case sem <- struct{}{}:
+				defer func() { <-sem }()
+			case <-ctx.Done():
+				return
+			}
+
+			result, err := a.executeAgentTask(ctx, task, ag)
+			mu.Lock()
+			if err != nil {
+				lastErr = err
+			} else {
+				results = append(results, result)
+			}
+			mu.Unlock()
+		}(agent)
 	}
 
-	if len(results) == 0 {
+	wg.Wait()
+
+	if len(results) == 0 && lastErr != nil {
 		return nil, lastErr
 	}
 
 	// Synthesize results
-	synthesized, err := a.synthesizer.Synthesize(task.ID, results, DefaultSynthesisOptions())
-	if err != nil {
-		return results[0], nil // Fallback to first result
-	}
-	return synthesized, nil
+	return a.synthesizer.Synthesize(task.ID, results, DefaultSynthesisOptions())
 }
 
 // handleExecutionError handles execution errors consistently.
