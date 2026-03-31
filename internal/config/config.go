@@ -153,6 +153,9 @@ func Load(workingDir string, debug bool) (*Config, error) {
 		return cfg, nil
 	}
 
+	// Write directly to stderr to ensure we see this
+	fmt.Fprintf(os.Stderr, "DEBUG config.Load: Starting config load workingDir=%s debug=%v\n", workingDir, debug)
+
 	cfg = &Config{
 		WorkingDir: workingDir,
 		MCPServers: make(map[string]MCPServer),
@@ -160,23 +163,33 @@ func Load(workingDir string, debug bool) (*Config, error) {
 		LSP:        make(map[string]LSPConfig),
 	}
 
+	fmt.Fprintf(os.Stderr, "DEBUG config.Load: About to configureViper\n")
 	configureViper()
+	fmt.Fprintf(os.Stderr, "DEBUG config.Load: About to setDefaults\n")
 	setDefaults(debug)
+	fmt.Fprintf(os.Stderr, "DEBUG config.Load: About to read global config\n")
 
 	// Read global config
+	fmt.Fprintf(os.Stderr, "DEBUG config.Load: About to call viper.ReadInConfig\n")
 	if err := readConfig(viper.ReadInConfig()); err != nil {
+		fmt.Fprintf(os.Stderr, "DEBUG config.Load: readConfig failed: %v\n", err)
 		return cfg, err
 	}
+	fmt.Fprintf(os.Stderr, "DEBUG config.Load: Global config read successfully\n")
 
 	// Load and merge local config
+	fmt.Fprintf(os.Stderr, "DEBUG config.Load: About to mergeLocalConfig\n")
 	mergeLocalConfig(workingDir)
+	fmt.Fprintf(os.Stderr, "DEBUG config.Load: About to setProviderDefaults\n")
 
 	setProviderDefaults()
+	fmt.Fprintf(os.Stderr, "DEBUG config.Load: About to viper.Unmarshal\n")
 
 	// Apply configuration to the struct
 	if err := viper.Unmarshal(cfg); err != nil {
 		return cfg, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
+	fmt.Fprintf(os.Stderr, "DEBUG config.Load: Unmarshal successful\n")
 
 	applyDefaultValues()
 	defaultLevel := slog.LevelInfo
@@ -184,6 +197,7 @@ func Load(workingDir string, debug bool) (*Config, error) {
 		defaultLevel = slog.LevelDebug
 	}
 	if os.Getenv("OPENCODE_DEV_DEBUG") == "true" {
+		fmt.Fprintf(os.Stderr, "DEBUG: OPENCODE_DEV_DEBUG is set - using file logging\n")
 		loggingFile := fmt.Sprintf("%s/%s", cfg.Data.Directory, "debug.log")
 		messagesPath := fmt.Sprintf("%s/%s", cfg.Data.Directory, "messages")
 
@@ -213,18 +227,26 @@ func Load(workingDir string, debug bool) (*Config, error) {
 			Level: defaultLevel,
 		}))
 		slog.SetDefault(logger)
+		fmt.Fprintf(os.Stderr, "DEBUG: slog.SetDefault done (file logging)\n")
 	} else {
 		// Configure logger
-		logger := slog.New(slog.NewTextHandler(logging.NewWriter(), &slog.HandlerOptions{
+		fmt.Fprintf(os.Stderr, "DEBUG: Using default writer logging (not OPENCODE_DEV_DEBUG)\n")
+		newWriter := logging.NewWriter()
+		handler := slog.NewTextHandler(newWriter, &slog.HandlerOptions{
 			Level: defaultLevel,
-		}))
+		})
+		logger := slog.New(handler)
 		slog.SetDefault(logger)
+		fmt.Fprintf(os.Stderr, "DEBUG: slog.SetDefault done (writer logging)\n")
 	}
 
 	// Validate configuration
+	logging.Info("DEBUG config.Load: About to Validate")
 	if err := Validate(); err != nil {
+		logging.Error("DEBUG config.Load: Validate failed", "error", err)
 		return cfg, fmt.Errorf("config validation failed: %w", err)
 	}
+	logging.Info("DEBUG config.Load: Validate passed")
 
 	if cfg.Agents == nil {
 		cfg.Agents = make(map[AgentName]Agent)
@@ -235,6 +257,7 @@ func Load(workingDir string, debug bool) (*Config, error) {
 		Model:     cfg.Agents[AgentTitle].Model,
 		MaxTokens: 80,
 	}
+	logging.Info("DEBUG config.Load: Complete!", "dataDir", cfg.Data.Directory)
 	return cfg, nil
 }
 
