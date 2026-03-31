@@ -50,12 +50,20 @@ type ProviderEvent struct {
 	ToolCall *message.ToolCall
 	Error    error
 }
+
+// ErrEmbeddingNotSupported is returned when a provider does not support embedding generation.
+var ErrEmbeddingNotSupported = fmt.Errorf("embedding not supported by this provider")
+
 type Provider interface {
 	SendMessages(ctx context.Context, messages []message.Message, tools []tools.BaseTool) (*ProviderResponse, error)
 
 	StreamResponse(ctx context.Context, messages []message.Message, tools []tools.BaseTool) <-chan ProviderEvent
 
 	Model() models.Model
+
+	// CreateEmbedding generates an embedding vector for the given text.
+	// Returns ErrEmbeddingNotSupported if the provider does not support embeddings.
+	CreateEmbedding(ctx context.Context, text string) ([]float32, error)
 }
 
 type providerClientOptions struct {
@@ -76,6 +84,7 @@ type ProviderClientOption func(*providerClientOptions)
 type ProviderClient interface {
 	send(ctx context.Context, messages []message.Message, tools []tools.BaseTool) (*ProviderResponse, error)
 	stream(ctx context.Context, messages []message.Message, tools []tools.BaseTool) <-chan ProviderEvent
+	createEmbedding(ctx context.Context, text string) ([]float32, error)
 }
 
 type baseProvider[C ProviderClient] struct {
@@ -193,6 +202,12 @@ func (p *baseProvider[C]) SendMessages(ctx context.Context, messages []message.M
 
 func (p *baseProvider[C]) Model() models.Model {
 	return p.options.model
+}
+
+// CreateEmbedding delegates to the embedded client's createEmbedding method.
+// Providers that do not support embeddings return ErrEmbeddingNotSupported.
+func (p *baseProvider[C]) CreateEmbedding(ctx context.Context, text string) ([]float32, error) {
+	return p.client.createEmbedding(ctx, text)
 }
 
 func (p *baseProvider[C]) StreamResponse(ctx context.Context, messages []message.Message, tools []tools.BaseTool) <-chan ProviderEvent {

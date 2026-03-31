@@ -162,6 +162,10 @@ type MemoryService interface {
 	// Self-analysis
 	GetPerformanceMetrics(ctx context.Context, timeRange TimeRange) (Metrics, error)
 	GenerateInsights(ctx context.Context) ([]string, error)
+
+	// Embedding management
+	BackfillEmbeddings(ctx context.Context) (int, error)
+	GetEmbeddingMetrics() EmbeddingMetrics
 }
 
 // Metrics represents performance metrics.

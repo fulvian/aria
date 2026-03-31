@@ -31,6 +31,7 @@ type AgenciesConfig struct {
 	Development DevelopmentAgencyConfig
 	Weather     WeatherAgencyConfig
 	Nutrition   NutritionAgencyConfig
+	Knowledge   KnowledgeAgencyConfig
 }
 
 // WeatherAgencyConfig defines the weather agency configuration.
@@ -46,6 +47,11 @@ type DevelopmentAgencyConfig struct {
 
 // NutritionAgencyConfig defines the nutrition agency configuration.
 type NutritionAgencyConfig struct {
+	Enabled bool
+}
+
+// KnowledgeAgencyConfig defines the knowledge agency configuration.
+type KnowledgeAgencyConfig struct {
 	Enabled bool
 }
 
@@ -91,6 +97,9 @@ func Load() *Config {
 			},
 			Nutrition: NutritionAgencyConfig{
 				Enabled: getEnvBool("ARIA_AGENCIES_NUTRITION_ENABLED", false),
+			},
+			Knowledge: KnowledgeAgencyConfig{
+				Enabled: getEnvBool("ARIA_AGENCIES_KNOWLEDGE_ENABLED", false),
 			},
 		},
 		Skills: SkillsConfig{

@@ -1,9 +1,9 @@
 # ARIA: Autonomous Reasoning & Intelligent Assistant
 ## Foundation Blueprint Document
 
-> **Version**: 1.15.0-DRAFT  
-> **Date**: 2026-03-30  
-> **Status**: IN_PROGRESS (FASE 0-5 COMPLETE, ORCHESTRATOR ENHANCEMENT O1-O5 COMPLETE, ARIA STANDALONE SEPARATION V4 COMPLETE, NUTRITION AGENCY COMPLETE)  
+> **Version**: 1.17.0-DRAFT  
+> **Date**: 2026-03-31  
+> **Status**: IN_PROGRESS (FASE 0-5 COMPLETE, ORCHESTRATOR ENHANCEMENT O1-O5 COMPLETE, ARIA STANDALONE SEPARATION V4 COMPLETE, NUTRITION AGENCY COMPLETE, MEMORY EMBEDDING COMPLETE, KNOWLEDGE AGENCY COMPLETE, CONFIG ISOLATION COMPLETE)  
 > **Base Project**: ARIA CLI (Standalone - completamente separato da OpenCode/KiloCode)  
 
 ---
@@ -1047,6 +1047,9 @@ agents:
 │                             - Self-analysis ✓                    │
 │                             - WS1-WS8 complete ✓                │
 │                             - E2E test ✓                          │
+│                             - Memory Embedding ✓ (LM Studio)     │
+│                             - Hybrid semantic retrieval ✓        │
+│                             - Embedding cache + backfill ✓       │
 │                                                                  │
 │  FASE 3: SCHEDULING         ████████████████████████████████  (100%)│
 │  [Mese 6-7]                 Task scheduler, persistence         │
@@ -1063,14 +1066,14 @@ agents:
 │                             - Auto-approve rules ✓               │
 │                             ⚠️ Suggestion engine DEFERRED        │
 │                                                                  │
-│  FASE 5: AGENCIES           ██████░░░░░░░░░░░░░░░░░░░░░░  (25%)   │
+│  FASE 5: AGENCIES           █████████░░░░░░░░░░░░░░░░░░░  (35%)   │
 │  [Mese 8-12]                Weather Agency POC ✓                │
 │                             Nutrition Agency ✓✓✓✓✓              │
 │                             AgencyService persistence ✓          │
 │                             Development Agency agents ✓ (typed) │
 │                             - Weather Agency ✓ (POC)            │
 │                             - Nutrition Agency ✓ (COMPLETE)     │
-│                             - Knowledge Agency (planning)        │
+│                             - Knowledge Agency ✓ (COMPLETE)     │
 │                             - Creative Agency (planning)        │
 │                             - Productivity Agency (planning)     │
 │                             - Personal Agency (planning)        │
@@ -1217,6 +1220,16 @@ agents:
    - [x] Periodic analysis jobs (RunPeriodicAnalysis)
    - [x] Insight generation (GenerateImprovements)
 
+5. **Memory Embedding** ✅ COMPLETE (NEW - Phases 0-5)
+   - [x] Embedding provider interface (CreateEmbedding on Provider)
+   - [x] LM Studio local embedding support (mxbai-embed-large-v1, nomic-embed-text-v1.5)
+   - [x] DB schema: episode_embeddings, fact_embeddings tables
+   - [x] Async embedding worker with queue processing
+   - [x] Hybrid semantic retrieval (vector + keyword + recency + outcome scoring)
+   - [x] In-memory embedding cache (sync.Map)
+   - [x] Backfill function for existing episodes
+   - [x] Embedding observability metrics
+
 #### 8.4.2 Deliverables
 - [x] Memory service completo (internal/aria/memory/service.go)
 - [x] Storage backend funzionante (usa DB/sqlc esistente)
@@ -1311,7 +1324,7 @@ agents:
 
 **Durata**: 8-12 settimane  
 **Obiettivo**: Implementare agencies specializzate
-**Stato**: IN PROGRESS (~25%) - Weather Agency POC complete, Development Agency agents fully typed, Nutrition Agency COMPLETE
+**Stato**: IN PROGRESS (~35%) - Weather Agency POC complete, Development Agency agents fully typed, Nutrition Agency COMPLETE, Knowledge Agency COMPLETE, Config Isolation COMPLETE
 
 #### Implementation Order
 
@@ -1350,10 +1363,18 @@ agents:
    - [x] Medical guardrails support
    - [x] Runbook: docs/runbooks/nutrition-agency.md
 
-4. **Knowledge Agency** ⚠️ NOT STARTED
-   - Web research integration
-   - Document analysis
-   - Q&A capabilities
+ 4. **Knowledge Agency** ✅ COMPLETE
+    - [x] Supervisor with task routing (TaskRouter + AgentRegistry)
+    - [x] 5 specialized agents (WebSearch, Academic, News, CodeResearch, Historical)
+    - [x] WorkflowEngine with Sequential/Parallel/Fallback/FanOut modes
+    - [x] TaskStateMachine with 8 states and transitions
+    - [x] ResultSynthesizer with deduplication, ranking, merging
+    - [x] Provider integrations: DDG, Wikipedia, arXiv, PubMed, GDELT, TheNewsAPI, Context7, Wayback
+    - [x] GDELT optimized (custom HTTP client with extended TLS timeout)
+    - [x] TheNewsAPI fixed (correct 'search' parameter per official docs)
+    - [x] 17+ unit/integration tests (real-world API calls)
+    - [x] Config isolation: ARIA config completely separated from OpenCode/KiloCode
+    - [x] Configuration via ARIA_AGENCIES_KNOWLEDGE_* env vars
 
 4. **Creative Agency** ⚠️ NOT STARTED
    - Writing tools
@@ -1623,6 +1644,8 @@ internal/aria/
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.17.0-DRAFT | 2026-03-31 | **KNOWLEDGE AGENCY COMPLETE + CONFIG ISOLATION** - (1) **Knowledge Agency**: Full implementation with Supervisor (TaskRouter + AgentRegistry), 5 specialized agents (WebSearch, Academic, News, CodeResearch, Historical), WorkflowEngine (Sequential/Parallel/Fallback/FanOut), TaskStateMachine (8 states), ResultSynthesizer (deduplication, ranking, merging). (2) **Provider Integrations**: DDG, Wikipedia, arXiv, PubMed, GDELT, TheNewsAPI, Context7, Wayback Machine. (3) **GDELT Optimization**: Custom HTTP client with extended TLS handshake timeout (GDELT takes 50+ seconds). Removed incorrect rate limit assumption. (4) **TheNewsAPI Fix**: Corrected query parameter from 'q' to 'search' per official documentation. (5) **Config Isolation**: Removed all ARIA-specific types (ARIAConfig, RoutingConfig, AgenciesConfig, SkillsConfig, SchedulerConfig, GuardrailsConfig) from `internal/config/config.go`. ARIA config now fully isolated in `internal/aria/config/` using env vars with ARIA_ prefix. Shared config (`internal/config/config.go`) only contains OpenCode/KiloCode-compatible settings. (6) **Testing**: 17+ unit/integration tests with real-world API calls, all passing. **Verification**: `go build`, `go vet`, `go test ./internal/aria/agency/...` all pass. |
+| 1.16.0-DRAFT | 2026-03-30 | **MEMORY EMBEDDING COMPLETE** - (1) **Embedding Provider Interface**: `CreateEmbedding` method on `Provider` interface, `ErrEmbeddingNotSupported` typed error, `ProviderClient.createEmbedding` method, `EmbeddingModel` struct with `SupportedEmbeddingModels` registry. (2) **Local Embedding**: `openaiClient.createEmbedding()` implemented (OpenAI-compatible with LM Studio at localhost:1234), supports `text-embedding-mxbai-embed-large-v1` (1024d) and `text-embedding-nomic-embed-text-v1.5` (768d). (3) **DB/Migrations**: `episode_embeddings` and `fact_embeddings` tables with provider/model/dimensions/vector/blob storage, 12 SQL queries via sqlc. (4) **Memory Service**: `EmbeddingConfig`, `EmbeddingFunc`, async embedding worker with queue, `BackfillEmbeddings()`, `GetEmbeddingMetrics()`. (5) **Hybrid Retrieval**: `GetSimilarEpisodes` rewritten with hybrid scoring (vector 40%, keyword 30%, recency 20%, outcome 10%), fixed bug in score recalculation. (6) **In-Memory Cache**: `embedCache sync.Map` with cache-first reads. (7) **Observability**: `EmbeddingMetrics` with `TotalGenerated`, `TotalCacheHits`, `TotalBackfilled`, `AvgLatencyMs`, `LastError`. (8) **Config**: `MemoryEmbeddingConfig` with `Enabled`, `Provider`, `Model`, `Mode`, `BatchSize`, `TimeoutMs`, `VectorCacheEnabled`, auto-detects LM Studio when `LOCAL_ENDPOINT` is set. **Verification**: `go vet`, `go test ./internal/aria/memory/...` (15 tests pass), `go build` all pass. |
 | 1.15.0-DRAFT | 2026-03-30 | **NUTRITION AGENCY COMPLETE (Phase N5)** - (1) **Nutrition Agency**: Full implementation with 5 agents (nutrition-analyst, culinary, diet-planner, food-safety, healthy-lifestyle-coach). (2) **Provider Tools**: USDA FDC API (nutrition_usda.go), Open Food Facts (nutrition_openfoodfacts.go), TheMealDB (recipes_mealdb.go), openFDA integration. (3) **Skills**: nutrition-analysis, recipe-search, diet-plan-generation, food-recall-monitoring, healthy-habits-coaching. (4) **Metrics**: `internal/aria/agency/nutrition/metrics` package with provider success/error rates, API latencies, cache hit rates, fallback tracking. (5) **Documentation**: `docs/runbooks/nutrition-agency.md` with rate limits (USDA ~1000/hr, Open Food Facts 100/min product/10/min search, MealDB varies, openFDA 240/min), API key configuration, guardrails policy. (6) **Config**: ARIA_NUTRITION_* env vars for all settings. **Roadmap**: FASE 5 ~17% → ~25%. |
 | 1.14.0-DRAFT | 2026-03-30 | **ARIA STANDALONE SEPARATION V4 COMPLETE** - (1) **V4-0**: Created boundary audit inventory and policy docs (`aria-opencode-cleanup-inventory.md`, `aria-boundary-policy.md`). (2) **V4-1**: CLI renamed from `opencode` to `aria`, help/description/examples updated. (3) **V4-3**: All 76 OpenCode references removed from Go code - prompts, user-agents, temp files, panic logs, diff styles, ignored directories. (4) **V4-4**: Config now uses `.aria` data directory, `aria.json` config file, `aria.db` database. Context paths updated to ARIA.md. (5) **V4-5**: Created `internal/tui/theme/aria.go` (replacing opencode.go), ARIAIcon, "ARIA" logo, ARIA.md memory file guidance. (6) **V4-6**: Created `ACKNOWLEDGEMENTS.md` with official credits. **Verification**: `go build`, `go vet`, `go test` all pass. `grep -r "opencode" *.go` returns no matches in runtime code. |
 | 1.13.0-DRAFT | 2026-03-30 | **ORCHESTRATOR ENHANCEMENT O1-O5 COMPLETE** - (1) **O1 Decision Core**: DecisionEngine with ComplexityAnalyzer (93% coverage), RiskAnalyzer, TriggerPolicy for sequential-thinking gating, PathSelector for Fast/Deep path, (2) **O2 Planner/Executor/Reviewer**: Plan types, Planner.CreatePlan/CreatePlanWithThinking, Executor.Execute/ExecuteStep, Reviewer.Review/ShouldReplan, OrchestratorPipeline skeleton (80.7% coverage), (3) **O3 Routing 2.0**: CapabilityRegistry for agency/agent matching, PolicyRouter with confidence calibration and policy override (71.9% coverage), (4) **O4 Prompt & Command Layer**: Orchestrator prompts (planner/executor/reviewer), Slash commands /plan /decide-agent /debug-plan /review-response, (5) **O5 Telemetry**: TelemetryService for decision/execution/review events, KPI calculator (RoutingAccuracy, FallbackRate, ReplanRate, etc.), FeedbackLoop for continuous learning (95.2% coverage). **Config**: Updated .opencode.json with aria.orchestrator config and commands section. **Branch**: feature/orchestrator-enhancement. |

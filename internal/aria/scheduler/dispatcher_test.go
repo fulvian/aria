@@ -403,6 +403,44 @@ func (m *mockDB) UpsertGuardrailPreferences(ctx context.Context, arg db.UpsertGu
 	return db.GuardrailPreference{}, nil
 }
 
+// Embedding-related methods for mockDB
+func (m *mockDB) CountEpisodeEmbeddings(ctx context.Context) (int64, error) {
+	return 0, nil
+}
+func (m *mockDB) CountFactEmbeddings(ctx context.Context) (int64, error) {
+	return 0, nil
+}
+func (m *mockDB) CreateEpisodeEmbedding(ctx context.Context, arg db.CreateEpisodeEmbeddingParams) (db.EpisodeEmbedding, error) {
+	return db.EpisodeEmbedding{}, nil
+}
+func (m *mockDB) CreateFactEmbedding(ctx context.Context, arg db.CreateFactEmbeddingParams) (db.FactEmbedding, error) {
+	return db.FactEmbedding{}, nil
+}
+func (m *mockDB) DeleteEpisodeEmbedding(ctx context.Context, episodeID string) error {
+	return nil
+}
+func (m *mockDB) DeleteFactEmbedding(ctx context.Context, factID string) error {
+	return nil
+}
+func (m *mockDB) GetEpisodeEmbedding(ctx context.Context, episodeID string) (db.EpisodeEmbedding, error) {
+	return db.EpisodeEmbedding{}, nil
+}
+func (m *mockDB) GetEpisodeEmbeddingByHash(ctx context.Context, arg db.GetEpisodeEmbeddingByHashParams) (db.EpisodeEmbedding, error) {
+	return db.EpisodeEmbedding{}, nil
+}
+func (m *mockDB) GetFactEmbedding(ctx context.Context, factID string) (db.FactEmbedding, error) {
+	return db.FactEmbedding{}, nil
+}
+func (m *mockDB) GetFactEmbeddingByHash(ctx context.Context, arg db.GetFactEmbeddingByHashParams) (db.FactEmbedding, error) {
+	return db.FactEmbedding{}, nil
+}
+func (m *mockDB) ListEpisodeEmbeddings(ctx context.Context, arg db.ListEpisodeEmbeddingsParams) ([]db.EpisodeEmbedding, error) {
+	return []db.EpisodeEmbedding{}, nil
+}
+func (m *mockDB) ListFactEmbeddings(ctx context.Context, arg db.ListFactEmbeddingsParams) ([]db.FactEmbedding, error) {
+	return []db.FactEmbedding{}, nil
+}
+
 // testSchedulerService creates a scheduler service with a mock DB for testing
 func newTestSchedulerService(mock db.Querier, maxConcurrent int) *SchedulerService {
 	ctx, cancel := context.WithCancel(context.Background())

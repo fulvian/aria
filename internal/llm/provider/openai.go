@@ -8,14 +8,14 @@ import (
 	"io"
 	"time"
 
-	"github.com/openai/openai-go"
-	"github.com/openai/openai-go/option"
-	"github.com/openai/openai-go/shared"
 	"github.com/fulvian/aria/internal/config"
 	"github.com/fulvian/aria/internal/llm/models"
 	"github.com/fulvian/aria/internal/llm/tools"
 	"github.com/fulvian/aria/internal/logging"
 	"github.com/fulvian/aria/internal/message"
+	"github.com/openai/openai-go"
+	"github.com/openai/openai-go/option"
+	"github.com/openai/openai-go/shared"
 )
 
 type openaiOptions struct {
@@ -391,6 +391,41 @@ func (o *openaiClient) usage(completion openai.ChatCompletion) TokenUsage {
 		CacheCreationTokens: 0, // OpenAI doesn't provide this directly
 		CacheReadTokens:     cachedTokens,
 	}
+}
+
+// createEmbedding generates an embedding vector for the given text using the OpenAI-compatible embeddings API.
+// This works with OpenAI, LM Studio, and other OpenAI-compatible embedding providers.
+func (o *openaiClient) createEmbedding(ctx context.Context, text string) ([]float32, error) {
+	// Use the configured model or default to a common embedding model
+	model := o.providerOptions.model.APIModel
+	if model == "" {
+		model = "text-embedding-3-small"
+	}
+
+	params := openai.EmbeddingNewParams{
+		Model: openai.EmbeddingModel(model),
+		Input: openai.EmbeddingNewParamsInputUnion{
+			OfString: openai.String(text),
+		},
+	}
+
+	resp, err := o.client.Embeddings.New(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("embedding request failed: %w", err)
+	}
+
+	if len(resp.Data) == 0 {
+		return nil, fmt.Errorf("no embedding returned")
+	}
+
+	// Convert []float64 to []float32
+	embeddingFloat64 := resp.Data[0].Embedding
+	embedding := make([]float32, len(embeddingFloat64))
+	for i, v := range embeddingFloat64 {
+		embedding[i] = float32(v)
+	}
+
+	return embedding, nil
 }
 
 func WithOpenAIBaseURL(baseURL string) OpenAIOption {

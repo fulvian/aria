@@ -12,11 +12,15 @@ import (
 type Querier interface {
 	AddTaskDependency(ctx context.Context, arg AddTaskDependencyParams) error
 	CancelTask(ctx context.Context, id string) error
+	CountEpisodeEmbeddings(ctx context.Context) (int64, error)
 	CountEpisodesByOutcome(ctx context.Context, arg CountEpisodesByOutcomeParams) (CountEpisodesByOutcomeRow, error)
+	CountFactEmbeddings(ctx context.Context) (int64, error)
 	CountTasksByStatus(ctx context.Context, status string) (int64, error)
 	CreateAgency(ctx context.Context, arg CreateAgencyParams) (Agency, error)
 	CreateEpisode(ctx context.Context, arg CreateEpisodeParams) (Episode, error)
+	CreateEpisodeEmbedding(ctx context.Context, arg CreateEpisodeEmbeddingParams) (EpisodeEmbedding, error)
 	CreateFact(ctx context.Context, arg CreateFactParams) (Fact, error)
+	CreateFactEmbedding(ctx context.Context, arg CreateFactEmbeddingParams) (FactEmbedding, error)
 	CreateFile(ctx context.Context, arg CreateFileParams) (File, error)
 	// Guardrail Audit queries
 	CreateGuardrailAuditEntry(ctx context.Context, arg CreateGuardrailAuditEntryParams) (GuardrailAudit, error)
@@ -34,9 +38,11 @@ type Querier interface {
 	DeleteAgency(ctx context.Context, id string) error
 	DeleteAgencyState(ctx context.Context, agencyID string) error
 	DeleteEpisode(ctx context.Context, id string) error
+	DeleteEpisodeEmbedding(ctx context.Context, episodeID string) error
 	DeleteExpiredContexts(ctx context.Context) error
 	DeleteExpiredPermissionRules(ctx context.Context) error
 	DeleteFact(ctx context.Context, id string) error
+	DeleteFactEmbedding(ctx context.Context, factID string) error
 	DeleteFile(ctx context.Context, id string) error
 	DeleteMessage(ctx context.Context, id string) error
 	DeleteOldEpisodes(ctx context.Context, createdAt int64) error
@@ -54,7 +60,11 @@ type Querier interface {
 	GetAgencyState(ctx context.Context, agencyID string) (AgencyState, error)
 	GetDependentTasks(ctx context.Context, dependsOn string) ([]Task, error)
 	GetEpisodeByID(ctx context.Context, id string) (Episode, error)
+	GetEpisodeEmbedding(ctx context.Context, episodeID string) (EpisodeEmbedding, error)
+	GetEpisodeEmbeddingByHash(ctx context.Context, arg GetEpisodeEmbeddingByHashParams) (EpisodeEmbedding, error)
 	GetFactByID(ctx context.Context, id string) (Fact, error)
+	GetFactEmbedding(ctx context.Context, factID string) (FactEmbedding, error)
+	GetFactEmbeddingByHash(ctx context.Context, arg GetFactEmbeddingByHashParams) (FactEmbedding, error)
 	GetFile(ctx context.Context, id string) (File, error)
 	GetFileByPathAndSession(ctx context.Context, arg GetFileByPathAndSessionParams) (File, error)
 	GetGuardrailBudget(ctx context.Context, actionType string) (GuardrailBudget, error)
@@ -74,9 +84,11 @@ type Querier interface {
 	IncrementFactUsage(ctx context.Context, id string) error
 	ListAgencies(ctx context.Context) ([]Agency, error)
 	ListAgenciesByStatus(ctx context.Context, status string) ([]Agency, error)
+	ListEpisodeEmbeddings(ctx context.Context, arg ListEpisodeEmbeddingsParams) ([]EpisodeEmbedding, error)
 	ListEpisodes(ctx context.Context, arg ListEpisodesParams) ([]Episode, error)
 	ListEpisodesByAgency(ctx context.Context, arg ListEpisodesByAgencyParams) ([]Episode, error)
 	ListEpisodesBySession(ctx context.Context, arg ListEpisodesBySessionParams) ([]Episode, error)
+	ListFactEmbeddings(ctx context.Context, arg ListFactEmbeddingsParams) ([]FactEmbedding, error)
 	ListFactsByCategory(ctx context.Context, category sql.NullString) ([]Fact, error)
 	ListFactsByDomain(ctx context.Context, domain string) ([]Fact, error)
 	ListFilesByPath(ctx context.Context, path string) ([]File, error)

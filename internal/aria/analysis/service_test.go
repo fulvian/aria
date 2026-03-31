@@ -385,6 +385,44 @@ func (m *mockAnalysisQuerier) UpsertGuardrailPreferences(ctx context.Context, ar
 	return db.GuardrailPreference{}, nil
 }
 
+// Embedding-related methods for mockAnalysisQuerier
+func (m *mockAnalysisQuerier) CountEpisodeEmbeddings(ctx context.Context) (int64, error) {
+	return 0, nil
+}
+func (m *mockAnalysisQuerier) CountFactEmbeddings(ctx context.Context) (int64, error) {
+	return 0, nil
+}
+func (m *mockAnalysisQuerier) CreateEpisodeEmbedding(ctx context.Context, arg db.CreateEpisodeEmbeddingParams) (db.EpisodeEmbedding, error) {
+	return db.EpisodeEmbedding{}, nil
+}
+func (m *mockAnalysisQuerier) CreateFactEmbedding(ctx context.Context, arg db.CreateFactEmbeddingParams) (db.FactEmbedding, error) {
+	return db.FactEmbedding{}, nil
+}
+func (m *mockAnalysisQuerier) DeleteEpisodeEmbedding(ctx context.Context, episodeID string) error {
+	return nil
+}
+func (m *mockAnalysisQuerier) DeleteFactEmbedding(ctx context.Context, factID string) error {
+	return nil
+}
+func (m *mockAnalysisQuerier) GetEpisodeEmbedding(ctx context.Context, episodeID string) (db.EpisodeEmbedding, error) {
+	return db.EpisodeEmbedding{}, nil
+}
+func (m *mockAnalysisQuerier) GetEpisodeEmbeddingByHash(ctx context.Context, arg db.GetEpisodeEmbeddingByHashParams) (db.EpisodeEmbedding, error) {
+	return db.EpisodeEmbedding{}, nil
+}
+func (m *mockAnalysisQuerier) GetFactEmbedding(ctx context.Context, factID string) (db.FactEmbedding, error) {
+	return db.FactEmbedding{}, nil
+}
+func (m *mockAnalysisQuerier) GetFactEmbeddingByHash(ctx context.Context, arg db.GetFactEmbeddingByHashParams) (db.FactEmbedding, error) {
+	return db.FactEmbedding{}, nil
+}
+func (m *mockAnalysisQuerier) ListEpisodeEmbeddings(ctx context.Context, arg db.ListEpisodeEmbeddingsParams) ([]db.EpisodeEmbedding, error) {
+	return []db.EpisodeEmbedding{}, nil
+}
+func (m *mockAnalysisQuerier) ListFactEmbeddings(ctx context.Context, arg db.ListFactEmbeddingsParams) ([]db.FactEmbedding, error) {
+	return []db.FactEmbedding{}, nil
+}
+
 func TestSelfAnalysisService_AnalyzePerformance_NoTasks(t *testing.T) {
 	t.Parallel()
 

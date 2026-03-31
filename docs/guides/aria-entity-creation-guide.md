@@ -905,7 +905,166 @@ Per ogni nuova entity, assicurati di:
 
 ---
 
-## 11. Example: Weather Agency (Reference)
+## 11. Multi-Agent Architecture Patterns (2026)
+
+Le agenzie moderne seguono pattern architetturali definiti per orchestrare agenti specializzati.
+
+### 11.1 Hierarchical Agency Structure
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           KNOWLEDGE AGENCY                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │                        SUPERVISOR                                 │    │
+│  │  - Task classification    - Agent routing                       │    │
+│  │  - Capability matching    - Load balancing                       │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                                    │                                      │
+│  ┌─────────────────────────────────┼─────────────────────────────────┐  │
+│  │                     AGENT REGISTRY                                 │  │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────┐ │  │
+│  │  │WebSearch │ │Academic  │ │  News    │ │  Code    │ │Historical│ │  │
+│  │  │  Agent   │ │  Agent   │ │  Agent   │ │Research  │ │  Agent │ │  │
+│  │  └──────────┘ └──────────┘ └──────────┘ └──────────┘ └────────┘ │  │
+│  └─────────────────────────────────────────────────────────────────┘  │
+│                                    │                                      │
+│  ┌─────────────────────────────────┼─────────────────────────────────┐  │
+│  │                    WORKFLOW ENGINE                                │  │
+│  │  • Sequential execution     • Parallel execution                  │  │
+│  │  • Fallback chains           • Retry with backoff                   │  │
+│  │  • Result synthesis          • State machine                      │  │
+│  └─────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 11.2 Component Responsibilities
+
+| Componente | Responsabilità |
+|------------|----------------|
+| **Supervisor** | Classifica task, seleziona agenti basandosi su capabilities |
+| **Agent Registry** | Mantiene registro agenti con categorie, skills, descrizioni |
+| **Workflow Engine** | Orchestra execution con retry, fallback, parallelismo |
+| **Task State Machine** | Gestisce lifecycle task (pending→running→completed/failed) |
+| **Result Synthesizer** | Aggrega risultati da più agenti, deduplica, rank |
+| **Event Broker** | Pub/sub per eventi agency (task_started, task_completed) |
+
+### 11.3 Task State Machine
+
+```
+                    ┌─────────────┐
+                    │   PENDING   │
+                    └──────┬──────┘
+                           │
+                    ┌──────▼──────┐
+            ┌───────│ VALIDATING  │───────┐
+            │       └─────────────┘       │
+            │ (validation failed)         │ (validation passed)
+            ▼                             ▼
+    ┌───────────────┐           ┌──────┴────────┐
+    │    FAILED     │           │    RUNNING    │
+    └───────────────┘           └───────┬───────┘
+                                         │
+                    ┌────────────────────┼────────────────────┐
+                    │                    │                    │
+            ┌───────▼───────┐   ┌───────▼───────┐   ┌────────▼────────┐
+            │WAITING_FALLBACK│   │ SYNTHESIZING  │   │    COMPLETED     │
+            └───────────────┘   └───────────────┘   └─────────────────┘
+```
+
+### 11.4 Execution Modes
+
+```go
+// Modalità di esecuzione workflow
+const (
+    ModeSequential ExecutionMode = "sequential" // Uno dopo l'altro
+    ModeParallel   ExecutionMode = "parallel"   // Concurrently
+    ModeFallback   ExecutionMode = "fallback"  // Try until success
+    ModeFanOut     ExecutionMode = "fan_out"   // All agents, synthesize
+)
+```
+
+### 11.5 Agent Registration Pattern
+
+```go
+// Registrazione agenti con capabilities
+registry.Register(&RegisteredAgent{
+    Name:        AgentWebSearch,
+    Category:    CategoryWebSearch,
+    Description: "Handles general web search using Tavily, Brave, Wikipedia",
+    Skills:      []string{"web-research", "fact-check"},
+    Executor:    NewWebSearchAgent(cfg),
+})
+```
+
+### 11.6 Routing Logic
+
+```go
+// Il Supervisor classifica il task e seleziona l'agente appropriato
+func (r *TaskRouter) classifyTask(task contracts.Task) TaskCategory {
+    // 1. Check task skills first
+    // 2. Check keywords in description
+    // 3. Fallback to general category
+    
+    switch {
+    case containsAny(desc, "arxiv", "pubmed", "academic"):
+        return CategoryAcademic
+    case containsAny(desc, "news", "headlines"):
+        return CategoryNews
+    case containsAny(desc, "code", "github", "api docs"):
+        return CategoryCode
+    // ... etc
+    }
+}
+```
+
+### 11.7 Files Created for KnowledgeAgency
+
+```
+internal/aria/agency/
+├── knowledge.go              # Main agency with full integration
+├── knowledge_supervisor.go    # Task routing and classification
+├── knowledge_execution.go     # Workflow engine
+├── knowledge_task_state.go   # Task state machine
+├── knowledge_synthesis.go     # Result aggregation
+├── knowledge_agents.go       # 5 specialized agents
+└── knowledge_test.go         # Comprehensive tests
+```
+
+---
+
+## 12. Testing Checklist
+
+### 12.1 Unit Tests
+
+```bash
+# Test individual components
+go test ./internal/aria/agency/... -v -run TestTaskStateMachine
+go test ./internal/aria/agency/... -v -run TestAgentRegistry
+go test ./internal/aria/agency/... -v -run TestResultSynthesizer
+
+# Test integration
+go test ./internal/aria/agency/... -v -run TestKnowledgeAgency
+
+# Full test suite
+go test ./internal/aria/agency/...
+```
+
+### 12.2 Test Coverage Areas
+
+| Area | What to Test |
+|------|--------------|
+| **TaskRouter** | Classification logic, fallback routing |
+| **AgentRegistry** | Registration, retrieval, category filtering |
+| **TaskStateMachine** | Valid transitions, history tracking |
+| **WorkflowEngine** | Sequential, parallel, fallback execution |
+| **ResultSynthesizer** | Deduplication, ranking, merging |
+| **KnowledgeAgency** | Full execution pipeline, lifecycle |
+
+---
+
+## 13. Example: Weather Agency (Reference)
 
 La Weather Agency è un esempio completo di implementazione:
 

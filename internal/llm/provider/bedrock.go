@@ -99,3 +99,8 @@ func (b *bedrockClient) stream(ctx context.Context, messages []message.Message, 
 	return b.childProvider.stream(ctx, messages, tools)
 }
 
+// createEmbedding returns ErrEmbeddingNotSupported as Bedrock requires specific embedding model configuration.
+// Use an OpenAI-compatible embedding provider for embedding generation.
+func (b *bedrockClient) createEmbedding(ctx context.Context, text string) ([]float32, error) {
+	return nil, ErrEmbeddingNotSupported
+}

@@ -347,6 +347,44 @@ func (m *mockRecoveryQuerier) UpsertGuardrailPreferences(ctx context.Context, ar
 	panic("not implemented")
 }
 
+// Embedding-related methods for mockRecoveryQuerier
+func (m *mockRecoveryQuerier) CountEpisodeEmbeddings(ctx context.Context) (int64, error) {
+	return 0, nil
+}
+func (m *mockRecoveryQuerier) CountFactEmbeddings(ctx context.Context) (int64, error) {
+	return 0, nil
+}
+func (m *mockRecoveryQuerier) CreateEpisodeEmbedding(ctx context.Context, arg db.CreateEpisodeEmbeddingParams) (db.EpisodeEmbedding, error) {
+	return db.EpisodeEmbedding{}, nil
+}
+func (m *mockRecoveryQuerier) CreateFactEmbedding(ctx context.Context, arg db.CreateFactEmbeddingParams) (db.FactEmbedding, error) {
+	return db.FactEmbedding{}, nil
+}
+func (m *mockRecoveryQuerier) DeleteEpisodeEmbedding(ctx context.Context, episodeID string) error {
+	return nil
+}
+func (m *mockRecoveryQuerier) DeleteFactEmbedding(ctx context.Context, factID string) error {
+	return nil
+}
+func (m *mockRecoveryQuerier) GetEpisodeEmbedding(ctx context.Context, episodeID string) (db.EpisodeEmbedding, error) {
+	return db.EpisodeEmbedding{}, nil
+}
+func (m *mockRecoveryQuerier) GetEpisodeEmbeddingByHash(ctx context.Context, arg db.GetEpisodeEmbeddingByHashParams) (db.EpisodeEmbedding, error) {
+	return db.EpisodeEmbedding{}, nil
+}
+func (m *mockRecoveryQuerier) GetFactEmbedding(ctx context.Context, factID string) (db.FactEmbedding, error) {
+	return db.FactEmbedding{}, nil
+}
+func (m *mockRecoveryQuerier) GetFactEmbeddingByHash(ctx context.Context, arg db.GetFactEmbeddingByHashParams) (db.FactEmbedding, error) {
+	return db.FactEmbedding{}, nil
+}
+func (m *mockRecoveryQuerier) ListEpisodeEmbeddings(ctx context.Context, arg db.ListEpisodeEmbeddingsParams) ([]db.EpisodeEmbedding, error) {
+	return []db.EpisodeEmbedding{}, nil
+}
+func (m *mockRecoveryQuerier) ListFactEmbeddings(ctx context.Context, arg db.ListFactEmbeddingsParams) ([]db.FactEmbedding, error) {
+	return []db.FactEmbedding{}, nil
+}
+
 func TestRecoveryManager_Recover_NoOrphanedTasks(t *testing.T) {
 	t.Parallel()
 

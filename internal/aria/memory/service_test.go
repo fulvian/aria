@@ -500,10 +500,48 @@ func (m *mockQuerier) UpsertGuardrailPreferences(ctx context.Context, arg db.Ups
 	return db.GuardrailPreference{}, nil
 }
 
+// Embedding-related methods for mockQuerier
+func (m *mockQuerier) CountEpisodeEmbeddings(ctx context.Context) (int64, error) {
+	return 0, nil
+}
+func (m *mockQuerier) CountFactEmbeddings(ctx context.Context) (int64, error) {
+	return 0, nil
+}
+func (m *mockQuerier) CreateEpisodeEmbedding(ctx context.Context, arg db.CreateEpisodeEmbeddingParams) (db.EpisodeEmbedding, error) {
+	return db.EpisodeEmbedding{}, nil
+}
+func (m *mockQuerier) CreateFactEmbedding(ctx context.Context, arg db.CreateFactEmbeddingParams) (db.FactEmbedding, error) {
+	return db.FactEmbedding{}, nil
+}
+func (m *mockQuerier) DeleteEpisodeEmbedding(ctx context.Context, episodeID string) error {
+	return nil
+}
+func (m *mockQuerier) DeleteFactEmbedding(ctx context.Context, factID string) error {
+	return nil
+}
+func (m *mockQuerier) GetEpisodeEmbedding(ctx context.Context, episodeID string) (db.EpisodeEmbedding, error) {
+	return db.EpisodeEmbedding{}, nil
+}
+func (m *mockQuerier) GetEpisodeEmbeddingByHash(ctx context.Context, arg db.GetEpisodeEmbeddingByHashParams) (db.EpisodeEmbedding, error) {
+	return db.EpisodeEmbedding{}, nil
+}
+func (m *mockQuerier) GetFactEmbedding(ctx context.Context, factID string) (db.FactEmbedding, error) {
+	return db.FactEmbedding{}, nil
+}
+func (m *mockQuerier) GetFactEmbeddingByHash(ctx context.Context, arg db.GetFactEmbeddingByHashParams) (db.FactEmbedding, error) {
+	return db.FactEmbedding{}, nil
+}
+func (m *mockQuerier) ListEpisodeEmbeddings(ctx context.Context, arg db.ListEpisodeEmbeddingsParams) ([]db.EpisodeEmbedding, error) {
+	return []db.EpisodeEmbedding{}, nil
+}
+func (m *mockQuerier) ListFactEmbeddings(ctx context.Context, arg db.ListFactEmbeddingsParams) ([]db.FactEmbedding, error) {
+	return []db.FactEmbedding{}, nil
+}
+
 func TestMemoryService_GetContext_SetContext(t *testing.T) {
 	t.Parallel()
 
-	svc := NewService(&mockQuerier{}, 30*time.Minute).(*memoryService)
+	svc := NewService(&mockQuerier{}, 30*time.Minute, nil, EmbeddingConfig{}).(*memoryService)
 	ctx := context.Background()
 
 	// Test SetContext and GetContext
@@ -537,7 +575,7 @@ func TestMemoryService_GetContext_SetContext(t *testing.T) {
 func TestMemoryService_RecordEpisode(t *testing.T) {
 	t.Parallel()
 
-	svc := NewService(&mockQuerier{}, 30*time.Minute).(*memoryService)
+	svc := NewService(&mockQuerier{}, 30*time.Minute, nil, EmbeddingConfig{}).(*memoryService)
 	ctx := context.Background()
 
 	episode := Episode{
@@ -563,7 +601,7 @@ func TestMemoryService_RecordEpisode(t *testing.T) {
 func TestMemoryService_StoreFact_GetFacts(t *testing.T) {
 	t.Parallel()
 
-	svc := NewService(&mockQuerier{}, 30*time.Minute).(*memoryService)
+	svc := NewService(&mockQuerier{}, 30*time.Minute, nil, EmbeddingConfig{}).(*memoryService)
 	ctx := context.Background()
 
 	fact := Fact{
@@ -587,7 +625,7 @@ func TestMemoryService_StoreFact_GetFacts(t *testing.T) {
 func TestMemoryService_SaveProcedure_GetProcedure(t *testing.T) {
 	t.Parallel()
 
-	svc := NewService(&mockQuerier{}, 30*time.Minute).(*memoryService)
+	svc := NewService(&mockQuerier{}, 30*time.Minute, nil, EmbeddingConfig{}).(*memoryService)
 	ctx := context.Background()
 
 	procedure := Procedure{
@@ -618,7 +656,7 @@ func TestMemoryService_SaveProcedure_GetProcedure(t *testing.T) {
 func TestMemoryService_FindApplicableProcedures(t *testing.T) {
 	t.Parallel()
 
-	svc := NewService(&mockQuerier{}, 30*time.Minute).(*memoryService)
+	svc := NewService(&mockQuerier{}, 30*time.Minute, nil, EmbeddingConfig{}).(*memoryService)
 	ctx := context.Background()
 
 	// Add a procedure
@@ -652,7 +690,7 @@ func TestMemoryService_FindApplicableProcedures(t *testing.T) {
 func TestMemoryService_LearnFromSuccess(t *testing.T) {
 	t.Parallel()
 
-	svc := NewService(&mockQuerier{}, 30*time.Minute).(*memoryService)
+	svc := NewService(&mockQuerier{}, 30*time.Minute, nil, EmbeddingConfig{}).(*memoryService)
 	ctx := context.Background()
 
 	action := Action{
@@ -674,7 +712,7 @@ func TestMemoryService_LearnFromSuccess(t *testing.T) {
 func TestMemoryService_LearnFromFailure(t *testing.T) {
 	t.Parallel()
 
-	svc := NewService(&mockQuerier{}, 30*time.Minute).(*memoryService)
+	svc := NewService(&mockQuerier{}, 30*time.Minute, nil, EmbeddingConfig{}).(*memoryService)
 	ctx := context.Background()
 
 	action := Action{
@@ -701,7 +739,7 @@ func TestMemoryService_LearnFromFailure(t *testing.T) {
 func TestMemoryService_GetPerformanceMetrics(t *testing.T) {
 	t.Parallel()
 
-	svc := NewService(&mockQuerier{}, 30*time.Minute).(*memoryService)
+	svc := NewService(&mockQuerier{}, 30*time.Minute, nil, EmbeddingConfig{}).(*memoryService)
 	ctx := context.Background()
 
 	metrics, err := svc.GetPerformanceMetrics(ctx, TimeRange{
@@ -718,7 +756,7 @@ func TestMemoryService_GetPerformanceMetrics(t *testing.T) {
 func TestMemoryService_GenerateInsights(t *testing.T) {
 	t.Parallel()
 
-	svc := NewService(&mockQuerier{}, 30*time.Minute).(*memoryService)
+	svc := NewService(&mockQuerier{}, 30*time.Minute, nil, EmbeddingConfig{}).(*memoryService)
 	ctx := context.Background()
 
 	insights, err := svc.GenerateInsights(ctx)
@@ -732,7 +770,7 @@ func TestMemoryService_GenerateInsights(t *testing.T) {
 func TestMemoryService_GetSimilarEpisodes(t *testing.T) {
 	t.Parallel()
 
-	svc := NewService(&mockQuerier{}, 30*time.Minute).(*memoryService)
+	svc := NewService(&mockQuerier{}, 30*time.Minute, nil, EmbeddingConfig{}).(*memoryService)
 	ctx := context.Background()
 
 	// Record an episode first
@@ -757,7 +795,7 @@ func TestMemoryService_GetSimilarEpisodes(t *testing.T) {
 func TestMemoryService_QueryKnowledge(t *testing.T) {
 	t.Parallel()
 
-	svc := NewService(&mockQuerier{}, 30*time.Minute).(*memoryService)
+	svc := NewService(&mockQuerier{}, 30*time.Minute, nil, EmbeddingConfig{}).(*memoryService)
 	ctx := context.Background()
 
 	// Store a fact

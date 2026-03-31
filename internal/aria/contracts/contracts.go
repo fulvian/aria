@@ -21,6 +21,7 @@ const (
 	AgencyPersonal     AgencyName = "personal"     // Health, finance, lifestyle
 	AgencyAnalytics    AgencyName = "analytics"    // Data analysis, visualization
 	AgencyNutrition    AgencyName = "nutrition"    // Nutrition, recipes, diet planning
+	AgencyWeather      AgencyName = "weather"      // Weather, forecasting, alerts
 )
 
 // AgentName identifies a specific agent.

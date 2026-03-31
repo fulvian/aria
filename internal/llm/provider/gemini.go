@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/fulvian/aria/internal/config"
 	"github.com/fulvian/aria/internal/llm/tools"
 	"github.com/fulvian/aria/internal/logging"
 	"github.com/fulvian/aria/internal/message"
+	"github.com/google/uuid"
 	"google.golang.org/genai"
 )
 
@@ -551,4 +551,10 @@ func contains(s string, substrs ...string) bool {
 		}
 	}
 	return false
+}
+
+// createEmbedding returns ErrEmbeddingNotSupported as Gemini embedding requires separate API configuration.
+// Use an OpenAI-compatible embedding provider (e.g., LM Studio, OpenAI) for local embedding generation.
+func (g *geminiClient) createEmbedding(ctx context.Context, text string) ([]float32, error) {
+	return nil, ErrEmbeddingNotSupported
 }

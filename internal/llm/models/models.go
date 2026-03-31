@@ -7,6 +7,67 @@ type (
 	ModelProvider string
 )
 
+// EmbeddingModel represents a model that can generate embeddings.
+type EmbeddingModel struct {
+	ID         ModelID       `json:"id"`
+	Name       string        `json:"name"`
+	Provider   ModelProvider `json:"provider"`
+	APIModel   string        `json:"api_model"`
+	Dimensions int           `json:"dimensions"`
+}
+
+// EmbeddingModelIDs defines the IDs for available embedding models.
+const (
+	// OpenAI embedding models
+	EmbeddingText3Small ModelID = "text-embedding-3-small"
+	EmbeddingText3Large ModelID = "text-embedding-3-large"
+	EmbeddingTextAda002 ModelID = "text-embedding-ada-002"
+
+	// Local/LM Studio embedding models
+	EmbeddingMXBaiLarge ModelID = "text-embedding-mxbai-embed-large-v1"
+	EmbeddingNomicText  ModelID = "text-embedding-nomic-embed-text-v1.5"
+)
+
+// SupportedEmbeddingModels maps embedding model IDs to their definitions.
+var SupportedEmbeddingModels = map[ModelID]EmbeddingModel{
+	EmbeddingText3Small: {
+		ID:         EmbeddingText3Small,
+		Name:       "Text Embedding 3 Small",
+		Provider:   ProviderOpenAI,
+		APIModel:   "text-embedding-3-small",
+		Dimensions: 1536,
+	},
+	EmbeddingText3Large: {
+		ID:         EmbeddingText3Large,
+		Name:       "Text Embedding 3 Large",
+		Provider:   ProviderOpenAI,
+		APIModel:   "text-embedding-3-large",
+		Dimensions: 3072,
+	},
+	EmbeddingTextAda002: {
+		ID:         EmbeddingTextAda002,
+		Name:       "Text Embedding Ada 002",
+		Provider:   ProviderOpenAI,
+		APIModel:   "text-embedding-ada-002",
+		Dimensions: 1536,
+	},
+	// LM Studio / Local embedding models
+	EmbeddingMXBaiLarge: {
+		ID:         EmbeddingMXBaiLarge,
+		Name:       "MXBai Embed Large v1",
+		Provider:   ProviderLocal,
+		APIModel:   "text-embedding-mxbai-embed-large-v1",
+		Dimensions: 1024,
+	},
+	EmbeddingNomicText: {
+		ID:         EmbeddingNomicText,
+		Name:       "Nomic Embed Text v1.5",
+		Provider:   ProviderLocal,
+		APIModel:   "text-embedding-nomic-embed-text-v1.5",
+		Dimensions: 768,
+	},
+}
+
 type Model struct {
 	ID                  ModelID       `json:"id"`
 	Name                string        `json:"name"`

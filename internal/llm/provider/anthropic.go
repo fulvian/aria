@@ -470,3 +470,8 @@ func WithAnthropicShouldThinkFn(fn func(string) bool) AnthropicOption {
 		options.shouldThink = fn
 	}
 }
+
+// createEmbedding returns ErrEmbeddingNotSupported as Anthropic does not have a native embedding API.
+func (a *anthropicClient) createEmbedding(ctx context.Context, text string) ([]float32, error) {
+	return nil, ErrEmbeddingNotSupported
+}

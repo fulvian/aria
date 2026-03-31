@@ -668,3 +668,8 @@ func WithCopilotBearerToken(bearerToken string) CopilotOption {
 		options.bearerToken = bearerToken
 	}
 }
+
+// createEmbedding returns ErrEmbeddingNotSupported as Copilot does not expose embedding APIs.
+func (c *copilotClient) createEmbedding(ctx context.Context, text string) ([]float32, error) {
+	return nil, ErrEmbeddingNotSupported
+}

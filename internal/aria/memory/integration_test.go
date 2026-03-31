@@ -66,7 +66,7 @@ func TestE2E_MemoryLearningFlow(t *testing.T) {
 	querier := db.New(sqlDB)
 
 	// Create the memory service
-	svc := NewService(querier, 30*time.Minute)
+	svc := NewService(querier, 30*time.Minute, nil, EmbeddingConfig{})
 	ctx := context.Background()
 
 	// Create a session first for FK constraints (working_memory_contexts references sessions)
@@ -229,7 +229,7 @@ func TestRetentionConfig_Defaults(t *testing.T) {
 func TestMemoryService_IntegrationQueryKnowledge(t *testing.T) {
 	t.Parallel()
 
-	svc := NewService(&mockQuerier{}, 30*time.Minute).(*memoryService)
+	svc := NewService(&mockQuerier{}, 30*time.Minute, nil, EmbeddingConfig{}).(*memoryService)
 	ctx := context.Background()
 
 	// Store a fact

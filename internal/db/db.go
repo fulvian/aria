@@ -30,8 +30,14 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.cancelTaskStmt, err = db.PrepareContext(ctx, cancelTask); err != nil {
 		return nil, fmt.Errorf("error preparing query CancelTask: %w", err)
 	}
+	if q.countEpisodeEmbeddingsStmt, err = db.PrepareContext(ctx, countEpisodeEmbeddings); err != nil {
+		return nil, fmt.Errorf("error preparing query CountEpisodeEmbeddings: %w", err)
+	}
 	if q.countEpisodesByOutcomeStmt, err = db.PrepareContext(ctx, countEpisodesByOutcome); err != nil {
 		return nil, fmt.Errorf("error preparing query CountEpisodesByOutcome: %w", err)
+	}
+	if q.countFactEmbeddingsStmt, err = db.PrepareContext(ctx, countFactEmbeddings); err != nil {
+		return nil, fmt.Errorf("error preparing query CountFactEmbeddings: %w", err)
 	}
 	if q.countTasksByStatusStmt, err = db.PrepareContext(ctx, countTasksByStatus); err != nil {
 		return nil, fmt.Errorf("error preparing query CountTasksByStatus: %w", err)
@@ -42,8 +48,14 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.createEpisodeStmt, err = db.PrepareContext(ctx, createEpisode); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateEpisode: %w", err)
 	}
+	if q.createEpisodeEmbeddingStmt, err = db.PrepareContext(ctx, createEpisodeEmbedding); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateEpisodeEmbedding: %w", err)
+	}
 	if q.createFactStmt, err = db.PrepareContext(ctx, createFact); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateFact: %w", err)
+	}
+	if q.createFactEmbeddingStmt, err = db.PrepareContext(ctx, createFactEmbedding); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateFactEmbedding: %w", err)
 	}
 	if q.createFileStmt, err = db.PrepareContext(ctx, createFile); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateFile: %w", err)
@@ -84,6 +96,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.deleteEpisodeStmt, err = db.PrepareContext(ctx, deleteEpisode); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteEpisode: %w", err)
 	}
+	if q.deleteEpisodeEmbeddingStmt, err = db.PrepareContext(ctx, deleteEpisodeEmbedding); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteEpisodeEmbedding: %w", err)
+	}
 	if q.deleteExpiredContextsStmt, err = db.PrepareContext(ctx, deleteExpiredContexts); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteExpiredContexts: %w", err)
 	}
@@ -92,6 +107,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.deleteFactStmt, err = db.PrepareContext(ctx, deleteFact); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteFact: %w", err)
+	}
+	if q.deleteFactEmbeddingStmt, err = db.PrepareContext(ctx, deleteFactEmbedding); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteFactEmbedding: %w", err)
 	}
 	if q.deleteFileStmt, err = db.PrepareContext(ctx, deleteFile); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteFile: %w", err)
@@ -144,8 +162,20 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getEpisodeByIDStmt, err = db.PrepareContext(ctx, getEpisodeByID); err != nil {
 		return nil, fmt.Errorf("error preparing query GetEpisodeByID: %w", err)
 	}
+	if q.getEpisodeEmbeddingStmt, err = db.PrepareContext(ctx, getEpisodeEmbedding); err != nil {
+		return nil, fmt.Errorf("error preparing query GetEpisodeEmbedding: %w", err)
+	}
+	if q.getEpisodeEmbeddingByHashStmt, err = db.PrepareContext(ctx, getEpisodeEmbeddingByHash); err != nil {
+		return nil, fmt.Errorf("error preparing query GetEpisodeEmbeddingByHash: %w", err)
+	}
 	if q.getFactByIDStmt, err = db.PrepareContext(ctx, getFactByID); err != nil {
 		return nil, fmt.Errorf("error preparing query GetFactByID: %w", err)
+	}
+	if q.getFactEmbeddingStmt, err = db.PrepareContext(ctx, getFactEmbedding); err != nil {
+		return nil, fmt.Errorf("error preparing query GetFactEmbedding: %w", err)
+	}
+	if q.getFactEmbeddingByHashStmt, err = db.PrepareContext(ctx, getFactEmbeddingByHash); err != nil {
+		return nil, fmt.Errorf("error preparing query GetFactEmbeddingByHash: %w", err)
 	}
 	if q.getFileStmt, err = db.PrepareContext(ctx, getFile); err != nil {
 		return nil, fmt.Errorf("error preparing query GetFile: %w", err)
@@ -204,6 +234,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.listAgenciesByStatusStmt, err = db.PrepareContext(ctx, listAgenciesByStatus); err != nil {
 		return nil, fmt.Errorf("error preparing query ListAgenciesByStatus: %w", err)
 	}
+	if q.listEpisodeEmbeddingsStmt, err = db.PrepareContext(ctx, listEpisodeEmbeddings); err != nil {
+		return nil, fmt.Errorf("error preparing query ListEpisodeEmbeddings: %w", err)
+	}
 	if q.listEpisodesStmt, err = db.PrepareContext(ctx, listEpisodes); err != nil {
 		return nil, fmt.Errorf("error preparing query ListEpisodes: %w", err)
 	}
@@ -212,6 +245,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.listEpisodesBySessionStmt, err = db.PrepareContext(ctx, listEpisodesBySession); err != nil {
 		return nil, fmt.Errorf("error preparing query ListEpisodesBySession: %w", err)
+	}
+	if q.listFactEmbeddingsStmt, err = db.PrepareContext(ctx, listFactEmbeddings); err != nil {
+		return nil, fmt.Errorf("error preparing query ListFactEmbeddings: %w", err)
 	}
 	if q.listFactsByCategoryStmt, err = db.PrepareContext(ctx, listFactsByCategory); err != nil {
 		return nil, fmt.Errorf("error preparing query ListFactsByCategory: %w", err)
@@ -354,9 +390,19 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing cancelTaskStmt: %w", cerr)
 		}
 	}
+	if q.countEpisodeEmbeddingsStmt != nil {
+		if cerr := q.countEpisodeEmbeddingsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing countEpisodeEmbeddingsStmt: %w", cerr)
+		}
+	}
 	if q.countEpisodesByOutcomeStmt != nil {
 		if cerr := q.countEpisodesByOutcomeStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing countEpisodesByOutcomeStmt: %w", cerr)
+		}
+	}
+	if q.countFactEmbeddingsStmt != nil {
+		if cerr := q.countFactEmbeddingsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing countFactEmbeddingsStmt: %w", cerr)
 		}
 	}
 	if q.countTasksByStatusStmt != nil {
@@ -374,9 +420,19 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing createEpisodeStmt: %w", cerr)
 		}
 	}
+	if q.createEpisodeEmbeddingStmt != nil {
+		if cerr := q.createEpisodeEmbeddingStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createEpisodeEmbeddingStmt: %w", cerr)
+		}
+	}
 	if q.createFactStmt != nil {
 		if cerr := q.createFactStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createFactStmt: %w", cerr)
+		}
+	}
+	if q.createFactEmbeddingStmt != nil {
+		if cerr := q.createFactEmbeddingStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createFactEmbeddingStmt: %w", cerr)
 		}
 	}
 	if q.createFileStmt != nil {
@@ -444,6 +500,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing deleteEpisodeStmt: %w", cerr)
 		}
 	}
+	if q.deleteEpisodeEmbeddingStmt != nil {
+		if cerr := q.deleteEpisodeEmbeddingStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteEpisodeEmbeddingStmt: %w", cerr)
+		}
+	}
 	if q.deleteExpiredContextsStmt != nil {
 		if cerr := q.deleteExpiredContextsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteExpiredContextsStmt: %w", cerr)
@@ -457,6 +518,11 @@ func (q *Queries) Close() error {
 	if q.deleteFactStmt != nil {
 		if cerr := q.deleteFactStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteFactStmt: %w", cerr)
+		}
+	}
+	if q.deleteFactEmbeddingStmt != nil {
+		if cerr := q.deleteFactEmbeddingStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteFactEmbeddingStmt: %w", cerr)
 		}
 	}
 	if q.deleteFileStmt != nil {
@@ -544,9 +610,29 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getEpisodeByIDStmt: %w", cerr)
 		}
 	}
+	if q.getEpisodeEmbeddingStmt != nil {
+		if cerr := q.getEpisodeEmbeddingStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getEpisodeEmbeddingStmt: %w", cerr)
+		}
+	}
+	if q.getEpisodeEmbeddingByHashStmt != nil {
+		if cerr := q.getEpisodeEmbeddingByHashStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getEpisodeEmbeddingByHashStmt: %w", cerr)
+		}
+	}
 	if q.getFactByIDStmt != nil {
 		if cerr := q.getFactByIDStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getFactByIDStmt: %w", cerr)
+		}
+	}
+	if q.getFactEmbeddingStmt != nil {
+		if cerr := q.getFactEmbeddingStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getFactEmbeddingStmt: %w", cerr)
+		}
+	}
+	if q.getFactEmbeddingByHashStmt != nil {
+		if cerr := q.getFactEmbeddingByHashStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getFactEmbeddingByHashStmt: %w", cerr)
 		}
 	}
 	if q.getFileStmt != nil {
@@ -644,6 +730,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing listAgenciesByStatusStmt: %w", cerr)
 		}
 	}
+	if q.listEpisodeEmbeddingsStmt != nil {
+		if cerr := q.listEpisodeEmbeddingsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listEpisodeEmbeddingsStmt: %w", cerr)
+		}
+	}
 	if q.listEpisodesStmt != nil {
 		if cerr := q.listEpisodesStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listEpisodesStmt: %w", cerr)
@@ -657,6 +748,11 @@ func (q *Queries) Close() error {
 	if q.listEpisodesBySessionStmt != nil {
 		if cerr := q.listEpisodesBySessionStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listEpisodesBySessionStmt: %w", cerr)
+		}
+	}
+	if q.listFactEmbeddingsStmt != nil {
+		if cerr := q.listFactEmbeddingsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listFactEmbeddingsStmt: %w", cerr)
 		}
 	}
 	if q.listFactsByCategoryStmt != nil {
@@ -910,11 +1006,15 @@ type Queries struct {
 	tx                                   *sql.Tx
 	addTaskDependencyStmt                *sql.Stmt
 	cancelTaskStmt                       *sql.Stmt
+	countEpisodeEmbeddingsStmt           *sql.Stmt
 	countEpisodesByOutcomeStmt           *sql.Stmt
+	countFactEmbeddingsStmt              *sql.Stmt
 	countTasksByStatusStmt               *sql.Stmt
 	createAgencyStmt                     *sql.Stmt
 	createEpisodeStmt                    *sql.Stmt
+	createEpisodeEmbeddingStmt           *sql.Stmt
 	createFactStmt                       *sql.Stmt
+	createFactEmbeddingStmt              *sql.Stmt
 	createFileStmt                       *sql.Stmt
 	createGuardrailAuditEntryStmt        *sql.Stmt
 	createMessageStmt                    *sql.Stmt
@@ -928,9 +1028,11 @@ type Queries struct {
 	deleteAgencyStmt                     *sql.Stmt
 	deleteAgencyStateStmt                *sql.Stmt
 	deleteEpisodeStmt                    *sql.Stmt
+	deleteEpisodeEmbeddingStmt           *sql.Stmt
 	deleteExpiredContextsStmt            *sql.Stmt
 	deleteExpiredPermissionRulesStmt     *sql.Stmt
 	deleteFactStmt                       *sql.Stmt
+	deleteFactEmbeddingStmt              *sql.Stmt
 	deleteFileStmt                       *sql.Stmt
 	deleteMessageStmt                    *sql.Stmt
 	deleteOldEpisodesStmt                *sql.Stmt
@@ -948,7 +1050,11 @@ type Queries struct {
 	getAgencyStateStmt                   *sql.Stmt
 	getDependentTasksStmt                *sql.Stmt
 	getEpisodeByIDStmt                   *sql.Stmt
+	getEpisodeEmbeddingStmt              *sql.Stmt
+	getEpisodeEmbeddingByHashStmt        *sql.Stmt
 	getFactByIDStmt                      *sql.Stmt
+	getFactEmbeddingStmt                 *sql.Stmt
+	getFactEmbeddingByHashStmt           *sql.Stmt
 	getFileStmt                          *sql.Stmt
 	getFileByPathAndSessionStmt          *sql.Stmt
 	getGuardrailBudgetStmt               *sql.Stmt
@@ -968,9 +1074,11 @@ type Queries struct {
 	incrementFactUsageStmt               *sql.Stmt
 	listAgenciesStmt                     *sql.Stmt
 	listAgenciesByStatusStmt             *sql.Stmt
+	listEpisodeEmbeddingsStmt            *sql.Stmt
 	listEpisodesStmt                     *sql.Stmt
 	listEpisodesByAgencyStmt             *sql.Stmt
 	listEpisodesBySessionStmt            *sql.Stmt
+	listFactEmbeddingsStmt               *sql.Stmt
 	listFactsByCategoryStmt              *sql.Stmt
 	listFactsByDomainStmt                *sql.Stmt
 	listFilesByPathStmt                  *sql.Stmt
@@ -1021,11 +1129,15 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		tx:                                   tx,
 		addTaskDependencyStmt:                q.addTaskDependencyStmt,
 		cancelTaskStmt:                       q.cancelTaskStmt,
+		countEpisodeEmbeddingsStmt:           q.countEpisodeEmbeddingsStmt,
 		countEpisodesByOutcomeStmt:           q.countEpisodesByOutcomeStmt,
+		countFactEmbeddingsStmt:              q.countFactEmbeddingsStmt,
 		countTasksByStatusStmt:               q.countTasksByStatusStmt,
 		createAgencyStmt:                     q.createAgencyStmt,
 		createEpisodeStmt:                    q.createEpisodeStmt,
+		createEpisodeEmbeddingStmt:           q.createEpisodeEmbeddingStmt,
 		createFactStmt:                       q.createFactStmt,
+		createFactEmbeddingStmt:              q.createFactEmbeddingStmt,
 		createFileStmt:                       q.createFileStmt,
 		createGuardrailAuditEntryStmt:        q.createGuardrailAuditEntryStmt,
 		createMessageStmt:                    q.createMessageStmt,
@@ -1039,9 +1151,11 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		deleteAgencyStmt:                     q.deleteAgencyStmt,
 		deleteAgencyStateStmt:                q.deleteAgencyStateStmt,
 		deleteEpisodeStmt:                    q.deleteEpisodeStmt,
+		deleteEpisodeEmbeddingStmt:           q.deleteEpisodeEmbeddingStmt,
 		deleteExpiredContextsStmt:            q.deleteExpiredContextsStmt,
 		deleteExpiredPermissionRulesStmt:     q.deleteExpiredPermissionRulesStmt,
 		deleteFactStmt:                       q.deleteFactStmt,
+		deleteFactEmbeddingStmt:              q.deleteFactEmbeddingStmt,
 		deleteFileStmt:                       q.deleteFileStmt,
 		deleteMessageStmt:                    q.deleteMessageStmt,
 		deleteOldEpisodesStmt:                q.deleteOldEpisodesStmt,
@@ -1059,7 +1173,11 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getAgencyStateStmt:                   q.getAgencyStateStmt,
 		getDependentTasksStmt:                q.getDependentTasksStmt,
 		getEpisodeByIDStmt:                   q.getEpisodeByIDStmt,
+		getEpisodeEmbeddingStmt:              q.getEpisodeEmbeddingStmt,
+		getEpisodeEmbeddingByHashStmt:        q.getEpisodeEmbeddingByHashStmt,
 		getFactByIDStmt:                      q.getFactByIDStmt,
+		getFactEmbeddingStmt:                 q.getFactEmbeddingStmt,
+		getFactEmbeddingByHashStmt:           q.getFactEmbeddingByHashStmt,
 		getFileStmt:                          q.getFileStmt,
 		getFileByPathAndSessionStmt:          q.getFileByPathAndSessionStmt,
 		getGuardrailBudgetStmt:               q.getGuardrailBudgetStmt,
@@ -1079,9 +1197,11 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		incrementFactUsageStmt:               q.incrementFactUsageStmt,
 		listAgenciesStmt:                     q.listAgenciesStmt,
 		listAgenciesByStatusStmt:             q.listAgenciesByStatusStmt,
+		listEpisodeEmbeddingsStmt:            q.listEpisodeEmbeddingsStmt,
 		listEpisodesStmt:                     q.listEpisodesStmt,
 		listEpisodesByAgencyStmt:             q.listEpisodesByAgencyStmt,
 		listEpisodesBySessionStmt:            q.listEpisodesBySessionStmt,
+		listFactEmbeddingsStmt:               q.listFactEmbeddingsStmt,
 		listFactsByCategoryStmt:              q.listFactsByCategoryStmt,
 		listFactsByDomainStmt:                q.listFactsByDomainStmt,
 		listFilesByPathStmt:                  q.listFilesByPathStmt,

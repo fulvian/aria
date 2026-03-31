@@ -40,6 +40,18 @@ type Episode struct {
 	CreatedAt   int64          `json:"created_at"`
 }
 
+type EpisodeEmbedding struct {
+	ID          string `json:"id"`
+	EpisodeID   string `json:"episode_id"`
+	Provider    string `json:"provider"`
+	Model       string `json:"model"`
+	Dimensions  int64  `json:"dimensions"`
+	Vector      []byte `json:"vector"`
+	TextHash    string `json:"text_hash"`
+	TextPreview string `json:"text_preview"`
+	CreatedAt   int64  `json:"created_at"`
+}
+
 type Fact struct {
 	ID         string         `json:"id"`
 	Domain     string         `json:"domain"`
@@ -50,6 +62,18 @@ type Fact struct {
 	CreatedAt  int64          `json:"created_at"`
 	LastUsed   sql.NullInt64  `json:"last_used"`
 	UseCount   int64          `json:"use_count"`
+}
+
+type FactEmbedding struct {
+	ID          string `json:"id"`
+	FactID      string `json:"fact_id"`
+	Provider    string `json:"provider"`
+	Model       string `json:"model"`
+	Dimensions  int64  `json:"dimensions"`
+	Vector      []byte `json:"vector"`
+	TextHash    string `json:"text_hash"`
+	TextPreview string `json:"text_preview"`
+	CreatedAt   int64  `json:"created_at"`
 }
 
 type File struct {

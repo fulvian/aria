@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"database/sql"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
@@ -18,6 +19,41 @@ import (
 	"github.com/fulvian/aria/internal/logging"
 )
 
+// EmbeddingConfig defines configuration for the embedding system.
+type EmbeddingConfig struct {
+	// Enabled indicates whether embedding generation is enabled.
+	Enabled bool
+	// Provider is the provider name for embeddings (e.g., "local", "openai").
+	Provider string
+	// Model is the embedding model ID.
+	Model string
+	// Mode controls the retrieval mode: "lexical", "hybrid", or "vector".
+	Mode string
+	// BatchSize is the number of texts to batch in a single embedding request.
+	BatchSize int
+	// Timeout is the timeout for embedding generation.
+	Timeout time.Duration
+	// VectorCacheEnabled enables in-memory caching of embedding vectors.
+	VectorCacheEnabled bool
+}
+
+// EmbeddingMetrics tracks embedding generation statistics.
+type EmbeddingMetrics struct {
+	TotalGenerated  int64
+	TotalCacheHits  int64
+	TotalBackfilled int64
+	AvgLatencyMs    float64
+	LastError       string
+	LastGeneratedAt time.Time
+}
+
+// embeddingRequest represents a request to generate an embedding for an episode.
+type embeddingRequest struct {
+	episodeID string
+	text      string
+	textHash  string
+}
+
 // memoryService implements MemoryService using sync.Map for working memory
 // and the existing sqlc-generated queries for persistent storage.
 type memoryService struct {
@@ -28,6 +64,15 @@ type memoryService struct {
 	gcTick   time.Duration
 	stopCh   chan struct{}
 	stopOnce sync.Once // Ensures Close() is idempotent
+
+	// Embedding support
+	embedConfig  EmbeddingConfig
+	embedFunc    func(ctx context.Context, text string) ([]float32, error) // Function to generate embeddings
+	embedQueue   chan embeddingRequest                                     // Queue for async embedding generation
+	embedStopCh  chan struct{}
+	embedCache   sync.Map // map[string][]float32 - episode ID to vector cache
+	embedMetrics EmbeddingMetrics
+	metricsMu    sync.RWMutex // Protects embedMetrics
 }
 
 // RetentionConfig defines retention policy for memory data.
@@ -50,8 +95,24 @@ func DefaultRetentionConfig() RetentionConfig {
 	}
 }
 
+// EmbeddingFunc is a function type that generates embeddings for text.
+type EmbeddingFunc func(ctx context.Context, text string) ([]float32, error)
+
+// DefaultEmbeddingConfig returns sensible defaults.
+func DefaultEmbeddingConfig() EmbeddingConfig {
+	return EmbeddingConfig{
+		Enabled:   false,
+		Provider:  "",
+		Model:     "",
+		Mode:      "lexical",
+		BatchSize: 1,
+		Timeout:   30 * time.Second,
+	}
+}
+
 // NewService creates a new MemoryService instance with TTL for working memory persistence.
-func NewService(q db.Querier, ttl time.Duration) MemoryService {
+// If embedFunc is provided and config.Enabled is true, embeddings will be generated asynchronously.
+func NewService(q db.Querier, ttl time.Duration, embedFunc EmbeddingFunc, embedConfig EmbeddingConfig) MemoryService {
 	svc := &memoryService{
 		db:     q,
 		ttl:    ttl,
@@ -60,6 +121,16 @@ func NewService(q db.Querier, ttl time.Duration) MemoryService {
 	}
 	// Start GC goroutine for expired context cleanup
 	go svc.runGC()
+
+	// Initialize embedding if enabled
+	if embedFunc != nil && embedConfig.Enabled {
+		svc.embedFunc = embedFunc
+		svc.embedConfig = embedConfig
+		svc.embedQueue = make(chan embeddingRequest, embedConfig.BatchSize*4)
+		svc.embedStopCh = make(chan struct{})
+		go svc.runEmbeddingWorker()
+	}
+
 	return svc
 }
 
@@ -199,6 +270,12 @@ func (s *memoryService) RecordEpisode(ctx context.Context, episode Episode) erro
 		return fmt.Errorf("failed to create episode: %w", err)
 	}
 
+	// Generate embedding asynchronously if enabled
+	if s.embedFunc != nil && s.embedConfig.Enabled {
+		embeddingText := episodeToText(episode)
+		s.enqueueEmbedding(episode.ID, embeddingText)
+	}
+
 	return nil
 }
 
@@ -281,14 +358,9 @@ func filterEpisodes(episodes []Episode, query EpisodeQuery) []Episode {
 }
 
 // GetSimilarEpisodes finds episodes similar to a given situation.
-// Improved implementation: uses keyword matching with scoring and fallback to recency.
+// Uses hybrid scoring: vector similarity (when available) + keyword matching + recency + outcome.
+// Falls back to keyword-only scoring when vector embeddings are not available.
 func (s *memoryService) GetSimilarEpisodes(ctx context.Context, situation Situation) ([]Episode, error) {
-	// First try keyword search from situation description
-	keywords := extractKeywords(situation.Description)
-
-	var bestEpisodes []Episode
-	var bestScore float64 = 0
-
 	// Get recent episodes for comparison
 	recentEpisodes, err := s.db.ListEpisodes(ctx, db.ListEpisodesParams{
 		Limit:  50,
@@ -298,27 +370,161 @@ func (s *memoryService) GetSimilarEpisodes(ctx context.Context, situation Situat
 		return nil, err
 	}
 
+	if len(recentEpisodes) == 0 {
+		return nil, nil
+	}
+
+	// Generate embedding for the query situation if vector search is enabled
+	var queryEmbedding []float32
+	if s.embedFunc != nil && s.embedConfig.Enabled && s.embedConfig.Mode != "lexical" {
+		queryEmbedding, _ = s.embedFunc(ctx, situation.Description)
+	}
+
+	// Score all episodes
+	type scoredEpisode struct {
+		episode Episode
+		score   float64
+	}
+	var scoredEpisodes []scoredEpisode
+
 	for _, ep := range recentEpisodes {
-		score := calculateSimilarityScore(ep, situation, keywords)
-		if score > bestScore && score > 0.3 { // Threshold for relevance
-			bestScore = score
-			bestEpisodes = append(bestEpisodes, convertDBEpisode(ep))
+		episode := convertDBEpisode(ep)
+		score := s.calculateHybridScore(ctx, ep, episode, situation, queryEmbedding)
+		if score > 0.1 { // Minimum threshold
+			scoredEpisodes = append(scoredEpisodes, scoredEpisode{episode, score})
 		}
 	}
 
 	// If no good matches, fall back to recency-based
-	if len(bestEpisodes) == 0 {
-		return convertDBEpisodes(recentEpisodes[:min(5, len(recentEpisodes))]), nil
+	if len(scoredEpisodes) == 0 {
+		// Return top 5 most recent episodes
+		result := make([]Episode, 0, min(5, len(recentEpisodes)))
+		for i := 0; i < min(5, len(recentEpisodes)); i++ {
+			result = append(result, convertDBEpisode(recentEpisodes[i]))
+		}
+		return result, nil
 	}
 
 	// Sort by score descending
-	sort.Slice(bestEpisodes, func(i, j int) bool {
-		si := calculateSimilarityScore(recentEpisodes[i], situation, keywords)
-		sj := calculateSimilarityScore(recentEpisodes[j], situation, keywords)
-		return si > sj
+	sort.Slice(scoredEpisodes, func(i, j int) bool {
+		return scoredEpisodes[i].score > scoredEpisodes[j].score
 	})
 
-	return bestEpisodes[:min(10, len(bestEpisodes))], nil
+	// Return top 10
+	result := make([]Episode, 0, min(10, len(scoredEpisodes)))
+	for i := 0; i < min(10, len(scoredEpisodes)); i++ {
+		result = append(result, scoredEpisodes[i].episode)
+	}
+
+	return result, nil
+}
+
+// calculateHybridScore computes a hybrid similarity score for an episode.
+// Combines vector similarity (if available), keyword matching, recency, and outcome.
+func (s *memoryService) calculateHybridScore(ctx context.Context, ep db.Episode, episode Episode, situation Situation, queryEmbedding []float32) float64 {
+	const (
+		vectorWeight  = 0.4
+		keywordWeight = 0.3
+		recencyWeight = 0.2
+		outcomeWeight = 0.1
+	)
+
+	var totalScore float64
+
+	// 1. Vector similarity (highest weight)
+	if queryEmbedding != nil && len(queryEmbedding) > 0 {
+		if emb, err := s.getEpisodeEmbedding(ctx, ep.ID); err == nil && len(emb) > 0 {
+			cosineSim := cosineSimilarity(queryEmbedding, emb)
+			totalScore += vectorWeight * cosineSim
+		}
+	}
+
+	// 2. Keyword similarity
+	keywords := extractKeywords(situation.Description)
+	keywordScore := calculateKeywordScore(ep, keywords)
+	totalScore += keywordWeight * keywordScore
+
+	// 3. Recency bonus
+	recencyBonus := calculateRecencyBonus(ep.CreatedAt)
+	totalScore += recencyWeight * recencyBonus
+
+	// 4. Outcome bonus
+	outcomeBonus := calculateOutcomeBonus(ep.Outcome.String)
+	totalScore += outcomeWeight * outcomeBonus
+
+	return totalScore
+}
+
+// cosineSimilarity computes the cosine similarity between two vectors.
+func cosineSimilarity(a, b []float32) float64 {
+	if len(a) != len(b) || len(a) == 0 {
+		return 0
+	}
+
+	var dotProduct float64
+	var normA float64
+	var normB float64
+
+	for i := range a {
+		dotProduct += float64(a[i]) * float64(b[i])
+		normA += float64(a[i]) * float64(a[i])
+		normB += float64(b[i]) * float64(b[i])
+	}
+
+	if normA == 0 || normB == 0 {
+		return 0
+	}
+
+	return dotProduct / (math.Sqrt(normA) * math.Sqrt(normB))
+}
+
+// calculateKeywordScore computes keyword-based similarity score.
+func calculateKeywordScore(ep db.Episode, keywords []string) float64 {
+	if len(keywords) == 0 {
+		return 0
+	}
+
+	taskStr := ep.Task.String
+	matchCount := 0
+	for _, kw := range keywords {
+		if strings.Contains(taskStr, kw) {
+			matchCount++
+		}
+	}
+
+	return float64(matchCount) / float64(len(keywords))
+}
+
+// calculateRecencyBonus returns a recency bonus (0-1) based on episode age.
+func calculateRecencyBonus(createdAt int64) float64 {
+	age := time.Now().Unix() - createdAt
+
+	switch {
+	case age < 3600: // Less than 1 hour
+		return 1.0
+	case age < 86400: // Less than 1 day
+		return 0.8
+	case age < 604800: // Less than 1 week
+		return 0.5
+	case age < 2592000: // Less than 1 month
+		return 0.3
+	default:
+		return 0.1
+	}
+}
+
+// calculateOutcomeBonus returns an outcome bonus (0-1) based on episode outcome.
+func calculateOutcomeBonus(outcome string) float64 {
+	switch {
+	case strings.HasPrefix(outcome, "success"):
+		return 1.0
+	case strings.HasPrefix(outcome, "partial"):
+		return 0.5
+	case strings.HasPrefix(outcome, "failure"):
+		return 0.0
+	default:
+		return 0.3
+	}
 }
 
 // StoreFact stores a new fact in semantic memory with deduplication.
@@ -1050,9 +1256,311 @@ func (s *memoryService) PseudonymizeEpisode(episode *Episode) {
 	}
 }
 
+// BackfillEmbeddings generates embeddings for all episodes that don't have one.
+// Returns the count of episodes that were backfilled.
+func (s *memoryService) BackfillEmbeddings(ctx context.Context) (int, error) {
+	if s.embedFunc == nil || !s.embedConfig.Enabled {
+		return 0, fmt.Errorf("embedding not enabled")
+	}
+
+	// Get all episodes
+	episodes, err := s.db.ListEpisodes(ctx, db.ListEpisodesParams{
+		Limit:  10000, // Large limit to get all episodes
+		Offset: 0,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("failed to list episodes: %w", err)
+	}
+
+	backfilled := 0
+	for _, ep := range episodes {
+		// Check if episode already has an embedding
+		existing, err := s.db.GetEpisodeEmbedding(ctx, ep.ID)
+		if err == nil && existing.ID != "" {
+			// Already has embedding, skip
+			continue
+		}
+
+		// Convert to Episode struct for episodeToText
+		episode := convertDBEpisode(ep)
+		text := episodeToText(episode)
+
+		// Generate embedding
+		embedding, err := s.embedFunc(ctx, text)
+		if err != nil {
+			logging.Error("Failed to generate embedding during backfill",
+				"episode_id", ep.ID,
+				"error", err)
+			continue
+		}
+
+		// Serialize vector
+		vectorBytes, err := serializeVector(embedding)
+		if err != nil {
+			logging.Error("Failed to serialize embedding during backfill",
+				"episode_id", ep.ID,
+				"error", err)
+			continue
+		}
+
+		// Get text preview
+		textPreview := text
+		if len(textPreview) > 500 {
+			textPreview = textPreview[:500]
+		}
+
+		// Store in database
+		textHash := computeTextHash(text)
+		params := db.CreateEpisodeEmbeddingParams{
+			ID:          uuid.New().String(),
+			EpisodeID:   ep.ID,
+			Provider:    s.embedConfig.Provider,
+			Model:       s.embedConfig.Model,
+			Dimensions:  int64(len(embedding)),
+			Vector:      vectorBytes,
+			TextHash:    textHash,
+			TextPreview: textPreview,
+		}
+
+		if _, err := s.db.CreateEpisodeEmbedding(ctx, params); err != nil {
+			logging.Error("Failed to store embedding during backfill",
+				"episode_id", ep.ID,
+				"error", err)
+			continue
+		}
+
+		// Store in cache if enabled
+		if s.embedConfig.VectorCacheEnabled {
+			s.embedCache.Store(ep.ID, embedding)
+		}
+
+		backfilled++
+		logging.Debug("Backfilled embedding",
+			"episode_id", ep.ID,
+			"dimensions", len(embedding))
+	}
+
+	// Update metrics
+	s.metricsMu.Lock()
+	s.embedMetrics.TotalBackfilled += int64(backfilled)
+	s.metricsMu.Unlock()
+
+	return backfilled, nil
+}
+
+// GetEmbeddingMetrics returns current embedding statistics.
+func (s *memoryService) GetEmbeddingMetrics() EmbeddingMetrics {
+	s.metricsMu.RLock()
+	defer s.metricsMu.RUnlock()
+	return s.embedMetrics
+}
+
 // hashString returns a hash of the input for pseudonymization.
 func hashString(s string) string {
 	h := fnv.New32a()
 	h.Write([]byte(s))
 	return fmt.Sprintf("%x", h.Sum32())
+}
+
+// runEmbeddingWorker processes embedding requests from the queue asynchronously.
+func (s *memoryService) runEmbeddingWorker() {
+	defer logging.RecoverPanic("memoryService.runEmbeddingWorker", nil)
+
+	for {
+		select {
+		case <-s.embedStopCh:
+			return
+		case req := <-s.embedQueue:
+			s.processEmbedding(req)
+		}
+	}
+}
+
+// processEmbedding generates and stores an embedding for an episode.
+func (s *memoryService) processEmbedding(req embeddingRequest) {
+	ctx, cancel := context.WithTimeout(context.Background(), s.embedConfig.Timeout)
+	defer cancel()
+
+	startTime := time.Now()
+	embedding, err := s.embedFunc(ctx, req.text)
+	latencyMs := float64(time.Since(startTime).Milliseconds())
+
+	if err != nil {
+		s.metricsMu.Lock()
+		s.embedMetrics.LastError = err.Error()
+		s.metricsMu.Unlock()
+		logging.Error("Failed to generate embedding",
+			"episode_id", req.episodeID,
+			"error", err)
+		return
+	}
+
+	// Update metrics
+	s.metricsMu.Lock()
+	s.embedMetrics.TotalGenerated++
+	s.embedMetrics.LastGeneratedAt = time.Now()
+	// Update running average latency
+	if s.embedMetrics.TotalGenerated == 1 {
+		s.embedMetrics.AvgLatencyMs = latencyMs
+	} else {
+		s.embedMetrics.AvgLatencyMs = (s.embedMetrics.AvgLatencyMs*float64(s.embedMetrics.TotalGenerated-1) + latencyMs) / float64(s.embedMetrics.TotalGenerated)
+	}
+	s.metricsMu.Unlock()
+
+	// Serialize vector to bytes
+	vectorBytes, err := serializeVector(embedding)
+	if err != nil {
+		logging.Error("Failed to serialize embedding vector",
+			"episode_id", req.episodeID,
+			"error", err)
+		return
+	}
+
+	// Get text preview (first 500 chars)
+	textPreview := req.text
+	if len(textPreview) > 500 {
+		textPreview = textPreview[:500]
+	}
+
+	// Store embedding in database
+	params := db.CreateEpisodeEmbeddingParams{
+		ID:          uuid.New().String(),
+		EpisodeID:   req.episodeID,
+		Provider:    s.embedConfig.Provider,
+		Model:       s.embedConfig.Model,
+		Dimensions:  int64(len(embedding)),
+		Vector:      vectorBytes,
+		TextHash:    req.textHash,
+		TextPreview: textPreview,
+	}
+
+	if _, err := s.db.CreateEpisodeEmbedding(ctx, params); err != nil {
+		logging.Error("Failed to store embedding",
+			"episode_id", req.episodeID,
+			"error", err)
+		return
+	}
+
+	// Store in cache if enabled
+	if s.embedConfig.VectorCacheEnabled {
+		s.embedCache.Store(req.episodeID, embedding)
+	}
+
+	logging.Debug("Stored embedding",
+		"episode_id", req.episodeID,
+		"dimensions", len(embedding),
+		"provider", s.embedConfig.Provider,
+		"model", s.embedConfig.Model)
+}
+
+// serializeVector converts a float32 vector to bytes for storage.
+func serializeVector(vector []float32) ([]byte, error) {
+	buf := make([]byte, len(vector)*4)
+	for i, v := range vector {
+		binary.LittleEndian.PutUint32(buf[i*4:], math.Float32bits(v))
+	}
+	return buf, nil
+}
+
+// deserializeVector converts bytes back to a float32 vector.
+func deserializeVector(data []byte) ([]float32, error) {
+	if len(data)%4 != 0 {
+		return nil, fmt.Errorf("invalid vector data length: %d", len(data))
+	}
+	vector := make([]float32, len(data)/4)
+	for i := range vector {
+		vector[i] = math.Float32frombits(binary.LittleEndian.Uint32(data[i*4:]))
+	}
+	return vector, nil
+}
+
+// computeTextHash computes a hash of the text for deduplication.
+func computeTextHash(text string) string {
+	h := fnv.New64a()
+	h.Write([]byte(text))
+	return fmt.Sprintf("%x", h.Sum64())
+}
+
+// enqueueEmbedding adds an embedding request to the queue if embedding is enabled.
+func (s *memoryService) enqueueEmbedding(episodeID, text string) {
+	if s.embedFunc == nil || !s.embedConfig.Enabled {
+		return
+	}
+
+	textHash := computeTextHash(text)
+	select {
+	case s.embedQueue <- embeddingRequest{
+		episodeID: episodeID,
+		text:      text,
+		textHash:  textHash,
+	}:
+	default:
+		// Queue is full, log and skip
+		logging.Warn("Embedding queue full, skipping embedding generation",
+			"episode_id", episodeID)
+	}
+}
+
+// getEpisodeEmbedding retrieves the embedding for an episode.
+// It checks the in-memory cache first if VectorCacheEnabled is true.
+func (s *memoryService) getEpisodeEmbedding(ctx context.Context, episodeID string) ([]float32, error) {
+	// Check cache first if enabled
+	if s.embedConfig.VectorCacheEnabled {
+		if cached, ok := s.embedCache.Load(episodeID); ok {
+			s.metricsMu.Lock()
+			s.embedMetrics.TotalCacheHits++
+			s.metricsMu.Unlock()
+			return cached.([]float32), nil
+		}
+	}
+
+	// Fetch from database
+	emb, err := s.db.GetEpisodeEmbedding(ctx, episodeID)
+	if err != nil {
+		return nil, err
+	}
+	vector, err := deserializeVector(emb.Vector)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store in cache if enabled
+	if s.embedConfig.VectorCacheEnabled {
+		s.embedCache.Store(episodeID, vector)
+	}
+
+	return vector, nil
+}
+
+// textToString converts an episode's task/actions/outcome to a single text for embedding.
+func episodeToText(episode Episode) string {
+	var parts []string
+
+	// Add task description
+	if episode.Task != nil {
+		if taskJSON, err := json.Marshal(episode.Task); err == nil {
+			parts = append(parts, string(taskJSON))
+		}
+	}
+
+	// Add actions
+	if len(episode.Actions) > 0 {
+		if actionsJSON, err := json.Marshal(episode.Actions); err == nil {
+			parts = append(parts, string(actionsJSON))
+		}
+	}
+
+	// Add outcome
+	if episode.Outcome != "" {
+		parts = append(parts, episode.Outcome)
+	}
+
+	// Add feedback if present
+	if episode.Feedback != nil {
+		if feedbackJSON, err := json.Marshal(episode.Feedback); err == nil {
+			parts = append(parts, string(feedbackJSON))
+		}
+	}
+
+	return strings.Join(parts, " ")
 }

@@ -14,6 +14,9 @@ import (
 	"github.com/fulvian/aria/internal/aria/permission"
 	"github.com/fulvian/aria/internal/aria/scheduler"
 	"github.com/fulvian/aria/internal/aria/skill"
+	"github.com/fulvian/aria/internal/config"
+	"github.com/fulvian/aria/internal/llm/models"
+	"github.com/fulvian/aria/internal/llm/provider"
 	"github.com/fulvian/aria/internal/logging"
 )
 
@@ -24,6 +27,7 @@ type ARIAComponents struct {
 	DevelopmentAgency *agency.DevelopmentAgency
 	WeatherAgency     *agency.WeatherAgency
 	NutritionAgency   *agency.NutritionAgency
+	KnowledgeAgency   *agency.KnowledgeAgency
 	AgencyService     *agency.AgencyService
 
 	// Scheduler components
@@ -83,9 +87,72 @@ func (app *App) initARIA(ctx context.Context) error {
 		logging.Info("Nutrition agency disabled or not configured")
 	}
 
+	// Initialize knowledge agency if enabled
+	knowledgeCfg := ariaConfig.DefaultKnowledgeConfig()
+	var knowledgeAgency *agency.KnowledgeAgency
+	if ariaCfg.Agencies.Knowledge.Enabled {
+		knowledgeAgency = agency.NewKnowledgeAgency(knowledgeCfg)
+		logging.Info("Initialized knowledge agency", "name", knowledgeAgency.Name())
+	} else {
+		logging.Info("Knowledge agency disabled")
+	}
+
 	// Initialize memory service (FASE 2: Memory & Learning)
 	// 30 minute TTL for working memory context persistence
-	memorySvc := memory.NewService(app.DB, 30*time.Minute)
+	var memorySvc memory.MemoryService
+	var embedFunc memory.EmbeddingFunc
+	var embedConfig memory.EmbeddingConfig
+
+	// Check main config for memory embedding settings
+	cfg := config.Get()
+	if cfg.Memory.Enabled {
+		// Cast provider string to ModelProvider type
+		memProvider := models.ModelProvider(cfg.Memory.Provider)
+		// Get the provider config for embeddings
+		providerCfg, ok := cfg.Providers[memProvider]
+		if !ok || providerCfg.Disabled {
+			logging.Warn("Embedding provider not found or disabled, embeddings disabled",
+				"provider", cfg.Memory.Provider)
+		} else {
+			// Create the provider instance
+			// We need to create a model with the embedding model name
+			embedModel := models.Model{
+				Provider: memProvider,
+				Name:     cfg.Memory.Model,
+				APIModel: cfg.Memory.Model,
+			}
+			providerInstance, err := provider.NewProvider(
+				memProvider,
+				provider.WithAPIKey(providerCfg.APIKey),
+				provider.WithModel(embedModel),
+			)
+			if err != nil {
+				logging.Warn("Failed to create embedding provider, embeddings disabled",
+					"provider", cfg.Memory.Provider,
+					"error", err)
+			} else {
+				// Create embedding function wrapper
+				embedFunc = func(ctx context.Context, text string) ([]float32, error) {
+					return providerInstance.CreateEmbedding(ctx, text)
+				}
+				embedConfig = memory.EmbeddingConfig{
+					Enabled:            true,
+					Provider:           cfg.Memory.Provider,
+					Model:              cfg.Memory.Model,
+					Mode:               cfg.Memory.Mode,
+					BatchSize:          cfg.Memory.BatchSize,
+					Timeout:            time.Duration(cfg.Memory.TimeoutMs) * time.Millisecond,
+					VectorCacheEnabled: cfg.Memory.VectorCacheEnabled,
+				}
+				logging.Info("Embedding enabled",
+					"provider", embedConfig.Provider,
+					"model", embedConfig.Model,
+					"mode", embedConfig.Mode)
+			}
+		}
+	}
+
+	memorySvc = memory.NewService(app.DB, 30*time.Minute, embedFunc, embedConfig)
 	logging.Info("Initialized memory service")
 
 	// Initialize analysis service (FASE 2: Memory & Learning)
@@ -126,6 +193,15 @@ func (app *App) initARIA(ctx context.Context) error {
 			logging.Warn("Failed to persist nutrition agency", "error", err)
 		}
 		logging.Info("Registered nutrition agency with orchestrator")
+	}
+
+	// Register knowledge agency with orchestrator and persist if available
+	if knowledgeAgency != nil {
+		orchestrator.RegisterAgency(knowledgeAgency)
+		if err := agencyService.RegisterAgency(ctx, knowledgeAgency); err != nil {
+			logging.Warn("Failed to persist knowledge agency", "error", err)
+		}
+		logging.Info("Registered knowledge agency with orchestrator")
 	}
 
 	// Initialize scheduler components
@@ -193,6 +269,7 @@ func (app *App) initARIA(ctx context.Context) error {
 		DevelopmentAgency: devAgency,
 		WeatherAgency:     weatherAgency,
 		NutritionAgency:   nutritionAgency,
+		KnowledgeAgency:   knowledgeAgency,
 		AgencyService:     agencyService,
 		SchedulerService:  schedulerSvc,
 		Dispatcher:        dispatcher,
