@@ -33,6 +33,26 @@
 
 ---
 
+## Session: 2026-03-31 (Memory 4-Layer - Provider Fix)
+
+### Actions Taken
+
+1. **NanoGPT Provider Missing**
+   - Errore: "provider not supported: nanogpt"
+   - Causa: `NewProvider()` in `provider.go` non aveva il case per `ProviderNanoGPT`
+   - Fix: Aggiunto case `models.ProviderNanoGPT` con base URL `https://api.nanogpt.ai/v1`
+
+2. **Verifica Locale**
+   - LM Studio attivo su `localhost:1234` con modello `text-embedding-mxbai-embed-large-v1`
+   - `go build ./...` ✅
+   - Test con `./aria_bin -d -p "hello"` ✅ - output "Hello! How can I help you today?"
+   - Commit: `fd34a43`
+
+### Current Phase
+**Phase 3.5 - Provider Fix: COMPLETE** ✅
+
+---
+
 ## Session: 2026-03-30 (Knowledge Agency Implementation)
 
 ### Actions Taken
