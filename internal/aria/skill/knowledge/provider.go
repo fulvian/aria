@@ -18,6 +18,14 @@ type SearchProvider interface {
 	IsConfigured() bool
 }
 
+// Circuit breaker constants
+const (
+	// CircuitBreakerThreshold is the number of consecutive errors before a provider is skipped.
+	CircuitBreakerThreshold = 5
+	// CircuitBreakerCooldown is how long to wait before retrying a failed provider.
+	CircuitBreakerCooldown = 5 * time.Minute
+)
+
 // ProviderChain manages a chain of search providers with fallback.
 type ProviderChain struct {
 	providers []SearchProvider
@@ -33,10 +41,12 @@ type ChainMetrics struct {
 
 // ProviderStats holds stats for a single provider.
 type ProviderStats struct {
-	Requests  int64
-	Errors    int64
-	LatencyMs int64
-	LastError string
+	Requests          int64
+	Errors            int64
+	ConsecutiveErrors int64 // Track consecutive errors for circuit breaker
+	LatencyMs         int64
+	LastError         string
+	LastFailureTime   time.Time // Track when last failure occurred
 }
 
 // NewProviderChain creates a new provider chain with the given config.
@@ -66,15 +76,6 @@ func NewProviderChain(cfg AgencyConfig) *ProviderChain {
 		)
 		brave.maxRetries = cfg.MaxRetries
 		chain.providers = append(chain.providers, brave)
-	}
-
-	// Tier 2: API-based providers (may require key)
-	if cfg.EnableBing && cfg.BingAPIKey != "" {
-		bing := NewBingProvider(
-			cfg.BingAPIKey,
-			time.Duration(cfg.SearchTimeoutMs)*time.Millisecond,
-		)
-		chain.providers = append(chain.providers, bing)
 	}
 
 	// Tier 3: Free providers (no API key required)
@@ -230,8 +231,21 @@ func (c *ProviderChain) Search(ctx context.Context, req SearchRequest) (SearchRe
 			continue
 		}
 
-		// Track provider stats
+		// Get current stats
 		stats := c.metrics.ProviderStats[provider.Name()]
+
+		// Circuit breaker check: skip provider if too many consecutive failures
+		if stats.ConsecutiveErrors >= CircuitBreakerThreshold {
+			// Check if cooldown has passed
+			if time.Since(stats.LastFailureTime) < CircuitBreakerCooldown {
+				// Provider is circuit-open, skip it
+				continue
+			}
+			// Cooldown passed, reset and try again
+			stats.ConsecutiveErrors = 0
+		}
+
+		// Track provider stats
 		stats.Requests++
 		c.metrics.ProviderStats[provider.Name()] = stats
 
@@ -246,9 +260,11 @@ func (c *ProviderChain) Search(ctx context.Context, req SearchRequest) (SearchRe
 		c.metrics.ProviderStats[provider.Name()] = stats
 
 		if err != nil {
-			// Check if error is recoverable
+			// Update error stats
 			stats.Errors++
+			stats.ConsecutiveErrors++
 			stats.LastError = err.Error()
+			stats.LastFailureTime = time.Now()
 			c.metrics.ProviderStats[provider.Name()] = stats
 
 			// Only fallback for transient errors
@@ -265,7 +281,10 @@ func (c *ProviderChain) Search(ctx context.Context, req SearchRequest) (SearchRe
 			}, err
 		}
 
-		// Success
+		// Success - reset consecutive errors
+		stats.ConsecutiveErrors = 0
+		c.metrics.ProviderStats[provider.Name()] = stats
+
 		return resp, nil
 	}
 

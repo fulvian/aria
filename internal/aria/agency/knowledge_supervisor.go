@@ -191,8 +191,9 @@ func (r *TaskRouter) classifyByDescription(combined string) TaskCategory {
 		return CategoryHistorical
 	}
 
-	// Web search fallback
-	if supervisorContainsAny(combined, "google", "find information", "look up",
+	// Web search fallback - NOTE: "google" removed as Google Search was deprecated
+	// Use explicit provider names (tavily, brave, ddg, duckduckgo) instead
+	if supervisorContainsAny(combined, "find information", "look up",
 		"search for", "who is", "what is", "when did", "where is", "definition of") {
 		return CategoryWebSearch
 	}

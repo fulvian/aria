@@ -26,6 +26,15 @@ const (
 	AgentHistorical   contracts.AgentName = "historical"
 )
 
+// Provider preference constants
+const (
+	ProviderTavily        = "tavily"
+	ProviderBrave         = "brave"
+	ProviderDuckDuckGo    = "ddg"
+	ProviderWikipedia     = "wikipedia"
+	ProviderDuckDuckGoAlt = "duckduckgo"
+)
+
 // ============================================================================
 // WebSearchAgent
 // ============================================================================
@@ -71,16 +80,11 @@ func (a *WebSearchAgent) Execute(ctx context.Context, task contracts.Task) (map[
 
 	maxResults := extractMaxResults(task, a.cfg.MaxSearchResults)
 
-	// Try providers in order of reliability/quality
-	providers := []struct {
-		name string
-		fn   func(context.Context, knowledge.SearchRequest) ([]knowledge.SearchResult, error)
-	}{
-		{"tavily", a.searchTavily},
-		{"brave", a.searchBrave},
-		{"wikipedia", a.searchWikipedia},
-		{"ddg", a.searchDDG},
-	}
+	// Detect provider preference from query
+	preferredProvider := DetectProviderPreference(query)
+
+	// Build provider list based on preference
+	providers := buildProviderList(a, preferredProvider)
 
 	var lastErr error
 	for _, p := range providers {
@@ -104,6 +108,126 @@ func (a *WebSearchAgent) Execute(ctx context.Context, task contracts.Task) (map[
 		return nil, fmt.Errorf("web search failed: %w", lastErr)
 	}
 	return map[string]any{"query": query, "results": []any{}, "source": "none"}, nil
+}
+
+// buildProviderList builds the provider list with preferred provider first.
+// It respects user preferences from the query, falls back to config DefaultProvider,
+// and finally uses the standard quality order.
+func buildProviderList(a *WebSearchAgent, preferred string) []struct {
+	name string
+	fn   func(context.Context, knowledge.SearchRequest) ([]knowledge.SearchResult, error)
+} {
+	// Standard quality order (used when no preference)
+	standardOrder := []struct {
+		name string
+		fn   func(context.Context, knowledge.SearchRequest) ([]knowledge.SearchResult, error)
+	}{
+		{"tavily", a.searchTavily},
+		{"brave", a.searchBrave},
+		{"wikipedia", a.searchWikipedia},
+		{"ddg", a.searchDDG},
+	}
+
+	// If no explicit preference, use DefaultProvider from config
+	if preferred == "" {
+		preferred = a.cfg.DefaultProvider
+	}
+
+	// If still no preference, use standard order
+	if preferred == "" {
+		return standardOrder
+	}
+
+	// Normalize preferred provider name
+	normalized := normalizeProviderName(preferred)
+
+	// Build list with preferred first, then others
+	var result []struct {
+		name string
+		fn   func(context.Context, knowledge.SearchRequest) ([]knowledge.SearchResult, error)
+	}
+
+	// Add preferred first based on normalized name
+	switch normalized {
+	case ProviderTavily:
+		result = append(result, struct {
+			name string
+			fn   func(context.Context, knowledge.SearchRequest) ([]knowledge.SearchResult, error)
+		}{ProviderTavily, a.searchTavily})
+	case ProviderBrave:
+		result = append(result, struct {
+			name string
+			fn   func(context.Context, knowledge.SearchRequest) ([]knowledge.SearchResult, error)
+		}{ProviderBrave, a.searchBrave})
+	case ProviderDuckDuckGo, ProviderDuckDuckGoAlt:
+		result = append(result, struct {
+			name string
+			fn   func(context.Context, knowledge.SearchRequest) ([]knowledge.SearchResult, error)
+		}{ProviderDuckDuckGo, a.searchDDG})
+	case ProviderWikipedia:
+		result = append(result, struct {
+			name string
+			fn   func(context.Context, knowledge.SearchRequest) ([]knowledge.SearchResult, error)
+		}{ProviderWikipedia, a.searchWikipedia})
+	default:
+		// Unknown provider, fall back to standard order
+		return standardOrder
+	}
+
+	// Add remaining providers (skip the preferred one)
+	for _, p := range standardOrder {
+		if p.name == normalized ||
+			(normalized == ProviderDuckDuckGoAlt && p.name == ProviderDuckDuckGo) ||
+			(normalized == ProviderDuckDuckGo && p.name == ProviderDuckDuckGoAlt) {
+			continue
+		}
+		result = append(result, p)
+	}
+
+	return result
+}
+
+// normalizeProviderName normalizes various provider name formats to canonical names.
+func normalizeProviderName(name string) string {
+	switch strings.ToLower(name) {
+	case "tavily":
+		return ProviderTavily
+	case "brave":
+		return ProviderBrave
+	case "ddg", "duckduckgo", "duck duck go":
+		return ProviderDuckDuckGo
+	case "wikipedia":
+		return ProviderWikipedia
+	default:
+		return name
+	}
+}
+
+// DetectProviderPreference detects if the query expresses a preference for a specific provider.
+func DetectProviderPreference(query string) string {
+	lower := strings.ToLower(query)
+
+	// Check for explicit provider mentions
+	providerPatterns := []struct {
+		provider string
+		patterns []string
+	}{
+		{ProviderTavily, []string{"use tavily", "with tavily", "via tavily", "tavily search"}},
+		{ProviderBrave, []string{"use brave", "with brave", "via brave", "brave search"}},
+		{ProviderDuckDuckGo, []string{"use ddg", "with ddg", "via ddg", "ddg search"}},
+		{ProviderDuckDuckGoAlt, []string{"use duckduckgo", "with duckduckgo", "via duckduckgo", "duckduckgo search", "search on duckduckgo", "search with duckduckgo"}},
+		{ProviderWikipedia, []string{"use wikipedia", "with wikipedia", "via wikipedia", "wikipedia search"}},
+	}
+
+	for _, pp := range providerPatterns {
+		for _, pattern := range pp.patterns {
+			if strings.Contains(lower, pattern) {
+				return pp.provider
+			}
+		}
+	}
+
+	return ""
 }
 
 func (a *WebSearchAgent) searchTavily(ctx context.Context, req knowledge.SearchRequest) ([]knowledge.SearchResult, error) {
