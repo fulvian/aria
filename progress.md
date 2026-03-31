@@ -1,5 +1,58 @@
 # ARIA Implementation Progress Log
 
+## Session: 2026-03-31 (Memory 4-Layer Implementation - Fix & Recovery)
+
+### Actions Taken
+
+1. **Implementazione Memory 4-Layer Locale**
+   - Studio piano in `docs/plans/2026-03-31-analisi-profonda-memory-4-layer-locale-e-piano-risoluzione.md`
+   - Configurazione embedding con mxbai (modello locale LM Studio)
+   - Configurazione triplet creation con NanoGPT API
+
+2. **Problema: git reset --hard ha ripristinato models.go**
+   - Causa: `models.go init()` non includeva più `NanoGPTModels`
+   - Errore: "no valid provider available"
+   - Fix applicati:
+     - `models.go`: Aggiunto `maps.Copy(SupportedModels, NanoGPTModels)`
+     - `models.go`: Aggiunto `ProviderNanoGPT: 10` in `ProviderPopularity`
+     - `config.go`: Aggiunto supporto `NANOGPT_API_KEY` env var
+     - `config.go`: Aggiunto default models per NanoGPT provider
+     - `memory/service.go`: Fix `Close()` per chiudere `embedStopCh`
+
+3. **File di configurazione creati**
+   - `~/.aria/env` - variabili ambiente auto-sourced in bash/zsh
+   - `~/.aria.json` - configurazione utente con blocco memory
+   - `.env` - variabili ambiente ARIA con `NANOGPT_API_KEY`
+
+4. **Verifiche**
+   - `go build ./...` ✅
+   - Build output: `aria_bin`
+
+### Current Phase
+**Phase 3.5 - Fix & Recovery: COMPLETE** ✅
+
+---
+
+## Session: 2026-03-30 (Knowledge Agency Implementation)
+
+### Actions Taken
+
+1. **Knowledge Agency Implementation**
+   - Creato piano in `docs/plans/2026-03-31-knowledge-agency-option-a-alignment-implementation-plan.md`
+   - Implementato Knowledge Supervisor e skill K2-K3
+   - File: `internal/aria/agency/knowledge_agents.go`, `knowledge_supervisor.go`
+   - File: `internal/aria/skill/knowledge/provider.go`
+
+2. **NanoGPT Provider Setup**
+   - Creato `internal/llm/models/nanogpt.go` con modelli Pro plan
+   - Implementato fix per dedup embedding in `processEmbedding()`
+   - Implementato fix `Close()` per chiudere `embedStopCh`
+
+### Current Phase
+**Knowledge Agency - IN PROGRESS**
+
+---
+
 ## Session: 2026-03-29 (P0 Critical Remediation)
 
 ### Actions Taken

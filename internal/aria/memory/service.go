@@ -139,6 +139,7 @@ func NewService(q db.Querier, ttl time.Duration, embedFunc EmbeddingFunc, embedC
 func (s *memoryService) Close() error {
 	s.stopOnce.Do(func() {
 		close(s.stopCh)
+		close(s.embedStopCh)
 	})
 	return nil
 }

@@ -306,6 +306,9 @@ func setProviderDefaults() {
 	if apiKey := os.Getenv("ZAI_API_KEY"); apiKey != "" {
 		viper.SetDefault("providers.zai.apiKey", apiKey)
 	}
+	if apiKey := os.Getenv("NANOGPT_API_KEY"); apiKey != "" {
+		viper.SetDefault("providers.nanogpt.apiKey", apiKey)
+	}
 	if apiKey := os.Getenv("AZURE_OPENAI_ENDPOINT"); apiKey != "" {
 		// api-key may be empty when using Entra ID credentials – that's okay
 		viper.SetDefault("providers.azure.apiKey", os.Getenv("AZURE_OPENAI_API_KEY"))
@@ -397,6 +400,15 @@ func setProviderDefaults() {
 		viper.SetDefault("agents.summarizer.model", models.XAIGrok3Beta)
 		viper.SetDefault("agents.task.model", models.XAIGrok3Beta)
 		viper.SetDefault("agents.title.model", models.XAiGrok3MiniFastBeta)
+		return
+	}
+
+	// NanoGPT configuration
+	if key := viper.GetString("providers.nanogpt.apiKey"); strings.TrimSpace(key) != "" {
+		viper.SetDefault("agents.coder.model", models.NanoGPTGLM51Thinking)
+		viper.SetDefault("agents.summarizer.model", models.NanoGPTGLM51Thinking)
+		viper.SetDefault("agents.task.model", models.NanoGPTGLM51Thinking)
+		viper.SetDefault("agents.title.model", models.NanoGPTKimiK25Thinking)
 		return
 	}
 
@@ -706,6 +718,8 @@ func getProviderAPIKey(provider models.ModelProvider) string {
 		return os.Getenv("OPENROUTER_API_KEY")
 	case models.ProviderZAI:
 		return os.Getenv("ZAI_API_KEY")
+	case models.ProviderNanoGPT:
+		return os.Getenv("NANOGPT_API_KEY")
 	case models.ProviderBedrock:
 		if hasAWSCredentials() {
 			return "aws-credentials-available"

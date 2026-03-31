@@ -1,66 +1,63 @@
 # Project State
 
-## Current Phase: Phase 5 - Delivery (Nutrition Agency PR Open)
-## Started: 2026-03-30T15:00:00+02:00
-## Branch: feature/nutrition-agency
-## Commit: f277893 (18 files, +4160 lines)
-## PR: https://github.com/fulvian/aria/pull/3
+## Current Phase: Phase 3.5 - Fix & Recovery (Memory 4-Layer Local)
+## Started: 2026-03-31T14:00:00+02:00
+## Branch: main
+## Last Commit: ff2b318
 
-## Nutrition Agency Implementation Summary
+## Memory 4-Layer Implementation Summary
 
-### Phases Completed
+### Changes Made
 
-| Phase | Status | Files |
-|-------|--------|-------|
-| N0 - Foundation | ✅ Complete | contracts.go, classifier.go, skill.go, config.go, nutrition.go |
-| N1 - Tools MVP | ✅ Complete | nutrition_usda.go, nutrition_openfoodfacts.go, recipes_mealdb.go, food_safety_openfda.go |
-| N2 - Skills MVP | ✅ Complete | nutrition_analysis.go, recipe_search.go, diet_plan_generation.go, food_recall_monitoring.go |
-| N3 - Agency | ✅ Complete | nutrition.go (5 agent bridges) |
-| N4 - Integration | ✅ Complete | aria_integration.go |
-| N5 - Docs/Metrics | ✅ Complete | BLUEPRINT.md (v1.15.0-DRAFT), runbook, metrics |
+| File | Change |
+|------|--------|
+| `internal/llm/models/models.go` | Added `NanoGPTModels` to `init()` and `ProviderNanoGPT` to popularity |
+| `internal/config/config.go` | Added `NANOGPT_API_KEY` env var handling and NanoGPT model defaults |
+| `internal/aria/memory/service.go` | Fixed `Close()` to close `embedStopCh` |
+| `.env` | Added `NANOGPT_API_KEY` and `LOCAL_ENDPOINT` |
+| `progress.md` | Updated with session documentation |
 
-### New Entities
+### Configuration Files
 
-- **Agency**: nutrition
-- **Domain**: nutrition
-- **Agents**: CulinaryAgent, DietPlannerAgent, NutritionAnalystAgent, HealthyLifestyleCoachAgent, FoodSafetyAgent
-- **Skills**: recipe-search, nutrition-analysis, diet-plan-generation, food-recall-monitoring (+ 4 V1.1 skills)
-- **Tools**: USDA FDC, Open Food Facts, TheMealDB, openFDA
+| File | Purpose |
+|------|---------|
+| `~/.aria/env` | Auto-sourced environment variables for bash/zsh |
+| `~/.aria.json` | User configuration with memory block |
+| `.env` | ARIA environment variables (gitignored) |
+
+### Environment Variables
+
+- `ARIA_ENABLED=true`
+- `ARIA_ROUTING_ENABLE_FALLBACK=true`
+- `LOCAL_ENDPOINT=http://localhost:1234/v1` (LM Studio for mxbai embeddings)
+- `NANOGPT_API_KEY=sk-nano-903b7d57-da0f-4b8b-bdc1-3eb72ab1eb39` (triplet creation)
 
 ### Verification
 
 - `go build ./...` ✅
-- `go vet ./...` ✅
-- `go test ./...` ✅
-
-### Worktree Location
-
-`.worktrees/nutrition-agency`
+- Build output: `aria_bin`
 
 ## Agent History
 
 | Timestamp | Agent | Action | Status |
 |-----------|-------|--------|--------|
-| 2026-03-30T15:00:00+02:00 | General Manager | Started Nutrition Agency implementation | completed |
-| 2026-03-30T15:05:00+02:00 | Coder | Phase N0 - Foundation & contracts | completed |
-| 2026-03-30T15:08:00+02:00 | Coder | Phase N1 - Tools MVP | completed |
-| 2026-03-30T15:10:00+02:00 | Coder | Phase N2 - Skills MVP | completed |
-| 2026-03-30T15:12:00+02:00 | Coder | Phase N3 - Agency & agent bridge | completed |
-| 2026-03-30T15:14:00+02:00 | Coder | Phase N4 - Integration | completed |
-| 2026-03-30T15:15:00+02:00 | Coder | Phase N5 - Quality/docs | completed |
-| 2026-03-30T15:16:00+02:00 | General Manager | Branch committed and PR created | completed |
+| 2026-03-31T14:00:00+02:00 | General Manager | Started memory 4-layer fix | completed |
+| 2026-03-31T14:05:00+02:00 | General Manager | Fixed models.go NanoGPT registration | completed |
+| 2026-03-31T14:10:00+02:00 | General Manager | Fixed config.go NANOGPT_API_KEY handling | completed |
+| 2026-03-31T14:15:00+02:00 | General Manager | Fixed memory service Close() | completed |
+| 2026-03-31T14:20:00+02:00 | General Manager | Verified build | completed |
+| 2026-03-31T16:30:00+02:00 | General Manager | Updated docs and committed | pending |
 
 ## Skills Invoked
 
 | Phase | Skill | Outcome |
 |-------|-------|---------|
-| All | planning-with-files | Session planning and tracking |
-| All | using-git-worktrees | Isolated workspace for implementation |
+| Session | planning-with-files | Progress tracking |
+| Fix | verification-before-completion | Build verification |
 
 ## Next Steps
 
-1. User reviews and approves PR #3
-2. Merge PR to main
-3. V1.1 skills: recipe-adaptation, meal-plan-optimization, healthy-habits-coaching, nutrition-education
-4. Add unit tests for tools with HTTP mock
-5. Add integration tests for agency execution
+1. Test with `ariacli -d -p "test"` to verify startup
+2. Verify LM Studio running on `localhost:1234` for embeddings
+3. Verify NanoGPT API key works for triplet creation
+4. Continue with Knowledge Agency implementation
