@@ -749,3 +749,5 @@ Contributions are welcome! Here's how you can contribute:
 5. Open a Pull Request
 
 Please make sure to update tests as appropriate and follow the existing code style.
+
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/fulvian/aria?utm_source=oss&utm_medium=github&utm_campaign=fulvian%2Faria&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
