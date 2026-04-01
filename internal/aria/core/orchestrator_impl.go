@@ -221,10 +221,11 @@ func (o *BasicOrchestrator) ProcessQuery(ctx context.Context, query Query) (Resp
 		Description: query.Text,
 		Skills:      decision.Skills,
 		Parameters: map[string]any{
-			"prompt":                query.Text,
+			"query":                 query.Text,
 			"working_context":       workingContext,
 			"similar_episodes":      similarEpisodes,
 			"applicable_procedures": applicableProcedures,
+			"conversation_history":  conversationHistory,
 		},
 	}
 

@@ -1,5 +1,52 @@
 # ARIA Implementation Progress Log
 
+## Session: 2026-04-01 (Memory Context Bug Fix - Conversation History)
+
+### Actions Taken
+
+1. **Root Cause Analysis**
+   - User reported: ARIA couldn't "remember" previous MANH stock analysis when asked to repeat it
+   - WAL file analysis showed: ARIA was trying to recover past conversations but failing
+   - Root cause identified: Three-part bug in the memory context flow:
+     1. `orchestrator_impl.go` passed `"prompt"` key but agents looked for `"query"`
+     2. `CoderBridge.RunTask` ignored all memory context parameters
+     3. Legacy `runLegacy()` path created new sessions without any memory context
+
+2. **Fix Applied**
+
+   **File: `internal/aria/core/orchestrator_impl.go`**
+   - Changed task parameter key from `"prompt"` to `"query"` (line 224)
+   - Added `"conversation_history"` to task parameters (line 228)
+
+   **File: `internal/aria/agency/knowledge_agents.go`**
+   - Added `buildContextPrompt()` function (lines 646-701)
+   - Builds enriched prompt with:
+     - Main query
+     - Conversation history (up to 5 previous queries)
+     - Similar past tasks (up to 3)
+     - Session context metadata
+   - Removed unused `enrichedPrompt` variable from `WebSearchAgent.Execute()`
+
+   **File: `internal/aria/agency/development.go`**
+   - `CoderBridge.RunTask()` now checks "query" first, falls back to "prompt"
+   - Calls `buildContextPrompt(task)` to get enriched query with memory context
+   - Passes enriched query to agent instead of raw query
+
+3. **Verification**
+   - `go build ./...` ✅
+   - `go vet ./...` ✅
+   - `go test ./internal/aria/agency/...` ✅
+
+### Files Modified
+- `internal/aria/core/orchestrator_impl.go` - Fixed key name and added conversation_history
+- `internal/aria/agency/knowledge_agents.go` - Added buildContextPrompt()
+- `internal/aria/agency/development.go` - CoderBridge now uses memory context
+
+### Current Phase
+**Memory Context Bug Fix: COMPLETE** ✅
+
+---
+
 ## Session: 2026-04-01 (Universal Startup System - Phase 3)
 
 ### Actions Taken

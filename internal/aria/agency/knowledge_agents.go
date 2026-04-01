@@ -73,6 +73,7 @@ func (a *WebSearchAgent) Skills() []skill.SkillName {
 
 // Execute performs a web search task.
 func (a *WebSearchAgent) Execute(ctx context.Context, task contracts.Task) (map[string]any, error) {
+	// Build query with memory context for the LLM
 	query := extractQuery(task)
 	if query == "" {
 		return nil, fmt.Errorf("query is required")
@@ -637,6 +638,63 @@ func extractQuery(task contracts.Task) string {
 		return query
 	}
 	return task.Description
+}
+
+// buildContextPrompt builds a prompt with memory context for the LLM.
+// This ensures the LLM has access to conversation history and similar past queries.
+func buildContextPrompt(task contracts.Task) string {
+	var parts []string
+
+	// Add the main query
+	if query, ok := task.Parameters["query"].(string); ok && query != "" {
+		parts = append(parts, "QUERY: "+query)
+	} else {
+		parts = append(parts, "QUERY: "+task.Description)
+	}
+
+	// Add conversation history if available
+	if history, ok := task.Parameters["conversation_history"].([]string); ok && len(history) > 0 {
+		parts = append(parts, "\nCONVERSATION HISTORY (previous queries in this session):")
+		for i, h := range history {
+			if i >= 5 { // Limit to last 5 to avoid token bloat
+				parts = append(parts, fmt.Sprintf("  - ... (%d more)", len(history)-5))
+				break
+			}
+			parts = append(parts, fmt.Sprintf("  - %s", h))
+		}
+	}
+
+	// Add similar past episodes if available
+	if episodes, ok := task.Parameters["similar_episodes"].([]any); ok && len(episodes) > 0 {
+		parts = append(parts, "\nSIMILAR PAST TASKS (for context):")
+		for i, ep := range episodes {
+			if i >= 3 { // Limit to top 3
+				break
+			}
+			if epMap, ok := ep.(map[string]any); ok {
+				if task, ok := epMap["Task"].(map[string]any); ok {
+					if desc, ok := task["text"].(string); ok {
+						parts = append(parts, fmt.Sprintf("  - %s", desc))
+					}
+				}
+			}
+		}
+	}
+
+	// Add working context metadata if available
+	if ctx, ok := task.Parameters["working_context"].(map[string]any); ok && len(ctx) > 0 {
+		parts = append(parts, "\nSESSION CONTEXT:")
+		if sessionID, ok := ctx["SessionID"].(string); ok && sessionID != "" {
+			parts = append(parts, fmt.Sprintf("  - SessionID: %s", sessionID))
+		}
+		if metadata, ok := ctx["Metadata"].(map[string]any); ok && len(metadata) > 0 {
+			for k, v := range metadata {
+				parts = append(parts, fmt.Sprintf("  - %s: %v", k, v))
+			}
+		}
+	}
+
+	return strings.Join(parts, "\n")
 }
 
 func extractMaxResults(task contracts.Task, defaultVal int) int {

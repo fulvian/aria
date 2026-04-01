@@ -1134,27 +1134,34 @@ func (b *CoderBridge) RunTask(ctx context.Context, task contracts.Task) (map[str
 		Payload: map[string]any{"task_id": task.ID},
 	})
 
-	// Extract the prompt from task parameters
-	prompt, _ := task.Parameters["prompt"].(string)
-	if prompt == "" {
-		prompt = task.Description
+	// Extract the query from task parameters - check "query" first (new orchestrator key),
+	// then fall back to "prompt" (legacy key), then to task description/name
+	query, _ := task.Parameters["query"].(string)
+	if query == "" {
+		query, _ = task.Parameters["prompt"].(string)
 	}
-	if prompt == "" {
-		prompt = task.Name
+	if query == "" {
+		query = task.Description
+	}
+	if query == "" {
+		query = task.Name
 	}
 
-	if prompt == "" {
-		return nil, fmt.Errorf("no prompt provided for task %s", task.ID)
+	if query == "" {
+		return nil, fmt.Errorf("no query provided for task %s", task.ID)
 	}
 
-	// Create a session for this task
-	sess, err := b.sessions.Create(ctx, "ARIA: "+truncateString(prompt, 50))
+	// Build enriched prompt with memory context
+	enrichedQuery := buildContextPrompt(task)
+
+	// Create a session for this task (use short query for title)
+	sess, err := b.sessions.Create(ctx, "ARIA: "+truncateString(query, 50))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create session: %w", err)
 	}
 
-	// Run the agent and collect the response
-	events, err := b.agent.Run(ctx, sess.ID, prompt)
+	// Run the agent and collect the response (use enriched query with memory context)
+	events, err := b.agent.Run(ctx, sess.ID, enrichedQuery)
 	if err != nil {
 		b.broker.Publish(contracts.AgentEvent{
 			AgentID: string(b.name),
@@ -1192,7 +1199,7 @@ func (b *CoderBridge) RunTask(ctx context.Context, task contracts.Task) (map[str
 		"type":           "coder-task",
 		"task_id":        task.ID,
 		"session_id":     sess.ID,
-		"prompt_preview": truncateString(prompt, 100),
+		"prompt_preview": truncateString(query, 100),
 		"response":       responseContent,
 		"status":         "completed",
 	}
