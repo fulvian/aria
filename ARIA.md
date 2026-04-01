@@ -1,32 +1,5 @@
 # ARIA - Note Persistenti
 
-## Ultime Modifiche (2026-04-01)
-
-### Universal Startup System
-- Sistema di health check e auto-recovery per lo startup
-- 4 fasi: PRE-FLIGHT → CORE SERVICES → ARIA COMPONENTS → OPTIONAL SERVICES
-- Circuit breaker per LLM provider calls
-- Status tracker atomico con supporto subscription
-- UI components per visualizzazione status
-- Flag `--startup-debug` per debug dello startup
-
-```bash
-# Run con startup debug (mostra health check status)
-aria --startup-debug
-```
-
-### File creati
-- `internal/startup/` - Core startup system
-  - `checker.go` - Checker interface
-  - `status.go` - StatusTracker
-  - `circuitbreaker.go` - Circuit breaker
-  - `bootstrap.go` - BootstrapManager
-  - `startup_tui.go` - TUI components
-  - `recovery.go` - RecoveryManager
-  - `checkers/` - Service-specific checkers
-
----
-
 ## Utente
 - **Nome**: Fulvio
 - **Età**: 45 anni
@@ -87,12 +60,4 @@ git branch -a              # Tutti i branch
 - `development` - Coding, devops, testing
 - `weather` - Previsioni meteo
 - `nutrition` - Cibo, nutrizione, ricette ⭐
-
-### Nutrition Agency
-```bash
-# Query esempio
-./ariacli -p "cerca una ricetta con pollo e broccoli"
-./ariacli -p "quali sono i nutrienti di una mela"
-./ariacli -p "crea un piano alimentare dimagrente"
-./ariacli -p "ci sono richiami alimentari negli USA"
 ```

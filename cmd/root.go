@@ -107,20 +107,17 @@ to assist developers in writing, debugging, and understanding code directly from
 		// Run bootstrap health checks if startup-debug is enabled
 		var statusTracker *startup.StatusTracker
 		if startupDebug {
-			logging.Info("Running startup health checks...")
 			statusTracker, err = runBootstrap(context.Background(), cwd, debug)
 			if err != nil {
 				logging.Error("Startup health checks failed", "error", err)
-				// Continue anyway - this is a debug feature
 			} else {
-				// Log status summary
 				view := startup.NewStartupStatusView(statusTracker)
-				logging.Info("Startup status:\n" + view.Render())
+				fmt.Fprintf(os.Stderr, "\n=== ARIA Startup Status ===\n%s\n======================\n\n", view.Render())
 			}
 		}
 
 		// Connect DB, this will also run migrations
-		logging.Info("DEBUG: About to connect to database")
+		fmt.Fprintf(os.Stderr, "DEBUG: About to connect to database...\n")
 		conn, err := db.Connect()
 		if err != nil {
 			return err
@@ -387,7 +384,7 @@ func init() {
 	rootCmd.Flags().BoolP("quiet", "q", false, "Hide spinner in non-interactive mode")
 
 	// Add startup-debug flag to show detailed startup status
-	rootCmd.Flags().BoolP("startup-debug", "", false, "Show detailed startup status")
+	rootCmd.Flags().Bool("startup-debug", false, "Show detailed startup status")
 
 	// Register custom validation for the format flag
 	rootCmd.RegisterFlagCompletionFunc("output-format", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
