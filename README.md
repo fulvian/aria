@@ -36,6 +36,19 @@ Il Knowledge Agency permette ricerche web intelligenti con:
 - **Memory integration**: apprendimento dalle ricerche precedenti
 - **Synthesis intelligent**: Aggregazione risultati da multiple fonti
 
+#### ARIA.md Memory (Persistent Context)
+
+ARIA usa `ARIA.md` come memoria operativa persistente del progetto. Il file viene caricato nel contesto degli agenti per ridurre discovery time e migliorare coerenza tra sessioni.
+
+Linee guida consigliate:
+
+- Comandi affidabili di build/test/lint/vet
+- Vincoli architetturali reali della codebase
+- Convenzioni di stile e policy di sicurezza
+- Procedure riusabili ad alta frequenza
+
+Il runtime ARIA integra inoltre un sistema di memoria a 4 layer (`working`, `episodic`, `semantic`, `procedural`) con bootstrap del contesto prima dell'esecuzione task.
+
 Per configurare le API keys, crea un file `.env` nella directory di lavoro:
 
 ```bash
@@ -93,7 +106,7 @@ go install github.com/opencode-ai/opencode@latest
 
 ## Configuration
 
-OpenCode looks for configuration in the following locations:
+ARIA looks for configuration in the following locations:
 
 - `$HOME/.opencode.json`
 - `$XDG_CONFIG_HOME/opencode/.opencode.json`
@@ -101,7 +114,7 @@ OpenCode looks for configuration in the following locations:
 
 ### Auto Compact Feature
 
-OpenCode includes an auto compact feature that automatically summarizes your conversation when it approaches the model's context window limit. When enabled (default setting), this feature:
+ARIA includes an auto compact feature that automatically summarizes your conversation when it approaches the model's context window limit. When enabled (default setting), this feature:
 
 - Monitors token usage during your conversation
 - Automatically triggers summarization when usage reaches 95% of the model's context window
@@ -118,7 +131,7 @@ You can enable or disable this feature in your configuration file:
 
 ### Environment Variables
 
-You can configure OpenCode using environment variables:
+You can configure ARIA using environment variables:
 
 | Environment Variable       | Purpose                                                                          |
 | -------------------------- | -------------------------------------------------------------------------------- |
@@ -158,7 +171,7 @@ Per abilitare ARIA Mode con le Agencies:
 
 ### Shell Configuration
 
-OpenCode allows you to configure the shell used by the bash tool. By default, it uses the shell specified in the `SHELL` environment variable, or falls back to `/bin/bash` if not set.
+ARIA allows you to configure the shell used by the bash tool. By default, it uses the shell specified in the `SHELL` environment variable, or falls back to `/bin/bash` if not set.
 
 You can override this in your configuration file:
 
@@ -512,7 +525,7 @@ OpenCode's AI assistant has access to various tools to help with coding tasks:
 
 ## Architecture
 
-OpenCode is built with a modular architecture:
+ARIA is built with a modular architecture:
 
 - **cmd**: Command-line interface using Cobra
 - **internal/app**: Core application services
@@ -525,9 +538,19 @@ OpenCode is built with a modular architecture:
 - **internal/session**: Session management
 - **internal/lsp**: Language Server Protocol integration
 
+### ARIA Agency Architecture Modules
+
+- **internal/aria/core**: Orchestrator e routing decision pipeline
+- **internal/aria/agency**: Agencies specializzate (development, knowledge, nutrition, weather)
+- **internal/aria/agent**: Contratti agent e bridge verso agent legacy
+- **internal/aria/skill**: Skill registry ed esecuzione capability
+- **internal/aria/routing**: Classifier, policy router, capability registry
+- **internal/aria/memory**: Memoria 4-layer + learning + embeddings
+- **internal/aria/scheduler**: Scheduling task e recurring workflows
+
 ## Custom Commands
 
-OpenCode supports custom commands that can be created by users to quickly send predefined prompts to the AI assistant.
+ARIA supports custom commands that can be created by users to quickly send predefined prompts to the AI assistant.
 
 ### Creating Custom Commands
 
@@ -566,7 +589,7 @@ This creates a command called `user:prime-context`.
 
 ### Command Arguments
 
-OpenCode supports named arguments in custom commands using placeholders in the format `$NAME` (where NAME consists of uppercase letters, numbers, and underscores, and must start with a letter).
+ARIA supports named arguments in custom commands using placeholders in the format `$NAME` (where NAME consists of uppercase letters, numbers, and underscores, and must start with a letter).
 
 For example:
 
@@ -578,7 +601,7 @@ RUN git grep --author="$AUTHOR_NAME" -n .
 RUN grep -R "$SEARCH_PATTERN" $DIRECTORY
 ```
 
-When you run a command with arguments, OpenCode will prompt you to enter values for each unique placeholder. Named arguments provide several benefits:
+When you run a command with arguments, ARIA will prompt you to enter values for each unique placeholder. Named arguments provide several benefits:
 
 - Clear identification of what each argument represents
 - Ability to use the same argument multiple times
@@ -604,16 +627,16 @@ The content of the command file will be sent as a message to the AI assistant.
 
 ### Built-in Commands
 
-OpenCode includes several built-in commands:
+ARIA includes several built-in commands:
 
 | Command            | Description                                                                                         |
 | ------------------ | --------------------------------------------------------------------------------------------------- |
-| Initialize Project | Creates or updates the OpenCode.md memory file with project-specific information                    |
+| Initialize Project | Creates or updates the ARIA.md memory file with project-specific information                        |
 | Compact Session    | Manually triggers the summarization of the current session, creating a new session with the summary |
 
 ## MCP (Model Context Protocol)
 
-OpenCode implements the Model Context Protocol (MCP) to extend its capabilities through external tools. MCP provides a standardized way for the AI assistant to interact with external services and tools.
+ARIA implements the Model Context Protocol (MCP) to extend its capabilities through external tools. MCP provides a standardized way for the AI assistant to interact with external services and tools.
 
 ### MCP Features
 
@@ -654,7 +677,7 @@ Once configured, MCP tools are automatically available to the AI assistant along
 
 ## LSP (Language Server Protocol)
 
-OpenCode integrates with Language Server Protocol to provide code intelligence features across multiple programming languages.
+ARIA integrates with Language Server Protocol to provide code intelligence features across multiple programming languages.
 
 ### LSP Features
 
