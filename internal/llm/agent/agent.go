@@ -738,6 +738,14 @@ func createAgentProvider(agentName config.AgentName) (provider.Provider, error) 
 				provider.WithReasoningEffort(agentConfig.ReasoningEffort),
 			),
 		)
+	} else if model.Provider == models.ProviderNanoGPT && model.CanReason {
+		// NanoGPT uses OpenAI-compatible API and supports reasoning models
+		opts = append(
+			opts,
+			provider.WithOpenAIOptions(
+				provider.WithReasoningEffort(agentConfig.ReasoningEffort),
+			),
+		)
 	} else if model.Provider == models.ProviderAnthropic && model.CanReason && agentName == config.AgentCoder {
 		opts = append(
 			opts,

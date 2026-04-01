@@ -1,5 +1,44 @@
 # ARIA Implementation Progress Log
 
+## Session: 2026-04-01 (TUI Fixes & NanoGPT/LM Studio Bug Fixes)
+
+### Actions Taken
+
+1. **Mouse Wheel Scroll Fix**
+   - Problema: Lo scroll con mouse wheel non funzionava nella chat
+   - Fix: Aggiunto handler `tea.MouseMsg` in `internal/tui/components/chat/list.go`
+   - Ora gestisce `MouseWheelUp` e `MouseWheelDown` delegando al viewport
+
+2. **NanoGPT "impossibile elaborare l'evento" Fix**
+   - Problema: NanoGPT Pro restituiva errore immediato dopo selezione modello
+   - Root Cause 1: Mancava supporto `reasoning_effort` per modelli thinking
+   - Fix 1: Aggiunto case per `ProviderNanoGPT` in `createAgentProvider()` (`agent.go`)
+   - Root Cause 2: APIModel IDs non corrispondevano alla documentazione ufficiale
+   - Fix 2: Corretti IDs in `nanogpt.go`:
+     - `deepseek/deepseek-v3-speciale` (era `deepseek/deepseek-v3.2-speciale`)
+     - `qwen3.5-397b-a17b-thinking` (era `qwen/qwen3.5-397b-a17b-thinking`)
+     - `nvidia/Nemotron-Ultra-253B` (era `nvidia/Llama-3.1-Nemotron-Ultra-253B-v1`)
+
+3. **LM Studio Model Scanning Fix**
+   - Problema: Solo alcuni modelli locali visibili, non tutti
+   - Root Cause: Filtro eccessivamente restrittivo su `model.Type != "llm"`
+   - Fix: Rimosso controllo su Type, accetta tutti i modelli con `object="model"` (`local.go`)
+
+4. **Verifiche**
+   - `go build ./...` ✅
+   - Build output: `aria`
+
+### Files Modified
+- `internal/tui/components/chat/list.go` - Mouse wheel support
+- `internal/llm/agent/agent.go` - NanoGPT reasoning support
+- `internal/llm/models/nanogpt.go` - Corrected API model IDs
+- `internal/llm/models/local.go` - Fixed LM Studio model filter
+
+### Current Phase
+**TUI/NanoGPT/LM Studio Fixes: COMPLETE** ✅
+
+---
+
 ## Session: 2026-03-31 (Memory 4-Layer Implementation - Fix & Recovery)
 
 ### Actions Taken

@@ -107,6 +107,14 @@ func (m *messagesCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, cmd)
 		}
 
+	case tea.MouseMsg:
+		switch msg.Type {
+		case tea.MouseWheelUp, tea.MouseWheelDown:
+			u, cmd := m.viewport.Update(msg)
+			m.viewport = u
+			cmds = append(cmds, cmd)
+		}
+
 	case renderFinishedMsg:
 		m.rendering = false
 		m.viewport.GotoBottom()

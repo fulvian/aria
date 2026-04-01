@@ -120,14 +120,15 @@ func listLocalModels(modelsEndpoint string) []localModel {
 	var supportedModels []localModel
 	for _, model := range modelList.Data {
 		if strings.HasSuffix(modelsEndpoint, lmStudioBetaModelsPath) {
-			if model.Object != "model" || model.Type != "llm" {
-				logging.Debug("Skipping unsupported LMStudio model",
+			// LM Studio beta API returns models with object="model"
+			// Accept all object="model" entries regardless of type (llm, embedding, etc.)
+			if model.Object != "model" {
+				logging.Debug("Skipping non-model object from LMStudio",
 					"endpoint", modelsEndpoint,
 					"id", model.ID,
 					"object", model.Object,
 					"type", model.Type,
 				)
-
 				continue
 			}
 		}
