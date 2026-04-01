@@ -81,10 +81,10 @@ type GuardrailsConfig struct {
 // Returns a Config with sensible defaults if env vars are not set.
 func Load() *Config {
 	cfg := &Config{
-		Enabled: getEnvBool("ARIA_ENABLED", false),
+		Enabled: getEnvBool("ARIA_ENABLED", true), // Enabled by default for ARIA standalone mode
 		Routing: RoutingConfig{
-			DefaultAgency:       getEnv("ARIA_ROUTING_DEFAULT_AGENCY", "development"),
-			ConfidenceThreshold: getEnvFloat("ARIA_ROUTING_CONFIDENCE_THRESHOLD", 0.7),
+			DefaultAgency:       getEnv("ARIA_ROUTING_DEFAULT_AGENCY", "knowledge"),
+			ConfidenceThreshold: getEnvFloat("ARIA_ROUTING_CONFIDENCE_THRESHOLD", 0.6),
 			EnableFallback:      getEnvBool("ARIA_ROUTING_ENABLE_FALLBACK", true),
 		},
 		Agencies: AgenciesConfig{
@@ -96,10 +96,10 @@ func Load() *Config {
 				Enabled: getEnvBool("ARIA_AGENCIES_WEATHER_ENABLED", true),
 			},
 			Nutrition: NutritionAgencyConfig{
-				Enabled: getEnvBool("ARIA_AGENCIES_NUTRITION_ENABLED", false),
+				Enabled: getEnvBool("ARIA_AGENCIES_NUTRITION_ENABLED", true), // Enabled by default
 			},
 			Knowledge: KnowledgeAgencyConfig{
-				Enabled: getEnvBool("ARIA_AGENCIES_KNOWLEDGE_ENABLED", false),
+				Enabled: getEnvBool("ARIA_AGENCIES_KNOWLEDGE_ENABLED", true), // Enabled by default
 			},
 		},
 		Skills: SkillsConfig{

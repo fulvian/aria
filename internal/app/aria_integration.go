@@ -56,16 +56,18 @@ func (app *App) initARIA(ctx context.Context) error {
 	logging.Info("Initializing ARIA mode", "config", ariaCfg)
 
 	// Initialize skill registry with default skills
+	logging.Info("DEBUG aria_integration: about to create skill registry")
 	registry := skill.NewDefaultSkillRegistry()
 	if err := skill.SetupDefaultSkills(registry); err != nil {
 		logging.Error("Failed to setup default skills", err)
 		return err
 	}
-	logging.Info("Registered default skills", "count", len(registry.List()))
+	logging.Info("DEBUG aria_integration: skill registry created", "count", len(registry.List()))
 
 	// Initialize development agency with coder agent bridge
+	logging.Info("DEBUG aria_integration: about to create development agency")
 	devAgency := agency.NewDevelopmentAgency(app.CoderAgent, app.Sessions, app.Messages)
-	logging.Info("Initialized development agency", "name", devAgency.Name())
+	logging.Info("DEBUG aria_integration: development agency created", "name", devAgency.Name())
 
 	// Initialize weather agency if enabled
 	weatherCfg := ariaConfig.DefaultWeatherConfig()
@@ -105,6 +107,7 @@ func (app *App) initARIA(ctx context.Context) error {
 
 	// Check main config for memory embedding settings
 	cfg := config.Get()
+	logging.Info("DEBUG aria_integration: checking memory config", "enabled", cfg.Memory.Enabled, "provider", cfg.Memory.Provider)
 	if cfg.Memory.Enabled {
 		// Cast provider string to ModelProvider type
 		memProvider := models.ModelProvider(cfg.Memory.Provider)
@@ -247,14 +250,23 @@ func (app *App) initARIA(ctx context.Context) error {
 		// Continue anyway - don't block startup
 	}
 
-	// Start dispatcher
-	dispatcher.Run(ctx)
+	// Start dispatcher in background
+	go func() {
+		defer logging.RecoverPanic("dispatcher", nil)
+		dispatcher.Run(ctx)
+	}()
 
-	// Start worker
-	worker.Run(ctx)
+	// Start worker in background
+	go func() {
+		defer logging.RecoverPanic("worker", nil)
+		worker.Run(ctx)
+	}()
 
-	// Start recurring planner
-	recurringPlanner.Run(ctx)
+	// Start recurring planner in background
+	go func() {
+		defer logging.RecoverPanic("recurring-planner", nil)
+		recurringPlanner.Run(ctx)
+	}()
 
 	// Initialize guardrail service
 	guardrailSvc := guardrail.NewService(ariaCfg.Guardrails)

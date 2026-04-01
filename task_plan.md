@@ -381,3 +381,35 @@ Before moving to P1:
 | 2026-03-30 | Start with WS-A/B/C P0 critical | Plan section 5 specifies P0 first |
 | 2026-03-30 | WS-A skeleton replacement first | Pipeline is blocking all paths |
 | 2026-03-29 | P0 remediation before FASE 5 | Blueprint alignment report reveals blocking issues |
+| 2026-03-31 | Semantic routing implementation | Routing analysis reveals keyword-based routing is ordinal, not intelligent |
+
+---
+
+## WS-K: Knowledge Agency Semantic Routing (P0) - COMPLETED ✅
+
+### Scope
+- Replace keyword-based routing with semantic similarity-based routing
+- Fix executeParallel() to use true goroutine parallelism
+
+### Deliverable
+- SemanticTaskRouter with cosine similarity
+- Keyword fallback for backward compatibility
+- True parallel execution with bounded semaphore
+
+### Acceptance
+- Query "trova paper recenti su ML" → CategoryAcademic (semantic, not keyword "arxiv")
+- Parallel execution uses goroutines (verified with race detector)
+
+### Tasks - WS-K
+- [x] Create SemanticTaskRouter (semantic_router.go)
+- [x] Create SimpleEmbedder (embedder.go) for keyword-based fallback
+- [x] Create semantic_router_test.go with 10+ test cases
+- [x] Integrate SemanticTaskRouter into TaskRouter
+- [x] Fix executeParallel() with goroutine + bounded semaphore
+- [x] Verify all tests pass with race detector
+
+### Current State (AFTER COMPLETION)
+- Branch: `feature/knowledge-agency-semantic-routing`
+- Commit: `9720abf`
+- Files: semantic_router.go, embedder.go, semantic_router_test.go
+- All tests pass with race detector enabled

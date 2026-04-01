@@ -44,6 +44,8 @@ type MessageKeys struct {
 	PageUp       key.Binding
 	HalfPageUp   key.Binding
 	HalfPageDown key.Binding
+	Up           key.Binding
+	Down         key.Binding
 }
 
 var messageKeys = MessageKeys{
@@ -62,6 +64,14 @@ var messageKeys = MessageKeys{
 	HalfPageDown: key.NewBinding(
 		key.WithKeys("ctrl+d", "ctrl+d"),
 		key.WithHelp("ctrl+d", "½ page down"),
+	),
+	Up: key.NewBinding(
+		key.WithKeys("up", "k"),
+		key.WithHelp("↑/k", "scroll up"),
+	),
+	Down: key.NewBinding(
+		key.WithKeys("down", "j"),
+		key.WithHelp("↓/j", "scroll down"),
 	),
 }
 
@@ -90,7 +100,8 @@ func (m *messagesCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		if key.Matches(msg, messageKeys.PageUp) || key.Matches(msg, messageKeys.PageDown) ||
-			key.Matches(msg, messageKeys.HalfPageUp) || key.Matches(msg, messageKeys.HalfPageDown) {
+			key.Matches(msg, messageKeys.HalfPageUp) || key.Matches(msg, messageKeys.HalfPageDown) ||
+			key.Matches(msg, messageKeys.Up) || key.Matches(msg, messageKeys.Down) {
 			u, cmd := m.viewport.Update(msg)
 			m.viewport = u
 			cmds = append(cmds, cmd)
@@ -389,10 +400,11 @@ func (m *messagesCmp) help() string {
 			lipgloss.Left,
 			baseStyle.Foreground(t.TextMuted()).Bold(true).Render("press "),
 			baseStyle.Foreground(t.Text()).Bold(true).Render("enter"),
-			baseStyle.Foreground(t.TextMuted()).Bold(true).Render(" to send the message,"),
-			baseStyle.Foreground(t.TextMuted()).Bold(true).Render(" write"),
-			baseStyle.Foreground(t.Text()).Bold(true).Render(" \\"),
-			baseStyle.Foreground(t.TextMuted()).Bold(true).Render(" and enter to add a new line"),
+			baseStyle.Foreground(t.TextMuted()).Bold(true).Render(" to send,"),
+			baseStyle.Foreground(t.Text()).Bold(true).Render(" pgup/pgdn"),
+			baseStyle.Foreground(t.TextMuted()).Bold(true).Render(" or "),
+			baseStyle.Foreground(t.Text()).Bold(true).Render("↑/↓"),
+			baseStyle.Foreground(t.TextMuted()).Bold(true).Render(" to scroll"),
 		)
 	}
 	return baseStyle.
@@ -465,6 +477,8 @@ func (m *messagesCmp) BindingKeys() []key.Binding {
 		m.viewport.KeyMap.PageUp,
 		m.viewport.KeyMap.HalfPageUp,
 		m.viewport.KeyMap.HalfPageDown,
+		m.viewport.KeyMap.Up,
+		m.viewport.KeyMap.Down,
 	}
 }
 
@@ -477,6 +491,8 @@ func NewMessagesCmp(app *app.App) tea.Model {
 	vp.KeyMap.PageDown = messageKeys.PageDown
 	vp.KeyMap.HalfPageUp = messageKeys.HalfPageUp
 	vp.KeyMap.HalfPageDown = messageKeys.HalfPageDown
+	vp.KeyMap.Up = messageKeys.Up
+	vp.KeyMap.Down = messageKeys.Down
 	return &messagesCmp{
 		app:           app,
 		cachedContent: make(map[string]cacheItem),

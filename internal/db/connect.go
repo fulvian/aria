@@ -16,6 +16,7 @@ import (
 )
 
 func Connect() (*sql.DB, error) {
+	logging.Info("DEBUG: db.Connect starting")
 	dataDir := config.Get().Data.Directory
 	if dataDir == "" {
 		return nil, fmt.Errorf("data.dir is not set")
@@ -23,18 +24,22 @@ func Connect() (*sql.DB, error) {
 	if err := os.MkdirAll(dataDir, 0o700); err != nil {
 		return nil, fmt.Errorf("failed to create data directory: %w", err)
 	}
+	logging.Info("DEBUG: Data directory ready", "dir", dataDir)
 	dbPath := filepath.Join(dataDir, "aria.db")
 	// Open the SQLite database
+	logging.Info("DEBUG: About to open SQLite database")
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
 	// Verify connection
+	logging.Info("DEBUG: About to ping database")
 	if err = db.Ping(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
+	logging.Info("DEBUG: Database ping successful")
 
 	// Set pragmas for better performance
 	pragmas := []string{
@@ -60,9 +65,11 @@ func Connect() (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to set dialect: %w", err)
 	}
 
+	logging.Info("DEBUG: About to run migrations")
 	if err := goose.Up(db, "migrations"); err != nil {
 		logging.Error("Failed to apply migrations", "error", err)
 		return nil, fmt.Errorf("failed to apply migrations: %w", err)
 	}
+	logging.Info("DEBUG: Migrations complete, returning connection")
 	return db, nil
 }

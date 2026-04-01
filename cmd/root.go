@@ -17,6 +17,7 @@ import (
 	"github.com/fulvian/aria/internal/pubsub"
 	"github.com/fulvian/aria/internal/tui"
 	"github.com/fulvian/aria/internal/version"
+	"github.com/joho/godotenv"
 	zone "github.com/lrstanley/bubblezone"
 	"github.com/spf13/cobra"
 )
@@ -59,6 +60,7 @@ to assist developers in writing, debugging, and understanding code directly from
 
 		// Load the config
 		debug, _ := cmd.Flags().GetBool("debug")
+		logging.Info("DEBUG: Starting initialization")
 		cwd, _ := cmd.Flags().GetString("cwd")
 		prompt, _ := cmd.Flags().GetString("prompt")
 		outputFormat, _ := cmd.Flags().GetString("output-format")
@@ -82,48 +84,74 @@ to assist developers in writing, debugging, and understanding code directly from
 			}
 			cwd = c
 		}
-		_, err := config.Load(cwd, debug)
-		if err != nil {
-			return err
+
+		// Load .env file automatically if present
+		if err := godotenv.Load(); err != nil {
+			// .env not found is not an error, just continue
+			logging.Debug("DEBUG: .env file not found, using environment variables")
+		} else {
+			logging.Debug("DEBUG: .env file loaded successfully")
 		}
 
+		logging.Info("DEBUG: About to load config", "cwd", cwd, "debug", debug)
+		cfg, err := config.Load(cwd, debug)
+		if err != nil {
+			logging.Error("DEBUG: Config load failed", "error", err)
+			return err
+		}
+		logging.Info("DEBUG: Config loaded successfully", "dataDir", cfg.Data.Directory)
+
 		// Connect DB, this will also run migrations
+		logging.Info("DEBUG: About to connect to database")
 		conn, err := db.Connect()
 		if err != nil {
 			return err
 		}
+		logging.Info("DEBUG: Database connected successfully")
 
 		// Create main context for the application
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
+		logging.Info("DEBUG: About to create app")
 		app, err := app.New(ctx, conn)
 		if err != nil {
 			logging.Error("Failed to create app: %v", err)
 			return err
 		}
+		logging.Info("DEBUG: App created successfully")
 		// Defer shutdown here so it runs for both interactive and non-interactive modes
 		defer app.Shutdown()
 
 		// Initialize MCP tools early for both modes
+		logging.Info("DEBUG: About to init MCP tools")
 		initMCPTools(ctx, app)
 
 		// Non-interactive mode
 		if prompt != "" {
 			// Run non-interactive flow using the App method
+			logging.Info("DEBUG: Running in non-interactive mode")
 			return app.RunNonInteractive(ctx, prompt, outputFormat, quiet)
 		}
 
 		// Interactive mode
 		// Set up the TUI
+		fmt.Fprintf(os.Stderr, "DEBUG: About to setup TUI - logging.Info call incoming\n")
+		logging.Info("DEBUG: About to setup TUI")
+		fmt.Fprintf(os.Stderr, "DEBUG: About to setup TUI - calling zone.NewGlobal()\n")
 		zone.NewGlobal()
+		fmt.Fprintf(os.Stderr, "DEBUG: zone.NewGlobal done - about to create tea.NewProgram\n")
 		program := tea.NewProgram(
 			tui.New(app),
 			tea.WithAltScreen(),
+			tea.WithMouseAllMotion(),
 		)
+		fmt.Fprintf(os.Stderr, "DEBUG: tea.NewProgram created, about to setup subscriptions\n")
 
 		// Setup the subscriptions, this will send services events to the TUI
+		logging.Info("DEBUG: About to setup subscriptions")
 		ch, cancelSubs := setupSubscriptions(app, ctx)
+		logging.Info("DEBUG: Subscriptions setup complete")
 
 		// Create a context for the TUI message handler
 		tuiCtx, tuiCancel := context.WithCancel(ctx)
@@ -170,8 +198,12 @@ to assist developers in writing, debugging, and understanding code directly from
 		}
 
 		// Run the TUI
+		logging.Info("DEBUG: About to run TUI program")
+		fmt.Fprintf(os.Stderr, "DEBUG: About to call program.Run()\n")
 		result, err := program.Run()
+		fmt.Fprintf(os.Stderr, "DEBUG: program.Run() returned, result=%v err=%v\n", result, err)
 		cleanup()
+		logging.Info("DEBUG: Cleanup done, TUI exited")
 
 		if err != nil {
 			logging.Error("TUI error: %v", err)
@@ -193,6 +225,7 @@ func attemptTUIRecovery(program *tea.Program) {
 }
 
 func initMCPTools(ctx context.Context, app *app.App) {
+	logging.Info("DEBUG: initMCPTools starting")
 	go func() {
 		defer logging.RecoverPanic("MCP-goroutine", nil)
 
@@ -201,9 +234,12 @@ func initMCPTools(ctx context.Context, app *app.App) {
 		defer cancel()
 
 		// Set this up once with proper error handling
+		logging.Info("DEBUG: initMCPTools about to call GetMcpTools")
 		agent.GetMcpTools(ctxWithTimeout, app.Permissions)
+		logging.Info("DEBUG: initMCPTools GetMcpTools completed")
 		logging.Info("MCP message handling goroutine exiting")
 	}()
+	logging.Info("DEBUG: initMCPTools goroutine started")
 }
 
 func setupSubscriber[T any](

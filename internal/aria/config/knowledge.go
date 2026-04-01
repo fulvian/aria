@@ -104,13 +104,14 @@ func (c KnowledgeConfig) IsConfigured() bool {
 }
 
 // DefaultKnowledgeConfig returns sensible defaults for knowledge agency configuration.
+// SECURITY: API keys must be provided via environment variables, never hardcoded.
 func DefaultKnowledgeConfig() KnowledgeConfig {
 	return KnowledgeConfig{
-		Enabled:           getEnvBool("ARIA_AGENCIES_KNOWLEDGE_ENABLED", false),
-		DefaultProvider:   getEnv("ARIA_KNOWLEDGE_DEFAULT_PROVIDER", "tavily"),
-		TavilyAPIKey:      getEnv("ARIA_KNOWLEDGE_TAVILY_API_KEY", "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"),
-		BraveAPIKey:       getEnv("ARIA_KNOWLEDGE_BRAVE_API_KEY", "BSAw-KXBGrbL9FabYJIyAvM8fIVcyR7"),
-		BingAPIKey:        getEnv("ARIA_KNOWLEDGE_BING_API_KEY", ""), // DEPRECATED - Bing Search API retired Mar 2025
+		Enabled:           getEnvBool("ARIA_AGENCIES_KNOWLEDGE_ENABLED", true), // Enabled by default
+		DefaultProvider:   getEnv("ARIA_KNOWLEDGE_DEFAULT_PROVIDER", "ddg"),    // DDG is free, no API key needed
+		TavilyAPIKey:      getEnv("ARIA_KNOWLEDGE_TAVILY_API_KEY", ""),         // Must be set via env var
+		BraveAPIKey:       getEnv("ARIA_KNOWLEDGE_BRAVE_API_KEY", ""),          // Must be set via env var
+		BingAPIKey:        getEnv("ARIA_KNOWLEDGE_BING_API_KEY", ""),           // DEPRECATED - Bing Search API retired Mar 2025
 		MaxSearchResults:  getEnvInt("ARIA_KNOWLEDGE_MAX_SEARCH_RESULTS", 10),
 		SearchTimeoutMs:   getEnvInt("ARIA_KNOWLEDGE_SEARCH_TIMEOUT_MS", 30000),
 		MaxRetries:        getEnvInt("ARIA_KNOWLEDGE_MAX_RETRIES", 2),
@@ -142,14 +143,14 @@ func DefaultKnowledgeConfig() KnowledgeConfig {
 		EnableYouCom:   getEnvBool("ARIA_KNOWLEDGE_ENABLE_YOUCOM", false),  // Requires API key
 		YouComAPIKey:   getEnv("ARIA_KNOWLEDGE_YOUCOM_API_KEY", ""),
 		EnableContext7: getEnvBool("ARIA_KNOWLEDGE_ENABLE_CONTEXT7", true), // Free tier available
-		Context7APIKey: getEnv("ARIA_KNOWLEDGE_CONTEXT7_API_KEY", "ctx7sk-0d07ef24-4690-437f-9ce7-5466c90cd270"),
+		Context7APIKey: getEnv("ARIA_KNOWLEDGE_CONTEXT7_API_KEY", ""),      // Must be set via env var
 		// News archive providers (free tier)
-		EnableTheNewsAPI:         getEnvBool("ARIA_KNOWLEDGE_ENABLE_THENEWSAPI", true), // 100% free!
-		TheNewsAPIAPIKey:         getEnv("ARIA_KNOWLEDGE_THENEWSAPI_API_KEY", "dp7Fmae9PFTWw3bEz4WqVS6GkxYwH8gBSuHhhiJi"),
-		EnableNewsData:           getEnvBool("ARIA_KNOWLEDGE_ENABLE_NEWDATA", true), // 7 years historical
-		NewsDataAPIKey:           getEnv("ARIA_KNOWLEDGE_NEWDATA_API_KEY", "pub_2d83fe9cda1b49d68934359e29872ccd"),
-		EnableGNews:              getEnvBool("ARIA_KNOWLEDGE_ENABLE_GNEWS", true), // 6 years historical
-		GNewsAPIKey:              getEnv("ARIA_KNOWLEDGE_GNEWS_API_KEY", "1c12e3261f6a08bad2c54f8552a5a63f"),
+		EnableTheNewsAPI:         getEnvBool("ARIA_KNOWLEDGE_ENABLE_THENEWSAPI", true),         // 100% free!
+		TheNewsAPIAPIKey:         getEnv("ARIA_KNOWLEDGE_THENEWSAPI_API_KEY", ""),              // Must be set via env var
+		EnableNewsData:           getEnvBool("ARIA_KNOWLEDGE_ENABLE_NEWDATA", true),            // 7 years historical
+		NewsDataAPIKey:           getEnv("ARIA_KNOWLEDGE_NEWDATA_API_KEY", ""),                 // Must be set via env var
+		EnableGNews:              getEnvBool("ARIA_KNOWLEDGE_ENABLE_GNEWS", true),              // 6 years historical
+		GNewsAPIKey:              getEnv("ARIA_KNOWLEDGE_GNEWS_API_KEY", ""),                   // Must be set via env var
 		EnableChroniclingAmerica: getEnvBool("ARIA_KNOWLEDGE_ENABLE_CHRONICLINGAMERICA", true), // NO KEY NEEDED
 		DefaultLanguage:          getEnv("ARIA_KNOWLEDGE_DEFAULT_LANGUAGE", "en"),
 		DefaultRegion:            getEnv("ARIA_KNOWLEDGE_DEFAULT_REGION", "US"),

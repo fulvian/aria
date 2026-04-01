@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -51,6 +52,7 @@ type App struct {
 }
 
 func New(ctx context.Context, conn *sql.DB) (*App, error) {
+	logging.Info("DEBUG app.New: Starting")
 	q := db.New(conn)
 	sessions := session.NewService(q)
 	messages := message.NewService(q)
@@ -64,14 +66,21 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 		DB:          q,
 		LSPClients:  make(map[string]*lsp.Client),
 	}
+	logging.Info("DEBUG app.New: App struct created")
 
 	// Initialize theme based on configuration
+	logging.Info("DEBUG app.New: About to initTheme")
 	app.initTheme()
+	logging.Info("DEBUG app.New: initTheme done")
 
 	// Initialize LSP clients in the background
+	logging.Info("DEBUG app.New: About to start initLSPClients goroutine")
 	go app.initLSPClients(ctx)
+	logging.Info("DEBUG app.New: initLSPClients goroutine started")
 
 	var err error
+	fmt.Fprintf(os.Stderr, "DEBUG app.New: About to create CoderAgent\n")
+	logging.Info("DEBUG app.New: About to create CoderAgent")
 	app.CoderAgent, err = agent.NewAgent(
 		config.AgentCoder,
 		app.Sessions,
@@ -85,15 +94,23 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 		),
 	)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "DEBUG app.New: Failed to create coder agent: %v\n", err)
 		logging.Error("Failed to create coder agent", err)
 		return nil, err
 	}
+	fmt.Fprintf(os.Stderr, "DEBUG app.New: CoderAgent created successfully\n")
+	logging.Info("DEBUG app.New: CoderAgent created successfully")
 
 	// Initialize ARIA if enabled
+	fmt.Fprintf(os.Stderr, "DEBUG app.New: About to call initARIA\n")
+	logging.Info("DEBUG app.New: About to call initARIA")
 	if err := app.initARIA(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "DEBUG app.New: Failed to initialize ARIA: %v\n", err)
 		logging.Error("Failed to initialize ARIA", err)
 		// Continue in legacy mode even if ARIA init fails
 	}
+	fmt.Fprintf(os.Stderr, "DEBUG app.New: initARIA done (or continued in legacy mode)\n")
+	logging.Info("DEBUG app.New: initARIA done (or continued in legacy mode)")
 
 	return app, nil
 }
