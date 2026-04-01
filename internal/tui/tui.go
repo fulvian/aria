@@ -356,6 +356,12 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.showModelDialog = false
 		return a, nil
 
+	case dialog.OpenModelDialogMsg:
+		if a.currentPage == page.ChatPage && !a.showQuit && !a.showPermissions && !a.showSessionDialog && !a.showCommandDialog {
+			a.showModelDialog = true
+		}
+		return a, nil
+
 	case dialog.ModelSelectedMsg:
 		a.showModelDialog = false
 

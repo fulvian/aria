@@ -29,6 +29,9 @@ type ModelSelectedMsg struct {
 // CloseModelDialogMsg is sent when a model is selected
 type CloseModelDialogMsg struct{}
 
+// OpenModelDialogMsg is sent to open the model selection dialog
+type OpenModelDialogMsg struct{}
+
 // ModelDialog interface for the model selection dialog
 type ModelDialog interface {
 	tea.Model
