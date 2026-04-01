@@ -12,16 +12,36 @@ ARIA è un'applicazione CLI Go che porta l'assistenza AI nel terminale. Fornisce
 
 ### ARIA Mode (Agency Architecture)
 
-ARIA include una **Agency Architecture** sperimentale che abilita domini specializzati:
+ARIA include una **Agency Architecture** completa che abilita domini specializzati con routing intelligente:
 
 - **Development Agency**: Coding, devops, testing
 - **Weather Agency**: Previsioni meteo e alert
-- **Nutrition Agency** ⭐ NEW: Ricette, nutrizione, piani alimentari, sicurezza alimentare
+- **Nutrition Agency**: Ricette, nutrizione, piani alimentari, sicurezza alimentare
+- **Knowledge Agency** ⭐ NEW: Ricerca web, accademica, news, synthesis intelligent
 
-Per abilitare ARIA Mode:
+#### Smart Routing
+
+ARIA usa un sistema di **semantic routing** per instradare automaticamente le query all'agenzia più appropriata:
+
+- **LLM-based classification**: Classificazione intelligente di intent e domain
+- **Cosine similarity**: Routing basato su similarità semantica
+- **Memory-driven adaptation**: Il sistema impara dai feedback per migliorare il routing
+
+#### Knowledge Agency Features
+
+Il Knowledge Agency permette ricerche web intelligenti con:
+
+- **Multi-provider fallback**: Tavily, Brave, DuckDuckGo, Wikipedia, arXiv, PubMed, etc.
+- **Quality gates**: Citation validation, contradiction detection
+- **Memory integration**: apprendimento dalle ricerche precedenti
+- **Synthesis intelligent**: Aggregazione risultati da multiple fonti
+
+Per configurare le API keys, crea un file `.env` nella directory di lavoro:
+
 ```bash
-source .env
-aria
+cp .env.example .env
+# Edit .env and add your API keys
+aria -p "cerca informazioni su..."
 ```
 
 ## Features
@@ -404,6 +424,20 @@ The output format is implemented as a strongly-typed `OutputFormat` in the codeb
 | `Ctrl+X` | Cancel current operation/generation     |
 | `i`      | Focus editor (when not in writing mode) |
 | `Esc`    | Exit writing mode and focus messages    |
+
+### Message Scrolling
+
+When the conversation content exceeds the visible area, use these shortcuts to scroll through messages:
+
+| Shortcut          | Action                |
+| ----------------- | --------------------- |
+| `↑` or `k`        | Scroll up one line    |
+| `↓` or `j`        | Scroll down one line  |
+| `PgUp` or `f`     | Scroll up one page    |
+| `PgDn` or `b`     | Scroll down one page  |
+| `Ctrl+U`          | Scroll up half a page |
+| `Ctrl+D`          | Scroll down half page |
+| Mouse wheel       | Scroll up/down        |
 
 ### Editor Shortcuts
 

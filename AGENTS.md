@@ -9,20 +9,45 @@ Bubble Tea, supports multiple LLM providers (Anthropic, OpenAI, Gemini, Copilot,
 Azure, VertexAI, OpenRouter, Groq, XAI), and uses SQLite for persistence via sqlc-generated
 query code.
 
+## ARIA Agency Architecture
+
+ARIA implements a hierarchical multi-agent architecture:
+
+```
+Orchestrator (Core)
+├── Development Agency (coding, devops, testing)
+├── Weather Agency (meteo, alerts)
+├── Nutrition Agency (recipes, nutrition, meal plans)
+└── Knowledge Agency (web search, research, synthesis)
+    ├── SemanticRouter (cosine similarity routing)
+    ├── TaskRouter (keyword + semantic fallback)
+    ├── Agents (web-search, academic, news, code, historical)
+    └── ResultSynthesizer (quality gates, citation validation)
+```
+
+### Knowledge Agency
+
+The Knowledge Agency provides intelligent web search and research capabilities:
+
+- **Semantic Routing**: Uses embeddings for intelligent task classification
+- **Multi-provider Chain**: Tavily, Brave, DuckDuckGo, Wikipedia, arXiv, PubMed, Semantic Scholar, etc.
+- **Quality Gates**: Citation validation, contradiction detection
+- **Memory Integration**: Learns from previous searches
+
 ## Build, Lint, and Test Commands
 
 ### Build
 
 ```bash
-go build -o opencode ./main.go
+go build -o aria ./main.go
 ```
 
 ### Run
 
 ```bash
-go run ./main.go              # Interactive TUI mode
-go run ./main.go -d           # Debug mode
-go run ./main.go -p "prompt"  # Non-interactive mode
+./aria              # Interactive TUI mode
+./aria -d           # Debug mode
+./aria -p "prompt"  # Non-interactive mode
 ```
 
 ### Test
@@ -58,7 +83,19 @@ main.go                  # Entry point; calls cmd.Execute()
 cmd/                     # Cobra CLI commands (root.go)
 internal/
   app/                   # App initialization, LSP, shutdown
-  config/                # Configuration loading (Viper + JSON + env vars)
+  aria/                   # ARIA Agency Architecture
+    agency/              # Agency implementations (knowledge, development, weather, nutrition)
+    config/              # ARIA-specific configuration
+    core/                # Orchestrator, pipeline, routing
+    memory/               # Working, episodic, semantic, procedural memory
+    routing/             # Query classification, policy routing, capability registry
+    scheduler/           # Task scheduling and dispatching
+    skill/               # Skill registry and implementations
+    guardrail/           # Safety guardrails
+    permission/           # Permission service
+    analysis/            # Self-analysis service
+    toolgovernance/      # Tool governance with Allow/Ask/Deny policies
+  config/                # Main configuration loading (Viper + JSON + env vars)
   db/                    # SQLite connection, sqlc-generated code, migrations
   diff/                  # Diff utilities
   fileutil/              # File utilities
@@ -86,7 +123,8 @@ internal/
   version/               # Version info (set at build time via ldflags)
 scripts/                 # Release and utility shell scripts
 sqlc.yaml                # sqlc configuration
-.opencode.json           # Project-level OpenCode config
+.env                     # Environment variables (API keys, etc.)
+ARIA.md                  # ARIA memory guidance file
 ```
 
 ## Code Style Guidelines
