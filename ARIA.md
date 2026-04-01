@@ -1,5 +1,32 @@
 # ARIA - Note Persistenti
 
+## Ultime Modifiche (2026-04-01)
+
+### Universal Startup System
+- Sistema di health check e auto-recovery per lo startup
+- 4 fasi: PRE-FLIGHT → CORE SERVICES → ARIA COMPONENTS → OPTIONAL SERVICES
+- Circuit breaker per LLM provider calls
+- Status tracker atomico con supporto subscription
+- UI components per visualizzazione status
+- Flag `--startup-debug` per debug dello startup
+
+```bash
+# Run con startup debug (mostra health check status)
+aria --startup-debug
+```
+
+### File creati
+- `internal/startup/` - Core startup system
+  - `checker.go` - Checker interface
+  - `status.go` - StatusTracker
+  - `circuitbreaker.go` - Circuit breaker
+  - `bootstrap.go` - BootstrapManager
+  - `startup_tui.go` - TUI components
+  - `recovery.go` - RecoveryManager
+  - `checkers/` - Service-specific checkers
+
+---
+
 ## Utente
 - **Nome**: Fulvio
 - **Età**: 45 anni

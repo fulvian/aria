@@ -15,6 +15,8 @@ import (
 	"github.com/fulvian/aria/internal/llm/agent"
 	"github.com/fulvian/aria/internal/logging"
 	"github.com/fulvian/aria/internal/pubsub"
+	"github.com/fulvian/aria/internal/startup"
+	"github.com/fulvian/aria/internal/startup/checkers"
 	"github.com/fulvian/aria/internal/tui"
 	"github.com/fulvian/aria/internal/version"
 	"github.com/joho/godotenv"
@@ -60,6 +62,7 @@ to assist developers in writing, debugging, and understanding code directly from
 
 		// Load the config
 		debug, _ := cmd.Flags().GetBool("debug")
+		startupDebug, _ := cmd.Flags().GetBool("startup-debug")
 		logging.Info("DEBUG: Starting initialization")
 		cwd, _ := cmd.Flags().GetString("cwd")
 		prompt, _ := cmd.Flags().GetString("prompt")
@@ -100,6 +103,21 @@ to assist developers in writing, debugging, and understanding code directly from
 			return err
 		}
 		logging.Info("DEBUG: Config loaded successfully", "dataDir", cfg.Data.Directory)
+
+		// Run bootstrap health checks if startup-debug is enabled
+		var statusTracker *startup.StatusTracker
+		if startupDebug {
+			logging.Info("Running startup health checks...")
+			statusTracker, err = runBootstrap(context.Background(), cwd, debug)
+			if err != nil {
+				logging.Error("Startup health checks failed", "error", err)
+				// Continue anyway - this is a debug feature
+			} else {
+				// Log status summary
+				view := startup.NewStartupStatusView(statusTracker)
+				logging.Info("Startup status:\n" + view.Render())
+			}
+		}
 
 		// Connect DB, this will also run migrations
 		logging.Info("DEBUG: About to connect to database")
@@ -317,6 +335,36 @@ func setupSubscriptions(app *app.App, parentCtx context.Context) (chan tea.Msg, 
 	return ch, cleanupFunc
 }
 
+// runBootstrap runs the startup health checks using BootstrapManager.
+// Returns the StatusTracker for UI integration.
+func runBootstrap(ctx context.Context, cwd string, debug bool) (*startup.StatusTracker, error) {
+	// Create checkers for each service
+	checkersList := []startup.Checker{
+		checkers.NewConfigChecker(cwd, debug),
+		checkers.NewDataDirChecker(cwd, debug),
+		checkers.NewDatabaseChecker(),
+		checkers.NewLLMProviderChecker(cwd, debug),
+		checkers.NewMemoryChecker(),
+		checkers.NewLSPChecker(),
+		checkers.NewMCPChecker(),
+	}
+
+	// Create and configure the bootstrap manager
+	manager := startup.NewBootstrapManager(checkersList)
+
+	// Create a cancellable context for bootstrap
+	bootstrapCtx, cancel := context.WithTimeout(ctx, 120*time.Second)
+	defer cancel()
+
+	// Run bootstrap
+	if err := manager.Bootstrap(bootstrapCtx); err != nil {
+		return manager.StatusTracker(), fmt.Errorf("bootstrap failed: %w", err)
+	}
+
+	logging.Info("Bootstrap completed successfully")
+	return manager.StatusTracker(), nil
+}
+
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
@@ -337,6 +385,9 @@ func init() {
 
 	// Add quiet flag to hide spinner in non-interactive mode
 	rootCmd.Flags().BoolP("quiet", "q", false, "Hide spinner in non-interactive mode")
+
+	// Add startup-debug flag to show detailed startup status
+	rootCmd.Flags().BoolP("startup-debug", "", false, "Show detailed startup status")
 
 	// Register custom validation for the format flag
 	rootCmd.RegisterFlagCompletionFunc("output-format", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {

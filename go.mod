@@ -33,7 +33,11 @@ require (
 	github.com/stretchr/testify v1.10.0
 )
 
-require github.com/joho/godotenv v1.5.1 // indirect
+require (
+	github.com/cenkalti/backoff/v5 v5.0.0 // indirect
+	github.com/joho/godotenv v1.5.1 // indirect
+	github.com/sony/gobreaker v0.5.0 // indirect
+)
 
 require (
 	cloud.google.com/go v0.116.0 // indirect

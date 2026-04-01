@@ -4,7 +4,30 @@
 ---
 
 ## Current Status
-**WS-A/B/C/D (P0) + WS-E/H/I/G (P1) - COMPLETED** ✅ | WS-J (P2) IN PROGRESS
+**WS-A/B/C/D (P0) + WS-E/H/I/G (P1) - COMPLETED** ✅ | WS-J (P2) COMPLETED ✅ | **UNIVERSAL STARTUP SYSTEM - IN PROGRESS**
+
+## NEW: Universal Startup System (2026-04-01)
+Based on: `docs/startup/STARTUP_PLAN.md`
+
+### Scope
+Implement health check e auto-recovery per startup:
+- Checker interface con priority-based initialization
+- 4 fasi: PRE-FLIGHT → CORE SERVICES → ARIA COMPONENTS → OPTIONAL SERVICES
+- Circuit breaker per LLM provider calls
+- Status tracker atomico per UI
+- Recovery manager
+
+### Deliverables
+| Fase | Contenuto | Status |
+|------|-----------|--------|
+| Phase 1 | checker.go, status.go, circuitbreaker.go, bootstrap.go | pending |
+| Phase 2 | checkers/config.go, database.go, llm_provider.go, memory.go, lsp.go, mcp.go | pending |
+| Phase 3 | startup.tui.go, cmd/root.go integration | pending |
+
+### Dependencies
+- `github.com/sony/gobreaker`
+- `github.com/cenkalti/backoff`
+- `golang.org/x/sync/errgroup` (già disponibile)
 
 Based on: `docs/plans/2026-03-30-aria-production-ready-implementation-plan.md`
 
