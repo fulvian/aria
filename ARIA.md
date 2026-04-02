@@ -113,6 +113,23 @@ Output: modifiche principali + verifiche + rischi/limiti residui
 - Evitare force push su main/master.
 - Non includere file sensibili (`.env`, credenziali, token) nei commit.
 - Preferire commit atomici e messaggi orientati al “perché”.
+## Funzionalità TUI - Copia-incolla messaggi Chat
+### Problema
+I terminali moderni con Bubble Tea mouse mode attivo non permettono la selezione nativa del testo (è un limite dei terminali - quando il mouse è intercettato dall'applicazione TUI, il terminale non può gestire la selezione).
+
+### Soluzione implementata
+- **Scroll con mouse wheel**: Sempre attivo, gestito dal viewport Bubble Tea
+- **Copia su click**: Cliccando su un messaggio con il tasto sinistro, il testo viene copiato negli appunti
+- **Meccanismo**: Uso delle escape sequences OSC 52 (standard terminale) per copiare in clipboard
+
+### File coinvolti
+- `internal/tui/components/chat/list.go` - Logica di copia e viewport
+- `internal/tui/components/chat/message.go` - Funzione `stripANSI()` e campo `plainContent`
+
+### Limitazioni note
+- La selezione drag-and-drop non è supportata
+- OSC 52 deve essere supportato dal terminale (funziona su gnome-terminal, iTerm2, Konsole, Ghostty, etc.)
+
 ## Politica aggiornamento ARIA.md (obbligatoria)
 Aggiornare questo file quando emergono:
 - nuovi comandi affidabili di verifica o build;

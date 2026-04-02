@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -20,6 +21,14 @@ import (
 	"github.com/fulvian/aria/internal/tui/theme"
 )
 
+// ansiEscapeRegex matches ANSI escape sequences
+var ansiEscapeRegex = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
+
+// stripANSI removes ANSI escape sequences from text
+func stripANSI(text string) string {
+	return ansiEscapeRegex.ReplaceAllString(text, "")
+}
+
 type uiMessageType int
 
 const (
@@ -31,11 +40,12 @@ const (
 )
 
 type uiMessage struct {
-	ID          string
-	messageType uiMessageType
-	position    int
-	height      int
-	content     string
+	ID           string
+	messageType  uiMessageType
+	position     int
+	height       int
+	content      string
+	plainContent string // Plain text without ANSI escape codes for copying
 }
 
 func toMarkdown(content string, focused bool, width int) string {
@@ -103,12 +113,14 @@ func renderUserMessage(msg message.Message, isFocused bool, width int, position 
 	} else {
 		content = renderMessage(msg.Content().String(), true, isFocused, width)
 	}
+	plainContent := msg.Content().String()
 	userMsg := uiMessage{
-		ID:          msg.ID,
-		messageType: userMessageType,
-		position:    position,
-		height:      lipgloss.Height(content),
-		content:     content,
+		ID:           msg.ID,
+		messageType:  userMessageType,
+		position:     position,
+		height:       lipgloss.Height(content),
+		content:      content,
+		plainContent: plainContent,
 	}
 	return userMsg
 }
@@ -175,11 +187,12 @@ func renderAssistantMessage(
 
 		content = renderMessage(content, false, true, width, info...)
 		messages = append(messages, uiMessage{
-			ID:          msg.ID,
-			messageType: assistantMessageType,
-			position:    position,
-			height:      lipgloss.Height(content),
-			content:     content,
+			ID:           msg.ID,
+			messageType:  assistantMessageType,
+			position:     position,
+			height:       lipgloss.Height(content),
+			content:      content,
+			plainContent: content, // Will be stripped of ANSI codes when copying
 		})
 		position += messages[0].height
 		position++ // for the space

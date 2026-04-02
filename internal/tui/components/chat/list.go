@@ -2,8 +2,10 @@ package chat
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"math"
+	"os"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -36,6 +38,13 @@ type messagesCmp struct {
 	spinner       spinner.Model
 	rendering     bool
 	attachments   viewport.Model
+
+	// Text selection state
+	selecting         bool
+	selectionStartY   int
+	selectionEndY     int
+	selectionStartMsg int
+	selectionEndMsg   int
 }
 type renderFinishedMsg struct{}
 
@@ -113,6 +122,18 @@ func (m *messagesCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			u, cmd := m.viewport.Update(msg)
 			m.viewport = u
 			cmds = append(cmds, cmd)
+		}
+		// Handle click to copy message text
+		if msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress {
+			m.selectionStartY = msg.Y
+			m.selecting = true
+		} else if msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionRelease && m.selecting {
+			m.selectionEndY = msg.Y
+			m.selecting = false
+			// Copy the message at click position
+			if cmd := m.copyMessageAtY(msg.Y); cmd != nil {
+				cmds = append(cmds, cmd)
+			}
 		}
 
 	case renderFinishedMsg:
@@ -507,5 +528,48 @@ func NewMessagesCmp(app *app.App) tea.Model {
 		viewport:      vp,
 		spinner:       s,
 		attachments:   attachmets,
+	}
+}
+
+// copyMessageAtY finds the message at the given Y coordinate and copies its plain text to clipboard
+func (m *messagesCmp) copyMessageAtY(y int) tea.Cmd {
+	if len(m.uiMessages) == 0 {
+		return nil
+	}
+
+	// Y is relative to the viewport content
+	// Adjust for viewport scroll offset
+	absoluteY := m.viewport.YOffset + y
+
+	// Find the uiMessage that contains this Y coordinate
+	for _, uiMsg := range m.uiMessages {
+		if absoluteY >= uiMsg.position && absoluteY < uiMsg.position+uiMsg.height {
+			// Found the message - extract plain text and copy to clipboard
+			plainText := uiMsg.plainContent
+			if plainText == "" {
+				// Fallback: strip ANSI codes from styled content
+				plainText = stripANSI(uiMsg.content)
+			}
+			if plainText != "" {
+				// Use OSC 52 escape sequence to copy to clipboard
+				return copyToClipboardCmd(plainText)
+			}
+			break
+		}
+	}
+	return nil
+}
+
+// copyToClipboardCmd creates a command that copies text to the system clipboard using OSC 52
+func copyToClipboardCmd(text string) tea.Cmd {
+	return func() tea.Msg {
+		// Encode text as base64
+		encoded := base64.StdEncoding.EncodeToString([]byte(text))
+		// OSC 52 escape sequence: ESC ] 52 ; c ; BASE64_TEXT BEL
+		sequence := fmt.Sprintf("\x1b]52;c;%s\x07", encoded)
+		// Write directly to stdout (the terminal)
+		os.Stdout.Write([]byte(sequence))
+		os.Stdout.Sync()
+		return nil
 	}
 }
