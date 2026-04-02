@@ -118,17 +118,23 @@ Output: modifiche principali + verifiche + rischi/limiti residui
 I terminali moderni con Bubble Tea mouse mode attivo non permettono la selezione nativa del testo (è un limite dei terminali - quando il mouse è intercettato dall'applicazione TUI, il terminale non può gestire la selezione).
 
 ### Soluzione implementata
-- **Scroll con mouse wheel**: Sempre attivo, gestito dal viewport Bubble Tea
-- **Copia su click**: Cliccando su un messaggio con il tasto sinistro, il testo viene copiato negli appunti
-- **Meccanismo**: Uso delle escape sequences OSC 52 (standard terminale) per copiare in clipboard
+- **Toggle mouse mode** (`ctrl+m`): Premendo ctrl+m si disabilita/abilita il mouse mode
+  - Mouse mode OFF → selezione nativa del terminale funziona
+  - Mouse mode ON → scroll wheel e click-to-copy funzionano
+- **Scroll con mouse wheel**: Attivo quando mouse mode è ON
+- **Copia su click**: Cliccando su un messaggio (mouse mode ON), il testo viene copiato negli appunti
+- **Meccanismo clipboard**: Uso delle escape sequences OSC 52 per copiare in clipboard
 
 ### File coinvolti
-- `internal/tui/components/chat/list.go` - Logica di copia e viewport
+- `cmd/root.go` - Rimosso WithMouseAllMotion(), mouse gestito nel TUI
+- `internal/tui/tui.go` - EnableMouseAllMotion/DisableMouse via toggle
+- `internal/tui/components/chat/list.go` - Logica di copia, viewport, help text
 - `internal/tui/components/chat/message.go` - Funzione `stripANSI()` e campo `plainContent`
 
 ### Limitazioni note
 - La selezione drag-and-drop non è supportata
 - OSC 52 deve essere supportato dal terminale (funziona su gnome-terminal, iTerm2, Konsole, Ghostty, etc.)
+- Il toggle `ctrl+m` cambia globalmente il comportamento del mouse nell'applicazione
 
 ## Politica aggiornamento ARIA.md (obbligatoria)
 Aggiornare questo file quando emergono:
