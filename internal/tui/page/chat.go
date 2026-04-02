@@ -125,10 +125,18 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		p.completionDialog = context.(dialog.CompletionDialog)
 		cmds = append(cmds, contextCmd)
 
-		// Doesn't forward event if enter key is pressed
+		// Only block enter if completion dialog has text to complete
+		// If no text, let the event propagate to allow normal message sending
 		if keyMsg, ok := msg.(tea.KeyMsg); ok {
 			if keyMsg.String() == "enter" {
-				return p, tea.Batch(cmds...)
+				// Check if completion dialog has query text
+				// If empty, close dialog and allow normal message sending
+				if !p.completionDialog.HasQuery() {
+					p.showCompletionDialog = false
+					// Don't return early - let the event propagate to layout/editor
+				} else {
+					return p, tea.Batch(cmds...)
+				}
 			}
 		}
 	}

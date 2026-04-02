@@ -80,6 +80,7 @@ type CompletionDialog interface {
 	tea.Model
 	layout.Bindings
 	SetWidth(width int)
+	HasQuery() bool
 }
 
 type completionDialogCmp struct {
@@ -238,6 +239,10 @@ func (c *completionDialogCmp) SetWidth(width int) {
 
 func (c *completionDialogCmp) BindingKeys() []key.Binding {
 	return layout.KeyMapToSlice(completionDialogKeys)
+}
+
+func (c *completionDialogCmp) HasQuery() bool {
+	return c.query != ""
 }
 
 func NewCompletionDialogCmp(completionProvider CompletionProvider) CompletionDialog {
