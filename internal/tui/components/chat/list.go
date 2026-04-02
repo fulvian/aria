@@ -433,7 +433,9 @@ func (m *messagesCmp) help() string {
 			baseStyle.Foreground(t.Text()).Bold(true).Render(" pgup/pgdn"),
 			baseStyle.Foreground(t.TextMuted()).Bold(true).Render(" or "),
 			baseStyle.Foreground(t.Text()).Bold(true).Render("↑/↓"),
-			baseStyle.Foreground(t.TextMuted()).Bold(true).Render(" to scroll"),
+			baseStyle.Foreground(t.TextMuted()).Bold(true).Render(" to scroll,"),
+			baseStyle.Foreground(t.Text()).Bold(true).Render(" ctrl+m"),
+			baseStyle.Foreground(t.TextMuted()).Bold(true).Render(" to toggle text selection"),
 		)
 	}
 	return baseStyle.

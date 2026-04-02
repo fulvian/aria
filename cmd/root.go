@@ -159,7 +159,6 @@ to assist developers in writing, debugging, and understanding code directly from
 		program := tea.NewProgram(
 			tui.New(app),
 			tea.WithAltScreen(),
-			tea.WithMouseAllMotion(),
 		)
 		fmt.Fprintf(os.Stderr, "DEBUG: tea.NewProgram created, about to setup subscriptions\n")
 

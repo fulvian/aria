@@ -33,6 +33,7 @@ type keyMap struct {
 	Filepicker    key.Binding
 	Models        key.Binding
 	SwitchTheme   key.Binding
+	ToggleMouse   key.Binding
 }
 
 type startCompactSessionMsg struct{}
@@ -77,6 +78,11 @@ var keys = keyMap{
 	SwitchTheme: key.NewBinding(
 		key.WithKeys("ctrl+t"),
 		key.WithHelp("ctrl+t", "switch theme"),
+	),
+
+	ToggleMouse: key.NewBinding(
+		key.WithKeys("ctrl+m"),
+		key.WithHelp("ctrl+m", "toggle text selection"),
 	),
 }
 
@@ -138,6 +144,8 @@ type appModel struct {
 
 	isCompacting      bool
 	compactingMessage string
+
+	mouseEnabled bool // Track mouse mode state for text selection toggle
 }
 
 func (a appModel) Init() tea.Cmd {
@@ -163,6 +171,9 @@ func (a appModel) Init() tea.Cmd {
 	cmds = append(cmds, cmd)
 	cmd = a.themeDialog.Init()
 	cmds = append(cmds, cmd)
+
+	// Enable mouse mode for scroll and click handling
+	cmds = append(cmds, tea.EnableMouseAllMotion)
 
 	// Check if we should show the init dialog
 	cmds = append(cmds, func() tea.Msg {
@@ -575,6 +586,13 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.showFilepicker = !a.showFilepicker
 			a.filepicker.ToggleFilepicker(a.showFilepicker)
 			return a, nil
+		case key.Matches(msg, keys.ToggleMouse):
+			// Toggle mouse mode to enable/disable native text selection
+			a.mouseEnabled = !a.mouseEnabled
+			if a.mouseEnabled {
+				return a, tea.EnableMouseAllMotion
+			}
+			return a, tea.DisableMouse
 		}
 	default:
 		f, filepickerCmd := a.filepicker.Update(msg)
