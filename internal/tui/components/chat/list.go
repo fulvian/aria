@@ -26,6 +26,13 @@ type cacheItem struct {
 	width   int
 	content []uiMessage
 }
+
+// SelectionModeMsg toggles keyboard selection mode
+type SelectionModeMsg bool
+
+// CopySelectedMsg triggers copy of the currently selected message
+type CopySelectedMsg struct{}
+
 type messagesCmp struct {
 	app           *app.App
 	width, height int
@@ -40,11 +47,11 @@ type messagesCmp struct {
 	attachments   viewport.Model
 
 	// Text selection state
-	selecting         bool
-	selectionStartY   int
-	selectionEndY     int
-	selectionStartMsg int
-	selectionEndMsg   int
+	selectionMode   bool // True when keyboard selection is active (Tab pressed)
+	selectedIndex   int  // Index of the selected message in uiMessages
+	selecting       bool
+	selectionStartY int
+	selectionEndY   int
 }
 type renderFinishedMsg struct{}
 
@@ -55,6 +62,9 @@ type MessageKeys struct {
 	HalfPageDown key.Binding
 	Up           key.Binding
 	Down         key.Binding
+	SelectPrev   key.Binding
+	SelectNext   key.Binding
+	CopySelected key.Binding
 }
 
 var messageKeys = MessageKeys{
@@ -82,6 +92,18 @@ var messageKeys = MessageKeys{
 		key.WithKeys("down", "j"),
 		key.WithHelp("↓/j", "scroll down"),
 	),
+	SelectPrev: key.NewBinding(
+		key.WithKeys("shift+up"),
+		key.WithHelp("shift+↑", "prev"),
+	),
+	SelectNext: key.NewBinding(
+		key.WithKeys("shift+down"),
+		key.WithHelp("shift+↓", "next"),
+	),
+	CopySelected: key.NewBinding(
+		key.WithKeys("c"),
+		key.WithHelp("c", "copy"),
+	),
 }
 
 func (m *messagesCmp) Init() tea.Cmd {
@@ -105,12 +127,73 @@ func (m *messagesCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.messages = make([]message.Message, 0)
 		m.currentMsgID = ""
 		m.rendering = false
+		m.selectionMode = false
+		m.selectedIndex = -1
 		return m, nil
 
+	case SelectionModeMsg:
+		m.selectionMode = bool(msg)
+		if m.selectionMode && len(m.uiMessages) > 0 {
+			// Start with the last message selected
+			m.selectedIndex = len(m.uiMessages) - 1
+		} else {
+			m.selectedIndex = -1
+		}
+		return m, nil
+
+	case CopySelectedMsg:
+		if m.selectedIndex >= 0 && m.selectedIndex < len(m.uiMessages) {
+			uiMsg := m.uiMessages[m.selectedIndex]
+			plainText := uiMsg.plainContent
+			if plainText == "" {
+				plainText = stripANSI(uiMsg.content)
+			}
+			if plainText != "" {
+				cmds = append(cmds, copyToClipboardCmd(plainText))
+			}
+		}
+		return m, tea.Batch(cmds...)
+
 	case tea.KeyMsg:
-		if key.Matches(msg, messageKeys.PageUp) || key.Matches(msg, messageKeys.PageDown) ||
+		// Handle selection mode keys first (only when selectionMode is active)
+		if m.selectionMode {
+			switch {
+			case key.Matches(msg, messageKeys.SelectPrev):
+				// Move selection to previous message
+				if m.selectedIndex > 0 {
+					m.selectedIndex--
+					// Scroll to show selected message
+					m.scrollToSelected()
+				}
+				return m, nil
+			case key.Matches(msg, messageKeys.SelectNext):
+				// Move selection to next message
+				if m.selectedIndex < len(m.uiMessages)-1 {
+					m.selectedIndex++
+					// Scroll to show selected message
+					m.scrollToSelected()
+				}
+				return m, nil
+			case key.Matches(msg, messageKeys.CopySelected):
+				// Copy the selected message
+				if m.selectedIndex >= 0 && m.selectedIndex < len(m.uiMessages) {
+					uiMsg := m.uiMessages[m.selectedIndex]
+					plainText := uiMsg.plainContent
+					if plainText == "" {
+						plainText = stripANSI(uiMsg.content)
+					}
+					if plainText != "" {
+						cmds = append(cmds, copyToClipboardCmd(plainText))
+					}
+				}
+				return m, tea.Batch(cmds...)
+			}
+		}
+
+		// Normal viewport navigation (only when NOT in selection mode)
+		if !m.selectionMode && (key.Matches(msg, messageKeys.PageUp) || key.Matches(msg, messageKeys.PageDown) ||
 			key.Matches(msg, messageKeys.HalfPageUp) || key.Matches(msg, messageKeys.HalfPageDown) ||
-			key.Matches(msg, messageKeys.Up) || key.Matches(msg, messageKeys.Down) {
+			key.Matches(msg, messageKeys.Up) || key.Matches(msg, messageKeys.Down)) {
 			u, cmd := m.viewport.Update(msg)
 			m.viewport = u
 			cmds = append(cmds, cmd)
@@ -502,8 +585,33 @@ func (m *messagesCmp) SetSession(session session.Session) tea.Cmd {
 	}
 }
 
+// scrollToSelected scrolls the viewport to show the currently selected message
+func (m *messagesCmp) scrollToSelected() {
+	if m.selectedIndex < 0 || m.selectedIndex >= len(m.uiMessages) {
+		return
+	}
+
+	uiMsg := m.uiMessages[m.selectedIndex]
+	// Calculate the Y position to scroll to
+	// The viewport scroll position is measured from the top of the content
+	targetY := uiMsg.position
+
+	// Get current viewport state
+	viewportHeight := m.viewport.Height
+	viewportY := m.viewport.YOffset
+
+	// Only scroll if the selected message is not visible
+	if targetY < viewportY {
+		// Selected message is above viewport - scroll up
+		m.viewport.YOffset = max(0, targetY)
+	} else if targetY+uiMsg.height > viewportY+viewportHeight {
+		// Selected message is below viewport - scroll down
+		m.viewport.YOffset = targetY + uiMsg.height - viewportHeight
+	}
+}
+
 func (m *messagesCmp) BindingKeys() []key.Binding {
-	return []key.Binding{
+	bindings := []key.Binding{
 		m.viewport.KeyMap.PageDown,
 		m.viewport.KeyMap.PageUp,
 		m.viewport.KeyMap.HalfPageUp,
@@ -511,6 +619,15 @@ func (m *messagesCmp) BindingKeys() []key.Binding {
 		m.viewport.KeyMap.Up,
 		m.viewport.KeyMap.Down,
 	}
+	// Add selection mode keybindings when active
+	if m.selectionMode {
+		bindings = append(bindings,
+			messageKeys.SelectPrev,
+			messageKeys.SelectNext,
+			messageKeys.CopySelected,
+		)
+	}
+	return bindings
 }
 
 func NewMessagesCmp(app *app.App) tea.Model {

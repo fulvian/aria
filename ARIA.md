@@ -117,7 +117,18 @@ Output: modifiche principali + verifiche + rischi/limiti residui
 ### Problema
 I terminali moderni con Bubble Tea mouse mode attivo non permettono la selezione nativa del testo (è un limite dei terminali - quando il mouse è intercettato dall'applicazione TUI, il terminale non può gestire la selezione).
 
-### Soluzione implementata
+### Soluzione implementata - Selezione via tastiera (Modalità focussata)
+La selezione via tastiera permette di navigare e copiare i messaggi senza usare il mouse:
+
+| Shortcut | Azione |
+|----------|--------|
+| `Tab` | Attiva/disattiva modalità selezione (focus su area messaggi) |
+| `Shift+↑` | Seleziona messaggio precedente |
+| `Shift+↓` | Seleziona messaggio successivo |
+| `c` | Copia il testo del messaggio selezionato negli appunti |
+| `Esc` | Esce dalla modalità selezione e torna all'editor |
+
+### Soluzione implementata - Mouse mode
 - **Toggle mouse mode** (`ctrl+m`): Premendo ctrl+m si disabilita/abilita il mouse mode
   - Mouse mode OFF → selezione nativa del terminale funziona
   - Mouse mode ON → scroll wheel e click-to-copy funzionano
@@ -128,7 +139,8 @@ I terminali moderni con Bubble Tea mouse mode attivo non permettono la selezione
 ### File coinvolti
 - `cmd/root.go` - Rimosso WithMouseAllMotion(), mouse gestito nel TUI
 - `internal/tui/tui.go` - EnableMouseAllMotion/DisableMouse via toggle
-- `internal/tui/components/chat/list.go` - Logica di copia, viewport, help text
+- `internal/tui/page/chat.go` - Gestione keybindings per selezione (Tab, Shift+↑/↓, c)
+- `internal/tui/components/chat/list.go` - SelectionModeMsg, CopySelectedMsg, scrollToSelected, help text
 - `internal/tui/components/chat/message.go` - Funzione `stripANSI()` e campo `plainContent`
 
 ### Limitazioni note

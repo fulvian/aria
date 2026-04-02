@@ -27,12 +27,17 @@ type chatPage struct {
 	session              session.Session
 	completionDialog     dialog.CompletionDialog
 	showCompletionDialog bool
+	messagesFocused      bool // Track if messages area is focused for selection
 }
 
 type ChatKeyMap struct {
 	ShowCompletionDialog key.Binding
 	NewSession           key.Binding
 	Cancel               key.Binding
+	FocusMessages        key.Binding
+	SelectPrev           key.Binding
+	SelectNext           key.Binding
+	CopySelection        key.Binding
 }
 
 var keyMap = ChatKeyMap{
@@ -47,6 +52,22 @@ var keyMap = ChatKeyMap{
 	Cancel: key.NewBinding(
 		key.WithKeys("esc"),
 		key.WithHelp("esc", "cancel"),
+	),
+	FocusMessages: key.NewBinding(
+		key.WithKeys("tab"),
+		key.WithHelp("tab", "focus messages"),
+	),
+	SelectPrev: key.NewBinding(
+		key.WithKeys("shift+up"),
+		key.WithHelp("shift+up", "select prev"),
+	),
+	SelectNext: key.NewBinding(
+		key.WithKeys("shift+down"),
+		key.WithHelp("shift+down", "select next"),
+	),
+	CopySelection: key.NewBinding(
+		key.WithKeys("c"),
+		key.WithHelp("c", "copy"),
 	),
 }
 
@@ -117,6 +138,30 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// This allows users to interrupt long-running operations
 				p.app.CoderAgent.Cancel(p.session.ID)
 				return p, nil
+			}
+		case key.Matches(msg, keyMap.FocusMessages):
+			// Toggle focus on messages area for text selection
+			p.messagesFocused = !p.messagesFocused
+			// Forward selection mode state to messages component
+			if _, cmd := p.layout.Update(chat.SelectionModeMsg(p.messagesFocused)); cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+			return p, tea.Batch(cmds...)
+		case key.Matches(msg, keyMap.CopySelection):
+			if p.messagesFocused {
+				// Forward copy command to messages component
+				if _, cmd := p.layout.Update(chat.CopySelectedMsg{}); cmd != nil {
+					cmds = append(cmds, cmd)
+				}
+				return p, tea.Batch(cmds...)
+			}
+		case key.Matches(msg, keyMap.SelectPrev), key.Matches(msg, keyMap.SelectNext):
+			if p.messagesFocused {
+				// Forward selection keys to messages component
+				if _, cmd := p.layout.Update(msg); cmd != nil {
+					cmds = append(cmds, cmd)
+				}
+				return p, tea.Batch(cmds...)
 			}
 		}
 	}

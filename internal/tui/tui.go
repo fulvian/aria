@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -592,7 +593,13 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if a.mouseEnabled {
 				return a, tea.EnableMouseAllMotion
 			}
-			return a, tea.DisableMouse
+			// Manually send the escape sequence to disable mouse tracking
+			// CSI ? 1000 l disables mouse tracking mode (SET_mouse_off)
+			return a, func() tea.Msg {
+				os.Stdout.Write([]byte("\x1b[?1000l"))
+				os.Stdout.Sync()
+				return nil
+			}
 		}
 	default:
 		f, filepickerCmd := a.filepicker.Update(msg)

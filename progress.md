@@ -1,5 +1,46 @@
 # ARIA Implementation Progress Log
 
+## Session: 2026-04-02 (TUI Text Selection via Keyboard)
+
+### Actions Taken
+
+1. **Problema: Selezione testo non funzionante**
+   - Il codice aveva keybindings per `Tab`, `Shift+Up/Down`, `c` ma non funzionavano
+   - `chatPage` inviava messaggi a se stesso invece che al componente messages
+   - `copyMessagesSelection()` non esisteva → errore compilazione
+
+2. **Fix Implementati**
+   - Aggiunto `SelectionModeMsg` e `CopySelectedMsg` in `list.go`
+   - Aggiunto `selectionMode` e `selectedIndex` in `messagesCmp`
+   - Implementato `scrollToSelected()` per navigazione
+   - Gestione shift+up/down/c quando `selectionMode` è attivo
+   - Corretto `chat.go` per inviare i messaggi al layout
+
+3. **Funzionalità ora operative**
+   | Shortcut | Azione |
+   |----------|--------|
+   | `Tab` | Attiva/disattiva modalità selezione |
+   | `Shift+↑` | Seleziona messaggio precedente |
+   | `Shift+↓` | Seleziona messaggio successivo |
+   | `c` | Copia il testo selezionato |
+   | `Esc` | Torna all'editor |
+
+4. **Verifiche**
+   - `go build ./...` ✅
+   - `go vet ./...` ✅
+   - `go test ./...` ✅
+
+### Files Modified
+- `internal/tui/page/chat.go` - Keybindings per selezione
+- `internal/tui/components/chat/list.go` - SelectionModeMsg, CopySelectedMsg, scrollToSelected
+- `internal/tui/tui.go` - Fix CSI escape per disable mouse
+- `ARIA.md` - Documentazione aggiornata
+
+### Current Phase
+**TUI Text Selection Fix: COMPLETE** ✅
+
+---
+
 ## Session: 2026-04-01 (Memory Context Bug Fix - Conversation History)
 
 ### Actions Taken
