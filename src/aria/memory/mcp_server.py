@@ -1,7 +1,7 @@
 # ARIA Memory MCP Server
 #
-# FastMCP 3.x server exposing 7 memory tools.
-# Per blueprint §5.6 and sprint plan W1.1.L.
+# FastMCP 3.x server exposing 10 memory tools.
+# Per blueprint §5.6 and sprint plan W1.1.L / Sprint 1.3.
 #
 # Tools:
 # 1. remember - Write T0 episodic entry
@@ -11,6 +11,9 @@
 # 5. curate - HITL-gated promote/demote/forget
 # 6. forget - HITL-gated soft delete
 # 7. stats - Memory telemetry
+# 8. hitl_ask - Queue a human-in-the-loop approval request
+# 9. hitl_list_pending - List all pending HITL approval requests
+# 10. hitl_cancel - Cancel a pending HITL request before approval
 #
 # Transport: stdio (configurable via ARIA_MEMORY_MCP_TRANSPORT)
 #
@@ -49,7 +52,7 @@ _config = None
 
 async def _ensure_store() -> tuple[EpisodicStore, SemanticStore, CLM]:
     """Ensure stores are initialized (lazy init)."""
-    global _store, _semantic, _clm, _config
+    global _store, _semantic, _clm, _config  # noqa: PLW0603
 
     if _store is None:
         _config = get_config()
@@ -427,6 +430,100 @@ async def stats() -> dict:
         return {"error": str(e)}
 
 
+@mcp.tool
+async def hitl_ask(
+    action: str,
+    target_id: str,
+    reason: str | None = None,
+) -> dict:
+    """Queue a human-in-the-loop approval request for a memory operation.
+
+    Per blueprint P5/HITL: destructive operations (forget, hard-delete)
+    MUST be approved by a human before execution.
+
+    Args:
+        action: The action to approve (forget_episodic, forget_semantic)
+        target_id: UUID of the target entry/chunk
+        reason: Optional human-readable reason for the request
+
+    Returns:
+        {"status": "pending_hitl", "hitl_id": "...", "message": "..."}
+    """
+    trace_id = os.environ.get("ARIA_TRACE_ID") or new_trace_id()
+    set_trace_id(trace_id)
+
+    try:
+        store, _, _ = await _ensure_store()
+        target_uuid = uuid.UUID(target_id)
+        channel = os.environ.get("ARIA_HITL_CHANNEL", "mcp")
+        hitl_id = await store.enqueue_hitl(
+            target_id=target_uuid,
+            action=action,
+            reason=reason,
+            trace_id=trace_id,
+            channel=channel,
+        )
+        return {
+            "status": "pending_hitl",
+            "hitl_id": hitl_id,
+            "message": f"HITL approval requested for {action} on {target_id}",
+        }
+
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+@mcp.tool
+async def hitl_list_pending(limit: int = 100) -> list[dict]:
+    """List all pending HITL approval requests.
+
+    Args:
+        limit: Max number of records to return (default 100)
+
+    Returns:
+        List of pending HITL records
+    """
+    trace_id = os.environ.get("ARIA_TRACE_ID") or new_trace_id()
+    set_trace_id(trace_id)
+
+    try:
+        store, _, _ = await _ensure_store()
+        return await store.list_hitl_pending(limit=limit)
+
+    except Exception as e:
+        return [{"error": str(e)}]
+
+
+@mcp.tool
+async def hitl_cancel(hitl_id: str) -> dict:
+    """Cancel a pending HITL request (before approval).
+
+    Args:
+        hitl_id: The HITL request ID to cancel
+
+    Returns:
+        {"status": "ok"} or {"status": "error", "error": "..."}
+    """
+    trace_id = os.environ.get("ARIA_TRACE_ID") or new_trace_id()
+    set_trace_id(trace_id)
+
+    try:
+        store, _, _ = await _ensure_store()
+        conn = await store._ensure_connected()
+        cursor = await conn.execute(
+            "UPDATE memory_hitl_pending SET status = 'cancelled', resolved_at = ? "
+            "WHERE id = ? AND status = 'pending'",
+            (int(datetime.now(UTC).timestamp()), hitl_id),
+        )
+        await conn.commit()
+        if cursor.rowcount == 0:
+            return {"status": "error", "error": "HITL request not found or already resolved"}
+        return {"status": "ok", "hitl_id": hitl_id}
+
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
 # === Main ===
 
 
@@ -440,7 +537,7 @@ def main() -> int:
     log_dir.mkdir(parents=True, exist_ok=True)
 
     # Override logging to file
-    log_file = log_dir / f"mcp-aria-memory-{datetime.now().strftime('%Y-%m-%d')}.log"
+    log_file = log_dir / f"mcp-aria-memory-{datetime.now(UTC).strftime('%Y-%m-%d')}.log"
 
     handler = logging.FileHandler(log_file)
     from aria.utils.logging import JsonLineFormatter

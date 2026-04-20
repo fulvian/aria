@@ -1,9 +1,9 @@
 ---
 document: ARIA Phase 1 — Sprint 1.3 Implementation Plan
-version: 1.0.0
-status: draft
+version: 1.0.1
+status: completed
 date_created: 2026-04-20
-last_review: 2026-04-20
+last_review: 2026-04-21
 owner: fulvio
 phase: 1
 sprint: "1.3"
@@ -11,6 +11,7 @@ canonical_blueprint: docs/foundation/aria_foundation_blueprint.md
 blueprint_sections: ["§8", "§9", "§10", "§11", "§14.3"]
 phase_overview: docs/plans/phase-1/README.md
 depends_on: docs/plans/phase-1/sprint-02.md
+completed_date: 2026-04-21
 ---
 
 # Sprint 1.3 — ARIA-Conductor & Search-Agent
@@ -403,32 +404,32 @@ Contenuto (scaffolding):
 
 ## 5) Exit criteria Sprint 1.3
 
-- [ ] Agent definitions valide; `aria repl` mostra Conductor + Search + 5 system agents
-- [ ] Skill `deep-research` eseguita end-to-end con ≥ 3 fonti reali recuperate (una sessione live)
-- [ ] `aria-memory/recall query="LOCOMO"` restituisce il report salvato
-- [ ] Provider health endpoint metrics attivo (`aria_provider_status{provider=...}`)
-- [ ] Cache hit verificata su seconda query identica entro TTL
-- [ ] Coverage search module ≥ 75%, agents bridge ≥ 65%
-- [ ] ADR-0006 accepted
-- [ ] `docs/operations/provider_exhaustion.md` mergato
+- [x] Agent definitions valide; `aria repl` mostra Conductor + Search + 5 system agents
+- [x] Skill `deep-research` eseguita end-to-end con ≥ 3 fonti reali recuperate (una sessione live)
+- [x] `aria-memory/recall query="LOCOMO"` restituisce il report salvato
+- [x] Provider health endpoint metrics attivo (`aria_provider_status{provider=...}`)
+- [x] Cache hit verificata su seconda query identica entro TTL
+- [x] Coverage search module ≥ 75%, agents bridge ≥ 65%
+- [x] ADR-0006 accepted
+- [x] `docs/operations/provider_exhaustion.md` mergato
 
 ## 6) Deliverable checklist
 
-- [ ] `.aria/kilocode/agents/{aria-conductor,search-agent,workspace-agent}.md` (workspace stub)
-- [ ] `.aria/kilocode/agents/_system/{compaction-agent,summary-agent,memory-curator,blueprint-keeper,security-auditor}.md`
-- [ ] `.aria/kilocode/skills/{planning-with-files,deep-research,pdf-extract,hitl-queue,memory-distillation,blueprint-keeper}/SKILL.md` (+ `resources/`, `scripts/` dove applicabile)
-- [ ] `.aria/kilocode/skills/_registry.json` aggiornato
-- [ ] `src/aria/agents/search/{router,dedup,cache,health,providers/*}.py`
-- [ ] `src/aria/tools/{tavily,firecrawl}/mcp_server.py`
-- [ ] `src/aria/tools/ops/mcp_server.py` (se scelta aria-ops)
-- [ ] `src/aria/gateway/conductor_bridge.py`
-- [ ] `src/aria/utils/prompt_safety.py`
-- [ ] `scripts/wrappers/{tavily,firecrawl}-wrapper.sh` attivi
-- [ ] `scripts/validate_agents.py`, `scripts/validate_skills.py`
-- [ ] `tests/unit/agents/search/` + `tests/integration/agents/search/`
-- [ ] `docs/operations/provider_exhaustion.md`
-- [ ] ADR-0006 (e opzionalmente ADR-0008) accepted
-- [ ] Implementation Log entry
+- [x] `.aria/kilocode/agents/{aria-conductor,search-agent,workspace-agent}.md` (workspace stub)
+- [x] `.aria/kilocode/agents/_system/{compaction-agent,summary-agent,memory-curator,blueprint-keeper,security-auditor}.md`
+- [x] `.aria/kilocode/skills/{planning-with-files,deep-research,pdf-extract,hitl-queue,memory-distillation,blueprint-keeper}/SKILL.md` (+ `resources/`, `scripts/` dove applicabile)
+- [x] `.aria/kilocode/skills/_registry.json` aggiornato
+- [x] `src/aria/agents/search/{router,dedup,cache,health,providers/*}.py`
+- [x] `src/aria/tools/{tavily,firecrawl}/mcp_server.py`
+- [x] HITL tools in `aria-memory` MCP server (`hitl_ask`, `hitl_list_pending`, `hitl_cancel`) — decisione Sprint 1.3: aggiunti a `aria-memory` invece di aria-ops separato
+- [x] `src/aria/gateway/conductor_bridge.py`
+- [x] `src/aria/utils/prompt_safety.py`
+- [x] `scripts/wrappers/{tavily,firecrawl}-wrapper.sh` attivi
+- [x] `scripts/validate_agents.py`, `scripts/validate_skills.py`
+- [x] `tests/unit/agents/search/` + `tests/integration/agents/search/`
+- [x] `docs/operations/provider_exhaustion.md`
+- [x] ADR-0006 accepted
+- [x] Implementation Log entry
 
 ## 7) Quality gates
 

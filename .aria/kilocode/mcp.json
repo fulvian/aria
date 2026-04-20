@@ -33,18 +33,18 @@
     },
     "tavily": {
       "command": "/home/fulvio/coding/aria/scripts/wrappers/tavily-wrapper.sh",
-      "disabled": true,
+      "disabled": false,
       "_comment": "@phase1 provider integration"
     },
     "firecrawl": {
       "command": "/home/fulvio/coding/aria/scripts/wrappers/firecrawl-wrapper.sh",
-      "disabled": true,
+      "disabled": false,
       "_comment": "@phase1 provider integration"
     },
     "brave": {
       "command": "npx",
       "args": ["-y", "@brave/brave-search-mcp-server"],
-      "disabled": true,
+      "disabled": false,
       "env": {
         "BRAVE_API_KEY": "${BRAVE_API_KEY_ACTIVE}"
       },

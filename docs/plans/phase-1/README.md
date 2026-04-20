@@ -12,10 +12,11 @@ previous_phase_plan: docs/plans/phase-0/sprint-00.md
 
 # ARIA — Phase 1 (MVP) — Implementation Plan Overview
 
-## Stato avanzamento (aggiornato al 2026-04-20, post-remediation Sprint 1.2)
+## Stato avanzamento (aggiornato al 2026-04-21, post Sprint 1.3)
 
 - Sprint 1.1: implementato e verificato, con evidence pack in `docs/implementation/phase-1/sprint-01-evidence.md`.
 - Sprint 1.2: implementato, verificato e riallineato alle specifiche (evidence pack aggiornato).
+- Sprint 1.3: **completato** (2026-04-21) — Search-Agent, Conductor bridge, providers, ADR-0006.
 - Stato Phase 1: **in progress** (Go/No-Go Phase 1 non ancora valutabile fino a chiusura Sprint 1.4).
 
 ## 0) Come leggere questi documenti
