@@ -51,6 +51,9 @@ dependencies = [
 
     # Systemd integration
     "sd-notify>=0.1",
+
+    # Observability
+    "prometheus-client>=0.20",
 ]
 
 [project.optional-dependencies]
@@ -149,6 +152,14 @@ show_column_numbers = true
 module = [
     "pydantic.*",
     "pydantic_settings.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "pytesseract.*",
+    "PIL.*",
+    "faster_whisper.*",
 ]
 ignore_missing_imports = true
 

@@ -44,12 +44,34 @@ install_units() {
 
     mkdir -p "$SYSTEMD_USER_DIR"
 
-    # Copy unit files
-    cp "$ARIA_HOME/systemd/aria-scheduler.service" "$SYSTEMD_USER_DIR/"
-    cp "$ARIA_HOME/systemd/aria-gateway.service" "$SYSTEMD_USER_DIR/"
+    # Track if we need to reload
+    local needs_reload=0
 
-    # Reload systemd daemon
-    systemctl --user daemon-reload
+    # Copy scheduler unit (idempotent - only copy if different or missing)
+    if [[ ! -f "$SYSTEMD_USER_DIR/aria-scheduler.service" ]] || \
+       ! cmp -s "$ARIA_HOME/systemd/aria-scheduler.service" "$SYSTEMD_USER_DIR/aria-scheduler.service"; then
+        cp "$ARIA_HOME/systemd/aria-scheduler.service" "$SYSTEMD_USER_DIR/"
+        needs_reload=1
+        log_info "Updated aria-scheduler.service"
+    else
+        log_info "aria-scheduler.service already up-to-date"
+    fi
+
+    # Copy gateway unit (idempotent - only copy if different or missing)
+    if [[ ! -f "$SYSTEMD_USER_DIR/aria-gateway.service" ]] || \
+       ! cmp -s "$ARIA_HOME/systemd/aria-gateway.service" "$SYSTEMD_USER_DIR/aria-gateway.service"; then
+        cp "$ARIA_HOME/systemd/aria-gateway.service" "$SYSTEMD_USER_DIR/"
+        needs_reload=1
+        log_info "Updated aria-gateway.service"
+    else
+        log_info "aria-gateway.service already up-to-date"
+    fi
+
+    # Only reload if we actually changed something
+    if [[ $needs_reload -eq 1 ]]; then
+        systemctl --user daemon-reload
+        log_info "Systemd daemon reloaded"
+    fi
 
     log_info "Unit files installed to $SYSTEMD_USER_DIR"
 }
@@ -58,27 +80,60 @@ install_units() {
 uninstall_units() {
     log_info "Uninstalling systemd unit files..."
 
-    rm -f "$SYSTEMD_USER_DIR/aria-scheduler.service"
-    rm -f "$SYSTEMD_USER_DIR/aria-gateway.service"
+    local removed=0
 
-    systemctl --user daemon-reload
+    if [[ -f "$SYSTEMD_USER_DIR/aria-scheduler.service" ]]; then
+        rm -f "$SYSTEMD_USER_DIR/aria-scheduler.service"
+        removed=1
+        log_info "Removed aria-scheduler.service"
+    else
+        log_info "aria-scheduler.service not installed"
+    fi
 
-    log_info "Unit files removed"
+    if [[ -f "$SYSTEMD_USER_DIR/aria-gateway.service" ]]; then
+        rm -f "$SYSTEMD_USER_DIR/aria-gateway.service"
+        removed=1
+        log_info "Removed aria-gateway.service"
+    else
+        log_info "aria-gateway.service not installed"
+    fi
+
+    if [[ $removed -eq 1 ]]; then
+        systemctl --user daemon-reload
+        log_info "Systemd daemon reloaded"
+    else
+        log_info "Nothing to uninstall"
+    fi
 }
 
 # === Start services ===
 start_services() {
     log_info "Starting ARIA services..."
-    systemctl --user start aria-scheduler.service
-    systemctl --user start aria-gateway.service
+
+    if [[ -f "$SYSTEMD_USER_DIR/aria-scheduler.service" ]]; then
+        systemctl --user start aria-scheduler.service
+        log_info "Started aria-scheduler.service"
+    else
+        log_info "aria-scheduler.service not installed, skipping start"
+    fi
+
+    if [[ -f "$SYSTEMD_USER_DIR/aria-gateway.service" ]]; then
+        systemctl --user start aria-gateway.service
+        log_info "Started aria-gateway.service"
+    else
+        log_info "aria-gateway.service not installed, skipping start"
+    fi
+
     log_info "Services started"
 }
 
 # === Stop services ===
 stop_services() {
     log_info "Stopping ARIA services..."
-    systemctl --user stop aria-scheduler.service
-    systemctl --user stop aria-gateway.service
+
+    systemctl --user stop aria-scheduler.service 2>/dev/null || true
+    systemctl --user stop aria-gateway.service 2>/dev/null || true
+
     log_info "Services stopped"
 }
 

@@ -142,6 +142,59 @@ def reload() -> None:
     console.print("[green]Credentials reloaded[/green]")
 
 
+@app.command("put")
+def put_credential(
+    key_path: Annotated[
+        str,
+        typer.Argument(help="Key path (e.g., 'telegram.bot_token')"),
+    ],
+    value: Annotated[
+        str | None,
+        typer.Option(
+            "--value", "-v", help="Secret value directly (WARNING: may be visible in process list)"
+        ),
+    ] = None,
+) -> None:
+    """Store a credential.
+
+    Examples:
+        aria creds put telegram.bot_token -v "my-secret-token"
+        aria creds put telegram.bot_token --value "my-secret-token"
+    """
+    if value is None:
+        console.print("[red]Error: --value/-v is required[/red]")
+        raise typer.Exit(code=1)
+
+    if not value:
+        console.print("[red]Error: Secret cannot be empty[/red]")
+        raise typer.Exit(code=1)
+
+    # Parse key path (e.g., "telegram.bot_token" -> service="telegram", account="bot_token")
+    parts = key_path.split(".", maxsplit=1)
+    if len(parts) != 2:
+        console.print(f"[red]Error: Invalid key path format: {key_path}[/red]")
+        console.print("  Expected format: 'service.account' (e.g., 'telegram.bot_token')")
+        raise typer.Exit(code=1)
+
+    service, account = parts
+
+    # Handle telegram.bot_token specially via OAuth bundle pattern
+    if service == "telegram" and account == "bot_token":
+        # Store as OAuth token (simplest path for bot tokens)
+        cm = CredentialManager(get_config())
+        try:
+            cm.put_oauth(service="telegram", account="bot", refresh_token=value)
+            console.print(f"[green]Successfully stored {key_path}[/green]")
+        except Exception as e:
+            console.print(f"[red]Error storing credential: {e}[/red]")
+            raise typer.Exit(code=1) from e
+    else:
+        # Generic credential storage - could extend to other providers
+        console.print(f"[yellow]Storage for {service}.{account} not yet implemented[/yellow]")
+        console.print("  Supported: telegram.bot_token")
+        raise typer.Exit(code=1)
+
+
 def main() -> int:
     app()
     return 0

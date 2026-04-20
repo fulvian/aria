@@ -15,13 +15,14 @@ Questo indice raccoglie le evidenze di implementazione della Phase 1.
 ## Sprint status
 
 - Sprint 1.1: completed
-- Sprint 1.2: pending
+- Sprint 1.2: completed ✅
 - Sprint 1.3: pending
 - Sprint 1.4: pending
 
 ## Evidence packs
 
 - Sprint 1.1: `docs/implementation/phase-1/sprint-01-evidence.md`
+- Sprint 1.2: `docs/implementation/phase-1/sprint-02-evidence.md`
 
 ## Notes
 

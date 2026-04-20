@@ -1,12 +1,116 @@
+# ARIA Gateway Daemon
+#
+# Entry point for the Gateway service that handles Telegram integration.
+# Per blueprint §7 and sprint plan W1.2.L.
+#
+# Full daemon implementation requires integration work between:
+# - TelegramAdapter (PTB 22.x)
+# - Metrics server (Prometheus on 127.0.0.1:9090)
+# - HitlResponder (event consumer)
+# - Shared TaskStore with scheduler
+#
+# Usage:
+#   python -m aria.gateway.daemon
+#   python -m aria.gateway.daemon --check
+
 from __future__ import annotations
 
 import argparse
+import asyncio
+import logging
+import signal
+
+logger = logging.getLogger(__name__)
+
+
+async def _async_main() -> int:
+    """Async main entry point for gateway daemon."""
+    # Import here to avoid circular imports and allow --check to work without full setup
+    from aria.config import get_config
+    from aria.credentials import CredentialManager
+    from aria.gateway.auth import AuthGuard
+    from aria.gateway.metrics_server import (
+        start_metrics_server,
+        stop_metrics_server,
+    )
+    from aria.gateway.session_manager import SessionManager
+    from aria.gateway.telegram_adapter import TelegramAdapter
+    from aria.scheduler.hitl import HitlManager
+    from aria.scheduler.notify import SdNotifier
+    from aria.scheduler.store import TaskStore
+    from aria.scheduler.triggers import EventBus
+
+    config = get_config()
+    logger.info("Starting ARIA Gateway daemon...")
+
+    # Initialize components
+    credential_manager = CredentialManager(config)
+    auth_guard = AuthGuard(whitelist=config.telegram.whitelist)
+    sessions = SessionManager(config.paths.runtime / "gateway/sessions.db")
+    bus = EventBus()
+    notifier = SdNotifier(watchdog_interval_s=30)
+
+    # Initialize scheduler store for HITL (shared with scheduler)
+    scheduler_db = config.paths.runtime / "scheduler/scheduler.db"
+    task_store = TaskStore(scheduler_db)
+    await task_store.connect()
+
+    # Initialize HITL manager
+    _hitl_manager = HitlManager(task_store, bus, config)
+    # HITL responder subscribes to bus events; no further reference needed
+    _ = _hitl_manager
+
+    # Initialize Telegram adapter
+    telegram_adapter = TelegramAdapter(
+        cm=credential_manager,
+        auth=auth_guard,
+        sessions=sessions,
+        bus=bus,
+        config=config,
+    )
+
+    # Initialize metrics server (function-based API, bound to 127.0.0.1 only)
+    start_metrics_server(host="127.0.0.1", port=9090)
+
+    # Set up signal handlers
+    shutdown_event = asyncio.Event()
+
+    def signal_handler(sig: int) -> None:
+        sig_name = signal.Signals(sig).name
+        logger.info("Received %s, initiating graceful shutdown...", sig_name)
+        shutdown_event.set()
+
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(sig, signal_handler, sig)
+
+    # Start components
+    await notifier.start()
+    app = await telegram_adapter.build_app()
+    await app.initialize()
+    await app.updater.start_polling()  # type: ignore[union-attr]
+
+    logger.info("ARIA Gateway daemon started successfully")
+    await notifier.ping()
+
+    # Wait for shutdown
+    await shutdown_event.wait()
+
+    # Graceful shutdown
+    logger.info("Shutting down ARIA Gateway daemon...")
+    await telegram_adapter.stop()
+    await notifier.stop("shutdown")
+    stop_metrics_server()
+    logger.info("ARIA Gateway daemon stopped")
+
+    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Build argument parser for gateway daemon."""
     parser = argparse.ArgumentParser(
         prog="python -m aria.gateway.daemon",
-        description="ARIA Gateway daemon (Phase 0 placeholder).",
+        description="ARIA Gateway daemon.",
     )
     parser.add_argument(
         "--check",
@@ -17,12 +121,61 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Main entry point for gateway daemon."""
     parser = build_parser()
     args = parser.parse_args(argv)
+
     if args.check:
+        # Validate that we can import all required modules
+        try:
+            from aria.config import get_config
+            from aria.credentials import CredentialManager
+            from aria.gateway.auth import AuthGuard
+            from aria.gateway.metrics_server import (
+                is_metrics_server_running,
+                start_metrics_server,
+                stop_metrics_server,
+            )
+            from aria.gateway.session_manager import SessionManager
+            from aria.gateway.telegram_adapter import TelegramAdapter
+            from aria.scheduler.hitl import HitlManager
+            from aria.scheduler.notify import SdNotifier
+            from aria.scheduler.store import TaskStore
+            from aria.scheduler.triggers import EventBus
+
+            _ = (
+                get_config,
+                CredentialManager,
+                AuthGuard,
+                is_metrics_server_running,
+                start_metrics_server,
+                stop_metrics_server,
+                SessionManager,
+                TelegramAdapter,
+                HitlManager,
+                SdNotifier,
+                TaskStore,
+                EventBus,
+            )
+            return 0
+        except ImportError as e:
+            print(f"Import error: {e}", file=__import__("sys").stderr)
+            return 1
+
+    # Set up basic logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
+    )
+
+    try:
+        return asyncio.run(_async_main())
+    except KeyboardInterrupt:
+        logger.info("Gateway daemon interrupted")
         return 0
-    parser.exit(0, "Phase 0 placeholder: gateway runtime is implemented in Phase 1.\n")
-    return 0
+    except Exception as e:
+        logger.exception("Gateway daemon failed: %s", e)
+        return 1
 
 
 if __name__ == "__main__":
