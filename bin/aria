@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+# ARIA launcher — guarantees isolation from global KiloCode installation
+# Built from: docs/foundation/aria_foundation_blueprint.md §4.3
+
+set -euo pipefail
+
+# === ARIA paths ===
+ARIA_HOME="${ARIA_HOME:-/home/fulvio/coding/aria}"
+export ARIA_HOME
+
+# === KiloCode isolation (P1: Isolation First) ===
+export KILOCODE_CONFIG_DIR="$ARIA_HOME/.aria/kilocode"
+export KILOCODE_STATE_DIR="$ARIA_HOME/.aria/kilocode/sessions"
+export KILOCODE_HOME="$KILOCODE_CONFIG_DIR"
+
+# === ARIA runtime paths ===
+export ARIA_RUNTIME="$ARIA_HOME/.aria/runtime"
+export ARIA_CREDENTIALS="$ARIA_HOME/.aria/credentials"
+
+# === Load .env if present (non-secrets only; secrets via SOPS) ===
+if [[ -f "$ARIA_HOME/.env" ]]; then
+    set -a
+    source "$ARIA_HOME/.env"
+    set +a
+fi
+
+# === Pre-flight checks ===
+check_prerequisites() {
+    local missing=0
+
+    if [[ ! -d "$KILOCODE_CONFIG_DIR" ]]; then
+        echo "ERR: KiloCode config directory missing: $KILOCODE_CONFIG_DIR" >&2
+        missing=1
+    fi
+
+    if [[ ! -f "$KILOCODE_CONFIG_DIR/kilo.json" ]]; then
+        echo "ERR: kilo.json missing in: $KILOCODE_CONFIG_DIR" >&2
+        missing=1
+    fi
+
+    if [[ ! -d "$ARIA_RUNTIME" ]]; then
+        echo "ERR: ARIA runtime directory missing: $ARIA_RUNTIME" >&2
+        missing=1
+    fi
+
+    if [[ $missing -eq 1 ]]; then
+        echo "Hint: Run ./scripts/bootstrap.sh to initialize the environment" >&2
+        exit 1
+    fi
+
+    # Check Python environment
+    if [[ -f "$ARIA_HOME/.venv/bin/python" ]]; then
+        export PATH="$ARIA_HOME/.venv/bin:$PATH"
+    fi
+}
+
+# === Subcommands ===
+show_help() {
+    cat <<'EOF'
+ARIA — Autonomous Reasoning & Intelligent Assistant
+
+Usage: aria <command> [options]
+
+Commands:
+  repl          Start ARIA interactive REPL (default)
+  run <prompt>  Execute a single prompt and exit
+  mode <name>   Set active mode (from .aria/kilocode/modes/)
+  schedule      Run scheduler daemon
+  gateway       Run gateway daemon (Telegram)
+  memory        Run memory MCP server
+  creds         Manage credentials (reload, rotate, status)
+  backup        Run backup script
+  --help, -h    Show this help message
+
+Environment:
+  ARIA_HOME          ARIA root directory
+  ARIA_RUNTIME       Runtime data directory
+  ARIA_CREDENTIALS   Credentials directory
+  ARIA_LOG_LEVEL     Log level (DEBUG|INFO|WARN|ERROR)
+  ARIA_TIMEZONE      Timezone (default: Europe/Rome)
+  ARIA_QUIET_HOURS   Quiet hours (no proactive notifications)
+
+Examples:
+  aria repl                      # Start interactive session
+  aria run "Search for X"        # Execute single command
+  aria schedule --daemon         # Run scheduler
+  aria creds status              # Show credential status
+
+For documentation, see: docs/foundation/aria_foundation_blueprint.md
+EOF
+}
+
+# === Main dispatch ===
+main() {
+    check_prerequisites
+
+    local subcommand="${1:-repl}"
+    shift || true
+
+    case "$subcommand" in
+        repl)
+            if [[ "${1:-}" == "--help" || "${1:-}" == "-h" || "${1:-}" == "help" ]]; then
+                show_help
+                return 0
+            fi
+            exec npx --yes kilocode chat "$@"
+            ;;
+        run)
+            if [[ "${1:-}" == "--help" || "${1:-}" == "-h" || "${1:-}" == "help" ]]; then
+                show_help
+                return 0
+            fi
+            exec npx --yes kilocode chat --auto "$@"
+            ;;
+        mode)
+            if [[ "${1:-}" == "--help" || "${1:-}" == "-h" || "${1:-}" == "help" ]]; then
+                show_help
+                return 0
+            fi
+            exec npx --yes kilocode chat --mode "$@"
+            ;;
+        schedule)
+            exec python -m aria.scheduler.daemon "$@"
+            ;;
+        gateway)
+            exec python -m aria.gateway.daemon "$@"
+            ;;
+        memory)
+            exec python -m aria.memory.mcp_server "$@"
+            ;;
+        creds)
+            exec python -m aria.credentials "$@"
+            ;;
+        backup)
+            exec "$ARIA_HOME/scripts/backup.sh" "$@"
+            ;;
+        --help|-h|help)
+            show_help
+            ;;
+        *)
+            echo "Unknown command: $subcommand" >&2
+            echo "Run 'aria --help' for usage information" >&2
+            exit 2
+            ;;
+    esac
+}
+
+main "$@"

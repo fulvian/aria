@@ -2005,6 +2005,25 @@ Vedi §5 (memoria), §6.1 (scheduler), §7.2 (gateway sessions). File concatenat
 > *Questa sezione sarà popolata a partire dalla Fase 0.*
 > *Ogni milestone aggiunge una entry con data ISO, titolo, bullet list di deliverable chiusi e link al commit/PR.*
 
+### 2026-04-20 — Phase 0 Completed
+
+- **Struttura directory** completa secondo §4.1 blueprint
+- **Launcher `bin/aria`** funzionante con isolamento KiloCode
+- **`.aria/kilocode/`** configurato con kilo.json, mcp.json, agents, skills
+- **pyproject.toml** + **uv.lock** presenti con dipendenze Phase 0
+- **Skeleton `src/aria/`** creato con moduli stub per credentials, memory, scheduler, gateway
+- **config.py** creato per loading configurazione ARIA
+- **SOPS+age baseline** configurato in `.aria/credentials/`
+- **API keys criptate** con age (8 chiavi Tavily, 7 Firecrawl, Brave, Exa, SerpAPI, GitHub)
+- **SQLite 3.51.3** installato da source (corretto WAL bug)
+- **Systemd unit templates** in `systemd/aria-*.service` (verificati con systemd-analyze)
+- **Scripts operativi** (`bootstrap.sh`, `backup.sh`, `restore.sh`, `install_systemd.sh`, `smoke_db.sh`)
+- **Schema SQLite** completo in `docs/foundation/schemas/sqlite_full.sql`
+- **Quality gates** passati: ruff check, ruff format, mypy, pytest
+- **Age keys** generate in `~/.config/sops/age/keys.txt`
+- **ADR-0001** creato per Dependency Baseline
+- **ADR-0002** creato per SQLite Reliability Policy
+
 ### 18.H ADR backlog immediato (post-audit)
 
 - `ADR-0001` — Dependency Baseline 2026Q2 (`fastmcp 3.x`, `ptb 22.x`, `lancedb 0.30.x`, STT dual stack).

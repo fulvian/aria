@@ -1,0 +1,16 @@
+{
+  "name": "aria-kilocode-host",
+  "version": "0.1.0",
+  "description": "KiloCode CLI host for ARIA - isolated from global installation",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "aria": "bash ./bin/aria"
+  },
+  "dependencies": {
+    "kilocode": "0.9.19"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

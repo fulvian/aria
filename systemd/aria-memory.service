@@ -1,0 +1,35 @@
+[Unit]
+Description=ARIA Memory MCP Server
+After=default.target
+Wants=default.target
+
+[Service]
+Type=notify
+WorkingDirectory=%h/coding/aria
+Environment="ARIA_HOME=%h/coding/aria"
+Environment="ARIA_RUNTIME=%h/coding/aria/.aria/runtime"
+Environment="KILOCODE_CONFIG_DIR=%h/coding/aria/.aria/kilocode"
+ExecStart=%h/coding/aria/.venv/bin/python -m aria.memory.mcp_server
+Restart=on-failure
+RestartSec=5s
+WatchdogSec=60s
+NotifyAccess=main
+
+# Security hardening (user service baseline)
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=tmpfs
+ReadWritePaths=%h/coding/aria/.aria
+PrivateTmp=true
+PrivateDevices=true
+ProtectControlGroups=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=default.target
