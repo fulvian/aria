@@ -153,6 +153,95 @@
 - For significant decisions, add/update ADR files under `docs/foundation/decisions/`.
 - Keep docs aligned with implemented paths and commands.
 
+## Git & GitHub Workflow Rules (2026 Best Practices)
+
+### Branching Strategy
+- **Primary branch**: `main` (protected, no direct pushes)
+- **Feature branches**: `feature/<short-description>` or `feat/<description>`
+- **Bugfix branches**: `fix/<description>` or `hotfix/<description>`
+- **Branch naming**: kebab-case, max 50 chars, include ticket/issue reference when applicable
+- **Branch lifetime**: Short-lived (< 1 week), single responsibility per branch
+
+### Commit Messages (Conventional Commits)
+Format: `<type>(<scope>): <description>`
+
+**Types**:
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation only
+- `style`: Formatting, no code change
+- `refactor`: Code change that neither fixes nor adds feature
+- `test`: Adding or updating tests
+- `chore`: Maintenance tasks, dependencies, build changes
+- `perf`: Performance improvements
+- `ci`: CI/CD changes
+- `revert`: Reverting previous commits
+
+**Rules**:
+- Subject line: max 72 characters, imperative mood ("add" not "added")
+- Body: wrap at 72 chars, explain "what" and "why" not "how"
+- Reference issues/PRs: `Closes #123` or `Fixes #456`
+- No empty commit messages; never commit with `--no-verify`
+- Squash WIP commits before merge
+
+### Pull Request Workflow
+1. Create PR from feature branch → `main`
+2. PR title: follows Conventional Commits format
+3. PR description: summary, motivation, changes, testing evidence
+4. Required before merge:
+   - At least 1 approving review (2+ for significant changes)
+   - All CI checks passing
+   - No unresolved review comments
+   - Branch up-to-date with `main`
+5. Use "Request Changes" sparingly; prefer comments for minor issues
+6. PR size: prefer < 400 lines changed; break large PRs into stacked PRs
+
+### Branch Protection Rules (enforced on `main`)
+- Require pull request reviews before merging
+- Require status checks to pass before merging (CI must be green)
+- Dismiss stale reviews when new commits are pushed
+- Require branches to be up to date before merge
+- Block force-pushes to `main`
+- Block branch deletion
+- Require CODEOWNERS review for sensitive paths (`src/`, `docs/`)
+
+### Code Review Best Practices
+- Review < 400 lines at a time; take breaks for larger PRs
+- Respond to all comments before merging
+- Use "Approve" only if no blocking issues
+- Use "Request Changes" only for blocking issues
+- Be constructive: suggest fixes, not just criticism
+- Check: logic, tests, edge cases, security, performance, docs
+
+### Merging Strategy
+- **Default merge method**: Squash and merge (clean history on `main`)
+- **Merge commit**: Only for multi-commit PRs needing to preserve history
+- **Rebase**: For syncing feature branches; never rebase `main`
+- **Always use `--no-ff`** for merge commits to preserve feature branch history
+
+### Safety Constraints
+- NEVER force push to `main` or shared branches
+- NEVER push secrets, credentials, or API keys (use `.env` pattern + `.gitignore`)
+- NEVER commit generated files, build artifacts, or cache directories
+- ALWAYS run quality gates before committing:
+  - `ruff check .` (or linter for language)
+  - `ruff format --check .`
+  - `mypy src` (for Python)
+- NEVER disable or bypass CI checks
+- Require HITL (Human-in-the-Loop) for:
+  - Adding new CI/CD dependencies
+  - Modifying branch protection rules
+  - Transferring repository ownership
+  - Deleting branches or tags
+
+### Git Operations by Agents
+- Agents MUST NOT push directly to `main` or any protected branch
+- Agents MUST create feature branches for all changes
+- Agents MUST open PRs for all changes to protected branches
+- Agents MUST NOT amend or rebase commits that have been pushed
+- Agents MUST NOT delete remote branches without explicit instruction
+- Agents MUST fetch and rebase on latest `main` before finalizing work
+
 ## Agent Working Rules
 - Prefer minimal, reviewable diffs.
 - Do not perform destructive git actions without explicit user instruction.
