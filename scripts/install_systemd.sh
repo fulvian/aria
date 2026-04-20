@@ -23,6 +23,7 @@ Usage: ./scripts/install_systemd.sh [command]
 
 Commands:
   install     Install systemd unit files (default)
+  reload      Reload systemd user daemon
   uninstall   Remove systemd unit files
   start       Start all ARIA services
   stop        Stop all ARIA services
@@ -161,6 +162,12 @@ disable_services() {
     log_info "Services disabled"
 }
 
+reload_daemon() {
+    log_info "Reloading systemd user daemon..."
+    systemctl --user daemon-reload
+    log_info "Systemd daemon reloaded"
+}
+
 # === Main ===
 main() {
     local action="${1:-install}"
@@ -171,6 +178,9 @@ main() {
             ;;
         uninstall)
             uninstall_units
+            ;;
+        reload)
+            reload_daemon
             ;;
         start)
             start_services

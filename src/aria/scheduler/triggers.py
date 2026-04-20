@@ -22,11 +22,10 @@ import contextlib
 import hashlib
 import hmac
 import logging
-import re
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable
-from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from datetime import UTC, datetime, tzinfo
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from aria.scheduler.schema import Task
@@ -64,12 +63,6 @@ class CronTrigger(Trigger):
     respecting timezone and DST transitions.
     """
 
-    # Cron expression validation (5 fields: min hour day month dow)
-    CRON_PATTERN = re.compile(
-        r"^(\*|[0-5]?\d)\s+(\*|[01]?\d|2[0-3])\s+(\*|[1-9]|[12]\d|3[01])\s+"
-        r"(\*|[1-9]|1[0-2])\s+(\*|[0-6])$"
-    )
-
     def __init__(self, expr: str, tz: str = "Europe/Rome") -> None:
         """Initialize CronTrigger.
 
@@ -80,7 +73,9 @@ class CronTrigger(Trigger):
         Raises:
             ValueError: If expression is invalid
         """
-        if not self.CRON_PATTERN.match(expr):
+        from croniter import croniter  # type: ignore[import-untyped]
+
+        if not croniter.is_valid(expr):
             raise ValueError(f"Invalid cron expression: {expr}")
 
         self._expr = expr
@@ -112,17 +107,17 @@ class CronTrigger(Trigger):
         try:
             from zoneinfo import ZoneInfo
 
-            tz = ZoneInfo(self._tz)
+            tz: tzinfo = ZoneInfo(self._tz)
         except Exception:
             logger.warning("Invalid timezone %s, falling back to UTC", self._tz)
             tz = UTC
 
-        # Create croniter with current time
+        # Create croniter with timezone-aware base time
         current = now.astimezone(tz) if now.tzinfo else now.replace(tzinfo=tz)
-        cron = croniter(self._expr, current, tz)
+        cron = croniter(self._expr, current)
 
         # Get next fire time (after current time)
-        return cron.get_next(datetime)
+        return cast("datetime", cron.get_next(datetime))
 
 
 # === Oneshot Trigger ===
@@ -376,6 +371,8 @@ def create_trigger(
             scheduled_at = None
             if "at" in trigger_config:
                 scheduled_at = datetime.fromisoformat(trigger_config["at"])
+                if scheduled_at.tzinfo is None:
+                    scheduled_at = scheduled_at.replace(tzinfo=UTC)
             return OneshotTrigger(scheduled_at)
 
         case "event":

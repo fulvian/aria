@@ -18,7 +18,7 @@ import tempfile
 from collections import defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
@@ -30,13 +30,26 @@ from telegram.ext import (
     filters,
 )
 
+from aria.utils.logging import get_logger
+
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
     from aria.config import AriaConfig
     from aria.credentials import CredentialManager
     from aria.gateway.auth import AuthGuard
     from aria.gateway.session_manager import SessionManager
 
-from aria.utils.logging import get_logger
+
+class BusProtocol(Protocol):
+    async def publish(self, event: str, payload: dict[str, Any]) -> None: ...
+
+    def subscribe(
+        self,
+        event: str,
+        callback: Callable[[dict[str, Any]], Awaitable[None]],
+    ) -> None: ...
+
 
 logger = get_logger(__name__)
 
@@ -128,7 +141,7 @@ class EventBus:
     """Minimal async event bus for gateway internal events."""
 
     def __init__(self) -> None:
-        self._subscribers: dict[str, list[callable] | asyncio.Event] = {}
+        self._subscribers: dict[str, list[Callable[[dict[str, Any]], Awaitable[None]]]] = {}
         self._lock = asyncio.Lock()
 
     async def publish(self, event: str, payload: dict[str, Any]) -> None:
@@ -141,21 +154,18 @@ class EventBus:
         async with self._lock:
             callbacks = self._subscribers.get(event, [])
             for callback in callbacks:
-                if asyncio.iscoroutinefunction(callback):
-                    await callback(payload)
-                elif isinstance(callback, asyncio.Event):
-                    callback.set()
+                await callback(payload)
 
-    def subscribe(self, event: str, callback: callable) -> None:
+    def subscribe(self, event: str, callback: Callable[[dict[str, Any]], Awaitable[None]]) -> None:
         """Subscribe to an event.
 
         Args:
             event: Event name.
             callback: Async callback function.
         """
-        if event not in self._subscribers:
-            self._subscribers[event] = []
-        self._subscribers[event].append(callback)
+        if not asyncio.iscoroutinefunction(callback):
+            raise TypeError("EventBus subscriber must be an async function")
+        self._subscribers.setdefault(event, []).append(callback)
 
 
 # === Telegram Adapter ===
@@ -179,7 +189,7 @@ class TelegramAdapter:
         cm: CredentialManager,
         auth: AuthGuard,
         sessions: SessionManager,
-        bus: EventBus,
+        bus: BusProtocol,
         config: AriaConfig,
     ) -> None:
         """Initialize Telegram adapter.
@@ -243,7 +253,7 @@ class TelegramAdapter:
         # Voice/Audio handler
         app.add_handler(
             MessageHandler(
-                filters.VOICE | filters.AUDIO & filters.ChatType.PRIVATE,
+                (filters.VOICE | filters.AUDIO) & filters.ChatType.PRIVATE,
                 self._handle_voice,
             )
         )
@@ -262,10 +272,16 @@ class TelegramAdapter:
         """
         if self._app is None:
             await self.build_app()
+        app = self._app
+        if app is None:
+            raise RuntimeError("Telegram application was not initialized")
 
         # Initialize application
-        await self._app.initialize()
-        await self._app.start()
+        await app.initialize()
+        await app.start()
+        if app.updater is None:
+            raise RuntimeError("Telegram updater is not available")
+        await app.updater.start_polling()
 
         # Set up signal handlers for graceful shutdown
         loop = asyncio.get_running_loop()
@@ -289,6 +305,8 @@ class TelegramAdapter:
         """Stop the PTB application gracefully."""
         if self._app is not None:
             logger.info("Stopping Telegram adapter...")
+            if self._app.updater is not None:
+                await self._app.updater.stop()
             await self._app.stop()
             await self._app.shutdown()
             logger.info("Telegram adapter stopped")
@@ -333,6 +351,8 @@ class TelegramAdapter:
 
         session = await self._get_session(update)
         user = update.effective_user
+        if update.message is None or user is None:
+            return
 
         await update.message.reply_text(
             f"Ciao {user.first_name}! 👋\n\n"
@@ -345,6 +365,8 @@ class TelegramAdapter:
     async def _handle_help(self, update: Update, context: Any) -> None:  # noqa: ANN401
         """Handle /help command."""
         if not await self._whitelist_check(update):
+            return
+        if update.message is None:
             return
 
         await update.message.reply_text(
@@ -361,6 +383,8 @@ class TelegramAdapter:
     async def _handle_status(self, update: Update, context: Any) -> None:  # noqa: ANN401
         """Handle /status command."""
         if not await self._whitelist_check(update):
+            return
+        if update.message is None:
             return
 
         # Basic status - extend in later sprints
@@ -379,6 +403,8 @@ class TelegramAdapter:
         Per sprint plan: publishes scheduler.task.run event.
         """
         if not await self._whitelist_check(update):
+            return
+        if update.message is None or update.effective_user is None:
             return
 
         if not context.args:
@@ -408,6 +434,8 @@ class TelegramAdapter:
         """
         if not await self._whitelist_check(update):
             return
+        if update.message is None or update.effective_user is None:
+            return
 
         # Rate limit check
         user_id = update.effective_user.id
@@ -417,7 +445,7 @@ class TelegramAdapter:
             return
 
         session = await self._get_session(update)
-        text = update.message.text
+        text = update.message.text or ""
 
         # Log for debugging
         logger.debug(
@@ -448,10 +476,14 @@ class TelegramAdapter:
         """
         if not await self._whitelist_check(update):
             return
+        if update.message is None or update.effective_user is None:
+            return
 
         user_id = update.effective_user.id
 
         # Get largest photo
+        if not update.message.photo:
+            return
         photo = update.message.photo[-1]
         file_size = photo.file_size or 0
 
@@ -469,13 +501,14 @@ class TelegramAdapter:
         ) as tmp:
             tmp_path = Path(tmp.name)
 
-            await context.bot.download(photo.file_id, tmp_path)
+            tg_file = await context.bot.get_file(photo.file_id)
+            await tg_file.download_to_drive(custom_path=str(tmp_path))
 
             # Process OCR via multimodal
             try:
                 from aria.gateway.multimodal import ocr_image
 
-                text = await ocr_image(tmp_path)
+                text = ocr_image(tmp_path)
                 logger.info("OCR result for user %d: %s", user_id, text[:100])
 
                 await update.message.reply_text(f"📄 OCR result:\n\n{text[:500]}")
@@ -490,15 +523,23 @@ class TelegramAdapter:
         """
         if not await self._whitelist_check(update):
             return
+        if update.message is None or update.effective_user is None:
+            return
 
         user_id = update.effective_user.id
 
-        voice = update.message.voice
-        file_size = voice.file_size or 0
+        media = update.message.voice if update.message.voice is not None else update.message.audio
+        if media is None:
+            return
+        file_size = media.file_size or 0
 
         if file_size > MAX_DOWNLOAD_BYTES:
             await update.message.reply_text("❌ File audio troppo grande (max 20MB)")
             return
+
+        suffix = ".ogg"
+        if update.message.audio is not None and update.message.audio.file_name:
+            suffix = Path(update.message.audio.file_name).suffix or ".audio"
 
         # Download to temp file
         tmp_dir = self._config.paths.runtime / "tmp" / "gateway"
@@ -506,17 +547,18 @@ class TelegramAdapter:
         with tempfile.NamedTemporaryFile(
             dir=str(tmp_dir),
             delete=True,
-            suffix=".ogg",
+            suffix=suffix,
         ) as tmp:
             tmp_path = Path(tmp.name)
 
-            await context.bot.download(voice.file_id, tmp_path)
+            tg_file = await context.bot.get_file(media.file_id)
+            await tg_file.download_to_drive(custom_path=str(tmp_path))
 
             # Process STT via multimodal
             try:
                 from aria.gateway.multimodal import transcribe_audio
 
-                text = await transcribe_audio(tmp_path)
+                text = transcribe_audio(tmp_path)
                 logger.info("STT result for user %d: %s", user_id, text[:100])
 
                 await update.message.reply_text(f"🎤 Transcribed:\n\n{text[:500]}")
@@ -599,7 +641,7 @@ class StubEventBus:
         self._events[event].append(payload)
         logger.debug("Event published: %s", event)
 
-    def subscribe(self, event: str, callback: callable) -> None:
+    def subscribe(self, event: str, callback: Callable[[dict[str, Any]], Awaitable[None]]) -> None:
         """No-op in stub."""
         pass
 

@@ -87,8 +87,13 @@ def _get_runtime_models_dir() -> Path:
     """Return the runtime models directory, creating it if necessary."""
     global _runtime_models_dir  # noqa: PLW0603
     if _runtime_models_dir is None:
-        home = Path.home()
-        runtime = home / ".aria" / "runtime"
+        runtime_env = Path(
+            __import__("os").environ.get(
+                "ARIA_RUNTIME",
+                "/home/fulvio/coding/aria/.aria/runtime",
+            )
+        )
+        runtime = runtime_env
         models_dir = runtime / "models"
         models_dir.mkdir(parents=True, exist_ok=True)
         _runtime_models_dir = models_dir
@@ -105,12 +110,12 @@ def _get_whisper_model() -> object | None:
     if not _WHISPER_AVAILABLE:
         return None
 
-    import faster_whisper
+    from faster_whisper import WhisperModel
 
     models_dir = _get_runtime_models_dir()
     try:
-        model = faster_whisper.FasterWhisper(
-            model="small",
+        model = WhisperModel(
+            model_size_or_path="small",
             device="auto",
             download_root=str(models_dir),
         )

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import time
 import uuid
 from dataclasses import dataclass
@@ -67,7 +68,7 @@ class TaskRunner:
         self._hitl = hitl
         self._bus = bus
         self._config = config
-        self._worker_id = f"scheduler-{uuid.uuid4().hex[:8]}"
+        self._worker_id = f"scheduler-{os.getpid()}-{uuid.uuid4().hex[:8]}"
         self._running = False
         self._loop_interval_s = 5
 
@@ -143,9 +144,10 @@ class TaskRunner:
 
         if policy_decision == PolicyDecision.DEFERRED:
             logger.info("Task %s deferred to quiet hours end", task.id)
+            deferred_at_ms = int(self._policy.get_deferred_time(task).timestamp() * 1000)
             await self._store.update_task(
                 task.id,
-                next_run_at=self._get_quiet_hours_end_timestamp() * 1000,
+                next_run_at=deferred_at_ms,
             )
             await self._store.release_lease(task.id, self._worker_id)
             return
@@ -195,10 +197,10 @@ class TaskRunner:
                     await self._store.release_lease(task.id, self._worker_id)
                     return
                 if response == "later":
-                    # Defer to quiet hours
+                    deferred_at_ms = int(self._policy.get_deferred_time(task).timestamp() * 1000)
                     await self._store.update_task(
                         task.id,
-                        next_run_at=self._get_quiet_hours_end_timestamp() * 1000,
+                        next_run_at=deferred_at_ms,
                     )
                     await self._store.release_lease(task.id, self._worker_id)
                     return

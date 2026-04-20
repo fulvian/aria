@@ -98,7 +98,7 @@ async def handle_hitl_callback(
     response_map = {
         "yes": "yes",
         "no": "no",
-        "later": "deferred",
+        "later": "later",
     }
     canonical = response_map.get(response)
     if canonical is None:
@@ -145,10 +145,15 @@ async def on_hitl_created(
         bot_token: Telegram bot token for sending messages.
         whitelist_primary_user_id: Fallback user ID when owner_user_id is null.
     """
+    # Support both payload formats:
+    # - legacy: {"hitl_pending": {...}, "question": "..."}
+    # - scheduler event: {"hitl_id": "...", "question": "...", "owner_user_id": "..."}
     hitl_data = payload.get("hitl_pending", {})
-    hitl_id = hitl_data.get("id", "unknown")
-    question = payload.get("question", "No question provided.")
-    owner_user_id = hitl_data.get("owner_user_id") or whitelist_primary_user_id
+    hitl_id = payload.get("hitl_id") or hitl_data.get("id", "unknown")
+    question = payload.get("question") or hitl_data.get("question") or "No question provided."
+    owner_user_id = (
+        payload.get("owner_user_id") or hitl_data.get("owner_user_id") or whitelist_primary_user_id
+    )
 
     if not owner_user_id:
         logger.error("HITL %s: no owner_user_id and no primary whitelist user", hitl_id)

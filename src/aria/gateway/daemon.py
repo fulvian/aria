@@ -18,17 +18,17 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
-import signal
 
 logger = logging.getLogger(__name__)
 
 
-async def _async_main() -> int:
+async def _async_main() -> int:  # noqa: PLR0915
     """Async main entry point for gateway daemon."""
     # Import here to avoid circular imports and allow --check to work without full setup
     from aria.config import get_config
     from aria.credentials import CredentialManager
     from aria.gateway.auth import AuthGuard
+    from aria.gateway.hitl_responder import on_hitl_created
     from aria.gateway.metrics_server import (
         start_metrics_server,
         stop_metrics_server,
@@ -69,39 +69,44 @@ async def _async_main() -> int:
         config=config,
     )
 
-    # Initialize metrics server (function-based API, bound to 127.0.0.1 only)
+    oauth = credential_manager.get_oauth("telegram", "bot")
+    if oauth is None or not oauth.refresh_token:
+        raise RuntimeError("Telegram bot token not available in CredentialManager")
+
+    primary_user_id = str(config.telegram.whitelist[0]) if config.telegram.whitelist else ""
+
+    async def _on_hitl_resolved(payload: dict[str, object]) -> None:
+        hitl_id = str(payload.get("hitl_id", ""))
+        response = str(payload.get("response", ""))
+        if hitl_id:
+            await _hitl_manager.resolve(hitl_id, response)
+
+    async def _on_hitl_created(payload: dict[str, object]) -> None:
+        await on_hitl_created(
+            payload=payload,
+            bot_token=oauth.refresh_token,
+            whitelist_primary_user_id=primary_user_id,
+        )
+
+    bus.subscribe("hitl.resolved", _on_hitl_resolved)
+    bus.subscribe("hitl.created", _on_hitl_created)
+
     start_metrics_server(host="127.0.0.1", port=9090)
 
-    # Set up signal handlers
-    shutdown_event = asyncio.Event()
-
-    def signal_handler(sig: int) -> None:
-        sig_name = signal.Signals(sig).name
-        logger.info("Received %s, initiating graceful shutdown...", sig_name)
-        shutdown_event.set()
-
-    loop = asyncio.get_running_loop()
-    for sig in (signal.SIGTERM, signal.SIGINT):
-        loop.add_signal_handler(sig, signal_handler, sig)
-
-    # Start components
     await notifier.start()
-    app = await telegram_adapter.build_app()
-    await app.initialize()
-    await app.updater.start_polling()  # type: ignore[union-attr]
-
     logger.info("ARIA Gateway daemon started successfully")
-    await notifier.ping()
 
-    # Wait for shutdown
-    await shutdown_event.wait()
-
-    # Graceful shutdown
-    logger.info("Shutting down ARIA Gateway daemon...")
-    await telegram_adapter.stop()
-    await notifier.stop("shutdown")
-    stop_metrics_server()
-    logger.info("ARIA Gateway daemon stopped")
+    try:
+        async with asyncio.TaskGroup() as tg:
+            tg.create_task(notifier.run_forever())
+            tg.create_task(telegram_adapter.start_polling())
+    finally:
+        logger.info("Shutting down ARIA Gateway daemon...")
+        await notifier.stop("shutdown")
+        await task_store.close()
+        await sessions.close()
+        stop_metrics_server()
+        logger.info("ARIA Gateway daemon stopped")
 
     return 0
 

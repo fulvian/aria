@@ -75,8 +75,12 @@ class AuthGuard:
             digestmod=hashlib.sha256,
         ).hexdigest()
 
+        normalized_signature = signature.strip().lower()
+        if normalized_signature.startswith("sha256="):
+            normalized_signature = normalized_signature.split("=", 1)[1]
+
         # Timing-safe comparison
-        valid = hmac.compare_digest(expected, signature.lower())
+        valid = hmac.compare_digest(expected, normalized_signature)
 
         if not valid:
             logger.warning(

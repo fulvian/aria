@@ -12,10 +12,10 @@ previous_phase_plan: docs/plans/phase-0/sprint-00.md
 
 # ARIA — Phase 1 (MVP) — Implementation Plan Overview
 
-## Stato avanzamento (aggiornato al 2026-04-20)
+## Stato avanzamento (aggiornato al 2026-04-20, post-remediation Sprint 1.2)
 
 - Sprint 1.1: implementato e verificato, con evidence pack in `docs/implementation/phase-1/sprint-01-evidence.md`.
-- Sprint 1.2: pronto ad avvio (dipendenze sprint rispettate).
+- Sprint 1.2: implementato, verificato e riallineato alle specifiche (evidence pack aggiornato).
 - Stato Phase 1: **in progress** (Go/No-Go Phase 1 non ancora valutabile fino a chiusura Sprint 1.4).
 
 ## 0) Come leggere questi documenti
@@ -91,7 +91,7 @@ Stato confermato chiuso (vedi §18.G blueprint e `docs/plans/phase-0/sprint-00.m
 Stato operativo sprint:
 
 - [x] Sprint 1.1 chiuso con quality gates e benchmark recall p95 verde.
-- [ ] Sprint 1.2 da completare.
+- [x] Sprint 1.2 completato.
 - [ ] Sprint 1.3 da completare.
 - [ ] Sprint 1.4 da completare.
 

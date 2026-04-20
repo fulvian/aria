@@ -3,8 +3,50 @@
 
 **Sprint:** 1.2
 **Date:** 2026-04-20
-**Status:** completed
+**Status:** completed (post-remediation verified)
 **Owner:** fulvio
+
+---
+
+## 0. Post-remediation update (2026-04-20)
+
+Questa evidenza include una remediation chirurgica successiva alla prima chiusura sprint,
+focalizzata su aderenza completa alle specifiche blueprint/sprint.
+
+### Gap corretti
+
+1. `aria schedule` CLI era collegata a uno store in-memory stub:
+   - migrata su `TaskStore` SQLite reale.
+2. Router launcher `bin/aria schedule`:
+   - instrada ora `list|add|remove|run|replay|status` verso la CLI scheduler.
+3. Telegram adapter PTB v22:
+   - lifecycle polling corretto (`initialize/start/updater.start_polling/stop/shutdown`),
+   - download media corretto via `get_file().download_to_drive(...)`,
+   - fix handler voice/audio e null-safety.
+4. Gateway daemon:
+   - wiring effettivo bridge HITL (`hitl.created` e `hitl.resolved`) e shutdown pulito.
+5. Scheduler runtime:
+   - fix deferred timestamp handling,
+   - worker id allineato a ADR-0005,
+   - hardening lease acquisition edge-case (`lease_expires_at IS NULL`).
+6. Systemd hardening:
+   - unit scheduler/gateway aggiornate con direttive blueprint §6.6.
+7. Runbook operativo:
+   - path runtime e snippet di diagnostica allineati allo stato reale del progetto.
+
+### Verifica remediation eseguita
+
+```bash
+uv run ruff check src/aria/scheduler/store.py src/aria/scheduler/triggers.py src/aria/scheduler/runner.py src/aria/scheduler/daemon.py src/aria/scheduler/cli.py src/aria/gateway/telegram_adapter.py src/aria/gateway/daemon.py src/aria/gateway/auth.py src/aria/gateway/multimodal.py src/aria/gateway/hitl_responder.py
+uv run pytest tests/unit/scheduler tests/unit/gateway tests/integration/scheduler -q
+systemd-analyze verify systemd/aria-scheduler.service systemd/aria-gateway.service
+uv run python -m aria.scheduler.daemon --check
+uv run python -m aria.gateway.daemon --check
+./bin/aria schedule list
+```
+
+Risultato: lint mirato verde, `111 passed`, unit systemd valide, entrypoint daemon validati,
+CLI scheduler operativa dal launcher.
 
 ---
 

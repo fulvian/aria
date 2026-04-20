@@ -152,6 +152,7 @@ class TaskStore:
         """Initialize database connection and run migrations."""
         import aiosqlite
 
+        self._db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = await aiosqlite.connect(str(self._db_path))
         self._conn.row_factory = aiosqlite.Row
 
@@ -245,27 +246,40 @@ class TaskStore:
         # Special handling for JSON fields
         json_fields = {"trigger_config", "payload"}
 
-        set_clauses = []
-        values = []
+        set_clauses: list[str] = []
+        values: list[object] = []
 
         for key, value in fields.items():
             if key in json_fields and isinstance(value, dict):
                 set_clauses.append(f"{key} = ?")
                 values.append(json.dumps(value))
-            elif key == "updated_at":
-                set_clauses.append("updated_at = ?")
-                values.append(int(datetime.now(tz=UTC).timestamp() * 1000))
             else:
                 set_clauses.append(f"{key} = ?")
                 values.append(value)
 
-        if not set_clauses:
-            return
+        now_ms = int(datetime.now(tz=UTC).timestamp() * 1000)
+        set_clauses.append("updated_at = ?")
+        values.append(now_ms)
 
         values.append(task_id)
         sql = f"UPDATE tasks SET {', '.join(set_clauses)} WHERE id = ?"
         await self._conn.execute(sql, values)
         await self._conn.commit()
+
+    async def delete_task(self, task_id: str) -> bool:
+        """Delete a task by ID.
+
+        Args:
+            task_id: Task ID to delete.
+
+        Returns:
+            True if a task was deleted, False otherwise.
+        """
+        self._assert_connected()
+
+        cursor = await self._conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+        await self._conn.commit()
+        return (cursor.rowcount or 0) > 0
 
     async def get_task(self, task_id: str) -> Task | None:
         """Get task by ID.
@@ -361,7 +375,11 @@ class TaskStore:
                 WHERE status = 'active'
                   AND next_run_at IS NOT NULL
                   AND next_run_at <= ?
-                  AND (lease_owner IS NULL OR lease_expires_at < ?)
+                  AND (
+                    lease_owner IS NULL
+                    OR lease_expires_at IS NULL
+                    OR lease_expires_at < ?
+                  )
                 ORDER BY next_run_at
                 LIMIT ?
             )

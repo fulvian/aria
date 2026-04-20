@@ -6,8 +6,6 @@ import argparse
 import asyncio
 import logging
 import os
-import signal
-from typing import Any
 
 from aria.config import get_config
 from aria.utils.logging import get_logger
@@ -124,35 +122,15 @@ def main(argv: list[str] | None = None) -> int:
             return 1
 
     # Development mode check (no NOTIFY_SOCKET)
-    args.dev or not os.environ.get("NOTIFY_SOCKET")
-
-    # Setup signal handlers for graceful shutdown
-    asyncio.Event()
-    main_task: asyncio.Task[None] | None = None
-
-    def signal_handler(sig: int, frame: Any) -> None:  # noqa: ANN401
-        """Handle shutdown signals."""
-        sig_name = signal.Signals(sig).name
-        logger = logging.getLogger(__name__)
-        logger.info("Received %s, initiating graceful shutdown...", sig_name)
-        if main_task and not main_task.done():
-            main_task.cancel()
-
-    signal.signal(signal.SIGTERM, signal_handler)
-    signal.signal(signal.SIGINT, signal_handler)
+    _ = args.dev or not os.environ.get("NOTIFY_SOCKET")
 
     try:
-        main_task = asyncio.run(_run_scheduler())
-    except asyncio.CancelledError:
-        logger = logging.getLogger(__name__)
-        logger.info("Scheduler daemon shutdown complete")
+        asyncio.run(_run_scheduler())
         return 0
     except Exception as e:
         logger = logging.getLogger(__name__)
         logger.exception("Scheduler daemon failed: %s", e)
         return 1
-
-    return 0
 
 
 if __name__ == "__main__":

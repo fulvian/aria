@@ -120,7 +120,22 @@ main() {
             exec npx --yes kilocode chat --mode "$@"
             ;;
         schedule)
-            exec python -m aria.scheduler.daemon "$@"
+            if [[ $# -eq 0 ]]; then
+                exec python -m aria.scheduler.daemon
+            fi
+
+            case "${1:-}" in
+                list|add|remove|run|replay|status)
+                    exec python -m aria.scheduler.cli "$@"
+                    ;;
+                daemon)
+                    shift
+                    exec python -m aria.scheduler.daemon "$@"
+                    ;;
+                *)
+                    exec python -m aria.scheduler.daemon "$@"
+                    ;;
+            esac
             ;;
         gateway)
             exec python -m aria.gateway.daemon "$@"

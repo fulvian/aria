@@ -27,4 +27,5 @@ Questo indice raccoglie le evidenze di implementazione della Phase 1.
 ## Notes
 
 - L'uscita Phase 1 (Go/No-Go) segue il criterio in `docs/plans/phase-1/README.md` §12.
-- Al momento e possibile procedere a Sprint 1.2, ma non dichiarare Phase 1 GO.
+- Sprint 1.2 e stato chiuso con remediation tecnica aggiuntiva (scheduler/gateway) per riallineare runtime behavior e hardening.
+- E possibile procedere a Sprint 1.3, ma non dichiarare ancora Phase 1 GO.

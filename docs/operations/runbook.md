@@ -125,13 +125,13 @@ curl -s http://127.0.0.1:9090/metrics | grep aria_tasks_total
 
 ```bash
 # Verificare che scheduler.db sia raggiungibile
-ls -la ~/.aria/runtime/scheduler/scheduler.db
+ls -la ~/coding/aria/.aria/runtime/scheduler/scheduler.db
 
 # Check WAL size (alert se > 256MB)
-du -h ~/.aria/runtime/scheduler/scheduler.db-wal
+du -h ~/coding/aria/.aria/runtime/scheduler/scheduler.db-wal
 
 # Check sessioni gateway
-ls -la ~/.aria/runtime/gateway/sessions.db
+ls -la ~/coding/aria/.aria/runtime/gateway/sessions.db
 ```
 
 ---
@@ -252,8 +252,8 @@ async def check():
     config = get_config()
     store = TaskStore(config.paths.runtime / 'scheduler/scheduler.db')
     await store.connect()
-    hits = await store.store.execute('SELECT id, task_id, question, created_at FROM hitl_pending WHERE resolved_at IS NULL')
-    print(hits)
+    cursor = await store._conn.execute('SELECT id, task_id, question, created_at FROM hitl_pending WHERE resolved_at IS NULL')
+    print(await cursor.fetchall())
 
 asyncio.run(check())
 "
@@ -295,7 +295,7 @@ cd ~/coding/aria
 ./scripts/backup.sh
 
 # Backup solo scheduler
-cp ~/.aria/runtime/scheduler/scheduler.db ~/.aria-backups/scheduler-$(date +%Y%m%d).db
+cp ~/coding/aria/.aria/runtime/scheduler/scheduler.db ~/.aria-backups/scheduler-$(date +%Y%m%d).db
 ```
 
 ### 6.2 Restore
@@ -305,7 +305,7 @@ cp ~/.aria/runtime/scheduler/scheduler.db ~/.aria-backups/scheduler-$(date +%Y%m
 ls -la ~/.aria-backups/
 
 # Restore scheduler.db
-cp ~/.aria-backups/scheduler-20260420.db ~/.aria/runtime/scheduler/scheduler.db
+cp ~/.aria-backups/scheduler-20260420.db ~/coding/aria/.aria/runtime/scheduler/scheduler.db
 # ⚠️ Stop scheduler prima di restore: systemctl --user stop aria-scheduler.service
 ```
 
@@ -335,7 +335,7 @@ journalctl --user -u aria-gateway.service --no-pager | grep -i token
 curl -s https://api.telegram.org/bot<TOKEN>/getMe | python -m json.tool
 
 # 3. Verificare whitelist in .env
-grep ARIA_TELEGRAM_WHITELIST ~/.aria/env  # o .env
+grep ARIA_TELEGRAM_WHITELIST ~/coding/aria/.env
 ```
 
 ### 7.3 HITL non arriva su Telegram
@@ -409,7 +409,7 @@ print(f'Timezone: {c.operational.timezone}')
 
 ```bash
 # Verificare .env
-cat ~/.aria/env   # se separato da .env principale
+cat ~/coding/aria/.env
 cat ~/coding/aria/.env | grep -E "ARIA_|TELEGRAM|QUIET"
 ```
 
