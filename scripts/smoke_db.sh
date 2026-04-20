@@ -7,6 +7,7 @@ set -euo pipefail
 ARIA_HOME="${ARIA_HOME:-/home/fulvio/coding/aria}"
 TEST_DIR="${TEST_DIR:-/tmp/aria-test}"
 SCHEMA_FILE="$ARIA_HOME/docs/foundation/schemas/sqlite_full.sql"
+PYTHON_BIN="${PYTHON_BIN:-$ARIA_HOME/.venv/bin/python}"
 
 log_info() {
     echo "[INFO] $1"
@@ -48,6 +49,35 @@ check_sqlite_version() {
         # Don't fail - continue with other tests to verify functionality
         return 0
     fi
+}
+
+# === Check Python sqlite runtime version ===
+check_python_sqlite_version() {
+    local required="3.51.3"
+    local py_bin="$PYTHON_BIN"
+
+    if [[ ! -x "$py_bin" ]]; then
+        py_bin="$(command -v python3)"
+    fi
+
+    local py_version
+    py_version=$($py_bin -c "import sqlite3; print(sqlite3.sqlite_version)" 2>/dev/null || echo "unknown")
+
+    log_info "Python sqlite runtime: $py_version (required: >= $required)"
+
+    if [[ "$py_version" == "unknown" ]]; then
+        log_fail "Could not determine sqlite runtime from Python interpreter: $py_bin"
+        return 1
+    fi
+
+    if [[ "$(printf '%s\n' "$required" "$py_version" | sort -V | head -n1)" == "$required" ]]; then
+        log_pass "Python sqlite runtime version check"
+        return 0
+    fi
+
+    log_fail "Python sqlite runtime is below blueprint requirement ($py_version < $required)"
+    log_fail "Rebuild .venv with an interpreter linked to sqlite >= $required"
+    return 1
 }
 
 # === Check FTS5 availability ===
@@ -144,17 +174,24 @@ validate_schema() {
         return 1
     fi
 
-    # Create a test DB with the schema
+    # Create a test DB with the schema and fail on parse errors.
     rm -f "$TEST_DIR/schema_test.db"
-    sqlite3 "$TEST_DIR/schema_test.db" < "$SCHEMA_FILE" 2>&1
+    local output
+    output=$(sqlite3 "$TEST_DIR/schema_test.db" < "$SCHEMA_FILE" 2>&1)
+
+    if [[ "$output" == *"Parse error"* ]] || [[ "$output" == *"Error:"* ]]; then
+        log_fail "Schema file has SQL errors"
+        log_fail "$output"
+        return 1
+    fi
 
     if [[ -f "$TEST_DIR/schema_test.db" ]]; then
         log_pass "Schema file is valid SQL"
         return 0
-    else
-        log_fail "Schema file has errors"
-        return 1
     fi
+
+    log_fail "Schema file validation failed"
+    return 1
 }
 
 # === Cleanup ===
@@ -171,6 +208,7 @@ main() {
     local failed=0
 
     check_sqlite_version || failed=1
+    check_python_sqlite_version || failed=1
     check_fts5 || failed=1
     create_test_db || failed=1
     check_wal_mode || failed=1

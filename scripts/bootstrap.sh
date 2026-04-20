@@ -6,6 +6,7 @@
 set -euo pipefail
 
 ARIA_HOME="${ARIA_HOME:-/home/fulvio/coding/aria}"
+ARIA_PYTHON_BIN="${ARIA_PYTHON_BIN:-$(command -v python3)}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -69,6 +70,15 @@ check_prerequisites() {
         exit 1
     fi
 
+    # Check Python sqlite runtime version (authoritative for ARIA code)
+    local py_sqlite_version
+    py_sqlite_version=$($ARIA_PYTHON_BIN -c "import sqlite3; print(sqlite3.sqlite_version)")
+    if [[ "$(printf '%s\n' "$required_version" "$py_sqlite_version" | sort -V | head -n1)" != "$required_version" ]]; then
+        log_error "Python sqlite runtime $py_sqlite_version is below minimum required $required_version"
+        log_error "Set ARIA_PYTHON_BIN to an interpreter with sqlite >= $required_version"
+        exit 1
+    fi
+
     log_info "Prerequisites OK"
 }
 
@@ -94,13 +104,13 @@ init_python() {
     log_info "Initializing Python environment..."
 
     if [[ ! -d "$ARIA_HOME/.venv" ]]; then
-        uv venv "$ARIA_HOME/.venv"
+        uv venv --python "$ARIA_PYTHON_BIN" "$ARIA_HOME/.venv"
         log_info "Virtual environment created"
     else
         log_info "Virtual environment already exists"
     fi
 
-    uv sync
+    uv sync --extra dev
     log_info "Python dependencies installed"
 }
 

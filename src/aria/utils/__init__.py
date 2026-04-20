@@ -1,22 +1,37 @@
-# ARIA utilities module
+# ARIA Utilities Package
 #
-# Shared utilities:
-# - logging: structured JSON logging
-# - metrics: Prometheus-ready metrics
-#
-# Usage:
-#   from aria.utils import setup_logging, get_logger
+# Logging, metrics, and other shared utilities per blueprint §14.1
 
-from __future__ import annotations
+from aria.utils.logging import (
+    get_logger,
+    get_trace_id,
+    log_event,
+    new_trace_id,
+    redact_secret,
+    set_trace_id,
+    trace_id_var,
+)
+from aria.utils.metrics import (
+    gauge,
+    get_stats,
+    incr,
+    timing,
+)
+from aria.utils.metrics import (
+    reset as reset_metrics,
+)
 
-__all__ = ["setup_logging", "get_logger"]
-
-
-def setup_logging(level: str = "INFO") -> None:
-    """Set up structured JSON logging."""
-    pass
-
-
-def get_logger(name: str) -> object:
-    """Get a logger instance."""
-    return object()
+__all__ = [
+    "get_logger",
+    "set_trace_id",
+    "get_trace_id",
+    "new_trace_id",
+    "redact_secret",
+    "log_event",
+    "trace_id_var",
+    "incr",
+    "gauge",
+    "timing",
+    "get_stats",
+    "reset_metrics",
+]

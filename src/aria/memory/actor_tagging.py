@@ -1,0 +1,139 @@
+# Actor Tagging Helpers
+#
+# Per blueprint §5.3 and sprint plan W1.1.J.
+#
+# Functions:
+# - derive_actor_from_role: map role to actor
+# - actor_trust_score: trust score per actor type
+# - actor_aggregate: aggregate multiple actors
+#
+# Usage:
+#   from aria.memory.actor_tagging import derive_actor_from_role, actor_trust_score, actor_aggregate
+#
+#   actor = derive_actor_from_role("user", is_tool_result=False)
+#   score = actor_trust_score(actor)
+#   agg = actor_aggregate([Actor.USER_INPUT, Actor.TOOL_OUTPUT])
+
+from __future__ import annotations
+
+from aria.memory.schema import Actor
+
+# === Trust Scores (per blueprint P5) ===
+
+TRUST_SCORES: dict[Actor, float] = {
+    Actor.USER_INPUT: 1.0,  # Maximum trust
+    Actor.TOOL_OUTPUT: 0.9,  # High trust (verifiable)
+    Actor.AGENT_INFERENCE: 0.6,  # Conditional trust
+    Actor.SYSTEM_EVENT: 0.5,  # Metadata only
+}
+
+
+def derive_actor_from_role(
+    role: str,
+    is_tool_result: bool = False,
+) -> Actor:
+    """Derive actor from message role.
+
+    Per blueprint §5.3:
+    - user → USER_INPUT
+    - assistant → AGENT_INFERENCE (or USER_INPUT if echo)
+    - tool → TOOL_OUTPUT
+    - system → SYSTEM_EVENT
+
+    Args:
+        role: Message role string
+        is_tool_result: If True, overrides to TOOL_OUTPUT
+
+    Returns:
+        Actor enum value
+    """
+    if is_tool_result:
+        return Actor.TOOL_OUTPUT
+
+    role_lower = role.lower()
+    if role_lower == "user":
+        return Actor.USER_INPUT
+    elif role_lower == "assistant":
+        return Actor.AGENT_INFERENCE
+    elif role_lower == "tool":
+        return Actor.TOOL_OUTPUT
+    elif role_lower == "system":
+        return Actor.SYSTEM_EVENT
+    else:
+        return Actor.SYSTEM_EVENT
+
+
+def actor_trust_score(actor: Actor) -> float:
+    """Get trust score for an actor.
+
+    Args:
+        actor: Actor enum value
+
+    Returns:
+        Trust score between 0.0 and 1.0
+    """
+    return TRUST_SCORES.get(actor, 0.5)
+
+
+def actor_aggregate(actors: list[Actor]) -> Actor:
+    """Aggregate multiple actors into one.
+
+    Per blueprint P5 - downgrade rules:
+    - Mix with AGENT_INFERENCE → AGENT_INFERENCE (don't promote)
+    - Mix user + tool → TOOL_OUTPUT
+    - Single actor → that actor
+
+    Args:
+        actors: List of actor values to aggregate
+
+    Returns:
+        Aggregated actor
+    """
+    if not actors:
+        return Actor.SYSTEM_EVENT
+
+    # Single actor
+    if len(actors) == 1:
+        return actors[0]
+
+    # Check for USER_INPUT + TOOL_OUTPUT mix
+    has_user = Actor.USER_INPUT in actors
+    has_tool = Actor.TOOL_OUTPUT in actors
+    has_inference = Actor.AGENT_INFERENCE in actors
+
+    # If mix includes AGENT_INFERENCE, result is AGENT_INFERENCE (don't promote)
+    if has_inference:
+        return Actor.AGENT_INFERENCE
+
+    # If both user and tool present → TOOL_OUTPUT
+    if has_user and has_tool:
+        return Actor.TOOL_OUTPUT
+
+    # If only user → USER_INPUT
+    if has_user:
+        return Actor.USER_INPUT
+
+    # If only tool → TOOL_OUTPUT
+    if has_tool:
+        return Actor.TOOL_OUTPUT
+
+    # Only system events
+    return Actor.SYSTEM_EVENT
+
+
+def format_actor_tag(actor: Actor) -> str:
+    """Format actor for display/logging.
+
+    Args:
+        actor: Actor value
+
+    Returns:
+        Human-readable tag
+    """
+    tags = {
+        Actor.USER_INPUT: "[USER]",
+        Actor.TOOL_OUTPUT: "[TOOL]",
+        Actor.AGENT_INFERENCE: "[AGENT]",
+        Actor.SYSTEM_EVENT: "[SYS]",
+    }
+    return tags.get(actor, "[???]")

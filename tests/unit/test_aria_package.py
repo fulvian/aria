@@ -52,14 +52,24 @@ class TestAriaPackage:
 class TestUtilsModule:
     """Test utils module."""
 
-    def test_utils_has_setup_logging(self) -> None:
-        """Utils module exports setup_logging."""
-        from aria.utils import setup_logging
-
-        assert setup_logging is not None
-
     def test_utils_has_get_logger(self) -> None:
         """Utils module exports get_logger."""
         from aria.utils import get_logger
 
         assert get_logger is not None
+
+    def test_utils_has_redact_secret(self) -> None:
+        """Utils module exports redact_secret."""
+        from aria.utils import redact_secret
+
+        assert redact_secret is not None
+        assert redact_secret(None) == "<none>"
+        assert redact_secret("sk-abc1234567") == "***4567"
+
+    def test_utils_has_trace_functions(self) -> None:
+        """Utils module exports trace ID functions."""
+        from aria.utils import get_trace_id, new_trace_id, set_trace_id
+
+        assert new_trace_id is not None
+        assert set_trace_id is not None
+        assert get_trace_id is not None

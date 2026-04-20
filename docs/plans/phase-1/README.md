@@ -1,7 +1,7 @@
 ---
 document: ARIA Phase 1 Implementation Plan — Overview
-version: 1.0.0
-status: draft
+version: 1.1.0
+status: in_progress
 date_created: 2026-04-20
 last_review: 2026-04-20
 owner: fulvio
@@ -11,6 +11,12 @@ previous_phase_plan: docs/plans/phase-0/sprint-00.md
 ---
 
 # ARIA — Phase 1 (MVP) — Implementation Plan Overview
+
+## Stato avanzamento (aggiornato al 2026-04-20)
+
+- Sprint 1.1: implementato e verificato, con evidence pack in `docs/implementation/phase-1/sprint-01-evidence.md`.
+- Sprint 1.2: pronto ad avvio (dipendenze sprint rispettate).
+- Stato Phase 1: **in progress** (Go/No-Go Phase 1 non ancora valutabile fino a chiusura Sprint 1.4).
 
 ## 0) Come leggere questi documenti
 
@@ -81,6 +87,13 @@ Stato confermato chiuso (vedi §18.G blueprint e `docs/plans/phase-0/sprint-00.m
 | 1.2    | Scheduler + Gateway Telegram          | `sprint-02.md`           | `src/aria/scheduler/`, `src/aria/gateway/`                        |
 | 1.3    | ARIA-Conductor + Search-Agent         | `sprint-03.md`           | `.aria/kilocode/agents/`, `.aria/kilocode/skills/`, `src/aria/agents/search/` |
 | 1.4    | Workspace-Agent + E2E MVP             | `sprint-04.md`           | `src/aria/agents/workspace/`, `scripts/oauth_first_setup.py`      |
+
+Stato operativo sprint:
+
+- [x] Sprint 1.1 chiuso con quality gates e benchmark recall p95 verde.
+- [ ] Sprint 1.2 da completare.
+- [ ] Sprint 1.3 da completare.
+- [ ] Sprint 1.4 da completare.
 
 Ogni sprint finisce con una **demo verificabile** e un **evidence pack** (output comandi gate + log/screenshot).
 

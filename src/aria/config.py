@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import os
 import re
+import threading
 from dataclasses import dataclass, field
 from datetime import UTC
 from pathlib import Path
@@ -125,6 +126,30 @@ class SOPSConfig:
 
 
 @dataclass
+class MemoryConfig:
+    """Memory subsystem configuration."""
+
+    t2_enabled: bool = False  # ARIA_MEMORY_T2
+    t0_retention_days: int = 365
+    t1_compression_after_days: int = 90
+
+    @classmethod
+    def from_env(cls) -> MemoryConfig:
+        """Load memory config from environment variables."""
+        t2_env = os.environ.get("ARIA_MEMORY_T2", "0").lower()
+        t2_enabled = t2_env in ("1", "true", "yes", "on")
+
+        t0_retention = int(os.environ.get("ARIA_MEMORY_T0_RETENTION_DAYS", "365"))
+        t1_compression = int(os.environ.get("ARIA_MEMORY_T1_COMPRESSION_DAYS", "90"))
+
+        return cls(
+            t2_enabled=t2_enabled,
+            t0_retention_days=t0_retention,
+            t1_compression_after_days=t1_compression,
+        )
+
+
+@dataclass
 class TelegramConfig:
     """Telegram gateway configuration."""
 
@@ -137,9 +162,16 @@ class TelegramConfig:
         user_ids: list[int] = []
 
         if raw_whitelist:
-            user_ids = [int(p.strip()) for p in raw_whitelist.split(",") if p.strip().isdigit()]
+            # Support both comma-separated and space-separated
+            for part in raw_whitelist.replace(",", " ").split():
+                if part.strip().isdigit():
+                    user_ids.append(int(part.strip()))
 
         return cls(whitelist=user_ids)
+
+
+class ConfigurationError(ValueError):
+    """Raised when configuration is invalid or incomplete."""
 
 
 @dataclass
@@ -147,15 +179,72 @@ class ARIAConfig:
     """Main ARIA configuration container.
 
     Collects all configuration namespaces and provides a single access point.
+
+    Per sprint plan §1.2:
+    - home: Path (ARIA_HOME)
+    - runtime: Path (ARIA_RUNTIME)
+    - credentials: Path (ARIA_CREDENTIALS)
+    - log_level: str = "INFO"
+    - timezone: str = "Europe/Rome"
+    - locale: str = "it_IT.UTF-8"
+    - quiet_hours: str = "22:00-07:00"
+    - memory_t2_enabled: bool = False (ARIA_MEMORY_T2)
+    - memory_t0_retention_days: int = 365
+    - memory_t1_compression_after_days: int = 90
+    - sops_age_key_file: Path (SOPS_AGE_KEY_FILE)
+    - telegram_whitelist: list[str] = [] (CSV in env)
     """
 
     paths: PathsConfig = field(default_factory=PathsConfig.from_env)
     operational: OperationalConfig = field(default_factory=OperationalConfig.from_env)
     sops: SOPSConfig = field(default_factory=SOPSConfig.from_env)
+    memory: MemoryConfig = field(default_factory=MemoryConfig.from_env)
     telegram: TelegramConfig = field(default_factory=TelegramConfig.from_env)
 
     # Version info
     VERSION: ClassVar[str] = "0.1.0"
+
+    @property
+    def home(self) -> Path:
+        return self.paths.home
+
+    @property
+    def runtime(self) -> Path:
+        return self.paths.runtime
+
+    @property
+    def credentials(self) -> Path:
+        return self.paths.credentials
+
+    @property
+    def log_level(self) -> str:
+        return self.operational.log_level
+
+    @property
+    def quiet_hours(self) -> str:
+        start = self.operational.quiet_hours_start or "22:00"
+        end = self.operational.quiet_hours_end or "07:00"
+        return f"{start}-{end}"
+
+    @property
+    def memory_t2_enabled(self) -> bool:
+        return self.memory.t2_enabled
+
+    @property
+    def memory_t0_retention_days(self) -> int:
+        return self.memory.t0_retention_days
+
+    @property
+    def memory_t1_compression_after_days(self) -> int:
+        return self.memory.t1_compression_after_days
+
+    @property
+    def sops_age_key_file(self) -> Path:
+        return self.sops.age_key_file
+
+    @property
+    def telegram_whitelist(self) -> list[str]:
+        return [str(user_id) for user_id in self.telegram.whitelist]
 
     @classmethod
     def from_env(cls) -> ARIAConfig:
@@ -164,8 +253,21 @@ class ARIAConfig:
             paths=PathsConfig.from_env(),
             operational=OperationalConfig.from_env(),
             sops=SOPSConfig.from_env(),
+            memory=MemoryConfig.from_env(),
             telegram=TelegramConfig.from_env(),
         )
+
+    @classmethod
+    def load(cls) -> ARIAConfig:
+        """Thread-safe singleton loader.
+
+        Raises:
+            ConfigurationError: if ARIA_HOME does not exist.
+        """
+        config = get_config()
+        if not config.paths.home.exists():
+            raise ConfigurationError(f"ARIA_HOME does not exist: {config.paths.home}")
+        return config
 
     def validate(self) -> list[str]:
         """Validate configuration and return list of issues (empty if valid)."""
@@ -211,6 +313,7 @@ class ARIAConfig:
 
 # Global config instance (lazy loaded)
 _config_instance: ARIAConfig | None = None
+_config_lock = threading.RLock()
 
 
 def get_config() -> ARIAConfig:
@@ -219,13 +322,18 @@ def get_config() -> ARIAConfig:
     Loads from environment on first call, returns cached instance thereafter.
     """
     global _config_instance  # noqa: PLW0603
-    if _config_instance is None:
-        _config_instance = ARIAConfig.from_env()
-    return _config_instance
+    with _config_lock:
+        if _config_instance is None:
+            _config_instance = ARIAConfig.from_env()
+        return _config_instance
 
 
 def reload_config() -> ARIAConfig:
     """Force reload of configuration from environment."""
     global _config_instance  # noqa: PLW0603
-    _config_instance = ARIAConfig.from_env()
-    return _config_instance
+    with _config_lock:
+        _config_instance = ARIAConfig.from_env()
+        return _config_instance
+
+
+AriaConfig = ARIAConfig
