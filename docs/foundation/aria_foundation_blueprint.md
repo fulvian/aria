@@ -2036,6 +2036,20 @@ Vedi §5 (memoria), §6.1 (scheduler), §7.2 (gateway sessions). File concatenat
 - **45/45 tests passing**, agent validation PASSED (8 agents), skill validation PASSED (7 skills)
 - **Evidence pack**: `docs/implementation/phase-1/sprint-03-evidence.md`
 
+### 2026-04-21 — Sprint 1.4 Completed (Workspace-Agent + E2E MVP)
+
+- **OAuth PKCE setup** (`scripts/oauth_first_setup.py`): Google OAuth 2.0 PKCE flow, refresh_token stored in keyring via KeyringStore
+- **OAuth helper** (`src/aria/agents/workspace/oauth_helper.py`): runtime token management with `ensure_refresh_token()`, `get_scopes()`, `revoke()`
+- **Scope manager** (`src/aria/agents/workspace/scope_manager.py`): minimal scopes enforcement, escalation control with ADR reference
+- **Workspace-Agent** (`.aria/kilocode/agents/workspace-agent.md`): activated with 17 scoped tools (under P9 limit of 20)
+- **Skills**: `triage-email` (v1.0.0), `calendar-orchestration` (v1.0.0), `doc-draft` (v1.0.0) created and registered
+- **MCP wrapper** (`scripts/wrappers/google-workspace-wrapper.sh`): keyring injection for google_workspace_mcp
+- **Scheduler seed** (`scripts/seed_scheduler.py`): 3 tasks seeded (daily-email-triage, weekly-backup, blueprint-review stub)
+- **Backup/DR**: `test_backup_restore.sh` created, `disaster_recovery.md` runbook implemented
+- **SLO benchmarks** (`tests/benchmarks/phase1_slo.py`): p95 recall, DLQ rate, HITL timeout, provider degradation, scheduler success
+- **ADR-0003** accepted: PKCE-first, scope minimalism, keyring storage, revocation
+- **MVP demo** (`docs/implementation/phase-1/mvp_demo_2026-04-21.md`): template ready for live demonstration
+
 ### 18.H ADR backlog immediato (post-audit)
 
 - `ADR-0001` — Dependency Baseline 2026Q2 (`fastmcp 3.x`, `ptb 22.x`, `lancedb 0.30.x`, STT dual stack).

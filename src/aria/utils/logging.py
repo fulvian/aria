@@ -96,30 +96,35 @@ class JsonLineFormatter(logging.Formatter):
             if attr.startswith("_"):
                 continue
             val = getattr(record, attr, None)
-            if val is not None and attr not in (
-                "name",
-                "levelname",
-                "levelno",
-                "pathname",
-                "lineno",
-                "module",
-                "funcName",
-                "created",
-                "msecs",
-                "relativeCreated",
-                "thread",
-                "threadName",
-                "processName",
-                "process",
-                "filename",
-                "exc_text",
-                "stack_info",
-                "message",
-                "args",
-                "msg",
-                "taskName",
-                "marker",
-            ) and isinstance(val, (dict, list, str, int, float, bool, type(None))):
+            if (
+                val is not None
+                and attr
+                not in (
+                    "name",
+                    "levelname",
+                    "levelno",
+                    "pathname",
+                    "lineno",
+                    "module",
+                    "funcName",
+                    "created",
+                    "msecs",
+                    "relativeCreated",
+                    "thread",
+                    "threadName",
+                    "processName",
+                    "process",
+                    "filename",
+                    "exc_text",
+                    "stack_info",
+                    "message",
+                    "args",
+                    "msg",
+                    "taskName",
+                    "marker",
+                )
+                and isinstance(val, (dict, list, str, int, float, bool, type(None)))
+            ):
                 context[attr] = val
 
         # Special handling for marker field

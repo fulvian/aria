@@ -61,16 +61,14 @@
       "_comment": "@phase1 provider integration"
     },
     "google_workspace": {
-      "command": "uvx",
-      "args": ["google_workspace_mcp"],
-      "disabled": true,
+      "command": "/home/fulvio/coding/aria/scripts/wrappers/google-workspace-wrapper.sh",
+      "disabled": false,
       "env": {
         "GOOGLE_OAUTH_CLIENT_ID": "${GOOGLE_OAUTH_CLIENT_ID}",
         "GOOGLE_OAUTH_REDIRECT_URI": "http://localhost:8080/callback",
-        "GOOGLE_OAUTH_USE_PKCE": "true",
-        "GOOGLE_OAUTH_CLIENT_SECRET": "${GOOGLE_OAUTH_CLIENT_SECRET_OPTIONAL}"
+        "GOOGLE_OAUTH_USE_PKCE": "true"
       },
-      "_comment": "@phase1 provider integration"
+      "_comment": "@phase1 provider integration - wrapper injects refresh_token from keyring"
     },
     "playwright": {
       "command": "npx",

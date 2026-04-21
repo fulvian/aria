@@ -1,34 +1,42 @@
 ---
 name: triage-email
-version: 0.9.0
-description: Classificazione inbox Gmail per urgenza con digest
-trigger-keywords: [email, inbox, triage, leggi mail, leggi email]
+version: 1.0.0
+description: Triage giornaliero Inbox Gmail — classifica, sintetizza, evidenzia urgenti
+trigger-keywords: [email, triage, inbox, riassumi mail, leggi email]
 user-invocable: true
 allowed-tools:
   - google_workspace/gmail.search
   - google_workspace/gmail.read
+  - google_workspace/gmail.modify_labels
   - aria-memory/remember
-max-tokens: 8000
+max-tokens: 30000
 estimated-cost-eur: 0.05
 ---
 
 # Triage Email Skill
 
 ## Obiettivo
-Leggere l'inbox Gmail, classificare per urgenza, generare digest actionable.
+Leggere l'inbox Gmail delle ultime 24h, classificare per urgenza, generare digest actionable.
 
 ## Classificazione
-- **Urgent**: richiede azione o risposta entro 24h
+- **Urgent**: richiede azione o risposta entro 24h (flag con label ARIA/urgent)
 - **Actionable**: richiede azione ma non urgente
 - **Informational**: da leggere quando possibile
 - **Newsletter/Promo**: ignorabile o archiviabile
 
 ## Procedura
-1. Recupera ultimi 20 email non lette
-2. Per ognuna estrai: subject, sender, preview, date
-3. Classifica basandosi su keywords, sender, e patterns
-4. Genera digest categorizzato
-5. Salva digest in memoria episodica
+1. Query `gmail.search` con `q="is:unread newer_than:24h"`
+2. Per ogni messaggio: `gmail.read` → estrai `from`, `subject`, `snippet`, `timestamp`
+3. Classifica heuristically: newsletter / personal / work / urgent (keyword)
+4. Sintesi: digest markdown con sezioni per classe
+5. Per urgenti: proponi label `ARIA/urgent` → `gmail.modify_labels` (HITL `ask`)
+6. Salva digest in memoria: `aria-memory/remember` actor=AGENT_INFERENCE, tag=`email_digest`
+7. Reply Telegram con digest
+
+## Invarianti
+- NON eliminare email (skill hardcoded: no `gmail.delete`)
+- NON inviare risposte automatiche
+- Max 3 item per sezione nel digest
 
 ## Output
-Digest con sezioni per categoria, max 3 item per section.
+Digest telegram-friendly con sezioni per categoria.
