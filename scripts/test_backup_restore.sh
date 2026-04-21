@@ -9,6 +9,7 @@ ARIA_HOME="${ARIA_HOME:-/home/fulvio/coding/aria}"
 BACKUP_DIR="${BACKUP_DIR:-$HOME/.aria-backups}"
 TEST_DIR=$(mktemp -d)
 EXIT_CODE=0
+CREATED_BACKUP_FILE=""
 
 cleanup() {
     rm -rf "$TEST_DIR"
@@ -73,6 +74,7 @@ test_backup_restore() {
         log_fail "No backup file created"
         return 1
     fi
+    CREATED_BACKUP_FILE="$backup_file"
     log_info "Backup file: $backup_file"
 
     # Clean up original
@@ -80,7 +82,7 @@ test_backup_restore() {
 
     # Restore
     log_info "Running restore.sh..."
-    if ! "$ARIA_HOME/scripts/restore.sh" "$backup_file" <<< "y"; then
+    if ! "$ARIA_HOME/scripts/restore.sh" "$backup_file" <<< ""; then
         log_fail "restore.sh failed"
         return 1
     fi
@@ -133,7 +135,9 @@ main() {
     test_backup_restore
 
     # Cleanup test backup files
-    rm -f "$BACKUP_DIR"/aria-backup-*.tar.age
+    if [[ -n "$CREATED_BACKUP_FILE" && -f "$CREATED_BACKUP_FILE" ]]; then
+        rm -f "$CREATED_BACKUP_FILE"
+    fi
 
     echo ""
     echo "========================"

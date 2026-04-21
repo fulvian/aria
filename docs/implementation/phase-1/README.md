@@ -1,6 +1,6 @@
 ---
 document: ARIA Phase 1 Implementation Artifacts Index
-version: 1.1.0
+version: 1.2.0
 status: in_progress
 date_created: 2026-04-20
 last_review: 2026-04-21
@@ -17,13 +17,14 @@ Questo indice raccoglie le evidenze di implementazione della Phase 1.
 - Sprint 1.1: completed (2026-04-20)
 - Sprint 1.2: completed (2026-04-20)
 - Sprint 1.3: **completed** (2026-04-21)
-- Sprint 1.4: pending
+- Sprint 1.4: **implemented, in verification** (2026-04-21)
 
 ## Evidence packs
 
 - Sprint 1.1: `docs/implementation/phase-1/sprint-01-evidence.md`
 - Sprint 1.2: `docs/implementation/phase-1/sprint-02-evidence.md`
 - Sprint 1.3: `docs/implementation/phase-1/sprint-03-evidence.md`
+- Sprint 1.4: `docs/implementation/phase-1/sprint-04-evidence.md`
 
 ## Notes
 
@@ -32,4 +33,10 @@ Questo indice raccoglie le evidenze di implementazione della Phase 1.
 - Sprint 1.3 deliverables: Search-Agent, Conductor bridge, 6 providers, ADR-0006, provider_exhaustion runbook.
 - Sprint 1.3 evidence pack updated with remediation delta:
   `docs/implementation/phase-1/sprint-03-evidence.md` (v1.1.0).
+- Sprint 1.4 includes upstream alignment to `taylorwilsdon/google_workspace_mcp`
+  using Context7 docs (tool names, launcher command `uvx workspace-mcp`,
+  HITL integration via `aria-memory/hitl_ask`).
+- Sprint 1.4 code verification passed on local gates (`pytest`, SLO benchmark,
+  agent/skill validation). Remaining blocker for Phase 1 GO/NO-GO is the live
+  MVP demo evidence completion in `mvp_demo_2026-04-21.md`.
 - L'uscita Phase 1 (Go/No-Go) segue il criterio in `docs/plans/phase-1/README.md` §12.

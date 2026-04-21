@@ -1065,14 +1065,20 @@ color: "#4285F4"
 category: productivity
 temperature: 0.1
 allowed-tools:
-  - google_workspace/gmail.*
-  - google_workspace/calendar.*
-  - google_workspace/drive.*
-  - google_workspace/docs.*
-  - google_workspace/sheets.*
+  - google_workspace/search_gmail_messages
+  - google_workspace/get_gmail_message_content
+  - google_workspace/send_gmail_message
+  - google_workspace/list_calendars
+  - google_workspace/get_events
+  - google_workspace/create_event
+  - google_workspace/search_drive_files
+  - google_workspace/get_drive_file_content
+  - google_workspace/create_doc
+  - google_workspace/read_sheet_values
+  - google_workspace/modify_sheet_values
   - aria-memory/remember
   - aria-memory/recall
-  - hitl-queue/ask
+  - aria-memory/hitl_ask
 required-skills:
   - triage-email
   - calendar-orchestration
@@ -1449,7 +1455,7 @@ owner: fulvio
 
 ### 12.1 Dipendenza
 
-**Upstream**: `taylorwilsdon/google_workspace_mcp` v1.19.0+ (stable aprile 2026), licenza MIT, runtime Python 3.10+, installato via `uvx google_workspace_mcp`.
+**Upstream**: `taylorwilsdon/google_workspace_mcp` v1.19.0+ (stable aprile 2026), licenza MIT, runtime Python 3.10+, installato via `uvx workspace-mcp`.
 
 ### 12.2 Scope minimi
 
@@ -1484,11 +1490,11 @@ Keyring service name pattern: `aria.google_workspace.<account_label>`. Router se
 
 | Comando utente                                       | Tool invocato                      |
 |-----------------------------------------------------|------------------------------------|
-| "Leggi le mie ultime email non lette"               | `google_workspace/gmail.search`    |
-| "Quanti meeting ho domani?"                         | `google_workspace/calendar.list`   |
-| "Crea un evento per lunedì alle 10 con X"           | `google_workspace/calendar.create` (HITL `ask`) |
-| "Riassumi il doc 'Q2 Strategy'"                     | `drive.search` → `docs.read` → skill `memory-distillation` |
-| "Aggiorna il foglio Budget con questi valori"       | `sheets.update` (HITL `ask`)       |
+| "Leggi le mie ultime email non lette"               | `google_workspace/search_gmail_messages` |
+| "Quanti meeting ho domani?"                         | `google_workspace/get_events`      |
+| "Crea un evento per lunedì alle 10 con X"           | `google_workspace/create_event` (HITL `ask`) |
+| "Riassumi il doc 'Q2 Strategy'"                     | `google_workspace/search_docs` → `google_workspace/get_doc_content` → skill `memory-distillation` |
+| "Aggiorna il foglio Budget con questi valori"       | `google_workspace/modify_sheet_values` (HITL `ask`) |
 
 Le operazioni **write** (create, update, send) sono default `policy=ask`; le operazioni **read** sono `policy=allow`.
 
@@ -2036,7 +2042,7 @@ Vedi §5 (memoria), §6.1 (scheduler), §7.2 (gateway sessions). File concatenat
 - **45/45 tests passing**, agent validation PASSED (8 agents), skill validation PASSED (7 skills)
 - **Evidence pack**: `docs/implementation/phase-1/sprint-03-evidence.md`
 
-### 2026-04-21 — Sprint 1.4 Completed (Workspace-Agent + E2E MVP)
+### 2026-04-21 — Sprint 1.4 Implemented (Workspace-Agent + E2E MVP in verification)
 
 - **OAuth PKCE setup** (`scripts/oauth_first_setup.py`): Google OAuth 2.0 PKCE flow, refresh_token stored in keyring via KeyringStore
 - **OAuth helper** (`src/aria/agents/workspace/oauth_helper.py`): runtime token management with `ensure_refresh_token()`, `get_scopes()`, `revoke()`
@@ -2048,7 +2054,7 @@ Vedi §5 (memoria), §6.1 (scheduler), §7.2 (gateway sessions). File concatenat
 - **Backup/DR**: `test_backup_restore.sh` created, `disaster_recovery.md` runbook implemented
 - **SLO benchmarks** (`tests/benchmarks/phase1_slo.py`): p95 recall, DLQ rate, HITL timeout, provider degradation, scheduler success
 - **ADR-0003** accepted: PKCE-first, scope minimalism, keyring storage, revocation
-- **MVP demo** (`docs/implementation/phase-1/mvp_demo_2026-04-21.md`): template ready for live demonstration
+- **MVP demo** (`docs/implementation/phase-1/mvp_demo_2026-04-21.md`): checklist prepared; live evidence still required for Phase 1 GO/NO-GO
 
 ### 18.H ADR backlog immediato (post-audit)
 

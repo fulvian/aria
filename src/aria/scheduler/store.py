@@ -513,6 +513,35 @@ class TaskStore:
         await self._conn.execute(sql, values)
         await self._conn.commit()
 
+    async def list_task_runs(self, since_ms: int | None = None) -> list[TaskRun]:
+        """List task runs, optionally filtered by start time."""
+        self._assert_connected()
+
+        query = "SELECT * FROM task_runs"
+        params: tuple[object, ...] = ()
+        if since_ms is not None:
+            query += " WHERE started_at >= ?"
+            params = (since_ms,)
+        query += " ORDER BY started_at DESC"
+
+        cursor = await self._conn.execute(query, params)
+        rows = await cursor.fetchall()
+        return [self._row_to_task_run(row) for row in rows]
+
+    async def count_task_runs(self, since_ms: int | None = None) -> int:
+        """Count task runs, optionally filtered by start time."""
+        self._assert_connected()
+
+        query = "SELECT COUNT(*) FROM task_runs"
+        params: tuple[object, ...] = ()
+        if since_ms is not None:
+            query += " WHERE started_at >= ?"
+            params = (since_ms,)
+
+        cursor = await self._conn.execute(query, params)
+        row = await cursor.fetchone()
+        return int(row[0] if row else 0)
+
     # === DLQ Operations ===
 
     async def move_to_dlq(
@@ -580,6 +609,20 @@ class TaskStore:
                 )
             )
         return entries
+
+    async def count_dlq_entries(self, since_ms: int | None = None) -> int:
+        """Count DLQ entries, optionally filtered by move timestamp."""
+        self._assert_connected()
+
+        query = "SELECT COUNT(*) FROM dlq"
+        params: tuple[object, ...] = ()
+        if since_ms is not None:
+            query += " WHERE moved_at >= ?"
+            params = (since_ms,)
+
+        cursor = await self._conn.execute(query, params)
+        row = await cursor.fetchone()
+        return int(row[0] if row else 0)
 
     # === HITL Operations ===
 
@@ -686,6 +729,21 @@ class TaskStore:
 
         return expired
 
+    async def list_hitl_pending(self, since_ms: int | None = None) -> list[HitlPending]:
+        """List HITL records (resolved and unresolved), newest first."""
+        self._assert_connected()
+
+        query = "SELECT * FROM hitl_pending"
+        params: tuple[object, ...] = ()
+        if since_ms is not None:
+            query += " WHERE created_at >= ?"
+            params = (since_ms,)
+        query += " ORDER BY created_at DESC"
+
+        cursor = await self._conn.execute(query, params)
+        rows = await cursor.fetchall()
+        return [self._row_to_hitl(row) for row in rows]
+
     # === Internal Helpers ===
 
     def _row_to_task(self, row: aiosqlite.Row) -> Task:
@@ -736,4 +794,20 @@ class TaskStore:
             channel=row["channel"],
             user_response=user_response or row["user_response"],
             resolved_at=resolved_at or row["resolved_at"],
+        )
+
+    def _row_to_task_run(self, row: aiosqlite.Row) -> TaskRun:
+        """Convert database row to TaskRun model."""
+        from aria.scheduler.schema import TaskRun
+
+        return TaskRun(
+            id=row["id"],
+            task_id=row["task_id"],
+            started_at=row["started_at"],
+            finished_at=row["finished_at"],
+            outcome=row["outcome"],
+            tokens_used=row["tokens_used"],
+            cost_eur=row["cost_eur"],
+            result_summary=row["result_summary"],
+            logs_path=row["logs_path"],
         )

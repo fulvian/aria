@@ -9,14 +9,22 @@
 set -euo pipefail
 
 ARIA_HOME="${ARIA_HOME:-/home/fulvio/coding/aria}"
+PYTHON_BIN="${ARIA_HOME}/.venv/bin/python"
+if [[ ! -x "${PYTHON_BIN}" ]]; then
+    PYTHON_BIN="python3"
+fi
 
-# Get refresh token from keyring via Python
+# Get refresh token from KeyringStore to avoid key naming drift
 get_refresh_token() {
-    python3 -c "
+    "$PYTHON_BIN" -c "
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path('$ARIA_HOME') / 'src'))
+
 try:
-    import keyring
-    token = keyring.get_password('aria.google_workspace', 'primary')
+    from aria.credentials.keyring_store import KeyringStore
+    token = KeyringStore().get_oauth('google_workspace', 'primary')
     if token:
         print(token)
     else:
@@ -43,8 +51,9 @@ main() {
     # Export refresh token for google_workspace_mcp
     export GOOGLE_OAUTH_REFRESH_TOKEN="${refresh_token}"
 
-    # Execute google_workspace_mcp via uvx
-    exec uvx google_workspace_mcp "$@"
+    # Execute upstream Google Workspace MCP via uvx
+    # Context7 docs: command is `workspace-mcp`
+    exec uvx workspace-mcp "$@"
 }
 
 main "$@"

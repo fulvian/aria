@@ -3,7 +3,7 @@ document: ARIA Phase 1 Implementation Plan — Overview
 version: 1.1.0
 status: in_progress
 date_created: 2026-04-20
-last_review: 2026-04-20
+last_review: 2026-04-21
 owner: fulvio
 phase: 1
 canonical_blueprint: docs/foundation/aria_foundation_blueprint.md
@@ -12,11 +12,12 @@ previous_phase_plan: docs/plans/phase-0/sprint-00.md
 
 # ARIA — Phase 1 (MVP) — Implementation Plan Overview
 
-## Stato avanzamento (aggiornato al 2026-04-21, post Sprint 1.3)
+## Stato avanzamento (aggiornato al 2026-04-21, post Sprint 1.4 remediation)
 
 - Sprint 1.1: implementato e verificato, con evidence pack in `docs/implementation/phase-1/sprint-01-evidence.md`.
 - Sprint 1.2: implementato, verificato e riallineato alle specifiche (evidence pack aggiornato).
 - Sprint 1.3: **completato** (2026-04-21) — Search-Agent, Conductor bridge, providers, ADR-0006.
+- Sprint 1.4: **implementato e verificato lato codebase** (2026-04-21) — Workspace-Agent, OAuth PKCE, DR, SLO; in attesa evidence demo live.
 - Stato Phase 1: **in progress** (Go/No-Go Phase 1 non ancora valutabile fino a chiusura Sprint 1.4).
 
 ## 0) Come leggere questi documenti
@@ -94,7 +95,7 @@ Stato operativo sprint:
 - [x] Sprint 1.1 chiuso con quality gates e benchmark recall p95 verde.
 - [x] Sprint 1.2 completato.
 - [x] Sprint 1.3 completato (2026-04-21).
-- [ ] Sprint 1.4 da completare.
+- [ ] Sprint 1.4 da chiudere formalmente (manca demo live + Go/No-Go).
 
 Ogni sprint finisce con una **demo verificabile** e un **evidence pack** (output comandi gate + log/screenshot).
 

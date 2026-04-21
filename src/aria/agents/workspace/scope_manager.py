@@ -45,6 +45,8 @@ BROAD_SCOPES: list[str] = [
     "https://www.googleapis.com/auth/calendar.readonly",  # full calendar readonly
 ]
 
+_BROAD_SCOPE_SET = set(BROAD_SCOPES)
+
 
 # === Exceptions ===
 
@@ -76,10 +78,7 @@ class EscalationTicket:
 
     def requires_adr(self) -> bool:
         """Check if escalation requires an ADR."""
-        for scope in self.requested_scopes:
-            if any(broad in scope for broad in BROAD_SCOPES):
-                return True
-        return False
+        return any(scope in _BROAD_SCOPE_SET for scope in self.requested_scopes)
 
 
 # === Scope Manager ===
@@ -125,7 +124,7 @@ class ScopeManager:
         Returns:
             True if scope is broad and requires ADR
         """
-        return any(broad in scope for broad in BROAD_SCOPES)
+        return scope in _BROAD_SCOPE_SET
 
     def validate_scopes(self, scopes: list[str]) -> None:
         """Validate that scopes don't include unauthorized broad scopes.
@@ -148,6 +147,7 @@ class ScopeManager:
         new_scopes: list[str],
         reason: str,
         adr_ref: str | None = None,
+        account: str = "primary",
     ) -> EscalationTicket:
         """Create an escalation ticket for new scopes.
 
@@ -163,7 +163,7 @@ class ScopeManager:
             ScopeEscalationError: If broad scopes without ADR reference
         """
         ticket = EscalationTicket(
-            current_scopes=self.current(),
+            current_scopes=self.current(account),
             requested_scopes=new_scopes,
             reason=reason,
             adr_ref=adr_ref,

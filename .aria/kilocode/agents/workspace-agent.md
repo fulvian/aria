@@ -6,23 +6,25 @@ color: "#4285F4"
 category: productivity
 temperature: 0.1
 allowed-tools:
-  - google_workspace/gmail.search
-  - google_workspace/gmail.read
-  - google_workspace/gmail.modify_labels
-  - google_workspace/gmail.send
-  - google_workspace/calendar.list
-  - google_workspace/calendar.read
-  - google_workspace/calendar.create
-  - google_workspace/drive.search
-  - google_workspace/drive.read
-  - google_workspace/drive.create_file
-  - google_workspace/docs.read
-  - google_workspace/docs.write
-  - google_workspace/sheets.read
-  - google_workspace/sheets.update
+  - google_workspace/search_gmail_messages
+  - google_workspace/get_gmail_message_content
+  - google_workspace/send_gmail_message
+  - google_workspace/draft_gmail_message
+  - google_workspace/list_calendars
+  - google_workspace/get_events
+  - google_workspace/get_event
+  - google_workspace/create_event
+  - google_workspace/search_drive_files
+  - google_workspace/get_drive_file_content
+  - google_workspace/create_drive_file
+  - google_workspace/search_docs
+  - google_workspace/get_doc_content
+  - google_workspace/create_doc
+  - google_workspace/read_sheet_values
+  - google_workspace/modify_sheet_values
   - aria-memory/remember
   - aria-memory/recall
-  - aria-ops/hitl_ask
+  - aria-memory/hitl_ask
 required-skills:
   - triage-email
   - calendar-orchestration
@@ -38,7 +40,7 @@ Gestisce le operazioni Google Workspace (Gmail, Calendar, Drive, Docs, Sheets).
 Tutte le operazioni di scrittura passano per HITL obbligatorio prima dell'esecuzione.
 
 ## Regole
-- **HITL su write**: send email, create event, write doc, update sheet → sempre via hitl_ask
-- **Read-only allowed**: search, read, list → consentiti senza HITL
+- **HITL su write**: send email, create event, create doc, update sheet → sempre via hitl_ask
+- **Read-only allowed**: search, read, list/get → consentiti senza HITL
 - **Scope minimi**: usa solo scope minimali; broad scope richiedono ADR esplicito
 - **Tool priority**: preferire google_workspace MCP su altri approcci (P8)

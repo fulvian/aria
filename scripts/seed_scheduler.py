@@ -18,7 +18,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 # Add src to path for imports
-SRC_ROOT = Path(__file__).resolve().parents[2] / "src"
+SRC_ROOT = Path(__file__).resolve().parents[1] / "src"
 sys.path.insert(0, str(SRC_ROOT))
 
 from croniter import croniter

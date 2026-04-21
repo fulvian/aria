@@ -36,7 +36,7 @@ Questo documento definisce le procedure di Disaster Recovery per ARIA, per mitig
 Il backup script esegue:
 1. **WAL checkpoint** su tutti i DB SQLite prima del backup
 2. **Crea tarball** di `.aria/runtime` e `.aria/credentials`
-3. **Cifra con age** usando la chiave pubblica in `.age.pub`
+3. **Cifra con age** usando la chiave pubblica in `.age-backup.pub` (fallback legacy `.age.pub`)
 4. **Deposita** in `$HOME/.aria-backups/aria-backup-<timestamp>.tar.age`
 5. **Cleanup** automatico dei backup > 30 giorni
 
@@ -48,8 +48,8 @@ Il backup script esegue:
 
 ### 2.3 Chiavi di Cifratura
 
-- **Chiave pubblica** (per cifrazione): `.age.pub` nel repo
-- **Chiave privata** (per decifrazione): `$HOME/.config/sops/age/keys.txt` **FUORI dal repo**
+- **Chiave pubblica** (per cifrazione): `.age-backup.pub` nel repo (fallback `.age.pub`)
+- **Chiave privata** (per decifrazione): `$HOME/.aria-backup-keys/backup_key.txt` **FUORI dal repo** (fallback legacy `$HOME/.config/sops/age/keys.txt`)
 
 ⚠️ **CRITICO**: La chiave privata DEVE essere fuori dal repo per sicurezza.
 
@@ -76,7 +76,7 @@ aria backup restore last
 
 1. **Verificare la chiave privata esista**:
    ```bash
-   ls -la ~/.config/sops/age/keys.txt
+   ls -la ~/.aria-backup-keys/backup_key.txt
    ```
 
 2. **Identificare il backup**:

@@ -33,11 +33,10 @@ from pathlib import Path
 from urllib.parse import urlencode
 
 # === Add src to path for imports ===
-SRC_ROOT = Path(__file__).resolve().parents[2] / "src"
+SRC_ROOT = Path(__file__).resolve().parents[1] / "src"
 sys.path.insert(0, str(SRC_ROOT))
 
 from aria.config import get_config
-from aria.credentials import CredentialManager
 from aria.credentials.keyring_store import KeyringStore
 
 # === Constants ===
@@ -49,6 +48,7 @@ DEFAULT_REDIRECT_URI = "http://localhost:8080/callback"
 DEFAULT_TIMEOUT_SECONDS = 300  # 5 minutes
 MIN_CODE_VERIFIER_LENGTH = 43
 MAX_CODE_VERIFIER_LENGTH = 128
+GOOGLE_SCOPE_PREFIX = "https://www.googleapis.com/auth/"
 
 
 # === Exceptions ===
@@ -98,9 +98,9 @@ def generate_code_verifier(length: int = 64) -> str:
     """
     if length < 43 or length > 128:
         raise ValueError("code_verifier length must be 43-128")
-    # Generate random bytes and base64url encode (no padding)
-    random_bytes = secrets.token_bytes(length)
-    return base64.urlsafe_b64encode(random_bytes).rstrip(b"=").decode("ascii")
+    # RFC 7636 unreserved charset
+    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
+    return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
 def generate_code_challenge(code_verifier: str) -> str:
@@ -114,6 +114,16 @@ def generate_code_challenge(code_verifier: str) -> str:
     """
     digest = hashlib.sha256(code_verifier.encode("ascii")).digest()
     return base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
+
+
+def normalize_scope(scope: str) -> str:
+    """Normalize shorthand scope names to full Google scope URLs."""
+    scope = scope.strip()
+    if not scope:
+        return scope
+    if scope.startswith("https://"):
+        return scope
+    return f"{GOOGLE_SCOPE_PREFIX}{scope}"
 
 
 # === OAuth Server Handler ===
@@ -230,9 +240,6 @@ class GoogleOAuthSetup:
             "code_challenge_method": "S256",
             "state": self.state,
         }
-        if self.client_secret:
-            params["client_secret"] = self.client_secret
-
         return f"{GOOGLE_OAUTH_AUTHORIZATION_URL}?{urlencode(params)}"
 
     def _start_server(self, server_address: tuple[str, int]) -> HTTPServer:
@@ -445,7 +452,7 @@ def main() -> int:
     args = parser.parse_args()
 
     # Parse scopes
-    scopes = [s.strip() for s in args.scopes.split(",") if s.strip()]
+    scopes = [normalize_scope(s) for s in args.scopes.split(",") if s.strip()]
 
     # Get client ID from environment
     client_id = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "").strip()
@@ -464,9 +471,8 @@ def main() -> int:
         if not client_secret:
             client_secret = None
 
-    # Build KeyringStore and CredentialManager
+    # Build KeyringStore
     keyring_store = KeyringStore()
-    cred_manager = CredentialManager()
 
     print("\n" + "=" * 60)
     print("ARIA Google Workspace OAuth Setup")
@@ -498,7 +504,7 @@ def main() -> int:
         # Store refresh token in keyring
         if refresh_token:
             keyring_store.put_oauth("google_workspace", args.account, refresh_token)
-            print("\nrefresh_token stored in keyring (aria.google_workspace/{args.account})")
+            print(f"\nrefresh_token stored in keyring (aria.google_workspace/{args.account})")
         else:
             print("\nWARNING: No refresh_token to store!", file=sys.stderr)
             return 3

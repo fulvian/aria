@@ -59,7 +59,7 @@ Chiudere **Phase 1** con il **Workspace-Agent** operativo (Gmail, Calendar, Driv
   - Progetto OAuth configurato
   - Consent screen pubblicato (test mode ok)
   - `GOOGLE_OAUTH_CLIENT_ID` disponibile (opzionalmente `GOOGLE_OAUTH_CLIENT_SECRET` per edge-case)
-- `google_workspace_mcp >= 1.19.0` installabile via `uvx google_workspace_mcp`.
+- `google_workspace_mcp >= 1.19.0` installabile via `uvx workspace-mcp`.
 - `pytesseract` + `PyMuPDF` per PDF draft (gia in ML extras).
 
 ## 3) Work Breakdown Structure (WBS)
@@ -115,7 +115,7 @@ if [[ -z "${GOOGLE_OAUTH_REFRESH_TOKEN:-}" ]]; then
   echo "ERR: no refresh token in keyring (run scripts/oauth_first_setup.py)" >&2
   exit 1
 fi
-exec uvx google_workspace_mcp
+exec uvx workspace-mcp
 ```
 
 Aggiornare `.aria/kilocode/mcp.json`: `google_workspace.command` = path wrapper, rimuovere `GOOGLE_OAUTH_CLIENT_SECRET_OPTIONAL` da env a meno che non sia veramente necessaria (ADR-0003).
@@ -165,30 +165,27 @@ allowed-tools:
   - google_workspace/sheets.*
   - aria-memory/remember
   - aria-memory/recall
-  - aria-ops/hitl_ask        # o hitl-queue skill
+  - aria-memory/hitl_ask     # o hitl-queue skill
 ```
 
 Verificare count dei tool wildcard reali: ogni `google_workspace/<ns>.*` si espande in circa 4-6 tool; stimare ~25 wildcards unpacked → rischio > 20. **Mitigazione**: restringere a subset esplicito:
 
 ```yaml
 allowed-tools:
-  - google_workspace/gmail.search
-  - google_workspace/gmail.read
-  - google_workspace/gmail.modify_labels
-  - google_workspace/gmail.send             # HITL-gated
-  - google_workspace/calendar.list
-  - google_workspace/calendar.read
-  - google_workspace/calendar.create        # HITL
-  - google_workspace/drive.search
-  - google_workspace/drive.read
-  - google_workspace/drive.create_file      # HITL
-  - google_workspace/docs.read
-  - google_workspace/docs.write             # HITL
-  - google_workspace/sheets.read
-  - google_workspace/sheets.update          # HITL
+  - google_workspace/search_gmail_messages
+  - google_workspace/get_gmail_message_content
+  - google_workspace/send_gmail_message      # HITL-gated
+  - google_workspace/list_calendars
+  - google_workspace/get_events
+  - google_workspace/create_event            # HITL
+  - google_workspace/search_drive_files
+  - google_workspace/get_drive_file_content
+  - google_workspace/create_doc              # HITL
+  - google_workspace/read_sheet_values
+  - google_workspace/modify_sheet_values     # HITL
   - aria-memory/remember
   - aria-memory/recall
-  - aria-ops/hitl_ask
+  - aria-memory/hitl_ask
 ```
 
 Totale: 17 tool, sotto budget 20 (P9 ok).
@@ -205,20 +202,20 @@ description: Triage giornaliero Inbox Gmail — classifica, sintetizza, evidenzi
 trigger-keywords: [email, triage, inbox, riassumi mail]
 user-invocable: true
 allowed-tools:
-  - google_workspace/gmail.search
-  - google_workspace/gmail.read
-  - google_workspace/gmail.modify_labels
+  - google_workspace/search_gmail_messages
+  - google_workspace/get_gmail_message_content
+  - google_workspace/draft_gmail_message
   - aria-memory/remember
 max-tokens: 30000
 estimated-cost-eur: 0.05
 ```
 
 Procedura:
-1. Query `gmail.search` con `q="is:unread newer_than:24h"`.
+1. Query `search_gmail_messages` con `q="is:unread newer_than:24h"`.
 2. Per ogni messaggio: `gmail.read` → estrai `from`, `subject`, `snippet`, `timestamp`.
 3. Classifica heuristically: newsletter / personal / work / urgent (keyword).
 4. Sintesi: digest markdown con sezioni per classe.
-5. Per urgenti: proponi label `ARIA/urgent` → `gmail.modify_labels` (HITL `ask`).
+5. Per urgenti: proponi bozza follow-up (`draft_gmail_message`) con HITL `ask`.
 6. Salva digest in memoria: `aria-memory/remember` actor=AGENT_INFERENCE, tag=`email_digest`.
 7. Reply Telegram con digest.
 
@@ -238,12 +235,12 @@ description: Proposta slot + creazione eventi Calendar con HITL obbligatorio
 trigger-keywords: [calendario, meeting, evento, pianifica]
 user-invocable: true
 allowed-tools:
-  - google_workspace/calendar.list
-  - google_workspace/calendar.read
-  - google_workspace/calendar.create
+  - google_workspace/list_calendars
+  - google_workspace/get_events
+  - google_workspace/create_event
   - aria-memory/remember
   - aria-memory/recall
-  - aria-ops/hitl_ask
+  - aria-memory/hitl_ask
 max-tokens: 20000
 ```
 
@@ -251,8 +248,8 @@ Procedura:
 1. Parse request utente (data range, durata, attendees).
 2. `calendar.list` per free/busy nei prossimi 7-14gg.
 3. Proponi 3 slot candidati.
-4. `aria-ops/hitl_ask` con inline keyboard "Scegli slot: [A] [B] [C] [annulla]".
-5. Risposta A/B/C → `calendar.create` (policy `ask` ma gia approvato implicitamente da HITL scelta).
+4. `aria-memory/hitl_ask` con inline keyboard "Scegli slot: [A] [B] [C] [annulla]".
+5. Risposta A/B/C → `create_event` (policy `ask` ma gia approvato implicitamente da HITL scelta).
 6. Salva evento id in memoria tag `calendar_event`.
 
 ### W1.4.G — Skill `doc-draft`
@@ -267,18 +264,17 @@ description: Redige bozza Google Docs a partire da input utente + contesto memor
 trigger-keywords: [bozza, doc, scrivi documento]
 user-invocable: true
 allowed-tools:
-  - google_workspace/drive.create_file
-  - google_workspace/docs.write
-  - google_workspace/docs.read
+  - google_workspace/create_doc
+  - google_workspace/get_doc_content
   - aria-memory/recall
-  - aria-ops/hitl_ask
+  - aria-memory/hitl_ask
 ```
 
 Procedura:
 1. Recupera contesto da memoria via `aria-memory/recall`.
 2. Genera bozza markdown + propone titolo.
 3. HITL "Crea doc '<titolo>' in Drive? [Sì] [Modifica titolo] [Annulla]".
-4. `drive.create_file(mimeType='application/vnd.google-apps.document')` → `docs.write` con contenuto.
+4. `create_doc` con titolo + contenuto bozza.
 5. Reply con link Drive.
 
 ### W1.4.H — Scheduler task preconfigurati
@@ -523,7 +519,7 @@ systemctl --user is-active aria-scheduler.service aria-gateway.service
 | PKCE RFC                        | RFC 7636                                                                       |
 | Google Workspace MCP            | https://github.com/taylorwilsdon/google_workspace_mcp                          |
 
-Tool name Google MCP: NON inventare; verificare lista reale tool con `aria repl` + `/tools list` dopo attivazione MCP. Se un tool manca (es. `gmail.modify_labels` non esiste e si chiama `gmail.add_label`), aggiornare `allowed-tools` nel workspace-agent.md.
+Tool name Google MCP: NON inventare; verificare lista reale tool con `aria repl` + `/tools list` dopo attivazione MCP. Baseline Context7/README upstream: `search_gmail_messages`, `get_gmail_message_content`, `send_gmail_message`, `list_calendars`, `get_events`, `create_event`, `search_drive_files`, `create_doc`, `read_sheet_values`, `modify_sheet_values`.
 
 ### 11.2 Errori comuni
 
@@ -532,7 +528,7 @@ Tool name Google MCP: NON inventare; verificare lista reale tool con `aria repl`
 3. **NON** impostare `disabled: true` su `google_workspace` dopo Sprint 1.4 (ma lasciare setup opzionale documentato).
 4. **NON** cachare `access_token` su disco: e gestito runtime dal MCP server upstream.
 5. **NON** sostituire `keyring` con file plaintext "perche e comodo" — bypass di P13.3.
-6. **NON** chiamare `gmail.send`, `calendar.create`, `docs.write`, `sheets.update`, `drive.create_file`, `drive.delete` senza passare HITL `ask` (P7).
+6. **NON** chiamare `send_gmail_message`, `create_event`, `create_doc`, `modify_sheet_values`, `create_drive_file` senza passare HITL `ask` (P7).
 7. **NON** usare `client_secret` senza ADR (ADR-0003 esplicita PKCE-first).
 8. **NON** rimuovere `state` check in OAuth callback — CSRF mitigation.
 9. **NON** esporre `localhost:8080/callback` in dev server persistente — solo per 5 min durante setup.
@@ -546,12 +542,12 @@ Tool name Google MCP: NON inventare; verificare lista reale tool con `aria repl`
 
 ### 11.4 HITL nelle skill
 
-Ogni operazione write DEVE chiamare `aria-ops/hitl_ask` (o `hitl-queue` skill) PRIMA dell'API call. Pattern skill:
+Ogni operazione write DEVE chiamare `aria-memory/hitl_ask` (o `hitl-queue` skill) PRIMA dell'API call. Pattern skill:
 
 ```
 1. Prepara payload write
-2. aria-ops/hitl_ask(question="Invio questa email? <preview>", options=["send","edit","cancel"])
-3. Se response="send" → google_workspace/gmail.send
+2. aria-memory/hitl_ask(question="Invio questa email? <preview>", options=["send","edit","cancel"])
+3. Se response="send" → google_workspace/send_gmail_message
 4. Altrimenti abort gracefully, log attempt
 ```
 

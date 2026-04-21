@@ -5,11 +5,11 @@ description: Redige bozza Google Docs a partire da input utente + contesto memor
 trigger-keywords: [bozza, doc, scrivi documento, crea documento, redige]
 user-invocable: true
 allowed-tools:
-  - google_workspace/drive.create_file
-  - google_workspace/docs.write
-  - google_workspace/docs.read
+  - google_workspace/create_doc
+  - google_workspace/get_doc_content
   - aria-memory/recall
-  - aria-ops/hitl_ask
+  - aria-memory/hitl_ask
+max-tokens: 20000
 ---
 
 # Doc Draft Skill
@@ -21,7 +21,7 @@ Generare bozza Google Docs da input utente, usando contesto dalla memoria.
 1. Recupera contesto da memoria via `aria-memory/recall` (sessioni recenti, decisioni)
 2. Genera bozza markdown + proponi titolo
 3. HITL "Crea doc '<titolo>' in Drive? [Sì] [Modifica titolo] [Annulla]"
-4. `drive.create_file(mimeType='application/vnd.google-apps.document')` → `docs.write` con contenuto
+4. `create_doc` con titolo + contenuto bozza
 5. Reply con link Drive al documento creato
 
 ## HITL Obbligatorio

@@ -8,6 +8,10 @@ ARIA_HOME="${ARIA_HOME:-/home/fulvio/coding/aria}"
 BACKUP_DIR="${BACKUP_DIR:-$HOME/.aria-backups}"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 BACKUP_FILE="$BACKUP_DIR/aria-backup-$TIMESTAMP.tar.age"
+BACKUP_PUB_FILE="${ARIA_BACKUP_PUB_FILE:-$ARIA_HOME/.age-backup.pub}"
+LEGACY_BACKUP_PUB_FILE="$ARIA_HOME/.age.pub"
+BACKUP_PRIVATE_KEY="${ARIA_BACKUP_PRIVATE_KEY:-$HOME/.aria-backup-keys/backup_key.txt}"
+LEGACY_PRIVATE_KEY="$HOME/.config/sops/age/keys.txt"
 
 log_info() {
     echo "[INFO] $1"
@@ -37,7 +41,10 @@ create_backup() {
     done
 
     # Check for age public key file
-    local pub_file="$ARIA_HOME/.age.pub"
+    local pub_file="$BACKUP_PUB_FILE"
+    if [[ ! -f "$pub_file" ]]; then
+        pub_file="$LEGACY_BACKUP_PUB_FILE"
+    fi
     if [[ ! -f "$pub_file" ]]; then
         log_error "Missing public key file: $pub_file"
         log_error "Cannot encrypt backup without public key"
@@ -76,7 +83,10 @@ restore_backup() {
     log_info "Restoring from: $backup_file"
 
     # Check for age private key
-    local key_file="$HOME/.config/sops/age/keys.txt"
+    local key_file="$BACKUP_PRIVATE_KEY"
+    if [[ ! -f "$key_file" ]]; then
+        key_file="$LEGACY_PRIVATE_KEY"
+    fi
     if [[ ! -f "$key_file" ]]; then
         log_error "Missing private key: $key_file"
         return 1

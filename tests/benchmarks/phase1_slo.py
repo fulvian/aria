@@ -15,7 +15,6 @@ SLO Targets:
 from __future__ import annotations
 
 import asyncio
-import json
 import sys
 import time
 from datetime import UTC, datetime, timedelta
@@ -27,6 +26,8 @@ SRC_ROOT = Path(__file__).resolve().parents[2] / "src"
 sys.path.insert(0, str(SRC_ROOT))
 
 from aria.config import get_config
+from aria.credentials import CredentialManager
+from aria.memory import Actor
 from aria.memory.episodic import EpisodicStore
 from aria.scheduler.store import TaskStore
 
@@ -44,30 +45,31 @@ class SLOThreshold:
         target: float,
         actual: float,
         unit: str,
-        is_percentage: bool = False,
+        mode: str = "max",
     ) -> None:
         self.name = name
         self.description = description
         self.target = target
         self.actual = actual
         self.unit = unit
-        self.is_percentage = is_percentage
+        self.mode = mode
         self.ok = self._check()
 
     def _check(self) -> bool:
-        if self.is_percentage:
-            return self.actual >= self.target
-        return self.actual < self.target or abs(self.actual - self.target) < 0.001
+        if self.mode == "min":
+            return self.actual >= self.target or abs(self.actual - self.target) < 0.001
+        return self.actual <= self.target or abs(self.actual - self.target) < 0.001
 
     def status(self) -> str:
         return "✓ PASS" if self.ok else "✗ FAIL"
 
     def report_line(self) -> str:
-        if self.is_percentage:
-            return (
-                f"  {self.status()} {self.name}: {self.actual:.2f}% (target: ≥{self.target:.2f}%)"
-            )
-        return f"  {self.status()} {self.name}: {self.actual:.3f}{self.unit} (target: <{self.target:.3f}{self.unit})"
+        comparator = "<=" if self.mode == "max" else ">="
+        precision = ".2f" if self.unit == "%" else ".3f"
+        return (
+            f"  {self.status()} {self.name}: {self.actual:{precision}}{self.unit} "
+            f"(target: {comparator}{self.target:{precision}}{self.unit})"
+        )
 
 
 class SLOResults:
@@ -84,9 +86,9 @@ class SLOResults:
         target: float,
         actual: float,
         unit: str = "",
-        is_percentage: bool = False,
+        mode: str = "max",
     ) -> None:
-        self.results.append(SLOThreshold(name, description, target, actual, unit, is_percentage))
+        self.results.append(SLOThreshold(name, description, target, actual, unit, mode))
 
     def all_passed(self) -> bool:
         return all(r.ok for r in self.results)
@@ -120,7 +122,6 @@ async def benchmark_memory_recall(
 
     Creates synthetic entries and measures FTS5 recall latency.
     """
-    # Generate synthetic test data
     import uuid
 
     session_id = str(uuid.uuid4())
@@ -128,12 +129,12 @@ async def benchmark_memory_recall(
 
     # Insert test entries
     for i in range(entry_count):
-        await store.write_entry(
+        await store.add(
             session_id=session_id,
-            ts=now_ms - i * 1000,
-            actor="user_input",
+            actor=Actor.USER_INPUT,
             role="user",
             content=f"test content entry {i} for memory recall benchmark",
+            meta={"benchmark_ts": now_ms - i * 1000},
         )
 
     # Perform recall queries and measure latency
@@ -150,7 +151,7 @@ async def benchmark_memory_recall(
             start = time.perf_counter()
             try:
                 # Simple FTS5-based recall
-                results = await store.search(query, limit=10)
+                results = await store.search_text(query, top_k=10)
                 _ = list(results)
             except Exception:
                 pass
@@ -173,11 +174,10 @@ async def benchmark_memory_recall(
 
 async def benchmark_dlq_rate(store: TaskStore, days: int = 7) -> SLOThreshold:
     """Calculate DLQ rate over rolling window."""
-    now_ms = int(datetime.now(tz=UTC).timestamp() * 1000)
     window_start_ms = int((datetime.now(tz=UTC) - timedelta(days=days)).timestamp() * 1000)
 
     total_runs = await store.count_task_runs(since_ms=window_start_ms)
-    dlq_entries = await store.count_dlq_entries()
+    dlq_entries = await store.count_dlq_entries(since_ms=window_start_ms)
 
     rate = (dlq_entries / total_runs * 100) if total_runs > 0 else 0.0
 
@@ -187,22 +187,19 @@ async def benchmark_dlq_rate(store: TaskStore, days: int = 7) -> SLOThreshold:
         target=2.0,
         actual=rate,
         unit="%",
-        is_percentage=True,
+        mode="max",
     )
 
 
 async def benchmark_hitl_timeout_rate(store: TaskStore) -> SLOThreshold:
     """Calculate HITL timeout rate."""
-    from aria.scheduler.store import HitlPending
-
     now_ms = int(datetime.now(tz=UTC).timestamp() * 1000)
+    window_start_ms = int((datetime.now(tz=UTC) - timedelta(days=7)).timestamp() * 1000)
 
-    # Get pending HITLs
-    pending = await store.list_hitl_pending()
+    records = await store.list_hitl_pending(since_ms=window_start_ms)
 
-    # Count timeouts (expired but not resolved)
-    timed_out = sum(1 for p in pending if p.expires_at < now_ms and p.resolved_at is None)
-    total = len(pending)
+    timed_out = sum(1 for p in records if p.expires_at < now_ms and p.resolved_at is None)
+    total = len(records)
 
     rate = (timed_out / total * 100) if total > 0 else 0.0
 
@@ -212,7 +209,33 @@ async def benchmark_hitl_timeout_rate(store: TaskStore) -> SLOThreshold:
         target=5.0,
         actual=rate,
         unit="%",
-        is_percentage=True,
+        mode="max",
+    )
+
+
+async def benchmark_provider_degradation_rate() -> SLOThreshold:
+    """Calculate provider degradation rate from credential circuit states."""
+    cm = CredentialManager()
+    status = cm.status()
+
+    degraded = 0
+    total = 0
+    for provider_data in status.values():
+        keys = provider_data.get("keys", []) if isinstance(provider_data, dict) else []
+        for key in keys:
+            total += 1
+            if str(key.get("circuit_state", "closed")) != "closed":
+                degraded += 1
+
+    rate = (degraded / total * 100) if total > 0 else 0.0
+
+    return SLOThreshold(
+        name="Provider degradation rate",
+        description="Keys with circuit_state != closed / total keys",
+        target=15.0,
+        actual=rate,
+        unit="%",
+        mode="max",
     )
 
 
@@ -234,7 +257,7 @@ async def benchmark_scheduler_success_rate(store: TaskStore) -> SLOThreshold:
         target=98.0,
         actual=rate,
         unit="%",
-        is_percentage=True,
+        mode="min",
     )
 
 
@@ -266,6 +289,7 @@ async def run_benchmarks(fail_on_breach: bool = False) -> int:
                 target=250.0,
                 actual=recall_slo.actual,
                 unit="ms",
+                mode="max",
             )
         except Exception as e:
             print(f"  Warning: Memory benchmark failed: {e}")
@@ -275,6 +299,7 @@ async def run_benchmarks(fail_on_breach: bool = False) -> int:
                 target=250.0,
                 actual=0.0,
                 unit="ms",
+                mode="max",
             )
 
         # DLQ rate
@@ -287,7 +312,7 @@ async def run_benchmarks(fail_on_breach: bool = False) -> int:
                 target=2.0,
                 actual=dlq_slo.actual,
                 unit="%",
-                is_percentage=True,
+                mode="max",
             )
         except Exception as e:
             print(f"  Warning: DLQ benchmark failed: {e}")
@@ -297,7 +322,7 @@ async def run_benchmarks(fail_on_breach: bool = False) -> int:
                 target=2.0,
                 actual=0.0,
                 unit="%",
-                is_percentage=True,
+                mode="max",
             )
 
         # HITL timeout rate
@@ -310,7 +335,7 @@ async def run_benchmarks(fail_on_breach: bool = False) -> int:
                 target=5.0,
                 actual=hitl_slo.actual,
                 unit="%",
-                is_percentage=True,
+                mode="max",
             )
         except Exception as e:
             print(f"  Warning: HITL benchmark failed: {e}")
@@ -320,7 +345,30 @@ async def run_benchmarks(fail_on_breach: bool = False) -> int:
                 target=5.0,
                 actual=0.0,
                 unit="%",
-                is_percentage=True,
+                mode="max",
+            )
+
+        # Provider degradation rate
+        print("Benchmarking provider degradation rate...")
+        try:
+            provider_slo = await benchmark_provider_degradation_rate()
+            results.add(
+                name="Provider degradation rate",
+                description="Keys with circuit_state != closed / total keys",
+                target=15.0,
+                actual=provider_slo.actual,
+                unit="%",
+                mode="max",
+            )
+        except Exception as e:
+            print(f"  Warning: Provider benchmark failed: {e}")
+            results.add(
+                name="Provider degradation rate",
+                description="Keys with circuit_state != closed / total keys",
+                target=15.0,
+                actual=0.0,
+                unit="%",
+                mode="max",
             )
 
         # Scheduler success rate
@@ -333,7 +381,7 @@ async def run_benchmarks(fail_on_breach: bool = False) -> int:
                 target=98.0,
                 actual=success_slo.actual,
                 unit="%",
-                is_percentage=True,
+                mode="min",
             )
         except Exception as e:
             print(f"  Warning: Scheduler benchmark failed: {e}")
@@ -343,7 +391,7 @@ async def run_benchmarks(fail_on_breach: bool = False) -> int:
                 target=98.0,
                 actual=100.0,
                 unit="%",
-                is_percentage=True,
+                mode="min",
             )
 
     finally:

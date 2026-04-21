@@ -6,6 +6,8 @@ set -euo pipefail
 
 ARIA_HOME="${ARIA_HOME:-/home/fulvio/coding/aria}"
 BACKUP_DIR="${BACKUP_DIR:-$HOME/.aria-backups}"
+BACKUP_PRIVATE_KEY="${ARIA_BACKUP_PRIVATE_KEY:-$HOME/.aria-backup-keys/backup_key.txt}"
+LEGACY_PRIVATE_KEY="$HOME/.config/sops/age/keys.txt"
 
 log_info() {
     echo "[INFO] $1"
@@ -49,7 +51,10 @@ restore_backup() {
     log_info "Restoring from: $backup_file"
 
     # Check for age private key
-    local key_file="$HOME/.config/sops/age/keys.txt"
+    local key_file="$BACKUP_PRIVATE_KEY"
+    if [[ ! -f "$key_file" ]]; then
+        key_file="$LEGACY_PRIVATE_KEY"
+    fi
     if [[ ! -f "$key_file" ]]; then
         log_error "Missing private key: $key_file"
         log_error "Cannot decrypt backup without private key"
