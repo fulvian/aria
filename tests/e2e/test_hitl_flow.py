@@ -46,7 +46,7 @@ class _MockCallbackQuery:
         await self._answer_mock()
 
     async def edit_message_text(self, text: str, **kwargs: dict[str, object]) -> None:
-        self._edit_message_mock(text=text, **kwargs)
+        await self._edit_message_mock(text=text, **kwargs)
 
 
 class _MockUpdate:

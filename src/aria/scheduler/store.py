@@ -671,7 +671,7 @@ class TaskStore:
         cursor = await self._conn.execute(
             """
             SELECT * FROM hitl_pending
-            WHERE expires_at < ? AND resolved_at IS NULL
+            WHERE expires_at <= ? AND resolved_at IS NULL
             """,
             (now_ms,),
         )

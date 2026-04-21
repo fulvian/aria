@@ -23,8 +23,14 @@ REGISTRY_PATH = SKILLS_DIR / "_registry.json"
 MCP_CONFIG = Path("/home/fulvio/coding/aria/.aria/kilocode/mcp.json")
 
 # Known valid wildcard patterns
-VALID_WILDCARDS = {"*", "aria-memory/*", "filesystem/*", "git/*", "github/*",
-                    "sequential-thinking/*"}
+VALID_WILDCARDS = {
+    "*",
+    "aria-memory/*",
+    "filesystem/*",
+    "git/*",
+    "github/*",
+    "sequential-thinking/*",
+}
 
 
 def load_json(path: Path) -> dict:
@@ -51,7 +57,7 @@ def parse_frontmatter(content: str) -> tuple[dict, str]:
     import yaml
 
     frontmatter = yaml.safe_load("\n".join(lines[1:end_idx]))
-    body = "\n".join(lines[end_idx + 1:])
+    body = "\n".join(lines[end_idx + 1 :])
     return (frontmatter or {}), body
 
 
@@ -93,8 +99,9 @@ def validate_skill(name: str, skill_dir: Path) -> list[str]:
                 parts = tool.split("/", 1)
                 server, _ = parts[0], parts[1] if len(parts) > 1 else ""
                 if server not in mcp_servers and server + "-mcp" not in mcp_servers:
-                    # Not a known server - might be a new one, flag as warning
-                    pass  # Allow unknown servers in validation
+                    errors.append(f"{name}: tool server '{server}' not declared in mcp.json")
+            else:
+                errors.append(f"{name}: invalid tool format '{tool}'")
 
     return errors
 

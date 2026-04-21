@@ -1,6 +1,6 @@
 ---
 document: ARIA Phase 1 - Sprint 1.3 Evidence Pack
-version: 1.0.0
+version: 1.1.0
 status: completed
 date_created: 2026-04-21
 last_review: 2026-04-21
@@ -272,6 +272,63 @@ uv run python scripts/validate_skills.py
 ```
 
 All gates green.
+
+---
+
+## 8. Post-sprint remediation (2026-04-21)
+
+Following an implementation-vs-blueprint audit on Sprint 1.3 scope, additional
+hardening fixes were applied and re-verified.
+
+### 8.1 Additional issues fixed
+
+- HITL callback normalization: `later` is now mapped to canonical
+  `deferred` in `src/aria/gateway/hitl_responder.py`.
+- Prompt injection mitigation runtime wiring completed in
+  `src/aria/gateway/conductor_bridge.py`:
+  - extracts optional child `tool_output`
+  - sanitizes nested frames
+  - wraps via `<<TOOL_OUTPUT>>...<</TOOL_OUTPUT>>`
+  - stores framed output with `actor=tool_output`, tag `tool_output_framed`.
+- Search router fallback robustness:
+  `src/aria/agents/search/router.py` now supports credentialless providers
+  (notably self-hosted `searxng`) without `CredentialManager.acquire()`.
+- HITL expiry boundary condition fixed in `src/aria/scheduler/store.py`:
+  stale selection uses `expires_at <= now` (instead of strict `<`).
+- Skill validator hardening in `scripts/validate_skills.py`:
+  now fails on invalid tool format and unknown MCP server references.
+- Test warning cleanup in `tests/e2e/test_hitl_flow.py`:
+  fixed missing `await` on async mock in callback edit path.
+
+### 8.2 Extra tests and quality signals
+
+- Added router regression test for credentialless SearXNG:
+  `tests/unit/agents/search/test_router_cache.py`.
+- Added ConductorBridge prompt-safety unit tests:
+  `tests/unit/gateway/test_conductor_bridge.py`.
+- Aligned schema and dedup tests with Pydantic v2 URL normalization behavior.
+- Added `e2e` marker to pytest config in `pyproject.toml`.
+
+### 8.3 Verification after remediation
+
+```bash
+$ uv run pytest -q
+274 passed in 11.98s
+```
+
+Warnings status:
+- Previous runtime warnings in `tests/e2e/test_hitl_flow.py` resolved.
+- Current suite run reports no warnings.
+
+Validation scripts:
+
+```bash
+$ uv run python scripts/validate_agents.py
+Agent validation PASSED (8 agents)
+
+$ uv run python scripts/validate_skills.py
+Skill validation PASSED (7 skills)
+```
 
 ---
 

@@ -48,7 +48,7 @@ class TestSearchHit:
     def test_create_minimal_hit(self):
         hit = SearchHit(title="Test", url="https://test.com", snippet="content", provider="tavily")
         assert hit.title == "Test"
-        assert hit.url == "https://test.com"
+        assert str(hit.url) == "https://test.com/"
         assert hit.score == 0.0
         assert hit.provider == "tavily"
         assert hit.provider_raw == {}

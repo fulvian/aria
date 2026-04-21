@@ -98,7 +98,8 @@ async def handle_hitl_callback(
     response_map = {
         "yes": "yes",
         "no": "no",
-        "later": "later",
+        # Scheduler policy and tests use "deferred" as canonical value.
+        "later": "deferred",
     }
     canonical = response_map.get(response)
     if canonical is None:

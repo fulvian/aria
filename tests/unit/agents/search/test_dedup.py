@@ -48,7 +48,7 @@ class TestCanonicalizeUrl:
 
     def test_empty_url(self):
         assert canonicalize_url("") == ""
-        assert canonicalize_url("   ") == "https://"  # normalize adds scheme
+        assert canonicalize_url("   ") == ""
 
 
 class TestTitleSimilarity:

@@ -83,6 +83,9 @@ class SearchRouter:
             "firecrawl_extract": "firecrawl",
             "firecrawl_scrape": "firecrawl",
         }
+        # Providers that do not require CredentialManager acquisition.
+        # SearXNG is self-hosted/local and can run without API keys.
+        self._credentialless_providers = {"searxng"}
 
     def classify(self, query: str) -> Intent:
         """Classify query intent."""
@@ -134,19 +137,24 @@ class SearchRouter:
             }:
                 continue
 
-            # Try to acquire credentials
-            key_info = await self._cm.acquire(resolved_name)
-            if key_info is None:
-                # No credits or no key available
-                continue
-
             provider = self._providers[resolved_name]
+            key_info = None
+
+            # Try to acquire credentials when required
+            if resolved_name not in self._credentialless_providers:
+                key_info = await self._cm.acquire(resolved_name)
+                if key_info is None:
+                    # No credits or no key available
+                    continue
+
             try:
                 hits = await provider.search(query, top_k=10)
-                await self._cm.report_success(resolved_name, key_info.key_id, credits_used=1)
+                if key_info is not None:
+                    await self._cm.report_success(resolved_name, key_info.key_id, credits_used=1)
                 all_hits.extend(hits)
             except Exception as exc:
-                await self._cm.report_failure(resolved_name, key_info.key_id, reason=str(exc))
+                if key_info is not None:
+                    await self._cm.report_failure(resolved_name, key_info.key_id, reason=str(exc))
                 continue
 
         # Deduplicate and rank

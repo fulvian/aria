@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Any
 
 from aria.memory.schema import Actor
 from aria.utils.logging import new_trace_id
-from aria.utils.prompt_safety import redact_secrets
+from aria.utils.prompt_safety import redact_secrets, sanitize_nested_frames, wrap_tool_output
 
 if TYPE_CHECKING:
     from aria.memory.episodic import EpisodicStore
@@ -139,6 +139,21 @@ class ConductorBridge:
 
         # Step 3: Save assistant response to episodic (actor=AGENT_INFERENCE)
         safe_result_text = redact_secrets(result.get("text", ""))
+
+        framed_tool_output = result.get("framed_tool_output")
+        if isinstance(framed_tool_output, str) and framed_tool_output:
+            await self._store.add(
+                session_id=aria_session_id,
+                actor=Actor.TOOL_OUTPUT,
+                role="tool",
+                content=framed_tool_output,
+                tags=["tool_output_framed"],
+                meta={
+                    "trace_id": trace_id,
+                    "child_session_id": result.get("child_session_id"),
+                },
+            )
+
         await self._store.add(
             session_id=aria_session_id,
             actor=Actor.AGENT_INFERENCE,
@@ -252,6 +267,7 @@ class ConductorBridge:
                             "text": str(output_data.get("result", stdout_text[:2000])),
                             "child_session_id": child_session_id,
                             "tokens_used": int(output_data.get("tokens_used", 0) or 0),
+                            "framed_tool_output": self._extract_framed_tool_output(output_data),
                         }
                 except json.JSONDecodeError:
                     continue
@@ -273,6 +289,20 @@ class ConductorBridge:
             # Strategy B fallback: try kilocode chat
             logger.warning("npx kilocode not found, trying strategy B")
             return await self._spawn_conductor_fallback(input_text, session_id, trace_id)
+
+    def _extract_framed_tool_output(self, output_data: dict[str, Any]) -> str | None:
+        """Extract and frame tool output from child session payload.
+
+        If the child emits a `tool_output` field, sanitize any nested frame
+        delimiters and wrap content in a trusted frame before persistence.
+        """
+        tool_output = output_data.get("tool_output")
+        if not isinstance(tool_output, str) or not tool_output.strip():
+            return None
+        sanitized = sanitize_nested_frames(tool_output)
+        if not sanitized.strip():
+            return None
+        return wrap_tool_output(sanitized)
 
     async def _spawn_conductor_fallback(
         self,

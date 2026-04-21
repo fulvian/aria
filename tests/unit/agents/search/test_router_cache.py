@@ -152,3 +152,23 @@ async def test_router_resolves_provider_aliases_and_skips_degraded():
     health.map["brave"] = ProviderStatus.DEGRADED
     results_2 = await router.route("breaking news economia", intent=Intent.NEWS)
     assert len(results_2) == 0
+
+
+@pytest.mark.asyncio
+async def test_router_allows_credentialless_searxng_provider():
+    cm = _FakeCM()
+    cm.blocked.add("searxng")
+    health = _FakeHealth()
+    cache = SearchCache(store=_FakeStore(), ttl_hours=6)
+    searxng = _FakeProvider("searxng")
+
+    router = SearchRouter(
+        cm=cm,
+        health=health,
+        cache=cache,
+        providers={"searxng": searxng},
+    )
+
+    results = await router.route("ricerca privacy anonimo", intent=Intent.PRIVACY)
+    assert len(results) == 1
+    assert searxng.calls == 1
