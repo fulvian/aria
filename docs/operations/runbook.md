@@ -3,7 +3,7 @@ document: ARIA Operations Runbook
 version: 1.0.0
 status: draft
 date_created: 2026-04-20
-last_review: 2026-04-20
+last_review: 2026-04-21
 owner: fulvio
 scope: phase-1
 ---
@@ -12,7 +12,7 @@ scope: phase-1
 
 Operazioni day-to-day per i servizi ARIA su systemd user mode.
 
-**Servizi:** `aria-scheduler.service`, `aria-gateway.service`  
+**Servizi:** `aria-scheduler.service`, `aria-gateway.service`, `aria-memory.service`  
 **Runtime:** `.aria/runtime/`  
 **Credentials:** `.aria/credentials/` (SOPS+age encrypted)  
 **Logs:** `journalctl --user -u <service>`
@@ -20,6 +20,29 @@ Operazioni day-to-day per i servizi ARIA su systemd user mode.
 ---
 
 ## 1. Avvio, Stop, Restart
+
+### 1.0 Isolamento Kilo (obbligatorio)
+
+`./bin/aria` avvia Kilo in isolamento totale dal profilo globale utente.
+
+Env runtime effettivo:
+
+- `HOME=~/coding/aria/.aria/kilo-home`
+- `XDG_CONFIG_HOME=~/coding/aria/.aria/kilo-home/.config`
+- `XDG_DATA_HOME=~/coding/aria/.aria/kilo-home/.local/share`
+- `XDG_STATE_HOME=~/coding/aria/.aria/kilo-home/.local/state`
+- `KILO_CONFIG_DIR=~/coding/aria/.aria/kilocode`
+- `KILO_DISABLE_EXTERNAL_SKILLS=true`
+
+Verifica rapida:
+
+```bash
+./bin/aria run "ping" --print-logs --log-level DEBUG 2>&1 | \
+  grep -E "service=config path="
+```
+
+Output atteso: solo path sotto `.aria/kilo-home` e `.aria/kilocode`.
+Nessun path sotto `~/.config/kilo`, `~/.kilocode`, `~/.kilo`, `~/.opencode`.
 
 ### 1.1 Prerequisites
 
@@ -48,15 +71,20 @@ cd ~/coding/aria
 ### 1.3 Start / Stop / Status
 
 ```bash
-# Start entrambi
-systemctl --user start aria-scheduler.service aria-gateway.service
+# Start first-start path (core only)
+./scripts/install_systemd.sh start
 
-# Stop entrambi
+# Start memory opzionale (manuale)
+systemctl --user start aria-memory.service
+
+# Stop principali (+ memory opzionale)
 systemctl --user stop aria-scheduler.service aria-gateway.service
+systemctl --user stop aria-memory.service
 
 # Status singolo
 systemctl --user status aria-scheduler.service --no-pager
 systemctl --user status aria-gateway.service --no-pager
+systemctl --user status aria-memory.service --no-pager
 
 # Status con journal
 ./scripts/install_systemd.sh status
@@ -76,10 +104,14 @@ systemctl --user restart aria-gateway.service aria-scheduler.service
 ### 1.5 Abilitare avvio automatico
 
 ```bash
+# Enable first-start path (core only)
 ./scripts/install_systemd.sh enable
-# Equivalente a:
+# Equivalente a (core):
 # systemctl --user enable aria-scheduler.service
 # systemctl --user enable aria-gateway.service
+
+# Memory opzionale (manuale)
+# systemctl --user enable aria-memory.service
 ```
 
 ### 1.6 watchdog verification
@@ -321,7 +353,9 @@ journalctl --user -u aria-scheduler.service -p err --no-pager -n 20
 
 # Errori comuni:
 # - "Failed to load environment files": manca .env → cp .env.example .env
-# - "Failed to drop capabilities": systemd troppo restrittivo → rimuovere MemoryDenyWriteExecute dalla service unit
+# - "Failed to drop capabilities" + status=218/CAPABILITIES:
+#   in user mode desktop non usare PrivateDevices=true o ProtectKernelModules=true
+#   (vedi ADR-0008)
 # - "No such file or directory": path sbagliato in EnvironmentFile o ReadWritePaths
 ```
 
@@ -419,7 +453,8 @@ cat ~/coding/aria/.env | grep -E "ARIA_|TELEGRAM|QUIET"
 
 - Blueprint: `docs/foundation/aria_foundation_blueprint.md` §6.6, §7
 - Sprint plan: `docs/plans/phase-1/sprint-02.md`
-- Systemd units: `systemd/aria-scheduler.service`, `systemd/aria-gateway.service`
+- Systemd units: `systemd/aria-scheduler.service`, `systemd/aria-gateway.service`, `systemd/aria-memory.service`
+- ADR-0008: `docs/foundation/decisions/ADR-0008-systemd-user-capability-limits.md`
 - ADR-0005: `docs/foundation/decisions/ADR-0005-scheduler-concurrency.md`
 - Credential architecture: `src/aria/credentials/` (SOPS + KeyringStore)
 
