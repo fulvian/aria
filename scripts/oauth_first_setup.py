@@ -30,7 +30,7 @@ import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import parse_qs, urlencode, urlparse
 
 # === Add src to path for imports ===
 SRC_ROOT = Path(__file__).resolve().parents[1] / "src"
@@ -82,6 +82,47 @@ class TokenExchangeError(OAuthSetupError):
     """Failed to exchange code for tokens."""
 
     pass
+
+
+def extract_oauth_code_from_input(raw_input: str, expected_state: str) -> str:
+    """Extract OAuth authorization code from redirect URL or raw code input.
+
+    Supports either:
+    - full redirect URL (e.g. http://localhost:8080/callback?code=...&state=...)
+    - raw query string (e.g. code=...&state=...)
+    - raw authorization code only
+    """
+    value = raw_input.strip()
+    if not value:
+        raise OAuthSetupError("Empty input")
+
+    params: dict[str, list[str]] = {}
+    code = ""
+
+    # Full URL
+    if value.startswith("http://") or value.startswith("https://"):
+        parsed = urlparse(value)
+        params = parse_qs(parsed.query)
+        code = params.get("code", [""])[0]
+    # Raw query string
+    elif "=" in value and ("code=" in value or "state=" in value or "error=" in value):
+        params = parse_qs(value.lstrip("?"))
+        code = params.get("code", [""])[0]
+    else:
+        code = value
+
+    error = params.get("error", [""])[0] if params else ""
+    if error:
+        raise OAuthSetupError(f"OAuth error from redirect: {error}")
+
+    state = params.get("state", [""])[0] if params else ""
+    if state and state != expected_state:
+        raise StateMismatchError("CSRF state mismatch - aborting")
+
+    if not code:
+        raise OAuthSetupError("No authorization code found in provided input")
+
+    return code
 
 
 # === PKCE Helpers ===
@@ -148,8 +189,6 @@ class OAuthCallbackHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         """Handle GET request to /callback."""
-        from urllib.parse import parse_qs
-
         # Parse query string
         query = self.path.split("?", 1)[1] if "?" in self.path else ""
         params = parse_qs(query)
@@ -201,6 +240,7 @@ class GoogleOAuthSetup:
         redirect_uri: str = DEFAULT_REDIRECT_URI,
         timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
         client_secret: str | None = None,
+        manual_mode: bool = False,
     ) -> None:
         """Initialize OAuth setup.
 
@@ -216,6 +256,7 @@ class GoogleOAuthSetup:
         self.redirect_uri = redirect_uri
         self.timeout_seconds = timeout_seconds
         self.client_secret = client_secret
+        self.manual_mode = manual_mode
 
         # Generate PKCE parameters
         self.code_verifier = generate_code_verifier(64)
@@ -308,6 +349,26 @@ class GoogleOAuthSetup:
         except httpx.HTTPError as e:
             raise TokenExchangeError(f"Token exchange failed: {e}") from e
 
+    def _prompt_manual_code_entry(self) -> str | None:
+        """Ask user to paste redirect URL/code when local callback is unreachable."""
+        print("\nAutomatic callback not received.")
+        print("Manual fallback:")
+        print("  1. Complete Google consent in browser")
+        print("  2. Copy the final redirected URL from address bar")
+        print("  3. Paste it below (or paste only the `code` value)")
+
+        for _attempt in range(3):
+            user_input = input("\nPaste redirect URL or code (empty to abort): ").strip()
+            if not user_input:
+                return None
+
+            try:
+                return extract_oauth_code_from_input(user_input, self.state)
+            except OAuthSetupError as exc:
+                print(f"Invalid input: {exc}")
+
+        return None
+
     def run(self) -> dict:
         """Run the complete OAuth flow.
 
@@ -338,15 +399,22 @@ class GoogleOAuthSetup:
             if parsed.port:
                 port = parsed.port
 
-        # Start local server
-        server_address = (host, port)
-        httpd = self._start_server(server_address)
+        httpd: HTTPServer | None = None
+        callback_server_ready = False
 
-        # Start server thread
-        server_thread = threading.Thread(target=httpd.serve_forever, daemon=True)
-        server_thread.start()
+        if not self.manual_mode:
+            # Start local server (best effort)
+            server_address = (host, port)
+            try:
+                httpd = self._start_server(server_address)
+                threading.Thread(target=httpd.serve_forever, daemon=True).start()
+                callback_server_ready = True
+            except OSError as exc:
+                print(f"WARNING: Could not start callback server on {host}:{port}: {exc}")
+                print("Proceeding with manual redirect URL fallback.")
 
         start_time = time.time()
+        callback_timed_out = False
 
         try:
             # Open browser for consent
@@ -357,15 +425,24 @@ class GoogleOAuthSetup:
             print(f"Scopes requested: {', '.join(self.scopes)}")
             print("\nIf browser doesn't open, navigate to:")
             print(f"\n  {auth_url}\n")
+            if self.manual_mode:
+                print(f"Expected state for this run: {self.state}")
             webbrowser.open(auth_url)
 
             # Wait for callback
-            self._wait_for_callback(httpd, start_time, self.timeout_seconds)
+            if callback_server_ready and httpd is not None:
+                try:
+                    self._wait_for_callback(httpd, start_time, self.timeout_seconds)
+                except TimeoutError:
+                    callback_timed_out = True
+            else:
+                callback_timed_out = True
 
         finally:
             # Shutdown server
-            httpd.shutdown()
-            httpd.server_close()
+            if httpd is not None:
+                httpd.shutdown()
+                httpd.server_close()
 
         # Check for errors
         error = self.result_container.get("error")
@@ -376,6 +453,9 @@ class GoogleOAuthSetup:
 
         # Get authorization code
         code = self.result_container.get("code")
+        if not code and (not callback_server_ready or callback_timed_out):
+            code = self._prompt_manual_code_entry()
+
         if not code:
             raise TimeoutError("No authorization code received")
 
@@ -448,6 +528,11 @@ def main() -> int:
         default=DEFAULT_TIMEOUT_SECONDS,
         help=f"Timeout in seconds (default: {DEFAULT_TIMEOUT_SECONDS})",
     )
+    parser.add_argument(
+        "--manual",
+        action="store_true",
+        help="Skip local callback server and use redirect URL/code paste only",
+    )
 
     args = parser.parse_args()
 
@@ -494,6 +579,7 @@ def main() -> int:
             scopes=scopes,
             timeout_seconds=args.timeout,
             client_secret=client_secret,
+            manual_mode=args.manual,
         )
         tokens = setup.run()
 
