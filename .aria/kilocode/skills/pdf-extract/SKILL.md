@@ -21,10 +21,10 @@ Estrarre il contenuto testuale da file PDF con metadata e struttura.
 2. Estrai metadata (titolo, autore, date, pagine)
 3. Estrai testo con struttura (paragrafi, tabelle, liste)
 4. Processa immagini con OCR se necessario (fallback)
-5. Salva in memoria episodica con tag `pdf_ingest`
+5. Salva in memoria episodica con tag `pdf_source`
 
 ## Output
 - Full text in markdown
 - Metadata dict (title, author, dates, page_count)
 - Summary (2-3 frasi)
-- Tags: [pdf_ingest, source_document]
+- Tags: [pdf_source, source_document]

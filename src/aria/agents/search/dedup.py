@@ -14,7 +14,7 @@ from rapidfuzz import fuzz
 from aria.agents.search.schema import SearchHit
 
 
-def canonicalize_url(url: str) -> str:
+def canonicalize_url(url: object) -> str:
     """Canonicalize URL for deduplication per blueprint §11.4.
 
     Removes tracking parameters (utm_*, fbclid, gclid) and normalizes URL.
@@ -25,6 +25,7 @@ def canonicalize_url(url: str) -> str:
     Returns:
         Canonical URL string.
     """
+    url = str(url).strip()
     if not url:
         return ""
 

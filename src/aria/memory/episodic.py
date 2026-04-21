@@ -25,6 +25,7 @@ import logging
 import time
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 import aiosqlite
 
@@ -214,6 +215,42 @@ class EpisodicStore:
         )
         await conn.commit()
 
+    async def add(
+        self,
+        *,
+        session_id: str | UUID,
+        actor: Actor,
+        role: str,
+        content: str,
+        tags: list[str] | None = None,
+        meta: dict[str, object] | None = None,
+    ) -> EpisodicEntry:
+        """Compatibility helper used by gateway and search modules.
+
+        Accepts string session IDs and maps non-UUID values deterministically
+        to UUIDv5 to preserve stable grouping.
+        """
+        if isinstance(session_id, UUID):
+            session_uuid = session_id
+        else:
+            try:
+                session_uuid = UUID(str(session_id))
+            except ValueError:
+                session_uuid = uuid5(NAMESPACE_URL, f"aria-session:{session_id}")
+
+        role_value = role if role in {"user", "assistant", "system", "tool"} else "system"
+        entry = EpisodicEntry(
+            session_id=session_uuid,
+            ts=datetime.now(UTC),
+            actor=actor,
+            role=role_value,
+            content=content,
+            tags=tags or [],
+            meta=meta or {},
+        )
+        await self.insert(entry)
+        return entry
+
     # === Query Operations ===
 
     async def get(self, id: UUID) -> EpisodicEntry | None:
@@ -361,6 +398,57 @@ class EpisodicStore:
             )
             rows = await cursor.fetchall()
             return [self._row_to_entry(row) for row in rows]
+
+    async def search_by_tag(
+        self,
+        tag: str,
+        since: datetime | None = None,
+        until: datetime | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, object]]:
+        """Search entries by tag.
+
+        SQLite stores tags as JSON text; filtering is applied in Python for
+        maximum compatibility with SQLite builds that may not include JSON1.
+        """
+        conn = await self._ensure_connected()
+
+        lower_bound = int((since or datetime.fromtimestamp(0, tz=UTC)).timestamp())
+        upper_bound = int((until or datetime.now(UTC)).timestamp())
+
+        cursor = await conn.execute(
+            """
+            SELECT e.* FROM episodic e
+            LEFT JOIN episodic_tombstones t ON e.id = t.episodic_id
+            WHERE e.ts >= ? AND e.ts <= ? AND t.episodic_id IS NULL
+            ORDER BY e.ts DESC
+            LIMIT ?
+            """,
+            (lower_bound, upper_bound, max(limit * 5, limit)),
+        )
+        rows = await cursor.fetchall()
+
+        results: list[dict[str, object]] = []
+        for row in rows:
+            entry = self._row_to_entry(row)
+            if tag not in entry.tags:
+                continue
+            results.append(
+                {
+                    "id": str(entry.id),
+                    "session_id": str(entry.session_id),
+                    "ts": entry.ts.isoformat(),
+                    "actor": entry.actor.value,
+                    "role": entry.role,
+                    "content": entry.content,
+                    "tags": entry.tags,
+                    "meta": entry.meta,
+                }
+            )
+            if len(results) >= limit:
+                break
+
+        return results
 
     # === Soft Delete (Tombstone) ===
 

@@ -10,6 +10,7 @@ import json
 import logging
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 from aria.agents.search.schema import SearchHit
 from aria.memory.episodic import EpisodicStore
@@ -79,7 +80,7 @@ class SearchCache:
         data = [
             {
                 "title": h.title,
-                "url": h.url,
+                "url": str(h.url),
                 "snippet": h.snippet,
                 "published_at": (h.published_at.isoformat() if h.published_at else None),
                 "score": h.score,
@@ -141,7 +142,10 @@ class SearchCache:
 
         for entry in entries:
             # Check if this is our cache entry
-            meta = entry.get("meta", {})
+            meta_obj = entry.get("meta", {})
+            if not isinstance(meta_obj, dict):
+                continue
+            meta = meta_obj
             if meta.get("cache_key") != cache_key:
                 continue
 
@@ -150,7 +154,7 @@ class SearchCache:
             if not entry_ts_str:
                 continue
             try:
-                entry_ts = datetime.fromisoformat(entry_ts_str)
+                entry_ts = datetime.fromisoformat(str(entry_ts_str))
                 if entry_ts.tzinfo is None:
                     entry_ts = entry_ts.replace(tzinfo=UTC)
             except (ValueError, TypeError):
@@ -161,9 +165,11 @@ class SearchCache:
                 continue
 
             # Found valid cache entry
-            content = entry.get("content", "")
+            content_obj = entry.get("content", "")
+            if not isinstance(content_obj, str):
+                continue
             try:
-                return self._json_to_hits(content)
+                return self._json_to_hits(content_obj)
             except (json.JSONDecodeError, KeyError):
                 logger.warning("Failed to deserialize cache entry: %s", entry.get("id"))
                 return None
@@ -211,7 +217,33 @@ class SearchCache:
         Returns:
             Number of entries invalidated.
         """
-        # Note: full invalidation requires scanning episodic store
-        # This is a best-effort operation
         logger.info("Cache invalidate requested for query=%s", query)
-        return 0
+
+        entries = await self._store.search_by_tag(
+            tag=SEARCH_CACHE_TAG,
+            since=None,
+            until=None,
+            limit=1000,
+        )
+
+        invalidated = 0
+        for entry in entries:
+            meta = entry.get("meta", {})
+            if not isinstance(meta, dict):
+                continue
+
+            if query is not None and meta.get("query") != query:
+                continue
+
+            entry_id = entry.get("id")
+            if not isinstance(entry_id, str):
+                continue
+
+            with suppress(ValueError):
+                deleted = await self._store.tombstone(
+                    UUID(entry_id), reason="search_cache_invalidate"
+                )
+                if deleted:
+                    invalidated += 1
+
+        return invalidated

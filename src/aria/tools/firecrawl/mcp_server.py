@@ -12,20 +12,14 @@ Usage:
 
 from __future__ import annotations
 
-import json
 import logging
 import os
-import sys
-from pathlib import Path
+from typing import Any
 
 from fastmcp import FastMCP
 
-# Add project root to path for imports
-PROJECT_ROOT = Path(__file__).resolve().parents[4]
-sys.path.insert(0, str(PROJECT_ROOT))
-
-from aria.agents.search.providers.firecrawl import FirecrawlProvider  # noqa: E402
-from aria.credentials.manager import CredentialManager  # noqa: E402
+from aria.agents.search.providers.firecrawl import FirecrawlProvider
+from aria.credentials.manager import CredentialManager
 
 # === Setup ===
 logging.basicConfig(
@@ -52,8 +46,8 @@ async def _get_provider() -> FirecrawlProvider:
     return _provider
 
 
-@mcp.tool()
-async def search(query: str, top_k: int = 10) -> str:
+@mcp.tool
+async def search(query: str, top_k: int = 10) -> dict[str, object]:
     """Search the web using Firecrawl.
 
     Args:
@@ -66,10 +60,10 @@ async def search(query: str, top_k: int = 10) -> str:
     provider = await _get_provider()
     try:
         hits = await provider.search(query=query, top_k=min(top_k, 20))
-        results = [
+        results: list[dict[str, object]] = [
             {
                 "title": h.title,
-                "url": h.url,
+                "url": str(h.url),
                 "snippet": h.snippet,
                 "published_at": (h.published_at.isoformat() if h.published_at else None),
                 "score": h.score,
@@ -77,14 +71,14 @@ async def search(query: str, top_k: int = 10) -> str:
             }
             for h in hits
         ]
-        return json.dumps({"success": True, "results": results}, ensure_ascii=False)
+        return {"success": True, "results": results}
     except Exception as exc:
         logger.error("Firecrawl search error: %s", exc)
-        return json.dumps({"success": False, "error": str(exc)})
+        return {"success": False, "error": str(exc)}
 
 
-@mcp.tool()
-async def scrape(url: str) -> str:
+@mcp.tool
+async def scrape(url: str) -> dict[str, object]:
     """Scrape a URL and return content as markdown.
 
     Args:
@@ -97,25 +91,26 @@ async def scrape(url: str) -> str:
     try:
         hit = await provider.scrape(url)
         if hit is None:
-            return json.dumps({"success": False, "error": "Scrape failed"})
+            return {"success": False, "error": "Scrape failed"}
 
-        return json.dumps(
-            {
-                "success": True,
-                "url": hit.url,
-                "title": hit.title,
-                "markdown": hit.snippet,
-                "provider": hit.provider,
-            },
-            ensure_ascii=False,
-        )
+        return {
+            "success": True,
+            "url": str(hit.url),
+            "title": hit.title,
+            "markdown": hit.snippet,
+            "provider": hit.provider,
+        }
     except Exception as exc:
         logger.error("Firecrawl scrape error: %s", exc)
-        return json.dumps({"success": False, "error": str(exc)})
+        return {"success": False, "error": str(exc)}
 
 
-@mcp.tool()
-async def extract(url: str, schema: str | None = None) -> str:
+@mcp.tool
+async def extract(
+    url: str,
+    prompt: str = "Extract key information from this page",
+    schema: dict[str, Any] | None = None,
+) -> dict[str, object]:
     """Extract structured data from a URL using Firecrawl AI extraction.
 
     Args:
@@ -125,27 +120,13 @@ async def extract(url: str, schema: str | None = None) -> str:
     Returns:
         JSON string with extracted data.
     """
-    # Note: Firecrawl extract uses the same API as scrape with formats
-    # This is a simplified implementation
     provider = await _get_provider()
     try:
-        hit = await provider.scrape(url)
-        if hit is None:
-            return json.dumps({"success": False, "error": "Extract failed"})
-
-        return json.dumps(
-            {
-                "success": True,
-                "url": hit.url,
-                "title": hit.title,
-                "content": hit.snippet,
-                "provider": hit.provider,
-            },
-            ensure_ascii=False,
-        )
+        data = await provider.extract(url=url, prompt=prompt, schema=schema)
+        return {"success": True, "data": data}
     except Exception as exc:
         logger.error("Firecrawl extract error: %s", exc)
-        return json.dumps({"success": False, "error": str(exc)})
+        return {"success": False, "error": str(exc)}
 
 
 if __name__ == "__main__":

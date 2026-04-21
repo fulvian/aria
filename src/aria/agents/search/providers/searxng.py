@@ -13,6 +13,7 @@ from typing import Any
 
 import httpx
 
+from aria.agents.search.providers._http import parse_http_url, request_json_with_retry
 from aria.agents.search.schema import ProviderStatus, SearchHit
 
 logger = logging.getLogger(__name__)
@@ -81,23 +82,23 @@ class SearXNGProvider:
 
         try:
             client = self._get_client()
-            response = await client.get(
-                f"{self._base_url}/search",
+            data = await request_json_with_retry(
+                client=client,
+                method="GET",
+                url=f"{self._base_url}/search",
                 params=params,
-                timeout=30.0,
+                request_timeout=30.0,
+                attempts=3,
             )
-            response.raise_for_status()
-            data = response.json()
-        except httpx.HTTPStatusError as exc:
-            logger.warning("SearXNG search failed: %s", exc)
-            return []
         except Exception as exc:
             logger.warning("SearXNG search error: %s", exc)
             return []
 
         hits: list[SearchHit] = []
         for result in data.get("results", [])[:top_k]:
-            url = result.get("url", "")
+            url = parse_http_url(result.get("url", ""))
+            if url is None:
+                continue
             published_at: datetime | None = None
             raw_date = result.get("publishedDate")
             if raw_date:

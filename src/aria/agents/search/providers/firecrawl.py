@@ -5,19 +5,20 @@ HTTP adapter for Firecrawl scrape/extract API per blueprint §11.1.
 API docs: https://docs.firecrawl.dev/
 """
 
-import asyncio
 import logging
 from datetime import datetime
 from typing import Any
 
 import httpx
 
+from aria.agents.search.providers._http import parse_http_url, request_json_with_retry
 from aria.agents.search.schema import ProviderStatus, SearchHit
 
 logger = logging.getLogger(__name__)
 
 FIRECRAWL_SCRAPE_URL = "https://api.firecrawl.dev/v1/scrape"
 FIRECRAWL_SEARCH_URL = "https://api.firecrawl.dev/v1/search"
+FIRECRAWL_EXTRACT_URL = "https://api.firecrawl.dev/v1/extract"
 
 
 class FirecrawlProvider:
@@ -56,15 +57,17 @@ class FirecrawlProvider:
             await self._client.aclose()
             self._client = None
 
-    async def _post(self, url: str, data: dict) -> httpx.Response:
+    async def _post(self, url: str, data: dict[str, Any]) -> dict[str, Any]:
         """POST with retry logic."""
         client = self._get_client()
-        response = await client.post(url, json=data)
-        if response.status_code == 429:
-            retry_after = response.headers.get("Retry-After", "1")
-            await asyncio.sleep(float(retry_after))
-            response = await client.post(url, json=data)
-        return response
+        return await request_json_with_retry(
+            client=client,
+            method="POST",
+            url=url,
+            json_body=data,
+            request_timeout=30.0,
+            attempts=3,
+        )
 
     async def search(self, query: str, top_k: int = 10, **kwargs: Any) -> list[SearchHit]:  # noqa: ANN401
         """Execute a Firecrawl web search.
@@ -81,20 +84,20 @@ class FirecrawlProvider:
         payload = {
             "query": query,
             "limit": top_k,
-            "type": "websearch",
         }
+        payload.update({k: v for k, v in kwargs.items() if k in {"sources", "lang", "country"}})
 
         try:
-            response = await self._post(FIRECRAWL_SEARCH_URL, payload)
-            response.raise_for_status()
-            data = response.json()
-        except httpx.HTTPStatusError as exc:
+            data = await self._post(FIRECRAWL_SEARCH_URL, payload)
+        except Exception as exc:
             logger.warning("Firecrawl search failed: %s", exc)
             return []
 
         hits: list[SearchHit] = []
         for item in data.get("data", []):
-            url = item.get("url", "")
+            url = parse_http_url(item.get("url", ""))
+            if url is None:
+                continue
             # Published date handling
             published_at: datetime | None = None
             raw_date = item.get("published_date")
@@ -129,14 +132,13 @@ class FirecrawlProvider:
         """
         payload = {
             "url": url,
-            "formats": ["markdown", "metadata"],
+            "formats": ["markdown"],
         }
+        payload.update({k: v for k, v in kwargs.items() if k in {"onlyMainContent", "waitFor"}})
 
         try:
-            response = await self._post(FIRECRAWL_SCRAPE_URL, payload)
-            response.raise_for_status()
-            data = response.json()
-        except httpx.HTTPStatusError as exc:
+            data = await self._post(FIRECRAWL_SCRAPE_URL, payload)
+        except Exception as exc:
             logger.warning("Firecrawl scrape failed for %s: %s", url, exc)
             return None
 
@@ -147,15 +149,35 @@ class FirecrawlProvider:
         markdown = content.get("markdown", "")
         metadata = content.get("metadata", {})
 
+        parsed_url = parse_http_url(url)
+        if parsed_url is None:
+            return None
+
         return SearchHit(
             title=metadata.get("title", url),
-            url=url,
-            snippet=markdown[:500] if markdown else "",
+            url=parsed_url,
+            snippet=markdown if isinstance(markdown, str) else "",
             published_at=None,
             score=1.0,
             provider=self.name,
             provider_raw=data,
         )
+
+    async def extract(
+        self,
+        url: str,
+        prompt: str,
+        schema: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Run Firecrawl structured extraction."""
+        payload: dict[str, Any] = {
+            "urls": [url],
+            "prompt": prompt,
+        }
+        if schema is not None:
+            payload["schema"] = schema
+
+        return await self._post(FIRECRAWL_EXTRACT_URL, payload)
 
     async def health_check(self) -> ProviderStatus:
         """Check Firecrawl API health.

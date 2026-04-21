@@ -9,13 +9,12 @@ CredentialManager, as the MCP server handles the actual search calls.
 API docs: https://brave.com/search/api/
 """
 
-import asyncio
 import logging
 from typing import Any
 
 import httpx
-import tenacity
 
+from aria.agents.search.providers._http import parse_http_url, request_json_with_retry
 from aria.agents.search.schema import ProviderStatus, SearchHit
 
 logger = logging.getLogger(__name__)
@@ -63,23 +62,17 @@ class BraveProvider:
             await self._client.aclose()
             self._client = None
 
-    @tenacity.retry(
-        wait=tenacity.wait_exponential(multiplier=1, min=1, max=4),
-        retry=tenacity.retry_if_result(
-            lambda r: r is not None and r.status_code in (429, 500, 502, 503, 504)
-        ),
-        stop=tenacity.stop_after_attempt(3),
-        reraise=True,
-    )
-    async def _get(self, params: dict) -> httpx.Response:
+    async def _get(self, params: dict[str, Any]) -> dict[str, Any]:
         """GET with retry logic."""
         client = self._get_client()
-        response = await client.get(BRAVE_SEARCH_URL, params=params)
-        if response.status_code == 429:
-            retry_after = response.headers.get("Retry-After", "1")
-            await asyncio.sleep(float(retry_after))
-            response = await client.get(BRAVE_SEARCH_URL, params=params)
-        return response
+        return await request_json_with_retry(
+            client=client,
+            method="GET",
+            url=BRAVE_SEARCH_URL,
+            params=params,
+            request_timeout=30.0,
+            attempts=3,
+        )
 
     async def search(self, query: str, top_k: int = 10, **kwargs: Any) -> list[SearchHit]:  # noqa: ANN401
         """Execute a Brave Search.
@@ -97,17 +90,17 @@ class BraveProvider:
         }
 
         try:
-            response = await self._get(params)
-            response.raise_for_status()
-            data = response.json()
-        except httpx.HTTPStatusError as exc:
+            data = await self._get(params)
+        except Exception as exc:
             logger.warning("Brave search failed: %s", exc)
             return []
 
         hits: list[SearchHit] = []
         web_results = data.get("web", {}).get("results", [])
         for item in web_results:
-            url = item.get("url", "")
+            url = parse_http_url(item.get("url", ""))
+            if url is None:
+                continue
             # Brave doesn't always provide published_date
             published_at = None
             raw_date = item.get("age")

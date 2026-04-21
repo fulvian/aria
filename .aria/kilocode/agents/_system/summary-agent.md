@@ -4,9 +4,10 @@ type: system
 description: Genera title + summary di sessione
 color: "#9CA3AF"
 category: memory
-temperature: 0.1
+temperature: 0.0
 allowed-tools:
-  - aria-memory/remember
+  - aria-memory/*
+  - sequential-thinking/*
 required-skills: []
 mcp-dependencies: []
 ---

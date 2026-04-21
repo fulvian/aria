@@ -14,6 +14,7 @@ from typing import Any
 
 import httpx
 
+from aria.agents.search.providers._http import parse_http_url, request_json_with_retry
 from aria.agents.search.schema import ProviderStatus, SearchHit
 
 logger = logging.getLogger(__name__)
@@ -77,19 +78,23 @@ class SerpAPIProvider:
 
         try:
             client = self._get_client()
-            response = await client.get(SERPAPI_URL, params=params, timeout=30.0)
-            response.raise_for_status()
-            data = response.json()
-        except httpx.HTTPStatusError as exc:
-            logger.warning("SerpAPI search failed: %s", exc)
-            return []
+            data = await request_json_with_retry(
+                client=client,
+                method="GET",
+                url=SERPAPI_URL,
+                params=params,
+                request_timeout=30.0,
+                attempts=3,
+            )
         except Exception as exc:
             logger.warning("SerpAPI search error: %s", exc)
             return []
 
         hits: list[SearchHit] = []
         for result in data.get("organic_results", [])[:top_k]:
-            url = result.get("link", "")
+            url = parse_http_url(result.get("link", ""))
+            if url is None:
+                continue
             snippet = result.get("snippet", "")
             published_at: datetime | None = None
 

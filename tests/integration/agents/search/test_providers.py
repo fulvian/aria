@@ -49,7 +49,7 @@ class TestTavilyProvider:
 
         assert len(hits) == 2
         assert hits[0].title == "Test Article"
-        assert hits[0].url == "https://example.com/article"
+        assert str(hits[0].url) == "https://example.com/article"
         assert hits[0].snippet == "This is the article content."
         assert hits[0].provider == "tavily"
         assert hits[0].score == 0.95
@@ -133,7 +133,7 @@ class TestFirecrawlProvider:
 
         assert len(hits) == 1
         assert hits[0].title == "Firecrawl Test Page"
-        assert hits[0].url == "https://firecrawl-test.com/page"
+        assert str(hits[0].url) == "https://firecrawl-test.com/page"
         assert hits[0].provider == "firecrawl"
         await provider.close()
 
@@ -175,6 +175,26 @@ class TestFirecrawlProvider:
         assert hit is None
         await provider.close()
 
+    @respx.mock
+    async def test_extract_returns_structured_payload(self):
+        """Test Firecrawl extract endpoint wrapper."""
+        respx.post("https://api.firecrawl.dev/v1/extract").mock(
+            return_value=httpx.Response(
+                200,
+                json={"success": True, "data": [{"field": "value"}]},
+            )
+        )
+
+        provider = FirecrawlProvider(api_key="test-key")
+        data = await provider.extract(
+            url="https://example.com",
+            prompt="Extract key fields",
+            schema={"type": "object"},
+        )
+
+        assert data["success"] is True
+        await provider.close()
+
 
 class TestBraveProvider:
     """Integration tests for BraveProvider."""
@@ -204,7 +224,7 @@ class TestBraveProvider:
 
         assert len(hits) == 1
         assert hits[0].title == "Brave Result"
-        assert hits[0].url == "https://brave-test.com/result"
+        assert str(hits[0].url) == "https://brave-test.com/result"
         assert hits[0].provider == "brave"
         await provider.close()
 

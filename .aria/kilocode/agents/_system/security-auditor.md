@@ -10,8 +10,7 @@ allowed-tools:
   - filesystem/read
   - git/read
   - github/read
-required-skills:
-  - security-audit
+required-skills: []
 mcp-dependencies: []
 ---
 

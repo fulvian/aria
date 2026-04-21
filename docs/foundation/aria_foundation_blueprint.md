@@ -2024,6 +2024,18 @@ Vedi §5 (memoria), §6.1 (scheduler), §7.2 (gateway sessions). File concatenat
 - **ADR-0001** creato per Dependency Baseline
 - **ADR-0002** creato per SQLite Reliability Policy
 
+### 2026-04-21 — Sprint 1.3 Completed (ARIA-Conductor + Search-Agent)
+
+- **Search module** (`src/aria/agents/search/`): schema, router, dedup, cache, health + 6 providers (Tavily, Brave, Firecrawl, Exa, SearXNG, SerpAPI)
+- **MCP wrappers** (`src/aria/tools/`): FastMCP 3.x Tavily + Firecrawl + Exa + SearXNG servers
+- **ConductorBridge** (`src/aria/gateway/conductor_bridge.py`): subprocess spawn con env isolation + close_fds + secret redaction
+- **Prompt injection mitigation** (ADR-0006): `<<TOOL_OUTPUT>>` frame + sanitizer in `src/aria/utils/prompt_safety.py`
+- **HITL tools** in `aria-memory` MCP: `hitl_ask`, `hitl_list_pending`, `hitl_cancel`
+- **Provider exhaustion runbook** (`docs/operations/provider_exhaustion.md`)
+- **19 bug fixes** complessivi su API mismatches, routing, URL validation, HTTP retry, MCP naming, env isolation
+- **45/45 tests passing**, agent validation PASSED (8 agents), skill validation PASSED (7 skills)
+- **Evidence pack**: `docs/implementation/phase-1/sprint-03-evidence.md`
+
 ### 18.H ADR backlog immediato (post-audit)
 
 - `ADR-0001` — Dependency Baseline 2026Q2 (`fastmcp 3.x`, `ptb 22.x`, `lancedb 0.30.x`, STT dual stack).

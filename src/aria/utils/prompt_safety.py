@@ -22,7 +22,7 @@ FRAME_CLOSE = "<</TOOL_OUTPUT>>"
 
 # Pattern to detect nested frames (prevent TOCTOU attacks)
 NESTED_FRAME_PATTERN = re.compile(
-    rf"\{re.escape(FRAME_OPEN)}\s*.+?\{re.escape(FRAME_CLOSE)}\s*",
+    rf"{re.escape(FRAME_OPEN)}\s*.+?{re.escape(FRAME_CLOSE)}\s*",
     re.DOTALL,
 )
 

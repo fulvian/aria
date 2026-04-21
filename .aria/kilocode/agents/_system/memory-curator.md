@@ -9,7 +9,9 @@ allowed-tools:
   - aria-memory/recall
   - aria-memory/curate
   - aria-memory/forget
-  - hitl-queue/ask
+  - aria-memory/hitl_ask
+  - aria-memory/hitl_list_pending
+  - aria-memory/hitl_cancel
 required-skills:
   - memory-distillation
 mcp-dependencies: []

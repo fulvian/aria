@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any
 
 from aria.memory.schema import Actor
 from aria.utils.logging import new_trace_id
+from aria.utils.prompt_safety import redact_secrets
 
 if TYPE_CHECKING:
     from aria.memory.episodic import EpisodicStore
@@ -78,6 +79,7 @@ class ConductorBridge:
         )
         self._children_dir = self._sessions_dir / "children"
         self._timeout_s = timeout_s
+        self._children_dir.mkdir(parents=True, exist_ok=True)
 
     async def handle_user_message(self, payload: dict[str, Any]) -> None:
         """Handle gateway.user_message event payload.
@@ -136,11 +138,12 @@ class ConductorBridge:
             return
 
         # Step 3: Save assistant response to episodic (actor=AGENT_INFERENCE)
+        safe_result_text = redact_secrets(result.get("text", ""))
         await self._store.add(
             session_id=aria_session_id,
             actor=Actor.AGENT_INFERENCE,
             role="assistant",
-            content=result.get("text", ""),
+            content=safe_result_text,
             tags=["conductor_response"],
             meta={
                 "trace_id": trace_id,
@@ -153,7 +156,7 @@ class ConductorBridge:
         await self._bus.publish(
             "gateway.reply",
             {
-                "text": result.get("text", ""),
+                "text": safe_result_text,
                 "session_id": gateway_session_id,
                 "trace_id": trace_id,
             },
@@ -182,6 +185,9 @@ class ConductorBridge:
 
         # Prepare subprocess
         env = {
+            "HOME": os.environ.get("HOME", ""),
+            "PATH": os.environ.get("PATH", ""),
+            "USER": os.environ.get("USER", ""),
             "KILOCODE_CONFIG_DIR": "/home/fulvio/coding/aria/.aria/kilocode",
             "KILOCODE_STATE_DIR": str(self._sessions_dir),
             "ARIA_HOME": "/home/fulvio/coding/aria",
@@ -216,6 +222,7 @@ class ConductorBridge:
                 cwd="/home/fulvio/coding/aria",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                close_fds=True,
             )
 
             stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=self._timeout_s)
@@ -234,21 +241,26 @@ class ConductorBridge:
             # Expected: JSON with {text, status, ...}
             stdout_text = stdout.decode("utf-8", errors="replace").strip()
 
-            # Try to extract JSON from stdout
-            try:
-                output_data = json.loads(stdout_text)
-                return {
-                    "text": output_data.get("result", stdout_text[:2000]),
-                    "child_session_id": child_session_id,
-                    "tokens_used": output_data.get("tokens_used", 0),
-                }
-            except json.JSONDecodeError:
-                # Fallback: use raw stdout
-                return {
-                    "text": stdout_text[:2000],
-                    "child_session_id": child_session_id,
-                    "tokens_used": 0,
-                }
+            for raw_line in reversed(stdout_text.splitlines()):
+                cleaned_line = raw_line.strip()
+                if not cleaned_line:
+                    continue
+                try:
+                    output_data = json.loads(cleaned_line)
+                    if isinstance(output_data, dict):
+                        return {
+                            "text": str(output_data.get("result", stdout_text[:2000])),
+                            "child_session_id": child_session_id,
+                            "tokens_used": int(output_data.get("tokens_used", 0) or 0),
+                        }
+                except json.JSONDecodeError:
+                    continue
+
+            return {
+                "text": stdout_text[:2000],
+                "child_session_id": child_session_id,
+                "tokens_used": 0,
+            }
 
         except TimeoutError:
             logger.error(
@@ -289,6 +301,9 @@ class ConductorBridge:
         )
 
         env = {
+            "HOME": os.environ.get("HOME", ""),
+            "PATH": os.environ.get("PATH", ""),
+            "USER": os.environ.get("USER", ""),
             "KILOCODE_CONFIG_DIR": "/home/fulvio/coding/aria/.aria/kilocode",
             "KILOCODE_STATE_DIR": str(self._sessions_dir),
             "KILOCODE_SESSION_ID": child_session_id,
@@ -311,6 +326,7 @@ class ConductorBridge:
                 cwd="/home/fulvio/coding/aria",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                close_fds=True,
             )
 
             stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=self._timeout_s)

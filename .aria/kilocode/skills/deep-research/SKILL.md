@@ -9,7 +9,9 @@ allowed-tools:
   - firecrawl-mcp/scrape
   - firecrawl-mcp/extract
   - brave-mcp/web_search
+  - brave-mcp/news_search
   - exa-script/search
+  - searxng-script/search
   - aria-memory/remember
 max-tokens: 50000
 estimated-cost-eur: 0.10

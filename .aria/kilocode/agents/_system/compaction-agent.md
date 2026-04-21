@@ -4,11 +4,10 @@ type: system
 description: CLM agent - distilla episodic T0 in semantic T1
 color: "#6B7280"
 category: memory
-temperature: 0.1
+temperature: 0.0
 allowed-tools:
-  - aria-memory/recall_episodic
-  - aria-memory/distill
-  - aria-memory/stats
+  - aria-memory/*
+  - sequential-thinking/*
 required-skills:
   - memory-distillation
 mcp-dependencies: []

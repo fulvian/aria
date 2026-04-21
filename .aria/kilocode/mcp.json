@@ -31,23 +31,33 @@
         "ARIA_HOME": "/home/fulvio/coding/aria"
       }
     },
-    "tavily": {
+    "tavily-mcp": {
       "command": "/home/fulvio/coding/aria/scripts/wrappers/tavily-wrapper.sh",
       "disabled": false,
       "_comment": "@phase1 provider integration"
     },
-    "firecrawl": {
+    "firecrawl-mcp": {
       "command": "/home/fulvio/coding/aria/scripts/wrappers/firecrawl-wrapper.sh",
       "disabled": false,
       "_comment": "@phase1 provider integration"
     },
-    "brave": {
+    "brave-mcp": {
       "command": "npx",
       "args": ["-y", "@brave/brave-search-mcp-server"],
       "disabled": false,
       "env": {
         "BRAVE_API_KEY": "${BRAVE_API_KEY_ACTIVE}"
       },
+      "_comment": "@phase1 provider integration"
+    },
+    "exa-script": {
+      "command": "/home/fulvio/coding/aria/scripts/wrappers/exa-wrapper.sh",
+      "disabled": false,
+      "_comment": "@phase1 provider integration"
+    },
+    "searxng-script": {
+      "command": "/home/fulvio/coding/aria/scripts/wrappers/searxng-wrapper.sh",
+      "disabled": false,
       "_comment": "@phase1 provider integration"
     },
     "google_workspace": {

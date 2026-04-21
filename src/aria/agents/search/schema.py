@@ -8,7 +8,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any, Protocol, runtime_checkable
 
-from pydantic import BaseModel, Field
+from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field
 
 
 class Intent(StrEnum):
@@ -39,20 +39,17 @@ class SearchHit(BaseModel):
     """
 
     title: str
-    url: str = Field(description="Canonical URL")
+    url: AnyHttpUrl = Field(description="Canonical URL")
     snippet: str
     published_at: datetime | None = None
     score: float = Field(default=0.0, ge=0.0, le=1.0)
     provider: str = Field(description="Provider name (e.g. 'tavily', 'brave')")
-    provider_raw: dict = Field(
+    provider_raw: dict[str, Any] = Field(
         default_factory=dict,
         description="Raw provider payload (internal only, not exposed in UI)",
     )
 
-    class Config:
-        """Pydantic config."""
-
-        frozen = False
+    model_config = ConfigDict(frozen=False)
 
 
 @runtime_checkable

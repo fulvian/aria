@@ -93,7 +93,7 @@ Stato operativo sprint:
 
 - [x] Sprint 1.1 chiuso con quality gates e benchmark recall p95 verde.
 - [x] Sprint 1.2 completato.
-- [ ] Sprint 1.3 da completare.
+- [x] Sprint 1.3 completato (2026-04-21).
 - [ ] Sprint 1.4 da completare.
 
 Ogni sprint finisce con una **demo verificabile** e un **evidence pack** (output comandi gate + log/screenshot).

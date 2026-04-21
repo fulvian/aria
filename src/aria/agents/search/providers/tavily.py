@@ -5,13 +5,13 @@ HTTP adapter using httpx with tenacity retry per blueprint §11.3.
 API docs: https://docs.tavily.com/
 """
 
-import asyncio
 import logging
 from datetime import datetime
 from typing import Any
 
 import httpx
 
+from aria.agents.search.providers._http import parse_http_url, request_json_with_retry
 from aria.agents.search.schema import ProviderStatus, SearchHit
 
 logger = logging.getLogger(__name__)
@@ -43,7 +43,7 @@ class TavilyProvider:
             self._client = httpx.AsyncClient(
                 timeout=30.0,
                 limits=httpx.Limits(max_connections=20),
-                headers={"Authorization": f"Bearer {self._api_key}"},
+                headers={"Content-Type": "application/json"},
             )
         return self._client
 
@@ -54,20 +54,16 @@ class TavilyProvider:
             self._client = None
 
     async def _request(self, params: dict[str, Any]) -> dict[str, Any]:
-        """Make HTTP request with retry logic.
-
-        Retry conditions:
-        - 5xx errors (via raise_for_status)
-        - 429 with Retry-After header awareness (via manual retry below)
-        """
+        """Make HTTP request with retry logic."""
         client = self._get_client()
-        response = await client.post(TAVILY_SEARCH_URL, json=params)
-        if response.status_code == 429:
-            retry_after = response.headers.get("Retry-After", "1")
-            await asyncio.sleep(float(retry_after))
-            response = await client.post(TAVILY_SEARCH_URL, json=params)
-        response.raise_for_status()
-        return dict(response.json())
+        return await request_json_with_retry(
+            client=client,
+            method="POST",
+            url=TAVILY_SEARCH_URL,
+            json_body=params,
+            request_timeout=30.0,
+            attempts=3,
+        )
 
     async def search(self, query: str, top_k: int = 10, **kwargs: Any) -> list[SearchHit]:  # noqa: ANN401
         """Execute a Tavily search.
@@ -93,13 +89,15 @@ class TavilyProvider:
 
         try:
             data = await self._request(params)
-        except httpx.HTTPStatusError as exc:
+        except Exception as exc:
             logger.warning("Tavily search failed: %s", exc)
             return []
 
         hits: list[SearchHit] = []
         for result in data.get("results", []):
-            url = result.get("url", "")
+            url = parse_http_url(result.get("url", ""))
+            if url is None:
+                continue
             published_at: datetime | None = None
             raw_date = result.get("published_date")
             if raw_date:
@@ -136,6 +134,7 @@ class TavilyProvider:
                     "api_key": self._api_key,
                     "query": "health check",
                     "max_results": 1,
+                    "search_depth": "basic",
                 },
                 timeout=10.0,
             )

@@ -13,6 +13,7 @@ from aria.agents.search.schema import (
     INTENT_ROUTING,
     PROVIDER_WEIGHTS,
     Intent,
+    ProviderStatus,
     SearchHit,
 )
 
@@ -77,6 +78,11 @@ class SearchRouter:
         self._cache = cache
         self._providers = providers
         self._classifier = IntentClassifier()
+        self._provider_aliases = {
+            "brave_news": "brave",
+            "firecrawl_extract": "firecrawl",
+            "firecrawl_scrape": "firecrawl",
+        }
 
     def classify(self, query: str) -> Intent:
         """Classify query intent."""
@@ -113,28 +119,34 @@ class SearchRouter:
         all_hits: list[SearchHit] = []
 
         for provider_name in provider_names:
+            resolved_name = self._provider_aliases.get(provider_name, provider_name)
+
             # Skip providers not registered
-            if provider_name not in self._providers:
+            if resolved_name not in self._providers:
                 continue
 
             # Skip based on health status
-            status = self._health.status(provider_name)
-            if status.value in ("degraded", "down", "credits_exhausted"):
+            status = self._health.status(resolved_name)
+            if status in {
+                ProviderStatus.DEGRADED,
+                ProviderStatus.DOWN,
+                ProviderStatus.CREDITS_EXHAUSTED,
+            }:
                 continue
 
             # Try to acquire credentials
-            key_info = await self._cm.acquire(provider_name)
+            key_info = await self._cm.acquire(resolved_name)
             if key_info is None:
                 # No credits or no key available
                 continue
 
-            provider = self._providers[provider_name]
+            provider = self._providers[resolved_name]
             try:
                 hits = await provider.search(query, top_k=10)
-                await self._cm.report_success(provider_name, key_info.key_id, credits_used=1)
+                await self._cm.report_success(resolved_name, key_info.key_id, credits_used=1)
                 all_hits.extend(hits)
             except Exception as exc:
-                await self._cm.report_failure(provider_name, key_info.key_id, reason=str(exc))
+                await self._cm.report_failure(resolved_name, key_info.key_id, reason=str(exc))
                 continue
 
         # Deduplicate and rank

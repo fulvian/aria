@@ -18,9 +18,9 @@ estimated-cost-eur: 0.02
 Creare e gestire piani strutturati su filesystem usando il pattern Manus-style.
 
 ## File generati
-- `task_plan.md`: piano principale con milestones e sub-tasks
-- `findings.md`: note e scoperte durante l'analisi
-- `progress.md`: stato di avanzamento aggiornato in tempo reale
+- `.aria/runtime/tmp/plans/<session_id>-task_plan.md`: piano principale con milestones e sub-task
+- `.aria/runtime/tmp/plans/<session_id>-findings.md`: note e scoperte durante l'analisi
+- `.aria/runtime/tmp/plans/<session_id>-progress.md`: stato di avanzamento aggiornato in tempo reale
 
 ## Procedura
 1. Identifica l'obiettivo principale

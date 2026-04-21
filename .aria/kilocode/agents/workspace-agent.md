@@ -13,12 +13,11 @@ allowed-tools:
   - google_workspace/sheets.*
   - aria-memory/remember
   - aria-memory/recall
-  - hitl-queue/ask
+  - aria-memory/hitl_ask
 required-skills:
   - triage-email
-  - calendar-orchestration
-  - doc-draft
 mcp-dependencies: [google_workspace]
+disabled: true
 ---
 
 # Workspace-Agent

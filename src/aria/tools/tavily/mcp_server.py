@@ -12,20 +12,13 @@ Usage:
 
 from __future__ import annotations
 
-import json
 import logging
 import os
-import sys
-from pathlib import Path
 
 from fastmcp import FastMCP
 
-# Add project root to path for imports
-PROJECT_ROOT = Path(__file__).resolve().parents[4]
-sys.path.insert(0, str(PROJECT_ROOT))
-
-from aria.agents.search.providers.tavily import TavilyProvider  # noqa: E402
-from aria.credentials.manager import CredentialManager  # noqa: E402
+from aria.agents.search.providers.tavily import TavilyProvider
+from aria.credentials.manager import CredentialManager
 
 # === Setup ===
 logging.basicConfig(
@@ -52,8 +45,8 @@ async def _get_provider() -> TavilyProvider:
     return _provider
 
 
-@mcp.tool()
-async def search(query: str, top_k: int = 10) -> str:
+@mcp.tool
+async def search(query: str, top_k: int = 10) -> dict[str, object]:
     """Search the web using Tavily.
 
     Args:
@@ -66,10 +59,10 @@ async def search(query: str, top_k: int = 10) -> str:
     provider = await _get_provider()
     try:
         hits = await provider.search(query=query, top_k=min(top_k, 20))
-        results = [
+        results: list[dict[str, object]] = [
             {
                 "title": h.title,
-                "url": h.url,
+                "url": str(h.url),
                 "snippet": h.snippet,
                 "published_at": (h.published_at.isoformat() if h.published_at else None),
                 "score": h.score,
@@ -77,10 +70,10 @@ async def search(query: str, top_k: int = 10) -> str:
             }
             for h in hits
         ]
-        return json.dumps({"success": True, "results": results}, ensure_ascii=False)
+        return {"success": True, "results": results}
     except Exception as exc:
         logger.error("Tavily search error: %s", exc)
-        return json.dumps({"success": False, "error": str(exc)})
+        return {"success": False, "error": str(exc)}
 
 
 if __name__ == "__main__":

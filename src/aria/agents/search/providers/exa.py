@@ -5,14 +5,13 @@ HTTP adapter for Exa semantic search API.
 API docs: https://exa.ai/
 """
 
-import asyncio
 import logging
 from datetime import datetime
 from typing import Any
 
 import httpx
-import tenacity
 
+from aria.agents.search.providers._http import parse_http_url, request_json_with_retry
 from aria.agents.search.schema import ProviderStatus, SearchHit
 
 logger = logging.getLogger(__name__)
@@ -56,23 +55,17 @@ class ExaProvider:
             await self._client.aclose()
             self._client = None
 
-    @tenacity.retry(
-        wait=tenacity.wait_exponential(multiplier=1, min=1, max=4),
-        retry=tenacity.retry_if_result(
-            lambda r: r is not None and r.status_code in (429, 500, 502, 503, 504)
-        ),
-        stop=tenacity.stop_after_attempt(3),
-        reraise=True,
-    )
-    async def _post(self, data: dict) -> httpx.Response:
+    async def _post(self, data: dict[str, Any]) -> dict[str, Any]:
         """POST with retry logic."""
         client = self._get_client()
-        response = await client.post(EXA_SEARCH_URL, json=data)
-        if response.status_code == 429:
-            retry_after = response.headers.get("Retry-After", "1")
-            await asyncio.sleep(float(retry_after))
-            response = await client.post(EXA_SEARCH_URL, json=data)
-        return response
+        return await request_json_with_retry(
+            client=client,
+            method="POST",
+            url=EXA_SEARCH_URL,
+            json_body=data,
+            request_timeout=30.0,
+            attempts=3,
+        )
 
     async def search(self, query: str, top_k: int = 10, **kwargs: Any) -> list[SearchHit]:  # noqa: ANN401
         """Execute an Exa semantic search.
@@ -92,16 +85,16 @@ class ExaProvider:
         }
 
         try:
-            response = await self._post(payload)
-            response.raise_for_status()
-            data = response.json()
-        except httpx.HTTPStatusError as exc:
+            data = await self._post(payload)
+        except Exception as exc:
             logger.warning("Exa search failed: %s", exc)
             return []
 
         hits: list[SearchHit] = []
         for result in data.get("results", []):
-            url = result.get("url", "")
+            url = parse_http_url(result.get("url", ""))
+            if url is None:
+                continue
             published_at: datetime | None = None
             raw_date = result.get("published_date")
             if raw_date:

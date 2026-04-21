@@ -18,8 +18,7 @@ allowed-tools:
   - fetch/fetch
 required-skills:
   - deep-research
-  - source-dedup
-mcp-dependencies: [tavily, firecrawl, brave, exa, searxng]
+mcp-dependencies: [tavily-mcp, firecrawl-mcp, brave-mcp, exa-script, searxng-script]
 ---
 
 # Search-Agent

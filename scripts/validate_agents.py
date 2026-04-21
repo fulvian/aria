@@ -18,7 +18,6 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Any
 
 AGENTS_DIR = Path("/home/fulvio/coding/aria/.aria/kilocode/agents")
 SYSTEM_AGENTS_DIR = AGENTS_DIR / "_system"
@@ -64,11 +63,14 @@ def parse_frontmatter(content: str) -> tuple[dict, str]:
     import yaml
 
     frontmatter = yaml.safe_load("\n".join(lines[1:end_idx]))
-    body = "\n".join(lines[end_idx + 1:])
+    body = "\n".join(lines[end_idx + 1 :])
     return (frontmatter or {}), body
 
 
-def validate_agent(name: str, path: Path) -> list[str]:
+VALID_NON_MCP_TOOLS = {"spawn-subagent"}
+
+
+def validate_agent(name: str, path: Path, mcp_servers: set[str]) -> list[str]:
     """Validate a single agent definition.
 
     Returns list of error messages (empty if valid).
@@ -105,6 +107,18 @@ def validate_agent(name: str, path: Path) -> list[str]:
     allowed_tools = fm.get("allowed-tools", [])
     if len(allowed_tools) > MAX_TOOLS:
         errors.append(f"{name}: {len(allowed_tools)} tools exceeds max {MAX_TOOLS}")
+
+    for tool in allowed_tools:
+        if tool in VALID_NON_MCP_TOOLS or tool == "*":
+            continue
+        if "/" not in tool:
+            errors.append(f"{name}: invalid tool format '{tool}'")
+            continue
+        server = tool.split("/", 1)[0]
+        if server.endswith("*"):
+            continue
+        if server not in mcp_servers:
+            errors.append(f"{name}: tool server '{server}' not declared in mcp.json")
 
     # required-skills check
     required_skills = fm.get("required-skills", [])
@@ -143,8 +157,13 @@ def main() -> int:
         if agent_name == "workspace-agent":
             # Workspace-agent is a stub in Sprint 1.3
             agent_path = AGENTS_DIR / f"{agent_name}.md"
-        elif agent_name in ["compaction-agent", "summary-agent", "memory-curator",
-                           "blueprint-keeper", "security-auditor"]:
+        elif agent_name in [
+            "compaction-agent",
+            "summary-agent",
+            "memory-curator",
+            "blueprint-keeper",
+            "security-auditor",
+        ]:
             agent_path = SYSTEM_AGENTS_DIR / f"{agent_name}.md"
         else:
             agent_path = AGENTS_DIR / f"{agent_name}.md"
@@ -153,7 +172,7 @@ def main() -> int:
             errors.append(f"MISSING: {agent_path}")
             continue
 
-        agent_errors = validate_agent(agent_name, agent_path)
+        agent_errors = validate_agent(agent_name, agent_path, mcp_servers)
         errors.extend(agent_errors)
 
     # Report
