@@ -161,9 +161,9 @@ Based on Context7 guidance and Google Workspace MCP:
 ## Acceptance Criteria (W1.6.F1)
 
 - [x] Telemetry schema defined with all required fields
-- [ ] Structured logging in runner.py for workspace invocations
-- [ ] Dashboard reference documentation
-- [ ] Error type classification for all workspace tool errors
+- [x] Structured logging in runner.py for workspace invocations
+- [x] Dashboard reference documentation
+- [x] Error type classification for all workspace tool errors
 
 ## References
 

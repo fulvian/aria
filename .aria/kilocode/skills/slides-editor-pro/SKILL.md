@@ -86,7 +86,7 @@ Flow obbligatorio:
   },
   "proposed_operations": [
     {
-      "type": "text_update|style_update|结构性_edit|comment",
+      "type": "text_update|style_update|structural_edit|comment",
       "slide_index": "number",
       "target_element": "string",
       "current_value": "string",
@@ -112,7 +112,7 @@ Flow obbligatorio:
 ## Invarianti
 
 1. **Lettura obbligatoria**: Mai scrivere senza aver prima letto lo stato corrente
-2. **Atomicità batch**: Le operazioni batch sono atomiche - fallimento di una = rollback di tutte
+2. **Atomicità batch**: Applicare modifiche in un'unica `batch_update_presentation`; in caso errore, riportare esito senza assumere rollback implicito
 3. **Limite operazioni**: Massimo 20 operazioni per batch senza consenso esplicito
 4. **Integrità slide**: L'ordine e layout delle slide DEVE essere preservato
 5. **HITL obbligatorio**: Qualsiasi `batch_update` richiede `aria_memory_hitl_ask` preventiva

@@ -77,7 +77,39 @@
   - Rewrote `actor_tagging` to dict dispatch + precedence chain.
   - Cleaned `EpisodicStore` UUID imports, replaced `os.path.getsize` with
     `Path.stat().st_size`, broke long DDL lines where safe.
-  - `rotator`: fixed unused loop var, merged SIM102, scoped `# noqa: PLR0912`
+- `rotator`: fixed unused loop var, merged SIM102, scoped `# noqa: PLR0912`
+
+### 2026-04-22 (Workspace plan conformance remediation)
+
+- Re-validated Workspace implementation claims against:
+  - `docs/plans/google_workspace_agent_full_operational_plan.md`
+  - `docs/foundation/aria_foundation_blueprint.md`
+  - Context7: `/taylorwilsdon/google_workspace_mcp`, `/modelcontextprotocol/python-sdk`
+- Identified and fixed critical scheduler gap:
+  - `TaskRunner._exec_workspace_task` no longer returns synthetic placeholder success.
+  - Introduced delegated workspace execution via profiled sub-agent invocation.
+- Enforced P7 at runtime:
+  - write skills now require `policy=ask`; otherwise runner returns `blocked_policy`.
+- Added deterministic profile mapping (`skill -> workspace-*-read/write`) and
+  override of inconsistent payload `sub_agent` values.
+- Added structured workspace telemetry logging in runner with error classification
+  (`auth`, `quota`, `network`, `policy`, `tool_error`).
+- Fixed validation drift in `.aria/kilocode/skills/deep-research/SKILL.md`
+  (slash-style tool IDs -> underscore runtime IDs).
+- Corrected `docs-editor-pro` contract to remove unsupported text batch-edit claims
+  and align with currently exposed Docs MCP tools.
+- Added unit test suite `tests/unit/scheduler/test_runner_workspace.py` (5 tests).
+
+Quality checks executed:
+
+- `uv run python scripts/validate_agents.py` -> PASS
+- `uv run python scripts/validate_skills.py` -> PASS
+- `uv run ruff check src` -> PASS
+- `uv run mypy src` -> PASS
+- `uv run pytest -q tests/unit/scheduler/test_runner_workspace.py` -> 5 passed
+- `uv run pytest -q tests/unit/scheduler tests/integration/scheduler` -> 109 passed
+- `uv run pytest -q tests/integration/workspace tests/e2e -k workspace` -> 123 passed
+- `uv run pytest -q` -> 414 passed
     on circuit-breaker `acquire`.
   - `utils/logging`: removed dead `_loggers_lock` and stale `global`,
     scoped `# noqa` for stdlib-compatible `backupCount` and structured logging `**Any`.

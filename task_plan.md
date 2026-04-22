@@ -3,7 +3,7 @@
 ## Phase 1, Sprint 1.6: Workspace Agent Operationalization
 
 **Started:** 2026-04-22
-**Status:** in_progress
+**Status:** in_progress (verification remediation wave completed 2026-04-22)
 **Owner:** General Manager (Orchestrator)
 **Blueprint:** docs/foundation/aria_foundation_blueprint.md
 **Plan:** docs/plans/google_workspace_agent_full_operational_plan.md
@@ -45,6 +45,29 @@ Close all workspace agent gaps (G1-G8) and achieve full operational readiness ac
 ---
 
 ## WBS (Work Breakdown Structure)
+
+### Phase V — Verification Remediation Wave (2026-04-22) ✅
+
+#### WV.1 — Reconcile plan claims vs executable runtime ✅
+- [x] Audited scheduler workspace execution path in `src/aria/scheduler/runner.py`
+- [x] Replaced placeholder success path with delegated sub-agent execution
+- [x] Added deterministic profile routing and payload override safety
+
+#### WV.2 — Enforce blueprint P7 at runtime ✅
+- [x] Added `policy=ask` guard for all write skills in scheduler runner
+- [x] Return `blocked_policy` when write task policy is misconfigured
+
+#### WV.3 — Align skill contracts with Context7 capabilities ✅
+- [x] Updated `docs-editor-pro` to remove unsupported text batch-edit claims
+- [x] Preserved only supported operations: create doc + comment lifecycle
+
+#### WV.4 — Repair validation pipeline drift ✅
+- [x] Updated `deep-research` `allowed-tools` to underscore runtime naming
+- [x] Restored passing `scripts/validate_skills.py`
+
+#### WV.5 — Add focused regression coverage ✅
+- [x] Added `tests/unit/scheduler/test_runner_workspace.py` (5 tests)
+- [x] Covered policy enforcement, profile routing, executor propagation, error classification
 
 ### Phase A — Contract and Governance Normalization (P0) ✅
 

@@ -58,6 +58,52 @@ enforces verbatim preservation (P6) via tombstones.
 - `AuditLogger` singleton marked with scoped `# noqa: PLW0603`; example docstring
   reflowed under 100 cols.
 - `utils.logging`: `backupCount` kept for stdlib compatibility (`# noqa: N803`); dead
+
+## 4. Workspace Plan Verification (2026-04-22)
+
+Verification against `docs/plans/google_workspace_agent_full_operational_plan.md` and
+`docs/foundation/aria_foundation_blueprint.md` found four concrete drifts:
+
+1. **Scheduler execution drift (critical)**
+   - `src/aria/scheduler/runner.py` still returned synthetic success for workspace tasks
+     with placeholder comments (`Actual MCP tool execution would go here`).
+   - Impact: plan claimed Phase E complete, but no real task delegation happened.
+
+2. **P7 enforcement drift (critical)**
+   - Write skills could execute with `policy=allow` if seeded/configured that way.
+   - Impact: possible bypass of mandatory HITL for write operations.
+
+3. **Skill contract drift vs Context7 (high)**
+   - `docs-editor-pro` described text batch edits unsupported by current
+     `/taylorwilsdon/google_workspace_mcp` tool surface.
+   - Impact: non-verifiable behavior and operator confusion.
+
+4. **Validation pipeline drift (high)**
+   - `deep-research` still used slash-style tool IDs and failed
+     `scripts/validate_skills.py` after the Phase A normalization rule.
+   - Impact: quality gate breakage despite roadmap claiming normalized contracts.
+
+Applied corrections:
+
+- Implemented real workspace execution path in `TaskRunner` via delegated
+  sub-agent invocation (`kilo run --agent <profile> --input <json>`).
+- Added deterministic skill->profile routing and enforced write-skill
+  `policy=ask` guard before execution.
+- Added structured workspace telemetry emission in runner
+  (`trace_id`, profile, skill, latency, retries, outcome, error_type/detail).
+- Fixed `deep-research` to underscore tool IDs compatible with validators.
+- Aligned `docs-editor-pro` capability contract with the current MCP toolset.
+- Added new scheduler unit tests for workspace routing, policy enforcement,
+  executor propagation, and error classification.
+
+Verification evidence (post-fix):
+
+- `uv run python scripts/validate_skills.py` -> PASS
+- `uv run ruff check src` -> PASS
+- `uv run mypy src` -> PASS
+- `uv run pytest -q tests/unit/scheduler tests/integration/scheduler` -> 109 passed
+- `uv run pytest -q tests/integration/workspace tests/e2e -k workspace` -> 123 passed
+- `uv run pytest -q` -> 414 passed
   `_loggers_lock` symbol and unused `global` statement removed; `log_event(**context: Any)`
   retained with scoped `# noqa: ANN401` since structured logging accepts JSON-serializable
   values.

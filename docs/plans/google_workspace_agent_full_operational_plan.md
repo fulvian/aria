@@ -581,3 +581,31 @@ This sequence removes core ambiguity first, then unlocks advanced document/email
 - `ruff check src/` → PASS
 - `mypy src/` → PASS (0 errors)
 - `pytest -q` → 342 tests PASS
+
+---
+
+## 12) Post-Implementation Verification Addendum (2026-04-22)
+
+Independent verification against codebase + blueprint + Context7 identified and fixed the following drifts after Sprint 1.6 commit `c2a5284`:
+
+1. `src/aria/scheduler/runner.py` workspace execution was still a placeholder success path.
+2. Write skills could execute with non-`ask` policy, violating P7 HITL guarantees.
+3. `docs-editor-pro` described text batch edit capabilities not exposed by current MCP toolset.
+4. `deep-research` still used slash-style tool IDs, breaking `scripts/validate_skills.py`.
+
+Remediations applied:
+
+- Implemented delegated workspace sub-agent execution in scheduler runner.
+- Enforced write-skill `policy=ask` guard.
+- Added structured workspace telemetry + error classification in runner.
+- Normalized `deep-research` tool IDs to underscore runtime format.
+- Aligned `docs-editor-pro` contract to currently supported Docs MCP operations.
+- Added unit regression tests in `tests/unit/scheduler/test_runner_workspace.py`.
+
+Re-verification (post-remediation):
+
+- `uv run python scripts/validate_agents.py` → PASS
+- `uv run python scripts/validate_skills.py` → PASS
+- `uv run ruff check src` → PASS
+- `uv run mypy src` → PASS
+- `uv run pytest -q` → 414 tests PASS

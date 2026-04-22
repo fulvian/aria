@@ -7,12 +7,15 @@ checking budgets, executing tasks (stub), and reporting results.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
+import shutil
 import time
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from .schema import TaskRun
 
@@ -25,6 +28,9 @@ if TYPE_CHECKING:
     from .policy_gate import PolicyGate
     from .store import Task, TaskStore
     from .triggers import EventBus
+
+
+WorkspaceExecutor = Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]
 
 
 @dataclass
@@ -68,6 +74,7 @@ class TaskRunner:
         hitl: HitlManager,
         bus: EventBus,
         config: AriaConfig,
+        workspace_executor: WorkspaceExecutor | None = None,
     ) -> None:
         self._store = store
         self._budget = budget
@@ -78,6 +85,7 @@ class TaskRunner:
         self._worker_id = f"scheduler-{os.getpid()}-{uuid.uuid4().hex[:8]}"
         self._running = False
         self._loop_interval_s = 5
+        self._workspace_executor = workspace_executor or self._execute_workspace_via_kilocode
 
     async def run_forever(self) -> None:
         """Run the main scheduling loop indefinitely.
@@ -222,11 +230,17 @@ class TaskRunner:
                 await self._store.release_lease(task.id, self._worker_id)
                 return
 
-        # Execute the task (stub for Sprint 1.2)
+        # Execute the task
         result = await self._exec_task(task)
 
         # Report the run
-        await self._report_run(task, outcome=result.outcome, result_summary=result.result_summary)
+        await self._report_run(
+            task,
+            outcome=result.outcome,
+            result_summary=result.result_summary,
+            tokens_used=result.tokens_used,
+            cost_eur=result.cost_eur,
+        )
 
         # Release lease
         await self._store.release_lease(task.id, self._worker_id)
@@ -234,15 +248,10 @@ class TaskRunner:
     async def _exec_task(self, task: Task) -> RunResult:
         """Execute a task based on category.
 
-        Sprint 1.2 stub replaced in Sprint 1.6:
-        - category=system → success (stub)
-        - category=workspace → execute via MCP tool pipeline
-
-        Workspace task execution:
-        1. Look up sub_agent and skill from payload
-        2. Route to appropriate workspace profile agent
-        3. Execute skill procedure via MCP tools
-        4. Return result summary
+        Task execution:
+        - category=system → success stub (placeholder for system task plugin)
+        - category=workspace → execute via profiled workspace sub-agent
+        - others → not_implemented
 
         Args:
             task: The task to execute.
@@ -300,8 +309,10 @@ class TaskRunner:
         Execution flow:
         1. Validate payload has required fields
         2. Map skill to workspace profile (read vs write)
-        3. Execute via MCP tool pipeline (placeholder)
-        4. Log execution and return result
+        3. Enforce HITL policy for write skills
+        4. Execute skill via configured workspace executor
+        5. Emit structured telemetry
+        6. Return result
 
         Write skills (gmail-composer-pro, docs-editor-pro, sheets-editor-pro,
         slides-editor-pro) MUST have gone through HITL approval before this point.
@@ -313,7 +324,7 @@ class TaskRunner:
             RunResult with outcome and metadata.
         """
         payload = task.payload or {}
-        sub_agent = payload.get("sub_agent", "workspace-agent")
+        requested_sub_agent = payload.get("sub_agent", "workspace-agent")
         skill = payload.get("skill", "")
         trace_prefix = payload.get("trace_prefix", task.name)
 
@@ -331,6 +342,40 @@ class TaskRunner:
 
         # Map skill to execution metadata
         skill_metadata = self._get_workspace_skill_metadata(skill)
+        expected_sub_agent = self._select_workspace_profile(skill)
+        sub_agent = expected_sub_agent or requested_sub_agent
+
+        # Enforce HITL policy on all write skills (P7)
+        if skill_metadata["requires_hitl"] and task.policy != "ask":
+            summary = (
+                f"Write skill '{skill}' requires policy=ask for HITL approval; "
+                f"task policy is '{task.policy}'"
+            )
+            self._log_workspace_telemetry(
+                trace_id=trace_prefix,
+                profile=sub_agent,
+                skill=skill,
+                tool="workspace_skill_execution",
+                latency_ms=0,
+                retries=0,
+                outcome="failed",
+                error_type="policy",
+                error_detail=summary,
+            )
+            return RunResult(
+                run_id=str(uuid.uuid4()),
+                outcome="blocked_policy",
+                result_summary=summary,
+            )
+
+        if expected_sub_agent and requested_sub_agent != expected_sub_agent:
+            logger.info(
+                "[%s] Overriding sub_agent '%s' -> '%s' for skill '%s'",
+                trace_prefix,
+                requested_sub_agent,
+                expected_sub_agent,
+                skill,
+            )
 
         logger.info(
             "[%s] Executing workspace task %s: agent=%s, skill=%s (read=%s, hitl=%s)",
@@ -342,22 +387,68 @@ class TaskRunner:
             skill_metadata["requires_hitl"],
         )
 
-        # Write skills with hitl_ask policy should have been caught by HITL flow above
-        # If we reach here for a write skill, HITL was already approved
-        if not skill_metadata["is_read"] and skill_metadata["requires_hitl"]:
-            logger.debug(
-                "[%s] Write skill %s passed HITL, proceeding with execution",
-                trace_prefix,
-                skill,
+        execution_request = {
+            "task_id": task.id,
+            "task_name": task.name,
+            "skill": skill,
+            "sub_agent": sub_agent,
+            "payload": payload,
+            "trace_id": trace_prefix,
+        }
+
+        start = time.perf_counter()
+        retries = int(payload.get("retry_count", 0) or 0)
+        try:
+            exec_result = await self._workspace_executor(execution_request)
+        except Exception as exc:
+            latency_ms = int((time.perf_counter() - start) * 1000)
+            error_detail = str(exc)
+            error_type = self._classify_workspace_error(error_detail)
+            self._log_workspace_telemetry(
+                trace_id=trace_prefix,
+                profile=sub_agent,
+                skill=skill,
+                tool="workspace_skill_execution",
+                latency_ms=latency_ms,
+                retries=retries,
+                outcome="error",
+                error_type=error_type,
+                error_detail=error_detail,
+            )
+            return RunResult(
+                run_id=str(uuid.uuid4()),
+                outcome="failed",
+                result_summary=f"Workspace execution failed: {error_detail}",
             )
 
-        # Placeholder: Actual MCP tool execution would go here
-        # For now, simulate successful execution with proper metadata
+        latency_ms = int((time.perf_counter() - start) * 1000)
+        success = bool(exec_result.get("success", False))
+        summary = str(
+            exec_result.get("summary")
+            or f"Workspace task executed: skill={skill}, agent={sub_agent}"
+        )
+        tokens_used = exec_result.get("tokens_used")
+        cost_eur = exec_result.get("cost_eur")
+        exec_error_detail = str(exec_result.get("error_detail", "")) if not success else None
+        exec_error_type = str(
+            exec_result.get("error_type") or self._classify_workspace_error(exec_error_detail or "")
+        )
+
+        self._log_workspace_telemetry(
+            trace_id=trace_prefix,
+            profile=sub_agent,
+            skill=skill,
+            tool="workspace_skill_execution",
+            latency_ms=latency_ms,
+            retries=retries,
+            outcome="success" if success else "failed",
+            error_type=None if success else exec_error_type,
+            error_detail=None if success else exec_error_detail,
+        )
+
         outcome: Literal[
             "success", "failed", "blocked_budget", "blocked_policy", "timeout", "not_implemented"
-        ] = "success"
-
-        summary = f"Workspace task executed: skill={skill}, agent={sub_agent}"
+        ] = "success" if success else "failed"
 
         logger.info(
             "[%s] Completed workspace task %s → outcome=%s",
@@ -370,6 +461,178 @@ class TaskRunner:
             run_id=str(uuid.uuid4()),
             outcome=outcome,
             result_summary=summary,
+            tokens_used=tokens_used if isinstance(tokens_used, int) else None,
+            cost_eur=cost_eur if isinstance(cost_eur, (int, float)) else None,
+        )
+
+    async def _execute_workspace_via_kilocode(self, request: dict[str, Any]) -> dict[str, Any]:
+        """Execute workspace task by invoking KiloCode sub-agent.
+
+        The scheduler delegates workspace execution to the configured sub-agent
+        via `kilo run --agent <sub_agent> --input <prompt>`.
+        """
+        kilo_executable = shutil.which("kilo")
+        if kilo_executable is None:
+            raise RuntimeError("kilo executable not found in PATH")
+
+        input_prompt = json.dumps(
+            {
+                "task_id": request.get("task_id"),
+                "task_name": request.get("task_name"),
+                "skill": request.get("skill"),
+                "payload": request.get("payload", {}),
+                "trace_id": request.get("trace_id"),
+            },
+            ensure_ascii=True,
+        )
+
+        env = os.environ.copy()
+        env.update(
+            {
+                "KILOCODE_CONFIG_DIR": str(self._config.paths.kilocode_config),
+                "KILOCODE_STATE_DIR": str(self._config.paths.kilocode_state),
+                "ARIA_HOME": str(self._config.paths.home),
+                "ARIA_RUNTIME": str(self._config.paths.runtime),
+            }
+        )
+
+        cmd = [
+            kilo_executable,
+            "run",
+            "--session",
+            str(uuid.uuid4()),
+            "--agent",
+            str(request.get("sub_agent", "workspace-agent")),
+            "--input",
+            input_prompt,
+        ]
+
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            env=env,
+            cwd=str(self._config.paths.home),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            close_fds=True,
+        )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=300)
+
+        stdout_text = stdout.decode("utf-8", errors="replace").strip()
+        stderr_text = stderr.decode("utf-8", errors="replace").strip()
+
+        if proc.returncode != 0:
+            return {
+                "success": False,
+                "summary": "Workspace sub-agent execution failed",
+                "error_type": self._classify_workspace_error(stderr_text),
+                "error_detail": stderr_text or stdout_text,
+            }
+
+        parsed_json: dict[str, Any] | None = None
+        for line in reversed(stdout_text.splitlines()):
+            cleaned = line.strip()
+            if not cleaned:
+                continue
+            try:
+                maybe_obj = json.loads(cleaned)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(maybe_obj, dict):
+                parsed_json = maybe_obj
+                break
+
+        if isinstance(parsed_json, dict):
+            # MCP Python SDK semantics: tool responses can use isError=true
+            if parsed_json.get("isError") is True:
+                error_detail = str(parsed_json.get("content") or stdout_text)
+                return {
+                    "success": False,
+                    "summary": "Workspace tool returned error",
+                    "error_type": self._classify_workspace_error(error_detail),
+                    "error_detail": error_detail,
+                }
+
+            return {
+                "success": True,
+                "summary": str(parsed_json.get("result") or "Workspace task executed"),
+                "tokens_used": parsed_json.get("tokens_used"),
+                "cost_eur": parsed_json.get("cost_eur"),
+            }
+
+        if stderr_text:
+            return {
+                "success": False,
+                "summary": "Workspace sub-agent execution produced stderr",
+                "error_type": self._classify_workspace_error(stderr_text),
+                "error_detail": stderr_text,
+            }
+
+        return {
+            "success": True,
+            "summary": stdout_text[:500] if stdout_text else "Workspace task executed",
+        }
+
+    def _select_workspace_profile(self, skill: str) -> str | None:
+        """Map workspace skill to deterministic profile agent name."""
+        profile_map = {
+            # Read skills
+            "triage-email": "workspace-mail-read",
+            "gmail-thread-intelligence": "workspace-mail-read",
+            "calendar-orchestration": "workspace-calendar-read",
+            "docs-structure-reader": "workspace-docs-read",
+            "sheets-analytics-reader": "workspace-sheets-read",
+            "slides-content-auditor": "workspace-slides-read",
+            # Write skills
+            "doc-draft": "workspace-docs-write",
+            "gmail-composer-pro": "workspace-mail-write",
+            "docs-editor-pro": "workspace-docs-write",
+            "sheets-editor-pro": "workspace-sheets-write",
+            "slides-editor-pro": "workspace-slides-write",
+        }
+        return profile_map.get(skill)
+
+    def _classify_workspace_error(self, detail: str) -> str:
+        """Classify workspace error type for telemetry and retries."""
+        normalized = detail.lower()
+        if "401" in normalized or "403" in normalized or "unauthorized" in normalized:
+            return "auth"
+        if "429" in normalized or "quota" in normalized or "rate" in normalized:
+            return "quota"
+        if "timeout" in normalized or "connection" in normalized or "network" in normalized:
+            return "network"
+        if "policy" in normalized or "hitl" in normalized:
+            return "policy"
+        return "tool_error"
+
+    def _log_workspace_telemetry(
+        self,
+        *,
+        trace_id: str,
+        profile: str,
+        skill: str,
+        tool: str,
+        latency_ms: int,
+        retries: int,
+        outcome: Literal["success", "failed", "error"],
+        error_type: str | None,
+        error_detail: str | None,
+    ) -> None:
+        """Emit structured telemetry event for workspace execution."""
+        logger.info(
+            "workspace_tool_invocation",
+            extra={
+                "event": "workspace_tool_invocation",
+                "trace_id": trace_id,
+                "timestamp": int(time.time() * 1000),
+                "profile": profile,
+                "skill": skill,
+                "tool": tool,
+                "latency_ms": latency_ms,
+                "retries": retries,
+                "outcome": outcome,
+                "error_type": error_type,
+                "error_detail": error_detail,
+            },
         )
 
     def _get_workspace_skill_metadata(self, skill: str) -> dict:
