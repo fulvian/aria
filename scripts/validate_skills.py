@@ -20,7 +20,7 @@ from pathlib import Path
 
 SKILLS_DIR = Path("/home/fulvio/coding/aria/.aria/kilocode/skills")
 REGISTRY_PATH = SKILLS_DIR / "_registry.json"
-MCP_CONFIG = Path("/home/fulvio/coding/aria/.aria/kilocode/mcp.json")
+KILO_CONFIG = Path("/home/fulvio/coding/aria/.aria/kilocode/kilo.json")
 
 # Known valid wildcard patterns
 VALID_WILDCARDS = {
@@ -111,12 +111,13 @@ def main() -> int:
     global mcp_servers
     errors = []
 
-    # Load MCP config
+    # Load Kilo config (modernized - uses kilo.json instead of mcp.json)
     try:
-        mcp_config = load_json(MCP_CONFIG)
-        mcp_servers = set(mcp_config.get("mcpServers", {}).keys())
+        kilo_config = load_json(KILO_CONFIG)
+        # kilo.json has MCP servers under the "mcp" key
+        mcp_servers = set(kilo_config.get("mcp", {}).keys())
     except FileNotFoundError:
-        print(f"WARNING: mcp.json not found at {MCP_CONFIG}, skipping server validation")
+        print(f"WARNING: kilo.json not found at {KILO_CONFIG}, skipping server validation")
         mcp_servers = set()
 
     # Load registry

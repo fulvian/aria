@@ -32,7 +32,7 @@ from aria.credentials.keyring_store import KeyringStore
 # === Exceptions ===
 
 
-class OAuthSetupRequired(Exception):
+class OAuthSetupRequiredError(Exception):
     """Raised when no refresh token is available in keyring."""
 
     def __init__(self, account: str = "primary") -> None:
@@ -56,7 +56,7 @@ class GoogleOAuthHelper:
     """Runtime helper for Google Workspace OAuth operations.
 
     Provides a clean API for:
-    - Ensuring refresh_token is available (raises OAuthSetupRequired if not)
+    - Ensuring refresh_token is available (raises OAuthSetupRequiredError if not)
     - Getting granted scopes
     - Revoking tokens
     """
@@ -88,6 +88,18 @@ class GoogleOAuthHelper:
         runtime_dir = config.paths.runtime / "credentials"
         return runtime_dir / f"google_workspace_scopes_{account}.json"
 
+    def _runtime_credentials_dir(self) -> Path:
+        """Get path to runtime credentials directory for workspace-mcp.
+
+        This is where the wrapper creates <email>.json files.
+        Path: .aria/runtime/credentials/google_workspace_mcp/
+        """
+        # Lazy import to avoid circular reference
+        from aria.config import get_config
+
+        config = self._config or get_config()
+        return config.paths.runtime / "credentials" / "google_workspace_mcp"
+
     def ensure_refresh_token(self, account: str = "primary") -> str:
         """Get refresh token, raising if missing.
 
@@ -98,12 +110,12 @@ class GoogleOAuthHelper:
             Refresh token string
 
         Raises:
-            OAuthSetupRequired: If no token in keyring
+            OAuthSetupRequiredError: If no token in keyring
         """
         token = self._keyring.get_oauth(self.SERVICE_NAME, account)
 
         if not token:
-            raise OAuthSetupRequired(account)
+            raise OAuthSetupRequiredError(account)
 
         return token
 
@@ -131,12 +143,19 @@ class GoogleOAuthHelper:
     def revoke(self, account: str = "primary") -> None:
         """Revoke OAuth tokens and clear keyring.
 
+        This method:
+        1. Revokes the refresh token at Google
+        2. Clears the keyring
+        3. Deletes the runtime credentials file created by the wrapper
+        4. Deletes the scopes file
+
         Args:
             account: Account name (default: "primary")
 
         Raises:
             OAuthError: If revocation fails
         """
+
         import httpx
 
         # Get current token
@@ -163,6 +182,18 @@ class GoogleOAuthHelper:
             # Always clear keyring, even if revocation fails
             self._keyring.delete_oauth(self.SERVICE_NAME, account)
 
+        # Clear runtime credentials file (created by google-workspace-wrapper.sh)
+        # File is at WORKSPACE_MCP_CREDENTIALS_DIR/<safe_email>.json
+        try:
+            runtime_dir = self._runtime_credentials_dir()
+            if runtime_dir.exists():
+                # Find and delete all <email>.json files in the directory
+                for creds_file in runtime_dir.glob("*.json"):
+                    creds_file.unlink()
+        except Exception:
+            # Best effort cleanup - don't fail if this fails
+            pass
+
         # Clear scopes file
         scopes_file = self._scopes_file_path(account)
         if scopes_file.exists():
@@ -184,6 +215,6 @@ class GoogleOAuthHelper:
 
 __all__ = [
     "GoogleOAuthHelper",
-    "OAuthSetupRequired",
+    "OAuthSetupRequiredError",
     "OAuthError",
 ]

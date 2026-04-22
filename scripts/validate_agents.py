@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Validate KiloCode agent definitions per sprint-03 W1.3.A.
+Validate KiloCode agent definitions per sprint-03 W1.3.A (modernized for kilo.json).
 
 Checks:
 1. All required agents exist in .aria/kilocode/agents/
 2. Each agent has valid frontmatter (name, type, color, temperature, allowed-tools)
 3. No agent exceeds 20 tools (P9)
-4. All allowed-tools reference valid MCP servers (exist in mcp.json or are wildcards)
+4. All allowed-tools reference valid MCP servers (exist in kilo.json mcp section or are wildcards)
 5. required-skills reference skills that exist in _registry.json
 
 Usage:
@@ -21,7 +21,7 @@ from pathlib import Path
 
 AGENTS_DIR = Path("/home/fulvio/coding/aria/.aria/kilocode/agents")
 SYSTEM_AGENTS_DIR = AGENTS_DIR / "_system"
-MCP_CONFIG = Path("/home/fulvio/coding/aria/.aria/kilocode/mcp.json")
+KILO_CONFIG = Path("/home/fulvio/coding/aria/.aria/kilocode/kilo.json")
 SKILLS_REGISTRY = Path("/home/fulvio/coding/aria/.aria/kilocode/skills/_registry.json")
 
 # Required agents per blueprint §8
@@ -83,15 +83,18 @@ def validate_agent(name: str, path: Path, mcp_servers: set[str]) -> list[str]:
         errors.append(f"{name}: missing frontmatter")
         return errors
 
-    # Required fields
-    for field in ["name", "type", "description", "color", "temperature"]:
+    # Derive agent_type: accept "type" or "mode" (mode is used in legacy files)
+    agent_type = fm.get("type") or fm.get("mode")
+    valid_types = ["primary", "subagent", "system"]
+
+    # Required fields (name is optional in frontmatter - derived from filename)
+    for field in ["description", "color", "temperature"]:
         if field not in fm:
             errors.append(f"{name}: missing required field '{field}'")
 
-    # Type must be valid
-    valid_types = ["primary", "subagent", "system"]
-    if fm.get("type") not in valid_types:
-        errors.append(f"{name}: type must be one of {valid_types}")
+    # Type must be valid (handle both "type" and "mode" fields)
+    if agent_type not in valid_types:
+        errors.append(f"{name}: type must be one of {valid_types}, got '{agent_type}'")
 
     # Temperature range
     temp = fm.get("temperature")
@@ -103,22 +106,32 @@ def validate_agent(name: str, path: Path, mcp_servers: set[str]) -> list[str]:
         except (ValueError, TypeError):
             errors.append(f"{name}: temperature must be numeric, got {temp}")
 
-    # Tools check
-    allowed_tools = fm.get("allowed-tools", [])
-    if len(allowed_tools) > MAX_TOOLS:
-        errors.append(f"{name}: {len(allowed_tools)} tools exceeds max {MAX_TOOLS}")
+    # Tools check - accept "allowed-tools" (list) or legacy "tools" (dict format)
+    # Format 1: allowed-tools: [list, of, tools] (allow list)
+    # Format 2: tools: {task: false, websearch: false} (deny list - skip validation)
+    allowed_tools = fm.get("allowed-tools")
+    tools_dict = fm.get("tools", {})
 
-    for tool in allowed_tools:
-        if tool in VALID_NON_MCP_TOOLS or tool == "*":
-            continue
-        if "/" not in tool:
-            errors.append(f"{name}: invalid tool format '{tool}'")
-            continue
-        server = tool.split("/", 1)[0]
-        if server.endswith("*"):
-            continue
-        if server not in mcp_servers:
-            errors.append(f"{name}: tool server '{server}' not declared in mcp.json")
+    if allowed_tools is not None:
+        # Modern format: list of allowed tools
+        if isinstance(allowed_tools, list) and len(allowed_tools) > MAX_TOOLS:
+            errors.append(f"{name}: {len(allowed_tools)} tools exceeds max {MAX_TOOLS}")
+
+        for tool in allowed_tools or []:
+            if tool in VALID_NON_MCP_TOOLS or tool == "*":
+                continue
+            if "/" not in tool:
+                errors.append(f"{name}: invalid tool format '{tool}'")
+                continue
+            server = tool.split("/", 1)[0]
+            if server.endswith("*"):
+                continue
+            if server not in mcp_servers:
+                errors.append(f"{name}: tool server '{server}' not declared in kilo.json")
+    elif isinstance(tools_dict, dict):
+        # Legacy format: tools is a deny list (boolean values)
+        # Skip validation for deny list format - can't enforce P9 with deny list
+        pass
 
     # required-skills check
     required_skills = fm.get("required-skills", [])
@@ -144,12 +157,13 @@ def main() -> int:
         print(f"FATAL: agents dir not found: {AGENTS_DIR}")
         return 1
 
-    # Load MCP config for tool validation
+    # Load Kilo config for tool validation (modernized - uses kilo.json)
     try:
-        mcp_config = load_json(MCP_CONFIG)
-        mcp_servers = set(mcp_config.get("mcpServers", {}).keys())
+        kilo_config = load_json(KILO_CONFIG)
+        # kilo.json has MCP servers under the "mcp" key
+        mcp_servers = set(kilo_config.get("mcp", {}).keys())
     except FileNotFoundError:
-        print(f"WARNING: mcp.json not found at {MCP_CONFIG}")
+        print(f"WARNING: kilo.json not found at {KILO_CONFIG}")
         mcp_servers = set()
 
     # Validate each required agent

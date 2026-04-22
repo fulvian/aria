@@ -63,6 +63,12 @@ class UnauthorizedScopeError(Exception):
     pass
 
 
+class ScopeCoherenceError(Exception):
+    """Raised when runtime scopes don't match required scopes for enabled tools."""
+
+    pass
+
+
 # === Escalation Ticket ===
 
 
@@ -194,6 +200,44 @@ class ScopeManager:
         self.validate_scopes(scopes)
         return scopes
 
+    def check_scope_coherence(
+        self,
+        required_scopes: list[str],
+        account: str = "primary",
+    ) -> None:
+        """Verify runtime scopes cover the required scopes for enabled tools.
+
+        This check ensures that if a tool is enabled (via governance matrix),
+        the runtime has the necessary OAuth scopes granted.
+
+        Args:
+            required_scopes: List of scopes required by enabled tools
+            account: Account name (default: "primary")
+
+        Raises:
+            ScopeCoherenceError: If runtime scopes are missing required scopes
+
+        Example:
+            >>> sm = ScopeManager(oauth_helper)
+            >>> required = [
+            ...     "https://www.googleapis.com/auth/gmail.readonly",
+            ...     "https://www.googleapis.com/auth/calendar.events",
+            ... ]
+            >>> sm.check_scope_coherence(required)
+            # Raises ScopeCoherenceError if missing scopes
+        """
+        granted = set(self.current(account))
+        required = set(required_scopes)
+
+        missing = sorted(required - granted)
+        if missing:
+            raise ScopeCoherenceError(
+                f"Missing OAuth scopes for enabled toolset: {', '.join(missing)}\n"
+                f"Required scopes: {', '.join(sorted(required))}\n"
+                f"Granted scopes: {', '.join(sorted(granted))}\n"
+                f"To fix: Run 'python scripts/oauth_first_setup.py' to re-consent with new scopes."
+            )
+
 
 # === Exports ===
 
@@ -201,6 +245,7 @@ __all__ = [
     "ScopeManager",
     "ScopeEscalationError",
     "UnauthorizedScopeError",
+    "ScopeCoherenceError",
     "EscalationTicket",
     "MINIMAL_SCOPES",
     "BROAD_SCOPES",

@@ -52,6 +52,22 @@ user_email = os.environ['GW_USER_EMAIL'].strip()
 client_id = os.environ['GW_CLIENT_ID'].strip()
 client_secret = os.environ.get('GW_CLIENT_SECRET', '').strip()
 refresh_token = os.environ['GW_REFRESH_TOKEN'].strip()
+aria_home = Path('$ARIA_HOME')
+
+# Load scopes from canonical source (per W1.1 - de-hardcode)
+# Priority: 1) WORKSPACE_SCOPES_OVERRIDE env var, 2) scopes file, 3) empty
+scopes = []
+scopes_override = os.environ.get('WORKSPACE_SCOPES_OVERRIDE', '').strip()
+if scopes_override:
+    scopes = scopes_override.split(',')
+else:
+    scopes_file = aria_home / '.aria' / 'runtime' / 'credentials' / 'google_workspace_scopes_primary.json'
+    if scopes_file.exists():
+        try:
+            data = json.loads(scopes_file.read_text(encoding='utf-8'))
+            scopes = data.get('scopes', [])
+        except Exception:
+            scopes = []
 
 creds_dir = Path(os.environ['WORKSPACE_MCP_CREDENTIALS_DIR']).expanduser()
 creds_dir.mkdir(parents=True, exist_ok=True)
@@ -74,7 +90,7 @@ payload = {
     'token_uri': 'https://oauth2.googleapis.com/token',
     'client_id': client_id,
     'client_secret': client_secret,
-    'scopes': ['https://www.googleapis.com/auth/gmail.readonly'],
+    'scopes': scopes,
     'expiry': None,
 }
 
