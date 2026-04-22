@@ -118,3 +118,76 @@ uv run pytest -q              # 280 passed in 11.78s
   - removed embedded double quotes in inline Python comments to avoid shell tokenization issues
     in `python -c` invocation;
   - this deterministically forces refresh path and ensures bearer token injection before Drive calls.
+
+## 8. Workspace agent deep analysis and full operational plan (2026-04-22)
+
+- Audited workspace agent and skill contracts against current runtime behavior.
+- Confirmed critical contract mismatch in tool naming remains in workspace agent/skills:
+  slash style (`google_workspace/...`) vs runtime MCP naming (`google_workspace_*`).
+- Confirmed capability gap: only 3 workspace skills are available while the governance matrix
+  tracks 114 upstream tools.
+- Confirmed scheduler workspace automation is still blocked by stub execution path in
+  `src/aria/scheduler/runner.py` for non-system categories.
+- Cross-checked implementation posture against official references:
+  - Context7 `/taylorwilsdon/google_workspace_mcp`
+  - Context7 `/modelcontextprotocol/python-sdk`
+  - MCP tools specification and HITL guidance
+  - Google Workspace MCP server configuration and security guidance.
+- Produced execution-ready plan for full operationalization at:
+  `docs/plans/google_workspace_agent_full_operational_plan.md`.
+
+## 9. Sprint 1.6 - Phase A+B Implementation (2026-04-22)
+
+### Context7 References Verified
+- `/taylorwilsdon/google_workspace_mcp` — Official tool list with 40+ tools across Gmail, Calendar, Drive, Docs, Sheets, Slides, Forms, Chat
+- `/modelcontextprotocol/python-sdk` — HITL elicitation via `ctx.elicit()`, error handling via `task.fail()`, task support via `ToolExecution`
+
+### Phase A - Contract and Governance Normalization ✅
+
+**W1.6.A1-A4 - Tool naming fixed:**
+- Changed slash-style (`google_workspace/search`) to underscore prefix format (`google_workspace_search`)
+- Fixed all 3 existing workspace skills: `triage-email`, `calendar-orchestration`, `doc-draft`
+- Replaced `aria-memory/*` wildcard with specific tools: `aria_memory_remember`, `aria_memory_recall`, `aria_memory_hitl_ask`
+- Added missing tools from Context7 verified list (e.g., `google_workspace_get_event`, `google_workspace_modify_event`)
+
+**W1.6.A5 - Validator rules:**
+- Added `_is_slash_style_mcp_tool()` to detect and reject slash-style MCP naming
+- Added `_server_exists()` for flexible matching (underscore/hyphen variants)
+- Added `_get_server_prefix()` with progressive matching against kilo.json
+- Both `validate_agents.py` and `validate_skills.py` now reject slash-style tools with clear error messages
+
+**W1.6.A6 - Profile matrix:**
+- Created `docs/roadmaps/workspace_tool_profile_matrix.md`
+- Documented 12 profiles (8 core + 4 future expansion)
+- All profiles verified <= 20 tools (P9 compliant)
+
+### Phase B - Profiled Workspace Agent Runtime ✅
+
+**W1.6.B1 - Created 8 profiled agents:**
+| Agent | Tools | P9 Compliant |
+|-------|-------|--------------|
+| `workspace-mail-read.md` | 4 | ✅ |
+| `workspace-mail-write.md` | 5 | ✅ |
+| `workspace-calendar-read.md` | 5 | ✅ |
+| `workspace-calendar-write.md` | 6 | ✅ |
+| `workspace-docs-read.md` | 6 | ✅ |
+| `workspace-docs-write.md` | 7 | ✅ |
+| `workspace-sheets-read.md` | 6 | ✅ |
+| `workspace-sheets-write.md` | 9 | ✅ |
+
+**W1.6.B2 - Reduced base workspace-agent:**
+- Reduced from 24 tools to 17 tools (<=20 P9 compliant)
+- Added reference to profiled variants in agent body text
+
+### Quality Verification
+```
+uv run python scripts/validate_agents.py  # PASS (8 agents)
+uv run python scripts/validate_skills.py   # triage-email/calendar-orchestration/doc-draft PASS
+uv run ruff check src/                     # PASS
+uv run mypy src                            # PASS (0 errors)
+uv run pytest -q tests/unit/agents/workspace tests/unit/scheduler  # PASS (105 tests)
+```
+
+### Known Issues
+- `deep-research` skill uses slash-style tool names (tavily-mcp/search, etc.) — out of scope for workspace sprint
+- Phase C-F remaining: Advanced read/write skills, scheduler activation, telemetry

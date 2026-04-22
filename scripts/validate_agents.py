@@ -69,6 +69,80 @@ def parse_frontmatter(content: str) -> tuple[dict, str]:
 
 VALID_NON_MCP_TOOLS = {"spawn-subagent"}
 
+# Known valid wildcard prefixes (slash-style allowed for these)
+VALID_WILDCARD_PREFIXES = {"aria-memory", "filesystem", "git", "github", "sequential-thinking"}
+
+
+def _normalize_server_name(name: str) -> str:
+    """Normalize server name by replacing underscores with hyphens.
+
+    E.g., 'tavily_mcp' -> 'tavily-mcp' (for matching 'tavily-mcp' in kilo.json)
+          'google_workspace' -> 'google-workspace' (for matching 'tavily-mcp' style keys)
+    """
+    return name.replace("_", "-")
+
+
+def _server_exists(server: str, mcp_servers: set[str]) -> bool:
+    """Check if a server exists in kilo.json, trying both underscore and hyphen forms.
+
+    Some servers use underscores (google_workspace), others use hyphens (tavily-mcp).
+    """
+    if server in mcp_servers:
+        return True
+    # Try hyphenated version
+    hyphenated = server.replace("_", "-")
+    if hyphenated in mcp_servers:
+        return True
+    # For servers that are already hyphenated in kilo.json (tavily-mcp),
+    # the tool prefix uses underscores (tavily_mcp) - try that conversion too
+    underscored = hyphenated.replace("-", "_")
+    if underscored in mcp_servers:
+        return True
+    return False
+
+
+def _is_valid_wildcard(tool: str) -> bool:
+    """Check if tool is a valid wildcard pattern (e.g., aria-memory/*)."""
+    if tool == "*":
+        return True
+    if "/" in tool:
+        server = tool.split("/", 1)[0]
+        return server in VALID_WILDCARD_PREFIXES
+    return False
+
+
+def _is_slash_style_mcp_tool(tool: str) -> bool:
+    """Check if tool uses slash-style MCP naming (e.g., google_workspace/search).
+
+    Slash-style is the old/broken format. Runtime MCP tools use underscore prefix.
+    E.g., google_workspace_search_gmail_messages NOT google_workspace/search_gmail_messages.
+    """
+    if "/" not in tool:
+        return False
+    # It's a slash-style reference if not a known wildcard
+    return not _is_valid_wildcard(tool)
+
+
+def _get_server_prefix(tool: str, mcp_servers: set[str]) -> str | None:
+    """Extract server prefix from underscore-joined tool name by matching against known servers.
+
+    E.g., 'google_workspace_search_gmail' -> 'google_workspace' (matched against kilo.json)
+          'tavily_mcp_search' -> 'tavily_mcp' (matched against kilo.json)
+    """
+    if "_" not in tool:
+        return None
+
+    # Try progressively longer prefixes to find the longest match in mcp_servers
+    # E.g., for 'google_workspace_search': try 'google', 'google_workspace', 'google_workspace_search'
+    parts = tool.split("_")
+    for i in range(len(parts) - 1, 0, -1):
+        candidate = "_".join(parts[:i])
+        if _server_exists(candidate, mcp_servers):
+            return candidate
+
+    # No match found - return shortest prefix as fallback
+    return parts[0]
+
 
 def validate_agent(name: str, path: Path, mcp_servers: set[str]) -> list[str]:
     """Validate a single agent definition.
@@ -118,16 +192,34 @@ def validate_agent(name: str, path: Path, mcp_servers: set[str]) -> list[str]:
             errors.append(f"{name}: {len(allowed_tools)} tools exceeds max {MAX_TOOLS}")
 
         for tool in allowed_tools or []:
+            # Skip non-MCP tools
             if tool in VALID_NON_MCP_TOOLS or tool == "*":
                 continue
-            if "/" not in tool:
-                errors.append(f"{name}: invalid tool format '{tool}'")
+
+            # Check for wildcard patterns (aria-memory/*, etc.)
+            if _is_valid_wildcard(tool):
                 continue
-            server = tool.split("/", 1)[0]
-            if server.endswith("*"):
+
+            # Check for slash-style MCP tool naming (INVALID)
+            if _is_slash_style_mcp_tool(tool):
+                errors.append(
+                    f"{name}: slash-style tool '{tool}' is invalid. "
+                    f"Use underscore prefix format (e.g., google_workspace_search_gmail_messages)"
+                )
                 continue
-            if server not in mcp_servers:
-                errors.append(f"{name}: tool server '{server}' not declared in kilo.json")
+
+            # At this point, tool should be in underscore-joined format (e.g., google_workspace_search)
+            # Extract server prefix and validate it exists in kilo.json
+            if "_" not in tool:
+                errors.append(f"{name}: invalid tool format '{tool}' (missing server prefix)")
+                continue
+
+            server_prefix = _get_server_prefix(tool, mcp_servers)
+            if server_prefix is None or not _server_exists(server_prefix, mcp_servers):
+                # _get_server_prefix should never return None if _server_exists fails
+                # because it falls back to the shortest prefix, but check anyway
+                normalized = _normalize_server_name(server_prefix or tool.split("_")[0])
+                errors.append(f"{name}: tool server '{normalized}' not declared in kilo.json")
     elif isinstance(tools_dict, dict):
         # Legacy format: tools is a deny list (boolean values)
         # Skip validation for deny list format - can't enforce P9 with deny list

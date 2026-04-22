@@ -5,11 +5,11 @@ description: Triage giornaliero Inbox Gmail — classifica, sintetizza, evidenzi
 trigger-keywords: [email, triage, inbox, riassumi mail, leggi email]
 user-invocable: true
 allowed-tools:
-  - google_workspace/search_gmail_messages
-  - google_workspace/get_gmail_message_content
-  - google_workspace/draft_gmail_message
-  - aria-memory/remember
-  - aria-memory/hitl_ask
+  - google_workspace_search_gmail_messages
+  - google_workspace_get_gmail_message_content
+  - google_workspace_draft_gmail_message
+  - aria_memory_remember
+  - aria_memory_hitl_ask
 max-tokens: 30000
 estimated-cost-eur: 0.05
 ---
@@ -26,12 +26,12 @@ Leggere l'inbox Gmail delle ultime 24h, classificare per urgenza, generare diges
 - **Newsletter/Promo**: ignorabile o archiviabile
 
 ## Procedura
-1. Query `search_gmail_messages` con `q="is:unread newer_than:24h"`
-2. Per ogni messaggio: `get_gmail_message_content` → estrai `from`, `subject`, `snippet`, `timestamp`
+1. Query `google_workspace_search_gmail_messages` con `q="is:unread newer_than:24h"`
+2. Per ogni messaggio: `google_workspace_get_gmail_message_content` → estrai `from`, `subject`, `snippet`, `timestamp`
 3. Classifica heuristically: newsletter / personal / work / urgent (keyword)
 4. Sintesi: digest markdown con sezioni per classe
-5. Per urgenti: crea proposta di follow-up in bozza (`draft_gmail_message`) solo dopo `aria-memory/hitl_ask`
-6. Salva digest in memoria: `aria-memory/remember` actor=AGENT_INFERENCE, tag=`email_digest`
+5. Per urgenti: crea proposta di follow-up in bozza (`google_workspace_draft_gmail_message`) solo dopo `aria_memory_hitl_ask`
+6. Salva digest in memoria: `aria_memory_remember` actor=AGENT_INFERENCE, tag=`email_digest`
 7. Reply Telegram con digest
 
 ## Invarianti

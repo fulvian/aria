@@ -1,12 +1,12 @@
 # Project State
 
-## Current Phase: Phase 1 - Launch Readiness Verification
+## Current Phase: Phase 1 - Sprint 1.6: Workspace Agent Operationalization (Phase A+B Complete)
 ## Started: 2026-04-21T07:40:00+02:00
 ## PRD: docs/foundation/aria_foundation_blueprint.md
-## TDD: docs/plans/phase-1/README.md
-## Implementation: Sprint 0-4 codebase present; audit remediation applied; workspace drive auth hotfix applied
-## Tests: Pass (latest targeted workspace suite: 8 passed)
-## Deployment: Sprint 1.5 first-start path resolved (systemd + CLI invocation)
+## TDD: docs/plans/google_workspace_agent_full_operational_plan.md
+## Implementation: Sprint 1.6 Phase A (Contract Normalization) + Phase B (Profiled Agents) complete
+## Tests: Pass (105 workspace/scheduler unit tests passing)
+## Deployment: Pending (Phase C-F remaining)
 
 ## Agent History
 | Timestamp | Agent | Action | Status |
@@ -27,6 +27,9 @@
 | 2026-04-22T12:00+02:00 | general-manager | Completed manual OAuth re-consent, exchanged token, and validated live smoke on Gmail/Calendar/Drive/Docs/Sheets | completed |
 | 2026-04-22T15:25+02:00 | general-manager | Root-caused Drive 403 unregistered-caller auth regression and patched wrapper bootstrap token/expiry handling | completed |
 | 2026-04-22T16:55+02:00 | general-manager | Identified shell quoting regression in wrapper inline python sync path and fixed deterministic credential rewrite | completed |
+| 2026-04-22T18:30+02:00 | general-manager | Completed deep analysis of workspace-agent/skills and produced full operational implementation plan | completed |
+| 2026-04-22T18:45+02:00 | general-manager | Sprint 1.6 Phase A: Fixed slash-style tool naming in workspace-agent and 3 skills | completed |
+| 2026-04-22T18:50+02:00 | general-manager | Sprint 1.6 Phase B: Created 8 profiled workspace agents, reduced base agent to P9 compliant | completed |
 
 ## Skills Invoked
 | Phase | Skill | Outcome |
@@ -34,3 +37,23 @@
 | Step 0 | planning-with-files | session tracking enabled |
 | Phase 4 | verification-before-completion | all claims backed by fresh command output |
 | Phase 1 | planning-with-files | workspace phase 0-1 audit evidence captured |
+| Step 0 | planning-with-files | workspace deep-analysis planning continuity maintained |
+| Sprint 1.6 | planning-with-files | Phase A+B implementation tracked |
+
+## Sprint 1.6 Progress
+| Phase | Work Item | Status |
+|-------|-----------|--------|
+| Phase A | W1.6.A1 - Fix workspace-agent.md tool naming | ✅ Complete |
+| Phase A | W1.6.A2 - Fix triage-email skill | ✅ Complete |
+| Phase A | W1.6.A3 - Fix calendar-orchestration skill | ✅ Complete |
+| Phase A | W1.6.A4 - Fix doc-draft skill | ✅ Complete |
+| Phase A | W1.6.A5 - Validator rules for slash-style MCP tools | ✅ Complete |
+| Phase A | W1.6.A6 - Create workspace tool profile matrix | ✅ Complete |
+| Phase B | W1.6.B1 - Create 8 profiled workspace agents | ✅ Complete |
+| Phase B | W1.6.B2 - Reduce workspace-agent to P9 compliant | ✅ Complete |
+
+## Next Steps (Pending)
+- Phase C: Advanced Read Skill Pack (gmail-thread-intelligence, docs-structure-reader, sheets-analytics-reader, slides-content-auditor)
+- Phase D: Advanced Write Skill Pack (gmail-composer-pro, docs-editor-pro, sheets-editor-pro, slides-editor-pro)
+- Phase E: Scheduler/Automation Activation
+- Phase F: Verification, Telemetry, and Go-Live

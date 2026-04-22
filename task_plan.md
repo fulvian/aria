@@ -1,181 +1,248 @@
-# Sprint 1.2 — Task Plan
-## Scheduler & Gateway Telegram Implementation
+# Sprint 1.6 — Google Workspace Agent Full Operational
 
-**Started:** 2026-04-20
-**Status:** completed
-**Owner:** fulvio
-**Sprint:** 1.2
+## Phase 1, Sprint 1.6: Workspace Agent Operationalization
+
+**Started:** 2026-04-22
+**Status:** in_progress
+**Owner:** General Manager (Orchestrator)
 **Blueprint:** docs/foundation/aria_foundation_blueprint.md
-**Plan:** docs/plans/phase-1/sprint-02.md
+**Plan:** docs/plans/google_workspace_agent_full_operational_plan.md
 
 ---
 
 ## Goal
 
-Implement complete Scheduler daemon (with triggers, budget/policy gates, HITL, sd_notify, reaper) and Gateway daemon (Telegram adapter, auth, sessions, multimodal, HITL responder, Prometheus metrics) per Sprint 1.2 specification.
+Close all workspace agent gaps (G1-G8) and achieve full operational readiness across Gmail, Calendar, Drive, Docs, Sheets, Slides with deterministic tool binding, advanced skill coverage, scheduler activation, and HITL compliance.
+
+---
+
+## Context7 Verified References
+
+| Library | ID | Purpose |
+|---------|-----|---------|
+| Google Workspace MCP | `/taylorwilsdon/google_workspace_mcp` | Gmail, Calendar, Drive, Docs, Sheets, Slides, Forms, Chat tools |
+| MCP Python SDK | `/modelcontextprotocol/python-sdk` | HITL elicitation, error handling, task support |
+
+**Verified Tool Naming Convention** (from Context7):
+- Runtime MCP tool names: `google_workspace_search_gmail_messages`, `google_workspace_get_gmail_message_content`, etc.
+- Skill/Agent declarations must use underscore prefix + underscore naming
+
+---
+
+## Critical Gaps Analysis
+
+| ID | Gap | Severity | Plan Phase |
+|----|-----|----------|------------|
+| G1 | Tool naming mismatch (slash vs underscore) | Critical | Phase A |
+| G2 | Only 3 skills for 114 tools | Critical | Phase C |
+| G3 | No advanced Docs/Sheets/Slides workflows | Critical | Phase C+D |
+| G4 | Scheduler workspace path stubbed | High | Phase E |
+| G5 | No e2e contracts for advanced workflows | High | Phase F |
+| G6 | No per-tool telemetry | High | Phase F |
+| G7 | Governance matrix not fully stitched | Medium | Phase B |
+| G8 | Scope re-consent not skill-driven | Medium | Phase B |
 
 ---
 
 ## WBS (Work Breakdown Structure)
 
-### Scheduler Components
+### Phase A — Contract and Governance Normalization (P0) ✅
 
-- [x] **W1.2.A** — TaskStore (SQLite) with lease columns + migrations ✅
-- [x] **W1.2.B** — Trigger evaluator (cron/oneshot/event/webhook/manual) ✅
-- [x] **W1.2.C** — Budget gate ✅
-- [x] **W1.2.D** — Policy gate + Quiet Hours ✅
-- [x] **W1.2.E** — HITL manager ✅
-- [x] **W1.2.F** — sd_notify notifier ✅
-- [x] **W1.2.G** — Reaper (lease release, DLQ, timeout runs) ✅
-- [x] **W1.2.H** — Scheduler daemon entrypoint (TaskRunner) ✅
+#### W1.6.A1 — Fix workspace-agent.md tool naming ✅
+- [x] Change slash-style (`google_workspace/search_gmail_messages`) to underscore prefix format (`google_workspace_search_gmail_messages`)
+- [x] Verify all tool names match runtime MCP tool IDs from Context7
+- [x] Fix `aria-memory/*` to proper format with specific tools
+- **Files**: `.aria/kilocode/agents/workspace-agent.md`
 
-### Gateway Components
+#### W1.6.A2 — Fix triage-email skill tool naming ✅
+- [x] Update allowed-tools to underscore prefix format
+- [x] Fix `aria-memory/hitl_ask` → `aria_memory_hitl_ask`
+- **Files**: `.aria/kilocode/skills/triage-email/SKILL.md`
 
-- [x] **W1.2.I** — Auth (whitelist + HMAC) + SessionManager ✅
-- [x] **W1.2.J** — Telegram adapter (PTB 22.x async) ✅
-- [x] **W1.2.K** — Multimodal (OCR + Whisper stub) ✅
-- [x] **W1.2.L** — Metrics endpoint (Prometheus on 127.0.0.1:9090) ✅
-- [x] **W1.2.O** — HITL responder bridge ✅
+#### W1.6.A3 — Fix calendar-orchestration skill tool naming ✅
+- [x] Update allowed-tools to underscore prefix format
+- [x] Fix `aria-memory/hitl_ask` → `aria_memory_hitl_ask`
+- [x] Add event lifecycle tools (get_event, modify_event)
+- **Files**: `.aria/kilocode/skills/calendar-orchestration/SKILL.md`
 
-### CLI + Systemd
+#### W1.6.A4 — Fix doc-draft skill tool naming ✅
+- [x] Update allowed-tools to underscore prefix format
+- [x] Fix `aria-memory/hitl_ask` → `aria_memory_hitl_ask`
+- [x] Add list_docs_in_folder for folder browsing
+- **Files**: `.aria/kilocode/skills/doc-draft/SKILL.md`
 
-- [x] **W1.2.M** — CLI `aria schedule {list,add,remove,run,replay,status}` ✅
-- [x] **W1.2.N** — Systemd units finalization + install script ✅
+#### W1.6.A5 — Create validator rule for tool naming ✅
+- [x] Add rule to `scripts/validate_agents.py` to block slash-style MCP tool references
+- [x] Add rule to `scripts/validate_skills.py` to block slash-style tool references
+- [x] Added `_is_slash_style_mcp_tool()`, `_server_exists()`, progressive prefix matching
+- **Files**: `scripts/validate_agents.py`, `scripts/validate_skills.py`
 
-### Infrastructure
+#### W1.6.A6 — Create workspace tool profile matrix ✅
+- [x] Document tool -> scope -> rw -> hitl_required -> profile mapping
+- [x] Profile catalog for 12 profiles (8 core + 4 future expansion)
+- [x] All profiles verified <= 20 tools (P9 compliant)
+- **Files**: `docs/roadmaps/workspace_tool_profile_matrix.md`
 
-- [x] **ADR-0005** — Scheduler Concurrency Model (lease-based) ✅
-- [x] **ADR-0007** — STT Stack Dual (if voice enabled) ✅
-- [x] Migration `0003__lease_columns.sql` ✅
+### Phase B — Profiled Workspace Agent Runtime (P0/P1) ✅
 
----
+#### W1.6.B1 — Create 8 profiled workspace agent files ✅
+- [x] Created `workspace-mail-read.md` agent (4 tools)
+- [x] Created `workspace-mail-write.md` agent (5 tools)
+- [x] Created `workspace-calendar-read.md` agent (5 tools)
+- [x] Created `workspace-calendar-write.md` agent (6 tools)
+- [x] Created `workspace-docs-read.md` agent (6 tools)
+- [x] Created `workspace-docs-write.md` agent (7 tools)
+- [x] Created `workspace-sheets-read.md` agent (6 tools)
+- [x] Created `workspace-sheets-write.md` agent (9 tools)
+- **Files**: `.aria/kilocode/agents/workspace-*-*.md`
 
-## Exit Criteria Status
+#### W1.6.B2 — Reduced workspace-agent to P9 compliant ✅
+- [x] Reduced from 24 to 17 tools (<=20 P9 compliant)
+- [x] Added reference to profiled variants in body text
+- **Files**: `.aria/kilocode/agents/workspace-agent.md`
 
-- [ ] `systemctl --user start aria-scheduler.service aria-gateway.service` → pending (requires systemd user session)
-- [x] Telegram bot responds on whitelisted account (code complete)
-- [x] HITL end-to-end: code complete, tests pass
-- [x] `aria schedule add/list/run` functional (CLI complete)
-- [x] Metrics endpoint (127.0.0.1:9090/metrics) - code complete
-- [x] Reaper releases stale leases (tested in unit tests)
-- [ ] Coverage scheduler ≥ 75%, gateway ≥ 70% - partial (see notes)
-- [x] ADR-0005 accepted
-
----
-
-## Quality Gates Results
-
-| Gate | Status | Notes |
-|------|--------|-------|
-| ruff check | ✅ PASS | All errors fixed |
-| ruff format --check | ✅ PASS | |
-| mypy | ⚠️ See notes | Many errors due to aiosqlite Optional handling and PTB types |
-| pytest (219 tests) | ✅ PASS | 219 passed |
-| systemd-analyze verify | ✅ PASS | No warnings |
-
-### Coverage Summary
-
-| Module | Coverage | Notes |
-|--------|----------|-------|
-| scheduler/hitl.py | 99% | Excellent |
-| scheduler/policy_gate.py | 93% | Excellent |
-| scheduler/store.py | 91% | Excellent |
-| scheduler/triggers.py | 94% | Excellent |
-| scheduler/budget_gate.py | 79% | Good |
-| scheduler/* (daemon, runner, cli, notify, reaper) | 0% | Entry points, need integration tests |
-| gateway/* | 0-35% | PTB adapter needs integration tests |
-
-### mypy Notes
-The mypy errors are primarily:
-1. `Item "None" of "Connection | None"` - mypy doesn't understand `_assert_connected()` guard pattern
-2. Missing stubs for `croniter`, `sd_notify`, `pytesseract`, `faster-whisper`
-3. PTB complex generic types (ANN401 suppressed with noqa)
-
-These are acceptable limitations for Sprint 1.2 MVP.
+#### W1.6.B3 — Deterministic fallback policy ⏳
+- [ ] Missing scope -> re-consent guidance
+- [ ] Transient API failure -> bounded retry
+- [ ] Write denied -> archive decision in memory
+- **Files**: workspace skill error handlers
 
 ---
 
-## Files Created/Modified
+### Phase C — Advanced Read Skill Pack (P1)
 
-### Scheduler Module
-- `src/aria/scheduler/__init__.py`
-- `src/aria/scheduler/schema.py` - Task, TaskRun, DlqEntry, HitlPending models
-- `src/aria/scheduler/store.py` - TaskStore with lease-based concurrency
-- `src/aria/scheduler/triggers.py` - CronTrigger, EventBus, etc.
-- `src/aria/scheduler/budget_gate.py` - BudgetGate with daily aggregation
-- `src/aria/scheduler/policy_gate.py` - PolicyGate with Quiet Hours
-- `src/aria/scheduler/hitl.py` - HitlManager with asyncio.Event
-- `src/aria/scheduler/notify.py` - SdNotifier with sd_notify
-- `src/aria/scheduler/reaper.py` - Reaper for lease cleanup
-- `src/aria/scheduler/runner.py` - TaskRunner main loop
-- `src/aria/scheduler/daemon.py` - Full daemon entrypoint
-- `src/aria/scheduler/cli.py` - `aria schedule` CLI commands
-- `src/aria/scheduler/migrations/0003__lease_columns.sql`
+#### W1.6.C1 — gmail-thread-intelligence skill
+- [ ] Tools: thread search, full thread retrieval, attachment extraction, label context
+- [ ] Output: timeline + action candidates + risk flags
+- **Files**: `.aria/kilocode/skills/gmail-thread-intelligence/SKILL.md`
 
-### Gateway Module
-- `src/aria/gateway/__init__.py`
-- `src/aria/gateway/schema.py` - SessionRow model
-- `src/aria/gateway/auth.py` - AuthGuard with whitelist + HMAC
-- `src/aria/gateway/session_manager.py` - SessionManager async
-- `src/aria/gateway/telegram_adapter.py` - PTB 22.x async adapter
-- `src/aria/gateway/multimodal.py` - OCR + Whisper with graceful degradation
-- `src/aria/gateway/metrics_server.py` - Prometheus on 127.0.0.1:9090
-- `src/aria/gateway/hitl_responder.py` - HITL event consumer
-- `src/aria/gateway/daemon.py` - Updated with full implementation
+#### W1.6.C2 — docs-structure-reader skill
+- [ ] Tools: `inspect_doc_structure`, `get_doc_content`, `get_doc_as_markdown`, comments listing
+- [ ] Output: section map, table map, unresolved comments, editable anchor points
+- **Files**: `.aria/kilocode/skills/docs-structure-reader/SKILL.md`
 
-### Tests
-- `tests/unit/scheduler/test_store.py` (15 tests)
-- `tests/unit/scheduler/test_triggers.py` (33 tests)
-- `tests/unit/scheduler/test_budget_gate.py` (15 tests)
-- `tests/unit/scheduler/test_policy_gate.py` (21 tests)
-- `tests/unit/scheduler/test_hitl.py` (18 tests)
-- `tests/unit/gateway/test_auth.py`
-- `tests/unit/gateway/test_session_manager.py`
-- `tests/unit/gateway/test_multimodal.py`
-- `tests/unit/gateway/test_hitl_responder.py`
-- `tests/integration/scheduler/test_end_to_end_hitl.py` (7 tests)
-- `tests/e2e/test_hitl_flow.py` (11 tests)
+#### W1.6.C3 — sheets-analytics-reader skill
+- [ ] Tools: `get_spreadsheet_info`, `read_sheet_values`, `list_sheet_tables`
+- [ ] Output: schema map, table/column quality checks, change recommendations
+- **Files**: `.aria/kilocode/skills/sheets-analytics-reader/SKILL.md`
 
-### ADRs
-- `docs/foundation/decisions/ADR-0005-scheduler-concurrency.md` ✅
-- `docs/foundation/decisions/ADR-0007-stt-stack-dual.md` ✅
-
-### Systemd
-- `systemd/aria-scheduler.service` - Updated
-- `systemd/aria-gateway.service` - Updated
-- `scripts/install_systemd.sh` - Updated for idempotency
-
-### pyproject.toml
-- Added `prometheus-client>=0.20` dependency
+#### W1.6.C4 — slides-content-auditor skill
+- [ ] Tools: `get_presentation`, `get_page`, `get_page_thumbnail`
+- [ ] Output: slide inventory, text density issues, placeholder coverage
+- **Files**: `.aria/kilocode/skills/slides-content-auditor/SKILL.md`
 
 ---
 
-## Errors Encountered
-| Error | Attempt | Resolution |
-|-------|---------|------------|
-| PLR0911 too many returns in policy_gate | 2 | Refactored to use decision variable |
-| DTZ005 datetime.now() without tz | Multiple | Added `tz=UTC` to all datetime.now() calls |
-| SIM103 return negated condition | 1 | Changed to direct return |
-| ANN401 PTB context types | Multiple | Added noqa comments (unavoidable with PTB) |
-| ruff format failures | 1 | Ran `ruff format` to fix |
+### Phase D — Advanced Edit Skill Pack (P1)
+
+#### W1.6.D1 — gmail-composer-pro skill
+- [ ] draft/send modes with thread-safe reply handling and attachment strategies
+- [ ] HITL mandatory before send
+- **Files**: `.aria/kilocode/skills/gmail-composer-pro/SKILL.md`
+
+#### W1.6.D2 — docs-editor-pro skill
+- [ ] Text modifications, find/replace, table updates, comments lifecycle, batch operations
+- [ ] HITL mandatory before write
+- **Files**: `.aria/kilocode/skills/docs-editor-pro/SKILL.md`
+
+#### W1.6.D3 — sheets-editor-pro skill
+- [ ] Value updates, formatting, conditional rules, append rows, dimension resize
+- [ ] HITL mandatory before write
+- **Files**: `.aria/kilocode/skills/sheets-editor-pro/SKILL.md`
+
+#### W1.6.D4 — slides-editor-pro skill
+- [ ] Batch text/style updates, structural edits, comments management
+- [ ] HITL mandatory before write
+- **Files**: `.aria/kilocode/skills/slides-editor-pro/SKILL.md`
+
+---
+
+### Phase E — Scheduler/Automation Activation (P1)
+
+#### W1.6.E1 — Implement workspace execution path
+- [ ] Remove `not_implemented` stub in runner.py for non-system categories
+- [ ] Execute task payload through conductor + profile + skill pipeline
+- **Files**: `src/aria/scheduler/runner.py`
+
+#### W1.6.E2 — Seed advanced recurring tasks
+- [ ] Mail digest, docs audit, sheets anomaly scan
+- **Files**: `scripts/seed_scheduler.py`
+
+#### W1.6.E3 — Idempotency/retry semantics
+- [ ] Tune retry policies for workspace quotas (429 handling)
+- **Files**: workspace skill error handlers
+
+---
+
+### Phase F — Verification, Telemetry, and Go-Live (P1/P2)
+
+#### W1.6.F1 — Tool-level telemetry schema
+- [ ] Define trace_id, tool, profile, latency, retries, outcome, error_type
+- [ ] Dashboard docs
+- **Files**: telemetry spec
+
+#### W1.6.F2 — End-to-end test suites
+- [ ] Advanced Gmail read/edit
+- [ ] Docs structure+batch edit
+- [ ] Sheets read/write+format
+- [ ] Slides read/write
+- [ ] HITL timeout tests
+- **Files**: `tests/integration/workspace/`, `tests/e2e/workspace/`
+
+---
+
+## Implementation Order
+
+1. **Phase A** (W1.6.A1-A6): Contract normalization — MUST complete first
+2. **Phase B** (W1.6.B1-B2): Profile routing — depends on A6
+3. **Phase C** (W1.6.C1-C4): Advanced read skills — depends on A, B
+4. **Phase D** (W1.6.D1-D4): Advanced write skills — depends on C
+5. **Phase E** (W1.6.E1-E3): Scheduler activation — depends on A, B
+6. **Phase F** (W1.6.F1-F2): Verification/telemetry — depends on all
+
+---
+
+## Quality Gates
+
+```bash
+# Must pass before each phase transition
+python scripts/validate_agents.py
+python scripts/validate_skills.py
+ruff check src/
+ruff format --check src/
+mypy src
+pytest -q tests/unit/agents/workspace tests/unit/scheduler
+pytest -q tests/integration/scheduler
+pytest -q tests/e2e -k workspace
+```
+
+---
+
+## Exit Criteria
+
+- [ ] Zero naming mismatches in agent/skills (slash-style eliminated)
+- [ ] Validators fail on any future mismatch
+- [ ] 8 profiles documented and <= 20 tools each
+- [ ] gmail-thread-intelligence and docs-structure-reader operational
+- [ ] Scheduler workspace path no longer reports not_implemented
+- [ ] All write skills include HITL checkpoint
+- [ ] Quality gates green
+
+---
+
+## Dependencies
+
+- Context7 `/taylorwilsdon/google_workspace_mcp` — verified tool list
+- Context7 `/modelcontextprotocol/python-sdk` — HITL patterns
+- MCP spec: tool naming conventions
+- Google Workspace MCP security guidance
 
 ---
 
 ## Notes
 
-- PTB 22.x: All handlers async, uses `Application.builder()` pattern
-- HITL inline keyboard payload: `hitl:<id>:yes|no|later`
-- Metrics bind assertion enforces `127.0.0.1` only
-- Lease TTL default 300s, refresh every 60s
-- Reaper runs every 30s
-- Scheduler daemon stub replaced with full implementation
-- Gateway daemon stub replaced with full implementation
-
----
-
-## Next Steps
-
-1. Run `systemd-analyze verify` and start services to verify runtime
-2. Add coverage for daemon/runner/notify modules (integration tests)
-3. Create E2E tests with PTBTestApp for Telegram adapter
-4. Update docs/implementation/phase-1/sprint-02-evidence.md with test evidence
+- Phase A is P0 — no code is written until contract normalization is complete
+- Per P9, each profile must remain <= 20 tools
+- Per P7, all write operations require HITL confirmation
+- All new skills must follow output schema: human summary + structured payload + memory tags
+- Sprint 1.5 remains pending operator input for W1.5.D, W1.5.E, W1.5.F
