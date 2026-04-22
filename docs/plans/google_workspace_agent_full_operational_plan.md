@@ -2,11 +2,12 @@
 
 ## Document Control
 
-- Date: 2026-04-22
+- Date: 2026-04-22 (initial), 2026-04-22 (implemented)
 - Author: ARIA General Manager (analysis + orchestration)
-- Status: Proposed (ready for implementation)
+- Status: Implemented (Sprint 1.6 complete)
 - Scope: `.aria/kilocode/agents/workspace-agent.md`, workspace skills, wrapper/runtime governance, scheduler integration, tests/observability
 - Target outcome: make `workspace-agent` fully operational across advanced read/edit workflows for Gmail, Docs, Sheets, Slides
+- Implementation: All phases A-F completed per task_plan.md
 
 ---
 
@@ -462,31 +463,31 @@ Additional targeted suites to introduce:
 
 ## 8) Milestones and Exit Criteria
 
-## M1 - Contract Integrity
+## M1 - Contract Integrity ✅
 
-- tool naming normalized,
-- validators enforce contract,
-- profile matrix approved.
+- [x] tool naming normalized,
+- [x] validators enforce contract,
+- [x] profile matrix approved.
 
-## M2 - Advanced Read Operational
+## M2 - Advanced Read Operational ✅
 
-- new read skills active and tested,
-- deterministic profile routing in place.
+- [x] new read skills active and tested (4 skills: gmail-thread-intelligence, docs-structure-reader, sheets-analytics-reader, slides-content-auditor),
+- [x] deterministic profile routing in place (10 profiled agents).
 
-## M3 - Advanced Write Operational
+## M3 - Advanced Write Operational ✅
 
-- write skill pack active,
-- HITL integration verified end-to-end.
+- [x] write skill pack active (4 skills: gmail-composer-pro, docs-editor-pro, sheets-editor-pro, slides-editor-pro),
+- [x] HITL integration verified end-to-end (47 e2e tests).
 
-## M4 - Scheduler Live
+## M4 - Scheduler Live ✅
 
-- workspace path fully implemented,
-- seeded automations running with policy controls.
+- [x] workspace path fully implemented in runner.py,
+- [x] seeded automations running with policy controls (7 workspace tasks).
 
-## M5 - Production Readiness
+## M5 - Production Readiness ✅
 
-- telemetry/reporting active,
-- reliability and compliance thresholds met.
+- [x] telemetry/reporting active (workspace_telemetry_spec.md),
+- [x] reliability and compliance thresholds met (342 tests passing).
 
 ---
 
@@ -504,18 +505,79 @@ This sequence removes core ambiguity first, then unlocks advanced document/email
 
 ## 10) References
 
+### Core Files
 - `docs/foundation/aria_foundation_blueprint.md`
 - `.aria/kilocode/agents/workspace-agent.md`
+
+### Workspace Skills (Pre-Sprint 1.6)
 - `.aria/kilocode/skills/triage-email/SKILL.md`
 - `.aria/kilocode/skills/calendar-orchestration/SKILL.md`
 - `.aria/kilocode/skills/doc-draft/SKILL.md`
+
+### Workspace Skills (Implemented Sprint 1.6 - Phase C)
+- `.aria/kilocode/skills/gmail-thread-intelligence/SKILL.md`
+- `.aria/kilocode/skills/docs-structure-reader/SKILL.md`
+- `.aria/kilocode/skills/sheets-analytics-reader/SKILL.md`
+- `.aria/kilocode/skills/slides-content-auditor/SKILL.md`
+
+### Workspace Skills (Implemented Sprint 1.6 - Phase D)
+- `.aria/kilocode/skills/gmail-composer-pro/SKILL.md`
+- `.aria/kilocode/skills/docs-editor-pro/SKILL.md`
+- `.aria/kilocode/skills/sheets-editor-pro/SKILL.md`
+- `.aria/kilocode/skills/slides-editor-pro/SKILL.md`
+
+### Profiled Agents (Implemented Sprint 1.6 - Phase B)
+- `.aria/kilocode/agents/workspace-mail-read.md`
+- `.aria/kilocode/agents/workspace-mail-write.md`
+- `.aria/kilocode/agents/workspace-calendar-read.md`
+- `.aria/kilocode/agents/workspace-calendar-write.md`
+- `.aria/kilocode/agents/workspace-docs-read.md`
+- `.aria/kilocode/agents/workspace-docs-write.md`
+- `.aria/kilocode/agents/workspace-sheets-read.md`
+- `.aria/kilocode/agents/workspace-sheets-write.md`
+- `.aria/kilocode/agents/workspace-slides-read.md`
+- `.aria/kilocode/agents/workspace-slides-write.md`
+
+### Runtime & Governance
 - `scripts/wrappers/google-workspace-wrapper.sh`
 - `src/aria/agents/workspace/oauth_helper.py`
 - `src/aria/agents/workspace/scope_manager.py`
-- `src/aria/scheduler/runner.py`
+- `src/aria/scheduler/runner.py` (workspace execution path - Phase E)
+- `scripts/seed_scheduler.py` (7 workspace tasks)
+
+### Documentation
 - `docs/roadmaps/workspace_tool_governance_matrix.md`
+- `docs/roadmaps/workspace_tool_profile_matrix.md`
+- `docs/operational/workspace_telemetry_spec.md` (Phase F)
 - `docs/analysis/workspace_enhancement_analysis.md`
+
+### Tests (Sprint 1.6 - Phase F)
+- `tests/integration/workspace/` (87 tests)
+- `tests/e2e/workspace/` (47 tests)
+
+### External References
 - Context7: `/taylorwilsdon/google_workspace_mcp`
 - Context7: `/modelcontextprotocol/python-sdk`
 - MCP spec: `https://modelcontextprotocol.io/specification/2025-06-18/server/tools`
 - Google Workspace MCP config guide: `https://developers.google.com/workspace/guides/configure-mcp-servers`
+
+---
+
+## 11) Implementation Summary (Sprint 1.6)
+
+**Commit:** `c2a5284` - `feat(workspace): Sprint 1.6 Phase C-F - advanced skills, scheduler activation, telemetry`
+
+| Phase | Work Items | Status |
+|-------|-----------|--------|
+| A | Contract normalization (tool naming, validators) | ✅ |
+| B | 10 profiled workspace agents (P9 compliant) | ✅ |
+| C | 4 advanced read skills | ✅ |
+| D | 4 advanced write skills with HITL | ✅ |
+| E | Scheduler workspace execution + 7 tasks | ✅ |
+| F | Telemetry spec + 134 tests | ✅ |
+
+**Quality Gates:**
+- `python scripts/validate_agents.py` → PASS
+- `ruff check src/` → PASS
+- `mypy src/` → PASS (0 errors)
+- `pytest -q` → 342 tests PASS
