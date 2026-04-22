@@ -46,13 +46,159 @@ sync_workspace_credentials_file() {
 import json
 import os
 import re
+import shlex
 from pathlib import Path
 
 user_email = os.environ['GW_USER_EMAIL'].strip()
 client_id = os.environ['GW_CLIENT_ID'].strip()
 client_secret = os.environ.get('GW_CLIENT_SECRET', '').strip()
 refresh_token = os.environ['GW_REFRESH_TOKEN'].strip()
+wrapper_args_raw = os.environ.get('GW_WRAPPER_ARGS', '')
 aria_home = Path('$ARIA_HOME')
+
+GOOGLE_SCOPE_PREFIX = 'https://www.googleapis.com/auth/'
+
+
+def normalize_scope(scope: str) -> str:
+    scope = scope.strip()
+    if not scope:
+        return ''
+    if scope.startswith('https://'):
+        return scope
+    return f'{GOOGLE_SCOPE_PREFIX}{scope}'
+
+
+def parse_governance_rows(matrix_path: Path) -> list[dict[str, str]]:
+    if not matrix_path.exists():
+        return []
+
+    lines = matrix_path.read_text(encoding='utf-8').splitlines()
+    expected_headers = [
+        'tool_name',
+        'domain',
+        'rw',
+        'risk',
+        'policy',
+        'hitl_required',
+        'min_scope',
+        'owner',
+        'testcase_id',
+    ]
+    rows: list[dict[str, str]] = []
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        if line.startswith('|') and 'tool_name' in line.lower():
+            i += 2
+            while i < len(lines) and lines[i].strip().startswith('|'):
+                cells = [c.strip() for c in lines[i].split('|') if c.strip()]
+                if len(cells) >= len(expected_headers) and not all(c.startswith('-') for c in cells):
+                    row = {h: cells[idx] for idx, h in enumerate(expected_headers)}
+                    if row.get('tool_name') and row['tool_name'] != 'tool_name':
+                        rows.append(row)
+                i += 1
+            continue
+        i += 1
+
+    return rows
+
+
+def parse_cli_args(argv: list[str], all_domains: set[str]) -> tuple[set[str], bool, dict[str, str]]:
+    domains = set(all_domains)
+    permissions: dict[str, str] = {}
+    read_only = '--read-only' in argv
+
+    tier_map = {
+        'core': {'gmail', 'calendar', 'drive', 'docs', 'sheets'},
+        'extended': {'gmail', 'calendar', 'drive', 'docs', 'sheets', 'chat', 'tasks', 'forms', 'contacts'},
+        'complete': set(all_domains),
+    }
+
+    if '--tool-tier' in argv:
+        idx = argv.index('--tool-tier')
+        if idx + 1 < len(argv):
+            tier = argv[idx + 1].strip().lower()
+            domains &= tier_map.get(tier, set())
+
+    if '--tools' in argv:
+        idx = argv.index('--tools') + 1
+        tool_domains: list[str] = []
+        while idx < len(argv) and not argv[idx].startswith('--'):
+            tool_domains.append(argv[idx].strip().lower())
+            idx += 1
+        if tool_domains:
+            domains &= set(tool_domains)
+
+    if '--permissions' in argv:
+        idx = argv.index('--permissions') + 1
+        while idx < len(argv) and not argv[idx].startswith('--'):
+            raw = argv[idx].strip().lower()
+            if ':' in raw:
+                service, level = raw.split(':', 1)
+                permissions[service] = level
+            idx += 1
+        if permissions:
+            domains &= set(permissions.keys())
+
+    return domains, read_only, permissions
+
+
+def enforce_scope_coherence(resolved_scopes: list[str], argv: list[str]) -> None:
+    enforce = os.environ.get('WORKSPACE_ENFORCE_SCOPE_COHERENCE', 'true').strip().lower()
+    if enforce in {'0', 'false', 'no'}:
+        return
+
+    matrix_path = aria_home / 'docs' / 'roadmaps' / 'workspace_tool_governance_matrix.md'
+    rows = parse_governance_rows(matrix_path)
+    if not rows:
+        raise SystemExit(
+            'Scope coherence check failed: governance matrix missing or unreadable at '
+            f'{matrix_path}. Set WORKSPACE_ENFORCE_SCOPE_COHERENCE=false to bypass temporarily.'
+        )
+
+    all_domains = {row['domain'] for row in rows}
+    active_domains, read_only, permissions = parse_cli_args(argv, all_domains)
+
+    required_scopes: set[str] = set()
+    gmail_level_map = {
+        'readonly': {'gmail.readonly'},
+        'organize': {'gmail.readonly', 'gmail.modify'},
+        'drafts': {'gmail.readonly', 'gmail.modify', 'gmail.drafts'},
+        'send': {'gmail.readonly', 'gmail.modify', 'gmail.drafts', 'gmail.send'},
+        'full': {'gmail.readonly', 'gmail.modify', 'gmail.drafts', 'gmail.send', 'gmail'},
+    }
+
+    for row in rows:
+        if row['domain'] not in active_domains:
+            continue
+        if row.get('policy') == 'deny':
+            continue
+
+        if permissions:
+            service_level = permissions.get(row['domain'])
+            if not service_level:
+                continue
+            if row['domain'] == 'gmail':
+                min_scope = row.get('min_scope', '').strip()
+                if min_scope and min_scope not in gmail_level_map.get(service_level, set()):
+                    continue
+            elif service_level == 'readonly' and row.get('rw') != 'read':
+                continue
+        elif read_only and row.get('rw') != 'read':
+            continue
+
+        scope = normalize_scope(row.get('min_scope', ''))
+        if scope:
+            required_scopes.add(scope)
+
+    granted = set(resolved_scopes)
+    missing = sorted(required_scopes - granted)
+    if missing:
+        raise SystemExit(
+            'Missing OAuth scopes for active workspace toolset: '
+            + ', '.join(missing)
+            + '. Re-run oauth setup with required scopes or adjust --tools/--tool-tier/--permissions.'
+        )
 
 # Load scopes from canonical source (per W1.1 - de-hardcode)
 # Priority: 1) WORKSPACE_SCOPES_OVERRIDE env var, 2) scopes file, 3) empty
@@ -68,6 +214,10 @@ else:
             scopes = data.get('scopes', [])
         except Exception:
             scopes = []
+
+scopes = sorted({normalize_scope(scope) for scope in scopes if normalize_scope(scope)})
+wrapper_args = shlex.split(wrapper_args_raw)
+enforce_scope_coherence(scopes, wrapper_args)
 
 creds_dir = Path(os.environ['WORKSPACE_MCP_CREDENTIALS_DIR']).expanduser()
 creds_dir.mkdir(parents=True, exist_ok=True)
@@ -182,6 +332,7 @@ main() {
         GW_CLIENT_ID="$client_id" \
         GW_CLIENT_SECRET="$client_secret" \
         GW_REFRESH_TOKEN="$refresh_token" \
+        GW_WRAPPER_ARGS="$*" \
         sync_workspace_credentials_file "$user_google_email" "$client_id" "$client_secret" "$refresh_token"
     fi
 

@@ -32,6 +32,8 @@ VALID_WILDCARDS = {
     "sequential-thinking/*",
 }
 
+MAX_TOOLS = 20
+
 
 def load_json(path: Path) -> dict:
     """Load JSON file."""
@@ -91,6 +93,9 @@ def validate_skill(name: str, skill_dir: Path) -> list[str]:
 
     # allowed-tools validation
     allowed_tools = fm.get("allowed-tools", [])
+    if isinstance(allowed_tools, list) and len(allowed_tools) > MAX_TOOLS:
+        errors.append(f"{name}: {len(allowed_tools)} tools exceeds max {MAX_TOOLS}")
+
     for tool in allowed_tools:
         # Check if it's a known wildcard or valid MCP server reference
         if tool not in VALID_WILDCARDS:
@@ -99,7 +104,7 @@ def validate_skill(name: str, skill_dir: Path) -> list[str]:
                 parts = tool.split("/", 1)
                 server, _ = parts[0], parts[1] if len(parts) > 1 else ""
                 if server not in mcp_servers and server + "-mcp" not in mcp_servers:
-                    errors.append(f"{name}: tool server '{server}' not declared in mcp.json")
+                    errors.append(f"{name}: tool server '{server}' not declared in kilo.json")
             else:
                 errors.append(f"{name}: invalid tool format '{tool}'")
 

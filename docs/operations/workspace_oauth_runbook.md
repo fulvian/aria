@@ -42,7 +42,7 @@ ARIA uses OAuth 2.0 with PKCE to authenticate with Google Workspace APIs. The re
 ./scripts/bootstrap.sh --check
 
 # 2. Run OAuth setup
-python scripts/oauth_first_setup.py
+python scripts/oauth_first_setup.py --scopes "gmail.readonly,gmail.modify,gmail.send,calendar.events,drive.file,documents,spreadsheets"
 
 # 3. Verify
 python3 -c "
@@ -53,7 +53,7 @@ print('Scopes:', h.get_scopes())
 "
 
 # 4. Test wrapper
-google-workspace-wrapper.sh --help
+./scripts/wrappers/google-workspace-wrapper.sh --help
 ```
 
 **Expected output:**
@@ -65,7 +65,7 @@ google-workspace-wrapper.sh --help
 | Error | Cause | Resolution |
 |-------|-------|------------|
 | "No refresh token found" | Setup not run | Run `python scripts/oauth_first_setup.py` |
-| Browser blocked |headless environment | Set `DISPLAY` or use `--no-browser` flag |
+| Browser blocked | headless environment | Use `--manual` flag and paste redirect URL/code |
 | Invalid client_id | Wrong credentials | Check `.env` or session file |
 
 ---
@@ -130,10 +130,10 @@ print('Keyring token:', 'None' if token is None else '***' + token[-4:])
 **Steps:**
 ```bash
 # 1. Run setup again (will prompt for fresh consent)
-python scripts/oauth_first_setup.py
+python scripts/oauth_first_setup.py --scopes "gmail.readonly,gmail.modify,gmail.send,calendar.events,drive.file,documents,spreadsheets"
 
 # 2. If adding new scopes, specify them
-python scripts/oauth_first_setup.py --scopes "gmail.readonly,gmail.send,calendar.events"
+python scripts/oauth_first_setup.py --scopes "gmail.readonly,gmail.modify,gmail.send,calendar.events,drive.file,documents,spreadsheets"
 
 # 3. Verify new scopes
 python3 -c "
@@ -162,8 +162,8 @@ print('Scopes:', h.get_scopes())
 ### Adding New Scopes
 
 **Steps:**
-1. Edit `scripts/oauth_first_setup.py` to request new scopes
-2. Run re-consent: `python scripts/oauth_first_setup.py`
+1. Define the exact target scopes for the new toolset/policy
+2. Run re-consent with explicit scopes: `python scripts/oauth_first_setup.py --scopes "..."`
 3. Verify scopes file updated
 4. Test with: `google-workspace-wrapper.sh`
 
@@ -208,7 +208,7 @@ find .aria/runtime/credentials/google_workspace_mcp -name "*.json" -exec chmod 6
 
 **Resolution:**
 ```bash
-python scripts/oauth_first_setup.py
+python scripts/oauth_first_setup.py --scopes "gmail.readonly,gmail.modify,gmail.send,calendar.events,drive.file,documents,spreadsheets"
 ```
 
 ### "Missing OAuth scopes for enabled toolset"
@@ -217,7 +217,7 @@ python scripts/oauth_first_setup.py
 
 **Resolution:**
 1. Check current scopes: `cat .aria/runtime/credentials/google_workspace_scopes_primary.json`
-2. Re-consent with correct scopes: `python scripts/oauth_first_setup.py`
+2. Re-consent with correct scopes: `python scripts/oauth_first_setup.py --scopes "..."`
 
 ### Wrapper fails with "credential file permissions too open"
 

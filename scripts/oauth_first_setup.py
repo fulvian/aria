@@ -613,7 +613,7 @@ def main() -> int:
         print(f"\nAccess token: {'received' if access_token else 'NOT received'}")
         print(f"Refresh token: {'stored in keyring' if refresh_token else 'NOT received'}")
         print(f"Expires in: {expires_in}s")
-        print("\nNext step: Enable google_workspace MCP in .aria/kilocode/mcp.json")
+        print("\nNext step: Enable google_workspace MCP in .aria/kilocode/kilo.json")
         print("          Then run: aria repl\n")
 
         return 0
