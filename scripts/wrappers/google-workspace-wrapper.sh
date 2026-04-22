@@ -47,6 +47,7 @@ import json
 import os
 import re
 import shlex
+from datetime import datetime, timezone
 from pathlib import Path
 
 user_email = os.environ['GW_USER_EMAIL'].strip()
@@ -226,13 +227,45 @@ os.chmod(creds_dir, 0o700)
 safe_email = re.sub(r'[^a-zA-Z0-9@._-]', '_', user_email)
 creds_path = creds_dir / f'{safe_email}.json'
 
-existing_token = ''
+existing_token: str | None = None
+existing_expiry: str | None = None
 if creds_path.exists():
     try:
         existing = json.loads(creds_path.read_text(encoding='utf-8'))
-        existing_token = str(existing.get('token') or '')
+        token_candidate = existing.get('token')
+        expiry_candidate = existing.get('expiry')
+
+        def _parse_expiry(value: object) -> datetime | None:
+            if not isinstance(value, str) or not value.strip():
+                return None
+            raw = value.strip()
+            if raw.endswith('Z'):
+                raw = raw[:-1] + '+00:00'
+            try:
+                parsed = datetime.fromisoformat(raw)
+            except ValueError:
+                return None
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            return parsed
+
+        parsed_expiry = _parse_expiry(expiry_candidate)
+        if (
+            isinstance(token_candidate, str)
+            and token_candidate.strip()
+            and parsed_expiry is not None
+            and parsed_expiry > datetime.now(timezone.utc)
+        ):
+            existing_token = token_candidate.strip()
+            existing_expiry = expiry_candidate.strip() if isinstance(expiry_candidate, str) else None
     except Exception:
-        existing_token = ''
+        existing_token = None
+        existing_expiry = None
+
+# Important: a blank token with null expiry is considered valid by google-auth,
+# which can produce unauthenticated requests (Drive 403 unregistered callers).
+# Force refresh path when we only have refresh_token bootstrap material.
+expiry_value = existing_expiry if existing_token else '1970-01-01T00:00:00+00:00'
 
 payload = {
     'token': existing_token,
@@ -241,7 +274,7 @@ payload = {
     'client_id': client_id,
     'client_secret': client_secret,
     'scopes': scopes,
-    'expiry': None,
+    'expiry': expiry_value,
 }
 
 fd = os.open(str(creds_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)

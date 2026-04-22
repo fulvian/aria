@@ -91,3 +91,23 @@
   - `uv run ruff format --check src/` -> PASS (70 files formatted)
   - `uv run mypy src` -> PASS (0 errors)
   - `uv run pytest -q` -> PASS (280 passed in 11.78s)
+
+### 2026-04-22 (Google Workspace Drive auth hotfix)
+
+- Investigated real session failure where Gmail tools worked but Drive tools returned
+  `403 forbidden / unregistered callers`.
+- Traced issue to wrapper-generated credentials bootstrap payload in
+  `scripts/wrappers/google-workspace-wrapper.sh` (`token: ""` + `expiry: null`).
+- Implemented fix to force refresh when no real access token exists:
+  - reuse cached access token only if expiry is valid and in the future;
+  - otherwise normalize token to `null` and set bootstrap `expiry` to `1970-01-01T00:00:00+00:00`.
+- Verified script syntax: `bash -n scripts/wrappers/google-workspace-wrapper.sh`.
+- Ran targeted workspace tests: 
+  - `uv run pytest -q tests/unit/agents/workspace/test_oauth_helper.py tests/unit/agents/workspace/test_scope_manager.py` -> `8 passed`.
+- Reproduced and validated credential behavior via direct API probe:
+  - with `token=""` + `expiry=null`: credentials may be treated as valid before refresh;
+  - with `token=null` + past expiry: Drive call auto-refreshes and succeeds.
+- Identified and fixed wrapper parsing bug in inline `python -c` block:
+  - removed unescaped `"` in embedded Python comments that could break shell arg parsing;
+  - confirmed wrapper now rewrites `google_workspace_mcp/fulviold@gmail.com.json`
+    with keyring refresh token + forced-refresh bootstrap state.

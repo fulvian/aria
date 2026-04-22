@@ -4,8 +4,8 @@
 ## Started: 2026-04-21T07:40:00+02:00
 ## PRD: docs/foundation/aria_foundation_blueprint.md
 ## TDD: docs/plans/phase-1/README.md
-## Implementation: Sprint 0-4 codebase present; audit remediation applied
-## Tests: Pass (280 passed)
+## Implementation: Sprint 0-4 codebase present; audit remediation applied; workspace drive auth hotfix applied
+## Tests: Pass (latest targeted workspace suite: 8 passed)
 ## Deployment: Sprint 1.5 first-start path resolved (systemd + CLI invocation)
 
 ## Agent History
@@ -25,6 +25,8 @@
 | 2026-04-22T11:21+02:00 | general-manager | Implemented scope coherence enforcement in workspace wrapper and validation/test hardening | completed |
 | 2026-04-22T11:49+02:00 | general-manager | Executed live wrapper smoke checks, confirmed coherence gate behavior, and produced handoff verification report | completed |
 | 2026-04-22T12:00+02:00 | general-manager | Completed manual OAuth re-consent, exchanged token, and validated live smoke on Gmail/Calendar/Drive/Docs/Sheets | completed |
+| 2026-04-22T15:25+02:00 | general-manager | Root-caused Drive 403 unregistered-caller auth regression and patched wrapper bootstrap token/expiry handling | completed |
+| 2026-04-22T16:55+02:00 | general-manager | Identified shell quoting regression in wrapper inline python sync path and fixed deterministic credential rewrite | completed |
 
 ## Skills Invoked
 | Phase | Skill | Outcome |
