@@ -30,7 +30,9 @@ from aria.scheduler.store import TaskStore
 
 # === Seed Data ===
 
-SEED_TASKS = [
+# Workspace task categories for skill mapping
+WORKSPACE_TASKS = [
+    # === READ TASKS (no HITL required) ===
     {
         "id": "seed-daily-email-triage",
         "name": "daily-email-triage",
@@ -50,6 +52,125 @@ SEED_TASKS = [
             "trace_prefix": "daily-triage",
         },
     },
+    {
+        "id": "seed-daily-thread-intel",
+        "name": "daily-thread-intelligence",
+        "category": "workspace",
+        "trigger_type": "cron",
+        "trigger_config": {"cron": "0 9 * * *", "timezone": "Europe/Rome"},
+        "schedule_cron": "0 9 * * *",
+        "timezone": "Europe/Rome",
+        "status": "active",
+        "policy": "allow",
+        "budget_tokens": 40000,
+        "budget_cost_eur": 0.08,
+        "max_retries": 2,
+        "payload": {
+            "sub_agent": "workspace-mail-read",
+            "skill": "gmail-thread-intelligence",
+            "trace_prefix": "daily-thread-intel",
+        },
+    },
+    {
+        "id": "seed-weekly-docs-audit",
+        "name": "weekly-docs-audit",
+        "category": "workspace",
+        "trigger_type": "cron",
+        "trigger_config": {"cron": "0 10 * * 1", "timezone": "Europe/Rome"},
+        "schedule_cron": "0 10 * * 1",
+        "timezone": "Europe/Rome",
+        "status": "active",
+        "policy": "allow",
+        "budget_tokens": 50000,
+        "budget_cost_eur": 0.10,
+        "max_retries": 2,
+        "payload": {
+            "sub_agent": "workspace-docs-read",
+            "skill": "docs-structure-reader",
+            "trace_prefix": "weekly-docs-audit",
+        },
+    },
+    {
+        "id": "seed-weekly-sheets-analytics",
+        "name": "weekly-sheets-analytics",
+        "category": "workspace",
+        "trigger_type": "cron",
+        "trigger_config": {"cron": "0 11 * * 1", "timezone": "Europe/Rome"},
+        "schedule_cron": "0 11 * * 1",
+        "timezone": "Europe/Rome",
+        "status": "active",
+        "policy": "allow",
+        "budget_tokens": 50000,
+        "budget_cost_eur": 0.12,
+        "max_retries": 2,
+        "payload": {
+            "sub_agent": "workspace-sheets-read",
+            "skill": "sheets-analytics-reader",
+            "trace_prefix": "weekly-sheets-analytics",
+        },
+    },
+    {
+        "id": "seed-weekly-slides-audit",
+        "name": "weekly-slides-audit",
+        "category": "workspace",
+        "trigger_type": "cron",
+        "trigger_config": {"cron": "0 12 * * 1", "timezone": "Europe/Rome"},
+        "schedule_cron": "0 12 * * 1",
+        "timezone": "Europe/Rome",
+        "status": "active",
+        "policy": "allow",
+        "budget_tokens": 60000,
+        "budget_cost_eur": 0.15,
+        "max_retries": 2,
+        "payload": {
+            "sub_agent": "workspace-slides-read",
+            "skill": "slides-content-auditor",
+            "trace_prefix": "weekly-slides-audit",
+        },
+    },
+    # === WRITE TASKS (require HITL approval via policy=ask) ===
+    {
+        "id": "seed-weekly-docs-editor",
+        "name": "weekly-docs-editor-pro",
+        "category": "workspace",
+        "trigger_type": "cron",
+        "trigger_config": {"cron": "0 14 * * 1", "timezone": "Europe/Rome"},
+        "schedule_cron": "0 14 * * 1",
+        "timezone": "Europe/Rome",
+        "status": "active",
+        "policy": "ask",  # HITL required for write operations
+        "budget_tokens": 50000,
+        "budget_cost_eur": 0.15,
+        "max_retries": 1,
+        "payload": {
+            "sub_agent": "workspace-docs-write",
+            "skill": "docs-editor-pro",
+            "trace_prefix": "weekly-docs-editor",
+        },
+    },
+    {
+        "id": "seed-weekly-sheets-editor",
+        "name": "weekly-sheets-editor-pro",
+        "category": "workspace",
+        "trigger_type": "cron",
+        "trigger_config": {"cron": "0 15 * * 1", "timezone": "Europe/Rome"},
+        "schedule_cron": "0 15 * * 1",
+        "timezone": "Europe/Rome",
+        "status": "active",
+        "policy": "ask",  # HITL required for write operations
+        "budget_tokens": 50000,
+        "budget_cost_eur": 0.18,
+        "max_retries": 1,
+        "payload": {
+            "sub_agent": "workspace-sheets-write",
+            "skill": "sheets-editor-pro",
+            "trace_prefix": "weekly-sheets-editor",
+        },
+    },
+]
+
+# System task category (unchanged)
+SYSTEM_TASKS = [
     {
         "id": "seed-weekly-backup",
         "name": "weekly-backup",
@@ -81,6 +202,9 @@ SEED_TASKS = [
         "payload": {"sub_agent": "blueprint-keeper"},
     },
 ]
+
+# Combined seed tasks
+SEED_TASKS = WORKSPACE_TASKS + SYSTEM_TASKS
 
 
 async def seed_tasks() -> int:

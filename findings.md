@@ -190,4 +190,87 @@ uv run pytest -q tests/unit/agents/workspace tests/unit/scheduler  # PASS (105 t
 
 ### Known Issues
 - `deep-research` skill uses slash-style tool names (tavily-mcp/search, etc.) — out of scope for workspace sprint
-- Phase C-F remaining: Advanced read/write skills, scheduler activation, telemetry
+- Phase F (Verification, Telemetry) remains pending
+
+## 10. Sprint 1.6 - Phase C-F Implementation (2026-04-22)
+
+### Context7 References (Phase C-F)
+- `/taylorwilsdon/google_workspace_mcp` — Official tool list with underscore prefix naming
+- `/modelcontextprotocol/python-sdk` — HITL elicitation via `ctx.elicit()`, `ElicitResult`
+
+### Phase C - Advanced Read Skill Pack ✅
+
+**Created 4 advanced read skills:**
+1. `gmail-thread-intelligence` - Thread timeline, participants, attachments, action candidates, risk flags
+2. `docs-structure-reader` - Section map, table map, unresolved comments, editable anchors
+3. `sheets-analytics-reader` - Schema map, quality checks, anomaly detection, recommendations
+4. `slides-content-auditor` - Slide inventory, text density, placeholder coverage, media audit
+
+All skills use Context7 verified tool names (underscore prefix format).
+
+### Phase D - Advanced Edit Skill Pack ✅
+
+**Created 4 write skills with mandatory HITL:**
+1. `gmail-composer-pro` - Thread-safe reply, HITL before send, post-write verification
+2. `docs-editor-pro` - Text modifications, batch ops, HITL before write, diff preview
+3. `sheets-editor-pro` - Value updates, formatting, HITL before write, pre-edit read
+4. `slides-editor-pro` - Batch updates, HITL before batch_update, atomic operations
+
+### Phase E - Scheduler/Automation Activation ✅
+
+**Implemented workspace execution path:**
+- `_exec_workspace_task()` in runner.py (removed not_implemented stub)
+- Skill metadata mapping (is_read, requires_hitl per skill)
+- Updated seed_scheduler.py with 7 workspace tasks (5 read, 2 write with ask policy)
+
+**Created missing slides agents:**
+- `workspace-slides-read.md` (4 tools)
+- `workspace-slides-write.md` (9 tools)
+
+### Quality Verification (Phase C-E)
+```
+uv run python scripts/validate_agents.py  # PASS (10 agents)
+uv run python scripts/validate_skills.py  # PASS (workspace skills)
+uv run ruff check src/                     # PASS
+uv run mypy src                            # PASS (0 errors)
+uv run pytest -q tests/unit/agents/workspace tests/unit/scheduler  # PASS (105 tests)
+```
+
+### Phase F - Remaining
+- Tool-level telemetry schema (trace_id, tool, profile, latency, retries, outcome, error_type)
+- End-to-end test suites for advanced workspace workflows
+- Dashboard docs for operational monitoring
+
+## 11. Sprint 1.6 - Phase F Complete (2026-04-22)
+
+### W1.6.F1 - Telemetry Schema
+Created `docs/operational/workspace_telemetry_spec.md` with:
+- `ToolInvocationEvent` schema (10 fields)
+- Error type classification (auth/quota/network/tool_error)
+- Recovery patterns per error type
+- Dashboard metrics reference
+
+### W1.6.F2 - Test Suites (134 tests)
+**Integration tests (87)** in `tests/integration/workspace/`:
+- test_gmail_thread_intelligence.py, test_docs_structure_reader.py, test_sheets_analytics_reader.py, test_slides_content_auditor.py
+- test_gmail_composer_pro.py, test_workspace_skill_metadata.py
+
+**E2E tests (47)** in `tests/e2e/workspace/`:
+- test_workspace_hitl_write_paths.py (11 tests)
+- test_workspace_read_paths.py (9 tests)
+- test_workspace_chaos.py (16 tests)
+
+### Final Verification
+```
+uv run python scripts/validate_agents.py  # PASS
+uv run python scripts/validate_skills.py  # PASS (workspace skills)
+uv run ruff check src/                     # PASS
+uv run mypy src                            # PASS
+uv run pytest -q (192 tests)              # PASS
+```
+
+### Context7 References
+- `/modelcontextprotocol/python-sdk` - Context capabilities, logging, progress reporting
+- `/taylorwilsdon/google_workspace_mcp` - Tool error handling patterns
+
+## Sprint 1.6 COMPLETE - All phases A-F implemented ✅
