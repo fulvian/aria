@@ -21,7 +21,7 @@ import os
 import time
 import uuid
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -146,7 +146,7 @@ class TaskStore:
             db_path: Path to SQLite database file
         """
         self._db_path = db_path.resolve()
-        self._conn: aiosqlite.Connection | None = None
+        self._conn: Any = None
 
     async def connect(self) -> None:
         """Initialize database connection and run migrations."""
@@ -448,7 +448,7 @@ class TaskStore:
         )
         await self._conn.commit()
 
-        count = cursor.rowcount
+        count = cast("int", cursor.rowcount)
         if count > 0:
             logger.info("Reaped %d stale leases", count)
         return count

@@ -137,8 +137,10 @@ generate_age_keys() {
 verify_sops() {
     log_info "Verifying SOPS configuration..."
 
-    local sops_conf="$ARIA_HOME/.aria/credentials/.sops.yaml"
+    # .sops.yaml is at repo root (ARIA_HOME), NOT in .aria/credentials/
+    local sops_conf="$ARIA_HOME/.sops.yaml"
     local api_keys="$ARIA_HOME/.aria/credentials/secrets/api-keys.enc.yaml"
+    local providers_state="$ARIA_HOME/.aria/runtime/credentials/providers_state.enc.yaml"
 
     if [[ -f "$sops_conf" ]]; then
         log_info "SOPS config found: $sops_conf"
@@ -149,15 +151,24 @@ verify_sops() {
 
     if [[ -f "$api_keys" ]]; then
         log_info "Encrypted API keys file found: $api_keys"
-        # Try to decrypt as a smoke test
+        # Try to decrypt as a smoke test using 'sops -d' (NOT 'age -d')
         if sops -d "$api_keys" &> /dev/null; then
-            log_info "SOPS decryption test: OK"
+            log_info "SOPS api-keys decryption test: OK"
         else
-            log_warn "SOPS decryption test failed (expected if not yet encrypted with valid key)"
+            log_warn "SOPS api-keys decryption test failed (expected if not yet encrypted with valid key)"
         fi
     else
         log_error "API keys file missing: $api_keys"
         return 1
+    fi
+
+    if [[ -f "$providers_state" ]]; then
+        log_info "Runtime state file found: $providers_state"
+        if sops -d "$providers_state" &> /dev/null; then
+            log_info "SOPS providers_state decryption test: OK"
+        else
+            log_warn "SOPS providers_state decryption test failed"
+        fi
     fi
 }
 
@@ -203,7 +214,7 @@ main() {
     log_info ""
     log_info "Next steps:"
     log_info "  1. Generate age keys: age-keygen -o ~/.config/sops/age/keys.txt"
-    log_info "  2. Update .aria/credentials/.sops.yaml with your public key"
+    log_info "  2. Update .sops.yaml (at repo root) with your public key"
     log_info "  3. Encrypt your API keys: sops .aria/credentials/secrets/api-keys.enc.yaml"
     log_info "  4. Test launcher: ./bin/aria --help"
 }

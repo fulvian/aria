@@ -16,14 +16,16 @@ WatchdogSec=60s
 NotifyAccess=main
 
 # Security hardening (user service baseline)
+# NOTE: In systemd --user sessions on desktop Linux, both PrivateDevices=true
+# and ProtectKernelModules=true fail at exec with status=218/CAPABILITIES
+# ("Failed to drop capabilities: Operation not permitted"). Keep those
+# directives disabled for user mode; document divergence in ADR-0008.
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=tmpfs
 ReadWritePaths=%h/coding/aria/.aria
 PrivateTmp=true
-PrivateDevices=true
 ProtectControlGroups=true
-ProtectKernelModules=true
 ProtectKernelTunables=true
 RestrictSUIDSGID=true
 LockPersonality=true

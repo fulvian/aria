@@ -21,6 +21,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 from typing import Literal
 
@@ -87,6 +88,46 @@ class CredentialManager:
         self._api_keys: dict[str, list[dict[str, str | int | None]]] = {}
         self._load_api_keys()
 
+    def _load_keys_from_list(
+        self,
+        provider: str,
+        key_list: object,
+    ) -> None:
+        """Handle legacy list-style key format.
+
+        Legacy: providers.tavily = [{id, key, owner, credits_total}, ...]
+        Canonical: providers.tavily = {keys: [{key_id, key, credits_total}, ...]}
+
+        This method normalizes the legacy format to canonical.
+        """
+        if not isinstance(key_list, list):
+            return
+
+        normalized: list[dict[str, str | int | None]] = []
+        for item in key_list:
+            if not isinstance(item, dict):
+                continue
+            # Legacy format uses 'id' instead of 'key_id'
+            key_id = str(item.get("id") or item.get("key_id") or "").strip()
+            key_value = item.get("key") or item.get("api_key") or item.get("token")
+            if not key_id or not isinstance(key_value, str):
+                continue
+            credits_val = item.get("credits_total")
+            credits_int: int | None = None
+            if credits_val is not None:
+                with contextlib.suppress(ValueError, TypeError):
+                    credits_int = int(credits_val)  # noqa: SIM105
+            normalized.append(
+                {
+                    "key_id": key_id,
+                    "key": key_value,
+                    "credits_total": credits_int,
+                }
+            )
+
+        if normalized:
+            self._api_keys[provider] = normalized
+
     def _load_api_keys(self) -> None:
         """Load API keys from encrypted storage."""
         api_keys_path = self._config.paths.credentials / "secrets" / "api-keys.enc.yaml"
@@ -100,9 +141,18 @@ class CredentialManager:
 
                 for provider, provider_config in providers.items():
                     if not isinstance(provider_config, dict):
+                        # Legacy format: provider_config is a list of keys directly
+                        # e.g., providers.tavily = [{id: "...", key: "..."}, ...]
+                        if isinstance(provider, str) and provider not in ("version",):
+                            # Handle list-style legacy format
+                            self._load_keys_from_list(provider, provider_config)
                         continue
+
+                    # Canonical format: provider_config has "keys" list
                     raw_keys = provider_config.get("keys", [])
                     if not isinstance(raw_keys, list):
+                        # Fallback: also accept direct list under provider name
+                        self._load_keys_from_list(provider, provider_config)
                         continue
 
                     normalized: list[dict[str, str | int | None]] = []

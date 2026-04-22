@@ -12,10 +12,18 @@ export ARIA_HOME
 export KILOCODE_CONFIG_DIR="$ARIA_HOME/.aria/kilocode"
 export KILOCODE_STATE_DIR="$ARIA_HOME/.aria/kilocode/sessions"
 export KILOCODE_HOME="$KILOCODE_CONFIG_DIR"
+# Kilo CLI v7+ uses KILO_* config env vars.
+export KILO_CONFIG_DIR="$KILOCODE_CONFIG_DIR"
 
 # === ARIA runtime paths ===
 export ARIA_RUNTIME="$ARIA_HOME/.aria/runtime"
 export ARIA_CREDENTIALS="$ARIA_HOME/.aria/credentials"
+
+# === Kilo runtime isolation (v7+) ===
+export ARIA_KILO_HOME="${ARIA_KILO_HOME:-$ARIA_HOME/.aria/kilo-home}"
+export ARIA_KILO_XDG_CONFIG_HOME="$ARIA_KILO_HOME/.config"
+export ARIA_KILO_XDG_DATA_HOME="$ARIA_KILO_HOME/.local/share"
+export ARIA_KILO_XDG_STATE_HOME="$ARIA_KILO_HOME/.local/state"
 
 # === Load .env if present (non-secrets only; secrets via SOPS) ===
 if [[ -f "$ARIA_HOME/.env" ]]; then
@@ -43,6 +51,11 @@ check_prerequisites() {
         missing=1
     fi
 
+    mkdir -p "$ARIA_KILO_HOME" \
+        "$ARIA_KILO_XDG_CONFIG_HOME" \
+        "$ARIA_KILO_XDG_DATA_HOME" \
+        "$ARIA_KILO_XDG_STATE_HOME"
+
     if [[ $missing -eq 1 ]]; then
         echo "Hint: Run ./scripts/bootstrap.sh to initialize the environment" >&2
         exit 1
@@ -52,6 +65,51 @@ check_prerequisites() {
     if [[ -f "$ARIA_HOME/.venv/bin/python" ]]; then
         export PATH="$ARIA_HOME/.venv/bin:$PATH"
     fi
+}
+
+exec_kilo() {
+    local kilo_pkg="$1"
+    shift
+
+    exec env \
+        HOME="$ARIA_KILO_HOME" \
+        XDG_CONFIG_HOME="$ARIA_KILO_XDG_CONFIG_HOME" \
+        XDG_DATA_HOME="$ARIA_KILO_XDG_DATA_HOME" \
+        XDG_STATE_HOME="$ARIA_KILO_XDG_STATE_HOME" \
+        KILO_CONFIG_DIR="$KILO_CONFIG_DIR" \
+        KILO_DISABLE_EXTERNAL_SKILLS=true \
+        npx --yes --package "$kilo_pkg" kilo "$@"
+}
+
+# === Kilo CLI package resolution ===
+resolve_kilo_npx_package() {
+    if [[ -n "${ARIA_KILO_NPX_PACKAGE:-}" ]]; then
+        printf '%s' "$ARIA_KILO_NPX_PACKAGE"
+        return 0
+    fi
+
+    local os
+    local arch
+    os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+    arch="$(uname -m)"
+
+    case "$os:$arch" in
+        linux:x86_64)
+            printf '%s' "@kilocode/cli-linux-x64"
+            ;;
+        linux:aarch64|linux:arm64)
+            printf '%s' "@kilocode/cli-linux-arm64"
+            ;;
+        darwin:x86_64)
+            printf '%s' "@kilocode/cli-darwin-x64"
+            ;;
+        darwin:arm64)
+            printf '%s' "@kilocode/cli-darwin-arm64"
+            ;;
+        *)
+            printf '%s' "@kilocode/cli"
+            ;;
+    esac
 }
 
 # === Subcommands ===
@@ -94,6 +152,9 @@ EOF
 main() {
     check_prerequisites
 
+    local kilo_pkg
+    kilo_pkg="$(resolve_kilo_npx_package)"
+
     local subcommand="${1:-repl}"
     shift || true
 
@@ -103,21 +164,23 @@ main() {
                 show_help
                 return 0
             fi
-            exec npx --yes kilocode chat "$@"
+            exec_kilo "$kilo_pkg" "$@"
             ;;
         run)
             if [[ "${1:-}" == "--help" || "${1:-}" == "-h" || "${1:-}" == "help" ]]; then
                 show_help
                 return 0
             fi
-            exec npx --yes kilocode chat --auto "$@"
+            exec_kilo "$kilo_pkg" run "$@"
             ;;
         mode)
             if [[ "${1:-}" == "--help" || "${1:-}" == "-h" || "${1:-}" == "help" ]]; then
                 show_help
                 return 0
             fi
-            exec npx --yes kilocode chat --mode "$@"
+            echo "ERR: 'aria mode' is not supported by current @kilocode/cli usage." >&2
+            echo "Use 'aria run \"<task>\"' for one-off tasks or 'aria repl' for interactive mode." >&2
+            exit 64
             ;;
         schedule)
             if [[ $# -eq 0 ]]; then

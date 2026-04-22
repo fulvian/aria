@@ -1,11 +1,11 @@
 # ARIA workspace agents module
 
+from aria.agents.workspace.multi_account import MultiAccountRegistry, WorkspaceAccount
 from aria.agents.workspace.oauth_helper import (
     GoogleOAuthHelper,
     OAuthError,
-    OAuthSetupRequired,
+    OAuthSetupRequiredError,
 )
-from aria.agents.workspace.multi_account import MultiAccountRegistry, WorkspaceAccount
 from aria.agents.workspace.scope_manager import (
     EscalationTicket,
     ScopeEscalationError,
@@ -15,7 +15,7 @@ from aria.agents.workspace.scope_manager import (
 
 __all__ = [
     "GoogleOAuthHelper",
-    "OAuthSetupRequired",
+    "OAuthSetupRequiredError",
     "OAuthError",
     "WorkspaceAccount",
     "MultiAccountRegistry",

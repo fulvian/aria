@@ -27,7 +27,7 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import yaml  # type: ignore[import-untyped]
+import yaml
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -229,12 +229,12 @@ class SopsAdapter:
                     try:
                         fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
                         break
-                    except BlockingIOError:
+                    except BlockingIOError as err:
                         if time.monotonic() >= deadline:
                             raise SopsError(
                                 f"Timed out acquiring lock on {lock_path} after 10s",
                                 path=path,
-                            )
+                            ) from err
                         time.sleep(0.05)
                     except OSError as e:
                         raise SopsError(

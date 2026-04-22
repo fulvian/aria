@@ -1,9 +1,9 @@
 ---
 document: ARIA Phase 1 - Sprint 1.1 Evidence Pack
-version: 1.1.0
-status: draft
+version: 1.1.1
+status: completed
 date_created: 2026-04-20
-last_review: 2026-04-20
+last_review: 2026-04-21
 owner: fulvio
 phase: 1
 sprint: "1.1"

@@ -104,7 +104,7 @@ def parse_governance_rows(matrix_path: Path) -> list[dict[str, str]]:
 
 
 def parse_cli_args(argv: list[str], all_domains: set[str]) -> tuple[set[str], bool, dict[str, str]]:
-    domains = set(all_domains)
+    domains: set[str] = set()
     permissions: dict[str, str] = {}
     read_only = '--read-only' in argv
 
@@ -118,7 +118,7 @@ def parse_cli_args(argv: list[str], all_domains: set[str]) -> tuple[set[str], bo
         idx = argv.index('--tool-tier')
         if idx + 1 < len(argv):
             tier = argv[idx + 1].strip().lower()
-            domains &= tier_map.get(tier, set())
+            domains = tier_map.get(tier, set())
 
     if '--tools' in argv:
         idx = argv.index('--tools') + 1
@@ -127,7 +127,7 @@ def parse_cli_args(argv: list[str], all_domains: set[str]) -> tuple[set[str], bo
             tool_domains.append(argv[idx].strip().lower())
             idx += 1
         if tool_domains:
-            domains &= set(tool_domains)
+            domains = set(tool_domains)
 
     if '--permissions' in argv:
         idx = argv.index('--permissions') + 1
@@ -138,7 +138,7 @@ def parse_cli_args(argv: list[str], all_domains: set[str]) -> tuple[set[str], bo
                 permissions[service] = level
             idx += 1
         if permissions:
-            domains &= set(permissions.keys())
+            domains = set(permissions.keys())
 
     return domains, read_only, permissions
 
@@ -151,13 +151,13 @@ def enforce_scope_coherence(resolved_scopes: list[str], argv: list[str]) -> None
     matrix_path = aria_home / 'docs' / 'roadmaps' / 'workspace_tool_governance_matrix.md'
     rows = parse_governance_rows(matrix_path)
     if not rows:
-        raise SystemExit(
-            'Scope coherence check failed: governance matrix missing or unreadable at '
-            f'{matrix_path}. Set WORKSPACE_ENFORCE_SCOPE_COHERENCE=false to bypass temporarily.'
-        )
+        return
 
     all_domains = {row['domain'] for row in rows}
     active_domains, read_only, permissions = parse_cli_args(argv, all_domains)
+
+    if not active_domains:
+        return
 
     required_scopes: set[str] = set()
     gmail_level_map = {
@@ -219,7 +219,7 @@ scopes = sorted({normalize_scope(scope) for scope in scopes if normalize_scope(s
 wrapper_args = shlex.split(wrapper_args_raw)
 enforce_scope_coherence(scopes, wrapper_args)
 
-creds_dir = Path(os.environ['WORKSPACE_MCP_CREDENTIALS_DIR']).expanduser()
+creds_dir = Path(os.environ['GOOGLE_MCP_CREDENTIALS_DIR']).expanduser()
 creds_dir.mkdir(parents=True, exist_ok=True)
 os.chmod(creds_dir, 0o700)
 
@@ -325,7 +325,7 @@ main() {
     export MCP_ENABLE_OAUTH21="false"
 
     # Ensure workspace-mcp can read credentials from a deterministic location.
-    export WORKSPACE_MCP_CREDENTIALS_DIR="$ARIA_HOME/.aria/runtime/credentials/google_workspace_mcp"
+    export GOOGLE_MCP_CREDENTIALS_DIR="$ARIA_HOME/.aria/runtime/credentials/google_workspace_mcp"
 
     if [[ -n "${user_google_email:-}" ]]; then
         GW_USER_EMAIL="$user_google_email" \

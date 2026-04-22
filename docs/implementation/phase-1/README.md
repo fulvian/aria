@@ -18,6 +18,7 @@ Questo indice raccoglie le evidenze di implementazione della Phase 1.
 - Sprint 1.2: completed (2026-04-20)
 - Sprint 1.3: **completed** (2026-04-21)
 - Sprint 1.4: **implemented, in verification** (2026-04-21)
+- Sprint 1.5: **systemd blocker resolved, final CLI smoke pending** (2026-04-21)
 
 ## Evidence packs
 
@@ -25,6 +26,7 @@ Questo indice raccoglie le evidenze di implementazione della Phase 1.
 - Sprint 1.2: `docs/implementation/phase-1/sprint-02-evidence.md`
 - Sprint 1.3: `docs/implementation/phase-1/sprint-03-evidence.md`
 - Sprint 1.4: `docs/implementation/phase-1/sprint-04-evidence.md`
+- Sprint 1.5: `docs/implementation/phase-1/sprint-15-launch-readiness-evidence.md`
 
 ## Notes
 
@@ -40,3 +42,5 @@ Questo indice raccoglie le evidenze di implementazione della Phase 1.
   agent/skill validation). Remaining blocker for Phase 1 GO/NO-GO is the live
   MVP demo evidence completion in `mvp_demo_2026-04-21.md`.
 - L'uscita Phase 1 (Go/No-Go) segue il criterio in `docs/plans/phase-1/README.md` §12.
+- Sprint 1.5 ha risolto il failure `218/CAPABILITIES` su `systemd --user`; la divergenza
+  dal profilo hardening blueprint e' tracciata in ADR-0008.

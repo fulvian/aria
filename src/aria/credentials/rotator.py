@@ -6,7 +6,8 @@
 # Circuit breaker parameters:
 # - OPEN after 3 consecutive failures in 5 minutes
 # - cooldown_until = now + 30 minutes
-# - HALF_OPEN on first acquire after cooldown: 1 probe; success→CLOSED, failure→OPEN (cooldown doubled, max 2h)
+# - HALF_OPEN on first acquire after cooldown: 1 probe; success→CLOSED,
+#   failure→OPEN (cooldown doubled, max 2h)
 # - credits_remaining == 0 → key implicitly skipped
 #
 # Usage:
@@ -145,16 +146,19 @@ class Rotator:
             try:
                 data = self.sops.decrypt(self.state_path)
                 # Backward compatibility: keys may be persisted as a list in YAML.
+                # Also handles legacy 'id' field instead of 'key_id'.
                 providers = data.get("providers", {}) if isinstance(data, dict) else {}
-                for provider_name, provider_data in providers.items():
-                    keys_data = (
-                        provider_data.get("keys", {}) if isinstance(provider_data, dict) else {}
-                    )
+                for _provider_name, provider_data in providers.items():
+                    if not isinstance(provider_data, dict):
+                        continue
+                    keys_data = provider_data.get("keys", {})
                     if isinstance(keys_data, list):
+                        # Convert list format to dict, handling both 'key_id' and 'id' fields
                         provider_data["keys"] = {
-                            key_item["key_id"]: key_item
+                            str(key_item.get("key_id") or key_item.get("id") or ""): key_item
                             for key_item in keys_data
-                            if isinstance(key_item, dict) and "key_id" in key_item
+                            if isinstance(key_item, dict)
+                            and (key_item.get("key_id") or key_item.get("id"))
                         }
                 self._runtime = ProvidersRuntime(**data)
             except (SopsError, Exception) as e:
@@ -254,7 +258,7 @@ class Rotator:
         prov.keys = synced
         self._dirty = True
 
-    async def acquire(
+    async def acquire(  # noqa: PLR0912 — circuit-breaker state machine
         self,
         provider: str,
         strategy: Literal["least_used", "round_robin", "failover"] | None = None,
@@ -296,11 +300,12 @@ class Rotator:
                         # Still in cooldown
                         continue
 
-                if key_state.circuit_state == CircuitState.HALF_OPEN:
-                    # In half_open, only allow one probe (tracked by failure_count)
-                    # We use failure_count to track probes in half_open
-                    if key_state.failure_count >= self.HALF_OPEN_PROBES:
-                        continue
+                if (
+                    key_state.circuit_state == CircuitState.HALF_OPEN
+                    and key_state.failure_count >= self.HALF_OPEN_PROBES
+                ):
+                    # In half_open, only allow one probe (tracked by failure_count).
+                    continue
 
                 candidates.append((key_id, key_state))
 

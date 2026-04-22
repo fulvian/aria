@@ -44,7 +44,10 @@ class SessionRow(BaseModel):
         import json
 
         try:
-            return json.loads(self.state_json)
+            parsed = json.loads(self.state_json)
+            if isinstance(parsed, dict):
+                return parsed
+            return {}
         except Exception:
             return {}
 

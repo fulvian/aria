@@ -50,6 +50,12 @@ class SessionManager:
         self._db_path = Path(db_path)
         self._conn: aiosqlite.Connection | None = None
 
+    def _require_conn(self) -> aiosqlite.Connection:
+        """Return active connection or raise runtime error."""
+        if self._conn is None:
+            raise RuntimeError("SessionManager not connected. Call connect() first.")
+        return self._conn
+
     async def connect(self) -> None:
         """Initialize DB connection and ensure schema exists."""
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -113,13 +119,14 @@ class SessionManager:
         """
         if not self._conn:
             await self.connect()
+        conn = self._require_conn()
 
         now = int(datetime.now(tz=UTC).timestamp())
         session_id = str(uuid4())
         aria_session_id = str(uuid4())  # New ARIA conductor session
 
         # Try to get existing
-        async with self._conn.execute(
+        async with conn.execute(
             "SELECT * FROM gateway_sessions WHERE channel=? AND external_user_id=?",
             (channel, str(external_user_id)),
         ) as cursor:
@@ -127,11 +134,11 @@ class SessionManager:
 
         if row is not None:
             # Update last_activity
-            await self._conn.execute(
+            await conn.execute(
                 "UPDATE gateway_sessions SET last_activity=? WHERE id=?",
                 (now, row["id"]),
             )
-            await self._conn.commit()
+            await conn.commit()
 
             return SessionRow(
                 id=row["id"],
@@ -145,14 +152,14 @@ class SessionManager:
             )
 
         # Create new session
-        await self._conn.execute(
+        await conn.execute(
             """INSERT INTO gateway_sessions
                (id, channel, external_user_id, aria_session_id,
                 created_at, last_activity, locale, state_json)
                VALUES (?, ?, ?, ?, ?, ?, ?, '{}')""",
             (session_id, channel, str(external_user_id), aria_session_id, now, now, locale),
         )
-        await self._conn.commit()
+        await conn.commit()
 
         return SessionRow(
             id=session_id,
@@ -176,13 +183,14 @@ class SessionManager:
         """
         if not self._conn:
             await self.connect()
+        conn = self._require_conn()
 
         now = int(datetime.now(tz=UTC).timestamp())
-        cursor = await self._conn.execute(
+        cursor = await conn.execute(
             "UPDATE gateway_sessions SET last_activity=? WHERE id=?",
             (now, session_id),
         )
-        await self._conn.commit()
+        await conn.commit()
         return cursor.rowcount > 0
 
     async def set_state(self, session_id: str, state_dict: dict[str, Any]) -> bool:
@@ -197,13 +205,14 @@ class SessionManager:
         """
         if not self._conn:
             await self.connect()
+        conn = self._require_conn()
 
         state_json = json.dumps(state_dict, ensure_ascii=False)
-        cursor = await self._conn.execute(
+        cursor = await conn.execute(
             "UPDATE gateway_sessions SET state_json=? WHERE id=?",
             (state_json, session_id),
         )
-        await self._conn.commit()
+        await conn.commit()
         return cursor.rowcount > 0
 
     async def get_session(self, session_id: str) -> SessionRow | None:
@@ -217,8 +226,9 @@ class SessionManager:
         """
         if not self._conn:
             await self.connect()
+        conn = self._require_conn()
 
-        async with self._conn.execute(
+        async with conn.execute(
             "SELECT * FROM gateway_sessions WHERE id=?",
             (session_id,),
         ) as cursor:
@@ -249,12 +259,13 @@ class SessionManager:
         """
         if not self._conn:
             await self.connect()
+        conn = self._require_conn()
 
         now = int(datetime.now(tz=UTC).timestamp())
         threshold = now - idle_seconds
 
         rows: list[SessionRow] = []
-        async with self._conn.execute(
+        async with conn.execute(
             "SELECT * FROM gateway_sessions WHERE last_activity > ? ORDER BY last_activity DESC",
             (threshold,),
         ) as cursor:

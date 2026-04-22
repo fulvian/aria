@@ -8,7 +8,9 @@
 # - actor_aggregate: aggregate multiple actors
 #
 # Usage:
-#   from aria.memory.actor_tagging import derive_actor_from_role, actor_trust_score, actor_aggregate
+#   from aria.memory.actor_tagging import (
+#       derive_actor_from_role, actor_trust_score, actor_aggregate,
+#   )
 #
 #   actor = derive_actor_from_role("user", is_tool_result=False)
 #   score = actor_trust_score(actor)
@@ -25,6 +27,13 @@ TRUST_SCORES: dict[Actor, float] = {
     Actor.TOOL_OUTPUT: 0.9,  # High trust (verifiable)
     Actor.AGENT_INFERENCE: 0.6,  # Conditional trust
     Actor.SYSTEM_EVENT: 0.5,  # Metadata only
+}
+
+_ROLE_TO_ACTOR: dict[str, Actor] = {
+    "user": Actor.USER_INPUT,
+    "assistant": Actor.AGENT_INFERENCE,
+    "tool": Actor.TOOL_OUTPUT,
+    "system": Actor.SYSTEM_EVENT,
 }
 
 
@@ -50,17 +59,7 @@ def derive_actor_from_role(
     if is_tool_result:
         return Actor.TOOL_OUTPUT
 
-    role_lower = role.lower()
-    if role_lower == "user":
-        return Actor.USER_INPUT
-    elif role_lower == "assistant":
-        return Actor.AGENT_INFERENCE
-    elif role_lower == "tool":
-        return Actor.TOOL_OUTPUT
-    elif role_lower == "system":
-        return Actor.SYSTEM_EVENT
-    else:
-        return Actor.SYSTEM_EVENT
+    return _ROLE_TO_ACTOR.get(role.lower(), Actor.SYSTEM_EVENT)
 
 
 def actor_trust_score(actor: Actor) -> float:
@@ -92,32 +91,18 @@ def actor_aggregate(actors: list[Actor]) -> Actor:
     if not actors:
         return Actor.SYSTEM_EVENT
 
-    # Single actor
     if len(actors) == 1:
         return actors[0]
 
-    # Check for USER_INPUT + TOOL_OUTPUT mix
-    has_user = Actor.USER_INPUT in actors
-    has_tool = Actor.TOOL_OUTPUT in actors
-    has_inference = Actor.AGENT_INFERENCE in actors
-
-    # If mix includes AGENT_INFERENCE, result is AGENT_INFERENCE (don't promote)
-    if has_inference:
+    # Precedence (blueprint P5): AGENT_INFERENCE dominates (no promotion),
+    # then TOOL_OUTPUT (user+tool downgrades to tool), then USER_INPUT,
+    # then SYSTEM_EVENT.
+    if Actor.AGENT_INFERENCE in actors:
         return Actor.AGENT_INFERENCE
-
-    # If both user and tool present → TOOL_OUTPUT
-    if has_user and has_tool:
+    if Actor.TOOL_OUTPUT in actors:
         return Actor.TOOL_OUTPUT
-
-    # If only user → USER_INPUT
-    if has_user:
+    if Actor.USER_INPUT in actors:
         return Actor.USER_INPUT
-
-    # If only tool → TOOL_OUTPUT
-    if has_tool:
-        return Actor.TOOL_OUTPUT
-
-    # Only system events
     return Actor.SYSTEM_EVENT
 
 

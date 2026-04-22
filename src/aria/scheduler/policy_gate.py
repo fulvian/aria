@@ -15,7 +15,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime, time
+from datetime import UTC, datetime, time, tzinfo
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -101,6 +101,7 @@ class QuietHours:
         Returns:
             Datetime when quiet hours end
         """
+        tz: tzinfo
         try:
             from zoneinfo import ZoneInfo
 

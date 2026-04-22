@@ -25,7 +25,7 @@ import logging
 import time
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
-from uuid import NAMESPACE_URL, UUID, uuid5
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 import aiosqlite
 
@@ -39,7 +39,6 @@ from aria.memory.schema import (
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from pathlib import Path
-    from uuid import UUID
 
     from aria.config import ARIAConfig
 
@@ -160,7 +159,10 @@ class EpisodicStore:
 
         await conn.execute(
             """
-            INSERT INTO episodic (id, session_id, ts, actor, role, content, content_hash, tags, meta)
+            INSERT INTO episodic (
+                id, session_id, ts, actor, role,
+                content, content_hash, tags, meta
+            )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
@@ -208,7 +210,10 @@ class EpisodicStore:
 
         await conn.executemany(
             """
-            INSERT INTO episodic (id, session_id, ts, actor, role, content, content_hash, tags, meta)
+            INSERT INTO episodic (
+                id, session_id, ts, actor, role,
+                content, content_hash, tags, meta
+            )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             rows,
@@ -487,7 +492,9 @@ class EpisodicStore:
 
         await conn.execute(
             """
-            INSERT OR REPLACE INTO episodic_tombstones (episodic_id, tombstoned_at, reason, actor_user_id)
+            INSERT OR REPLACE INTO episodic_tombstones (
+                episodic_id, tombstoned_at, reason, actor_user_id
+            )
             VALUES (?, ?, ?, ?)
             """,
             (str(id), int(_time.time()), reason, actor_user_id),
@@ -509,12 +516,14 @@ class EpisodicStore:
         Returns the newly created hitl request ID.
         """
         conn = await self._ensure_connected()
-        import uuid as _uuid
 
-        hitl_id = str(_uuid.uuid4())
+        hitl_id = str(uuid4())
         await conn.execute(
             """
-            INSERT INTO memory_hitl_pending (id, target_id, action, reason, trace_id, channel, status, created_at)
+            INSERT INTO memory_hitl_pending (
+                id, target_id, action, reason,
+                trace_id, channel, status, created_at
+            )
             VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
             """,
             (
@@ -628,9 +637,7 @@ class EpisodicStore:
         avg_entry_size = row[0] if row else 0.0
 
         # DB file size
-        import os
-
-        storage_bytes = os.path.getsize(self._db_path) if self._db_path.exists() else 0
+        storage_bytes = self._db_path.stat().st_size if self._db_path.exists() else 0
 
         return MemoryStats(
             t0_count=t0_count,
@@ -643,8 +650,6 @@ class EpisodicStore:
 
     def _row_to_entry(self, row: aiosqlite.Row) -> EpisodicEntry:
         """Convert database row to EpisodicEntry."""
-        from uuid import UUID as _UUID
-
         ts_int = row["ts"]
         ts = datetime.fromtimestamp(ts_int, tz=UTC)
 
@@ -652,8 +657,8 @@ class EpisodicStore:
         meta = json.loads(row["meta"]) if row["meta"] else {}
 
         return EpisodicEntry(
-            id=_UUID(row["id"]),
-            session_id=_UUID(row["session_id"]),
+            id=UUID(row["id"]),
+            session_id=UUID(row["session_id"]),
             ts=ts,
             actor=Actor(row["actor"]),
             role=row["role"],

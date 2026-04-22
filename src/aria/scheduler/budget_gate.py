@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
 if TYPE_CHECKING:
     from aria.config import AriaConfig
@@ -52,6 +52,12 @@ class DailyBudget:
     cost_eur: float
 
 
+class _DailyUsage(TypedDict):
+    tokens: int
+    cost_eur: float
+    date: str
+
+
 # === Budget Gate ===
 
 
@@ -84,7 +90,7 @@ class BudgetGate:
         self._store = store
         self._config = config
         self._budgets: dict[str, DailyBudget] = dict(self.DEFAULT_BUDGETS)
-        self._daily_usage: dict[str, dict[str, int | float]] = {}
+        self._daily_usage: dict[str, _DailyUsage] = {}
         self._logger = logging.getLogger(__name__)
 
         # Load budgets from config file
@@ -140,7 +146,8 @@ class BudgetGate:
 
         today_key = self._get_daily_key()
         usage = self._daily_usage.setdefault(
-            task.category, {"tokens": 0, "cost_eur": 0.0, "date": today_key}
+            task.category,
+            {"tokens": 0, "cost_eur": 0.0, "date": today_key},
         )
 
         # Reset if new day
@@ -216,7 +223,8 @@ class BudgetGate:
         """
         today_key = self._get_daily_key()
         usage = self._daily_usage.setdefault(
-            category, {"tokens": 0, "cost_eur": 0.0, "date": today_key}
+            category,
+            {"tokens": 0, "cost_eur": 0.0, "date": today_key},
         )
 
         # Reset if new day
@@ -253,17 +261,19 @@ class BudgetGate:
             return False
 
         today_key = self._get_daily_key()
-        usage = self._daily_usage.get(category, {})
-        date_key = usage.get("date", "")
+        usage = self._daily_usage.get(category)
+        if usage is None:
+            return False
+        date_key = usage["date"]
 
         # Reset if new day
         if date_key != today_key:
             return False
 
-        if usage.get("tokens", 0) >= daily.tokens:
+        if usage["tokens"] >= daily.tokens:
             return True
 
-        return usage.get("cost_eur", 0.0) >= daily.cost_eur
+        return usage["cost_eur"] >= daily.cost_eur
 
 
 # === Import TaskStore for type checking ===

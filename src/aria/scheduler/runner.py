@@ -12,7 +12,7 @@ import os
 import time
 import uuid
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from .schema import TaskRun
 
@@ -32,7 +32,14 @@ class RunResult:
     """Result of a task execution."""
 
     run_id: str
-    outcome: str
+    outcome: Literal[
+        "success",
+        "failed",
+        "blocked_budget",
+        "blocked_policy",
+        "timeout",
+        "not_implemented",
+    ]
     tokens_used: int | None = None
     cost_eur: float | None = None
     result_summary: str | None = None
@@ -237,6 +244,14 @@ class TaskRunner:
         Returns:
             RunResult with outcome and metadata.
         """
+        outcome: Literal[
+            "success",
+            "failed",
+            "blocked_budget",
+            "blocked_policy",
+            "timeout",
+            "not_implemented",
+        ]
         if task.category == "system":
             outcome = "success"
             summary = "System task completed successfully (stub)"
@@ -260,7 +275,14 @@ class TaskRunner:
     async def _report_run(
         self,
         task: Task,
-        outcome: str,
+        outcome: Literal[
+            "success",
+            "failed",
+            "blocked_budget",
+            "blocked_policy",
+            "timeout",
+            "not_implemented",
+        ],
         result_summary: str | None = None,
         tokens_used: int | None = None,
         cost_eur: float | None = None,

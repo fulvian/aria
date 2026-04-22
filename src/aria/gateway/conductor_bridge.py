@@ -5,8 +5,9 @@ Consumer of `gateway.user_message` bus event.
 Spawns KiloCode child sessions for Conductor delegation.
 
 Strategies (tried in order per sprint-03 plan):
-  A. npx --yes kilocode run --session <id> --agent aria-conductor --input '<msg>'
-  B. kilocode chat --input '<msg>' with KILOCODE_SESSION_ID
+  A. npx --yes --package @kilocode/cli kilo run --session <id>
+     --agent aria-conductor --input '<msg>'
+  B. kilo (or kilocode) chat --input '<msg>' with KILOCODE_SESSION_ID
 
 The Conductor runs in an isolated child session with separate context window.
 Transcript is saved to `.aria/kilocode/sessions/children/<id>.json`.
@@ -22,6 +23,7 @@ import asyncio
 import json
 import logging
 import os
+import platform
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -37,6 +39,26 @@ logger = logging.getLogger(__name__)
 
 # Default timeout for child session (10 min per blueprint §8.6)
 DEFAULT_CONDUCTOR_TIMEOUT_S = 600
+
+
+def _kilo_npx_packages() -> list[str]:
+    env_packages = os.getenv("ARIA_KILO_NPX_PACKAGES", "").strip()
+    if env_packages:
+        return [p.strip() for p in env_packages.split(",") if p.strip()]
+
+    system_name = platform.system().lower()
+    machine = platform.machine().lower()
+
+    if system_name == "linux" and machine in {"x86_64", "amd64"}:
+        return ["@kilocode/cli-linux-x64", "@kilocode/cli-linux-x64-baseline", "@kilocode/cli"]
+    if system_name == "linux" and machine in {"aarch64", "arm64"}:
+        return ["@kilocode/cli-linux-arm64", "@kilocode/cli"]
+    if system_name == "darwin" and machine in {"x86_64", "amd64"}:
+        return ["@kilocode/cli-darwin-x64", "@kilocode/cli"]
+    if system_name == "darwin" and machine in {"arm64", "aarch64"}:
+        return ["@kilocode/cli-darwin-arm64", "@kilocode/cli"]
+
+    return ["@kilocode/cli"]
 
 
 class ConductorBridge:
@@ -200,29 +222,23 @@ class ConductorBridge:
 
         # Prepare subprocess
         env = {
-            "HOME": os.environ.get("HOME", ""),
+            "HOME": os.environ.get("ARIA_KILO_HOME", "/home/fulvio/coding/aria/.aria/kilo-home"),
             "PATH": os.environ.get("PATH", ""),
             "USER": os.environ.get("USER", ""),
             "KILOCODE_CONFIG_DIR": "/home/fulvio/coding/aria/.aria/kilocode",
             "KILOCODE_STATE_DIR": str(self._sessions_dir),
+            "KILO_CONFIG_DIR": "/home/fulvio/coding/aria/.aria/kilocode",
+            "KILO_DISABLE_EXTERNAL_SKILLS": "true",
             "ARIA_HOME": "/home/fulvio/coding/aria",
             "ARIA_RUNTIME": "/home/fulvio/coding/aria/.aria/runtime",
             "ARIA_TRACE_ID": trace_id,
         }
-
-        # Try strategy A: npx kilocode run with session + agent + input
-        cmd: list[str] = [
-            "npx",
-            "--yes",
-            "kilocode",
-            "run",
-            "--session",
-            child_session_id,
-            "--agent",
-            "aria-conductor",
-            "--input",
-            input_text,
-        ]
+        env["XDG_CONFIG_HOME"] = os.path.join(env["HOME"], ".config")
+        env["XDG_DATA_HOME"] = os.path.join(env["HOME"], ".local", "share")
+        env["XDG_STATE_HOME"] = os.path.join(env["HOME"], ".local", "state")
+        os.makedirs(env["XDG_CONFIG_HOME"], exist_ok=True)
+        os.makedirs(env["XDG_DATA_HOME"], exist_ok=True)
+        os.makedirs(env["XDG_STATE_HOME"], exist_ok=True)
 
         logger.info(
             "Spawning conductor child session: %s",
@@ -231,52 +247,68 @@ class ConductorBridge:
         )
 
         try:
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                env=env,
-                cwd="/home/fulvio/coding/aria",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                close_fds=True,
-            )
+            for kilo_package in _kilo_npx_packages():
+                cmd: list[str] = [
+                    "npx",
+                    "--yes",
+                    "--package",
+                    kilo_package,
+                    "kilo",
+                    "run",
+                    "--session",
+                    child_session_id,
+                    "--agent",
+                    "aria-conductor",
+                    "--input",
+                    input_text,
+                ]
 
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=self._timeout_s)
-
-            if proc.returncode != 0:
-                stderr_text = stderr.decode("utf-8", errors="replace")[:500]
-                logger.error(
-                    "Conductor subprocess failed (code %d): %s",
-                    proc.returncode,
-                    stderr_text,
-                    extra={"trace_id": trace_id},
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    env=env,
+                    cwd="/home/fulvio/coding/aria",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    close_fds=True,
                 )
-                raise RuntimeError(f"Conductor failed: {stderr_text}")
 
-            # Parse stdout for result
-            # Expected: JSON with {text, status, ...}
-            stdout_text = stdout.decode("utf-8", errors="replace").strip()
-
-            for raw_line in reversed(stdout_text.splitlines()):
-                cleaned_line = raw_line.strip()
-                if not cleaned_line:
-                    continue
-                try:
-                    output_data = json.loads(cleaned_line)
-                    if isinstance(output_data, dict):
-                        return {
-                            "text": str(output_data.get("result", stdout_text[:2000])),
-                            "child_session_id": child_session_id,
-                            "tokens_used": int(output_data.get("tokens_used", 0) or 0),
-                            "framed_tool_output": self._extract_framed_tool_output(output_data),
-                        }
-                except json.JSONDecodeError:
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=self._timeout_s)
+                if proc.returncode != 0:
+                    stderr_text = stderr.decode("utf-8", errors="replace")[:500]
+                    logger.warning(
+                        "Conductor npx package %s failed (code %d): %s",
+                        kilo_package,
+                        proc.returncode,
+                        stderr_text,
+                        extra={"trace_id": trace_id},
+                    )
                     continue
 
-            return {
-                "text": stdout_text[:2000],
-                "child_session_id": child_session_id,
-                "tokens_used": 0,
-            }
+                stdout_text = stdout.decode("utf-8", errors="replace").strip()
+                for raw_line in reversed(stdout_text.splitlines()):
+                    cleaned_line = raw_line.strip()
+                    if not cleaned_line:
+                        continue
+                    try:
+                        output_data = json.loads(cleaned_line)
+                        if isinstance(output_data, dict):
+                            return {
+                                "text": str(output_data.get("result", stdout_text[:2000])),
+                                "child_session_id": child_session_id,
+                                "tokens_used": int(output_data.get("tokens_used", 0) or 0),
+                                "framed_tool_output": self._extract_framed_tool_output(output_data),
+                            }
+                    except json.JSONDecodeError:
+                        continue
+
+                return {
+                    "text": stdout_text[:2000],
+                    "child_session_id": child_session_id,
+                    "tokens_used": 0,
+                }
+
+            logger.warning("Conductor strategy A packages exhausted, trying strategy B")
+            return await self._spawn_conductor_fallback(input_text, session_id, trace_id)
 
         except TimeoutError:
             logger.error(
@@ -286,8 +318,8 @@ class ConductorBridge:
             )
             raise RuntimeError(f"Conductor timed out after {self._timeout_s}s") from None
         except FileNotFoundError:
-            # Strategy B fallback: try kilocode chat
-            logger.warning("npx kilocode not found, trying strategy B")
+            # Strategy B fallback: try direct executable
+            logger.warning("npx @kilocode/cli not found, trying strategy B")
             return await self._spawn_conductor_fallback(input_text, session_id, trace_id)
 
     def _extract_framed_tool_output(self, output_data: dict[str, Any]) -> str | None:
@@ -310,7 +342,7 @@ class ConductorBridge:
         session_id: str,
         trace_id: str,
     ) -> dict[str, Any]:
-        """Fallback strategy B: kilocode chat with input file IPC.
+        """Fallback strategy B: direct executable chat with input file IPC.
 
         Args:
             input_text: User message.
@@ -331,34 +363,49 @@ class ConductorBridge:
         )
 
         env = {
-            "HOME": os.environ.get("HOME", ""),
+            "HOME": os.environ.get("ARIA_KILO_HOME", "/home/fulvio/coding/aria/.aria/kilo-home"),
             "PATH": os.environ.get("PATH", ""),
             "USER": os.environ.get("USER", ""),
             "KILOCODE_CONFIG_DIR": "/home/fulvio/coding/aria/.aria/kilocode",
             "KILOCODE_STATE_DIR": str(self._sessions_dir),
             "KILOCODE_SESSION_ID": child_session_id,
+            "KILO_CONFIG_DIR": "/home/fulvio/coding/aria/.aria/kilocode",
+            "KILO_DISABLE_EXTERNAL_SKILLS": "true",
             "ARIA_HOME": "/home/fulvio/coding/aria",
             "ARIA_RUNTIME": "/home/fulvio/coding/aria/.aria/runtime",
             "ARIA_TRACE_ID": trace_id,
         }
+        env["XDG_CONFIG_HOME"] = os.path.join(env["HOME"], ".config")
+        env["XDG_DATA_HOME"] = os.path.join(env["HOME"], ".local", "share")
+        env["XDG_STATE_HOME"] = os.path.join(env["HOME"], ".local", "state")
+        os.makedirs(env["XDG_CONFIG_HOME"], exist_ok=True)
+        os.makedirs(env["XDG_DATA_HOME"], exist_ok=True)
+        os.makedirs(env["XDG_STATE_HOME"], exist_ok=True)
 
-        cmd = [
-            "kilocode",
-            "chat",
-            "--input",
-            str(input_file),
-        ]
+        for executable in ("kilo", "kilocode"):
+            cmd = [
+                executable,
+                "chat",
+                "--input",
+                str(input_file),
+            ]
+
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    env=env,
+                    cwd="/home/fulvio/coding/aria",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    close_fds=True,
+                )
+                break
+            except FileNotFoundError:
+                logger.warning("Executable '%s' not found for fallback", executable)
+        else:
+            raise RuntimeError("Conductor fallback failed: no Kilo executable found in PATH")
 
         try:
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                env=env,
-                cwd="/home/fulvio/coding/aria",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                close_fds=True,
-            )
-
             stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=self._timeout_s)
 
             if proc.returncode != 0:

@@ -54,3 +54,40 @@
 
 - E2E test: `tests/e2e/test_hitl_flow.py` (with PTBTestApp mock)
 - Integration test: `tests/integration/scheduler/test_end_to_end_hitl.py`
+
+---
+
+### 2026-04-21 (Audit sprint 0-4 and remediation)
+
+- Reviewed blueprint + phase plans and reconstructed implemented architecture
+  (gateway -> conductor -> sub-agents -> MCP -> daemons).
+- Ran baseline verification:
+  - `uv run mypy src` -> 54 errors (pre-remediation)
+  - `uv run ruff check src/` -> 38 errors (pre-remediation)
+  - `uv run pytest -q` -> 280 passed
+- Queried Context7 docs (mandatory):
+  - `/omnilib/aiosqlite` — async DB connection lifecycle
+  - `/pydantic/pydantic` — v2 model configuration patterns
+  - `/python-telegram-bot/python-telegram-bot` — Application builder + polling
+  - `/jd/tenacity` — retry/circuit-breaker decorators
+- First pass (typing): fixed `session_manager`, `schema`, scheduler modules,
+  `credentials/sops`, `utils/logging`, `pyproject.toml` overrides.
+- Second pass (lint + doc drift):
+  - Renamed `OAuthSetupRequired` -> `OAuthSetupRequiredError` (src + tests).
+  - Rewrote `actor_tagging` to dict dispatch + precedence chain.
+  - Cleaned `EpisodicStore` UUID imports, replaced `os.path.getsize` with
+    `Path.stat().st_size`, broke long DDL lines where safe.
+  - `rotator`: fixed unused loop var, merged SIM102, scoped `# noqa: PLR0912`
+    on circuit-breaker `acquire`.
+  - `utils/logging`: removed dead `_loggers_lock` and stale `global`,
+    scoped `# noqa` for stdlib-compatible `backupCount` and structured logging `**Any`.
+  - `schema.EpisodicEntry.__init__(**data: Any)` annotated.
+  - `pyproject.toml`: `[tool.ruff.lint.per-file-ignores]` adds `E501` for
+    `memory/migrations.py` and `memory/semantic.py` (DDL/FTS5 projections).
+  - Documentation frontmatters realigned: `sprint-02.md` and `sprint-04.md`
+    plans -> `status: implemented`; `sprint-01-evidence.md` -> `status: completed`.
+- Re-verified (post full remediation):
+  - `uv run ruff check src/` -> PASS (all checks passed)
+  - `uv run ruff format --check src/` -> PASS (70 files formatted)
+  - `uv run mypy src` -> PASS (0 errors)
+  - `uv run pytest -q` -> PASS (280 passed in 11.78s)

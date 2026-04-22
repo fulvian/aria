@@ -168,7 +168,7 @@ class GzipRotatingFileHandler(TimedRotatingFileHandler):
         filename: str | Path,
         when: str = "midnight",
         interval: int = 1,
-        backupCount: int = 90,
+        backupCount: int = 90,  # noqa: N803 — inherited from TimedRotatingFileHandler
         encoding: str = "utf-8",
     ) -> None:
         super().__init__(
@@ -181,7 +181,7 @@ class GzipRotatingFileHandler(TimedRotatingFileHandler):
         # Override suffix to include date
         self.suffix = "%Y-%m-%d"
         # Override extMatch to match the suffix format
-        self.extMatch = re.compile(r"^\d{4}-\d{2}-\d{2}$")  # type: ignore[assignment]
+        self.extMatch = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
     def rotation_filename(self, default_name: str) -> str:
         """Add .gz to rotated files."""
@@ -201,7 +201,6 @@ class GzipRotatingFileHandler(TimedRotatingFileHandler):
 # === Logger Factory ===
 
 _loggers: dict[str, logging.Logger] = {}
-_loggers_lock = None  # Will use simple dict locking
 
 
 def get_logger(name: str) -> logging.Logger:
@@ -212,8 +211,6 @@ def get_logger(name: str) -> logging.Logger:
     - Console output only if stdout is a tty
     - All loggers propagate to root for unified handling
     """
-    global _loggers, _loggers_lock
-
     if name in _loggers:
         return _loggers[name]
 
@@ -264,7 +261,12 @@ def get_logger(name: str) -> logging.Logger:
 # === Structured Event Logging ===
 
 
-def log_event(logger: logging.Logger, level: int, event: str, **context: Any) -> None:
+def log_event(
+    logger: logging.Logger,
+    level: int,
+    event: str,
+    **context: Any,  # noqa: ANN401 — structured logging accepts arbitrary JSON values
+) -> None:
     """Log a structured event with context.
 
     Args:

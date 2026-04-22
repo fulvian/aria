@@ -49,6 +49,9 @@ dependencies = [
     # YAML parsing (for agent/skill markdown frontmatter)
     "pyyaml>=6.0",
     "pymupdf>=1.27.2.2",
+    "google-auth",
+    "google-auth-oauthlib",
+    "google-api-python-client",
 ]
 
 [project.optional-dependencies]
@@ -64,6 +67,7 @@ dev = [
     "pytest-asyncio>=0.25",
     "pytest-cov>=6.0",
     "pytest-mock>=3.14",
+    "respx>=0.22",
 ]
 
 ml = [
@@ -73,9 +77,6 @@ ml = [
     "pytesseract>=0.3",
     "pymupdf>=1.24",  # PDF extraction per blueprint §9.5
 ]
-
-[project.scripts]
-aria = "aria.bin.aria:main"
 
 [build-system]
 requires = ["hatchling>=1.27"]
@@ -94,6 +95,12 @@ include = [
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.ruff.lint.per-file-ignores]
+# Migration SQL and FTS5 triggers are embedded as DDL string literals;
+# breaking them across lines would obscure the column projection.
+"src/aria/memory/migrations.py" = ["E501"]
+"src/aria/memory/semantic.py" = ["E501"]
 
 [tool.ruff.lint]
 select = [
@@ -156,6 +163,8 @@ module = [
     "pytesseract.*",
     "PIL.*",
     "faster_whisper.*",
+    "sd_notify.*",
+    "yaml.*",
 ]
 ignore_missing_imports = true
 
