@@ -11,8 +11,12 @@ from typing import Any
 
 import httpx
 
-from aria.agents.search.providers._http import parse_http_url, request_json_with_retry
-from aria.agents.search.schema import ProviderStatus, SearchHit
+from aria.agents.search.providers._http import (
+    KeyExhaustedError,
+    parse_http_url,
+    request_json_with_retry,
+)
+from aria.agents.search.schema import ProviderError, ProviderStatus, SearchHit
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +78,9 @@ class TavilyProvider:
 
         Returns:
             List of SearchHit normalized from Tavily response.
+
+        Raises:
+            ProviderError: If the API key is exhausted or invalid.
         """
         params = {
             "api_key": self._api_key,
@@ -89,9 +96,23 @@ class TavilyProvider:
 
         try:
             data = await self._request(params)
+        except KeyExhaustedError as exc:
+            logger.warning("Tavily key exhausted (HTTP %s): %s", exc.status_code, exc.detail)
+            raise ProviderError(
+                provider=self.name,
+                reason="credits_exhausted",
+                status_code=exc.status_code,
+                message=f"Tavily credits exhausted: {exc.detail}",
+                retryable=True,
+            ) from exc
         except Exception as exc:
             logger.warning("Tavily search failed: %s", exc)
-            return []
+            raise ProviderError(
+                provider=self.name,
+                reason="request_failed",
+                message=f"Tavily request failed: {exc}",
+                retryable=True,
+            ) from exc
 
         hits: list[SearchHit] = []
         for result in data.get("results", []):
@@ -142,7 +163,7 @@ class TavilyProvider:
                 return ProviderStatus.AVAILABLE
             if response.status_code == 401:
                 return ProviderStatus.DOWN
-            if response.status_code == 429:
+            if response.status_code in (429, 432):
                 return ProviderStatus.CREDITS_EXHAUSTED
             return ProviderStatus.DEGRADED
         except httpx.TimeoutException:

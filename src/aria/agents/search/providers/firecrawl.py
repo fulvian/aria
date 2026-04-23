@@ -11,8 +11,12 @@ from typing import Any
 
 import httpx
 
-from aria.agents.search.providers._http import parse_http_url, request_json_with_retry
-from aria.agents.search.schema import ProviderStatus, SearchHit
+from aria.agents.search.providers._http import (
+    KeyExhaustedError,
+    parse_http_url,
+    request_json_with_retry,
+)
+from aria.agents.search.schema import ProviderError, ProviderStatus, SearchHit
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +84,9 @@ class FirecrawlProvider:
 
         Returns:
             List of SearchHit.
+
+        Raises:
+            ProviderError: If the API key is exhausted or invalid.
         """
         payload = {
             "query": query,
@@ -89,9 +96,23 @@ class FirecrawlProvider:
 
         try:
             data = await self._post(FIRECRAWL_SEARCH_URL, payload)
+        except KeyExhaustedError as exc:
+            logger.warning("Firecrawl key exhausted (HTTP %s): %s", exc.status_code, exc.detail)
+            raise ProviderError(
+                provider=self.name,
+                reason="credits_exhausted",
+                status_code=exc.status_code,
+                message=f"Firecrawl credits exhausted: {exc.detail}",
+                retryable=True,
+            ) from exc
         except Exception as exc:
             logger.warning("Firecrawl search failed: %s", exc)
-            return []
+            raise ProviderError(
+                provider=self.name,
+                reason="request_failed",
+                message=f"Firecrawl request failed: {exc}",
+                retryable=True,
+            ) from exc
 
         hits: list[SearchHit] = []
         for item in data.get("data", []):
@@ -128,7 +149,7 @@ class FirecrawlProvider:
             url: URL to scrape.
 
         Returns:
-            SearchHit with full content in snippet.
+            SearchHit with full content in snippet, or None on error.
         """
         payload = {
             "url": url,
@@ -138,6 +159,15 @@ class FirecrawlProvider:
 
         try:
             data = await self._post(FIRECRAWL_SCRAPE_URL, payload)
+        except KeyExhaustedError as exc:
+            logger.warning("Firecrawl scrape key exhausted: %s", exc)
+            raise ProviderError(
+                provider=self.name,
+                reason="credits_exhausted",
+                status_code=exc.status_code,
+                message=f"Firecrawl credits exhausted: {exc.detail}",
+                retryable=True,
+            ) from exc
         except Exception as exc:
             logger.warning("Firecrawl scrape failed for %s: %s", url, exc)
             return None
@@ -196,7 +226,7 @@ class FirecrawlProvider:
                 return ProviderStatus.AVAILABLE
             if response.status_code == 401:
                 return ProviderStatus.DOWN
-            if response.status_code == 429:
+            if response.status_code in (429, 402):
                 return ProviderStatus.CREDITS_EXHAUSTED
             return ProviderStatus.DEGRADED
         except httpx.TimeoutException:

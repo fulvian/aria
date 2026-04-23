@@ -11,7 +11,7 @@ from aria.agents.search.providers.tavily import TavilyProvider
 from aria.agents.search.providers.firecrawl import FirecrawlProvider
 from aria.agents.search.providers.brave import BraveProvider
 from aria.agents.search.providers.exa import ExaProvider
-from aria.agents.search.schema import ProviderStatus
+from aria.agents.search.schema import ProviderError, ProviderStatus
 
 
 class TestTavilyProvider:
@@ -71,14 +71,16 @@ class TestTavilyProvider:
         await provider.close()
 
     @respx.mock
-    async def test_search_http_error_returns_empty(self):
-        """Test that HTTP errors are handled gracefully."""
+    async def test_search_http_error_raises_provider_error(self):
+        """Test that HTTP 5xx errors raise ProviderError after retries."""
         route = respx.post("https://api.tavily.com/search").mock(return_value=httpx.Response(500))
 
         provider = TavilyProvider(api_key="test-key")
-        hits = await provider.search("error test", top_k=10)
+        with pytest.raises(ProviderError) as exc_info:
+            await provider.search("error test", top_k=10)
 
-        assert hits == []
+        assert exc_info.value.provider == "tavily"
+        assert exc_info.value.reason == "request_failed"
         await provider.close()
 
     @respx.mock
@@ -103,6 +105,24 @@ class TestTavilyProvider:
         status = await provider.health_check()
 
         assert status == ProviderStatus.CREDITS_EXHAUSTED
+        await provider.close()
+
+    @respx.mock
+    async def test_search_key_exhausted_432_raises_provider_error(self):
+        """Test that HTTP 432 (Tavily usage limit) raises ProviderError with rotation hint."""
+        route = respx.post("https://api.tavily.com/search").mock(
+            return_value=httpx.Response(
+                432,
+                json={"detail": {"error": "usage limit exceeded"}},
+            )
+        )
+
+        provider = TavilyProvider(api_key="test-key")
+        with pytest.raises(ProviderError) as exc_info:
+            await provider.search("limited query", top_k=5)
+
+        assert exc_info.value.reason == "credits_exhausted"
+        assert exc_info.value.retryable is True
         await provider.close()
 
 
@@ -163,8 +183,8 @@ class TestFirecrawlProvider:
         await provider.close()
 
     @respx.mock
-    async def test_scrape_failure_returns_none(self):
-        """Test that scrape failures return None gracefully."""
+    async def test_scrape_5xx_returns_none(self):
+        """Test that scrape 5xx errors return None (retryable, not key-related)."""
         route = respx.post("https://api.firecrawl.dev/v1/scrape").mock(
             return_value=httpx.Response(500)
         )
@@ -173,6 +193,23 @@ class TestFirecrawlProvider:
         hit = await provider.scrape("https://example.com/error")
 
         assert hit is None
+        await provider.close()
+
+    @respx.mock
+    async def test_scrape_key_exhausted_raises_provider_error(self):
+        """Test that scrape key exhaustion raises ProviderError."""
+        route = respx.post("https://api.firecrawl.dev/v1/scrape").mock(
+            return_value=httpx.Response(
+                402,
+                json={"success": False, "error": "Insufficient credits"},
+            )
+        )
+
+        provider = FirecrawlProvider(api_key="test-key")
+        with pytest.raises(ProviderError) as exc_info:
+            await provider.scrape("https://example.com/no-credits")
+
+        assert exc_info.value.reason == "credits_exhausted"
         await provider.close()
 
     @respx.mock

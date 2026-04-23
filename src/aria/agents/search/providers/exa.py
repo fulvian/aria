@@ -11,8 +11,12 @@ from typing import Any
 
 import httpx
 
-from aria.agents.search.providers._http import parse_http_url, request_json_with_retry
-from aria.agents.search.schema import ProviderStatus, SearchHit
+from aria.agents.search.providers._http import (
+    KeyExhaustedError,
+    parse_http_url,
+    request_json_with_retry,
+)
+from aria.agents.search.schema import ProviderError, ProviderStatus, SearchHit
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +80,9 @@ class ExaProvider:
 
         Returns:
             List of SearchHit.
+
+        Raises:
+            ProviderError: If the API key is exhausted or invalid.
         """
         payload = {
             "query": query,
@@ -86,9 +93,23 @@ class ExaProvider:
 
         try:
             data = await self._post(payload)
+        except KeyExhaustedError as exc:
+            logger.warning("Exa key exhausted (HTTP %s): %s", exc.status_code, exc.detail)
+            raise ProviderError(
+                provider=self.name,
+                reason="credits_exhausted",
+                status_code=exc.status_code,
+                message=f"Exa credits exhausted: {exc.detail}",
+                retryable=True,
+            ) from exc
         except Exception as exc:
             logger.warning("Exa search failed: %s", exc)
-            return []
+            raise ProviderError(
+                provider=self.name,
+                reason="request_failed",
+                message=f"Exa request failed: {exc}",
+                retryable=True,
+            ) from exc
 
         hits: list[SearchHit] = []
         for result in data.get("results", []):

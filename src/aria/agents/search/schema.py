@@ -31,6 +31,36 @@ class ProviderStatus(StrEnum):
     CREDITS_EXHAUSTED = "credits_exhausted"
 
 
+class ProviderError(Exception):
+    """Raised when a search provider call fails with a recoverable error.
+
+    Carries enough context for the MCP server to decide whether to
+    report failure to CredentialManager and retry with a different key.
+
+    Attributes:
+        provider: Provider name (e.g. "tavily").
+        reason:  Machine-readable error category.
+        status_code: HTTP status code, if applicable.
+        message: Human-readable error description.
+        retryable: Whether the caller should try another key.
+    """
+
+    def __init__(
+        self,
+        provider: str,
+        reason: str,
+        status_code: int | None = None,
+        message: str = "",
+        retryable: bool = True,
+    ) -> None:
+        self.provider = provider
+        self.reason = reason
+        self.status_code = status_code
+        self.message = message or f"{provider} error: {reason}"
+        self.retryable = retryable
+        super().__init__(self.message)
+
+
 class SearchHit(BaseModel):
     """Normalized search result from any provider.
 

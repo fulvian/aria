@@ -449,3 +449,163 @@ presentations.readonly in granted scopes: True
 
 - [ ] Riavviare `bin/aria repl` e verificare che google_workspace MCP resti abilitato
 - [ ] Testare una lettura Slides reale (es. `google_workspace_get_presentation`)
+
+---
+
+## 2026-04-23T16:26 — Search Agent Critical Fix: Key Rotation + Error Handling
+
+**Operazione**: DEBUG+IMPLEMENT (critical fix)
+**Autore**: general-manager (Kilo orchestrator)
+**Scope**: Risolvere il blocco completo dell'agente di ricerca — nessun provider funzionante
+
+### Root Cause Analysis (6 problemi identificati)
+
+| # | Problema | Severità | Impatto |
+|---|----------|----------|---------|
+| 1 | MCP server cache singolo API key per sempre — se prima key esaurita (es. `tvly-fulviold` HTTP 432), provider rotto per intera sessione | CRITICAL | Tutta la ricerca fallisce |
+| 2 | Provider inghiottono errori API — Tavily ritorna `[]` su HTTP 432, Firecrawl `[]` su "Insufficient credits" → MCP wrap come `{"success": true, "results": []}` | HIGH | LLM pensa che ricerca sia riuscita ma vuota |
+| 3 | No `ToolError` — MCP server mai segnala `isError: true` all'LLM → agente non distingue "nessun risultato" da "provider rotto" | HIGH | Nessun fallback attivato |
+| 4 | Firecrawl: tutte 7 key esaurite (insufficient credits) | HIGH | Firecrawl completamente rotto |
+| 5 | Tavily: 1/8 key esaurita ma rotazione non avviene | MEDIUM | 7 key funzionanti sprecate |
+| 6 | Exa: API funziona ma non prioritizzato | LOW | Provider funzionante sottoutilizzato |
+
+### Fix implementati
+
+#### 1. Provider Error Handling (`src/aria/agents/search/schema.py`, `_http.py`)
+
+- Aggiunto `ProviderError` exception class con `reason`, `status_code`, `retryable`
+- Aggiunto `KeyExhaustedError` in `_http.py` per status codes 401/402/403/432
+- `KEY_FAILURE_STATUS_CODES = {401, 402, 403, 432}` — non ritentabili con stessa key
+
+#### 2. Provider Adapters (`tavily.py`, `firecrawl.py`, `exa.py`)
+
+- Tutti i provider ora propagano `KeyExhaustedError` → `ProviderError(credits_exhausted, retryable=True)`
+- Errori generici → `ProviderError(request_failed, retryable=True)`
+- Rimossa logica "swallow and return []"
+
+#### 3. MCP Server Key Rotation (`mcp_server.py` per tutti i provider)
+
+- Ogni MCP server implementa loop di key rotation (max 5 tentativi)
+- Per ogni tentativo: `cm.acquire()` → `provider.search()` → se `ProviderError`: `cm.report_failure()` → next key
+- Su successo: `cm.report_success()` → return results
+- Se tutti falliscono: `raise ToolError(...)` → FastMCP segnala `isError: true`
+
+#### 4. FastMCP ToolError integration
+
+- MCP server usano `from fastmcp.exceptions import ToolError`
+- Errori reali → `raise ToolError(message)` → LLM riceve `isError: true`
+- LLM può ora distinguere "nessun risultato" (success, results: []) da "provider rotto" (isError: true)
+
+#### 5. Search Agent routing aggiornato
+
+- Exa promosso a **primario** (API funzionante, credits disponibili)
+- Tavily come **secondario** (con key rotation funzionante, 7/8 key attive)
+- Brave aggiunto alla lista (era disabilitato nella documentazione ma attivo in kilo.json)
+- Error handling policy: se tool ritorna `isError`, passa al successivo
+
+### Files modificati
+
+| File | Modifica |
+|------|----------|
+| `src/aria/agents/search/schema.py` | Aggiunto `ProviderError` exception |
+| `src/aria/agents/search/providers/_http.py` | Aggiunto `KeyExhaustedError`, `KEY_FAILURE_STATUS_CODES` |
+| `src/aria/agents/search/providers/tavily.py` | Propaga `ProviderError` invece di return `[]` |
+| `src/aria/agents/search/providers/firecrawl.py` | Propaga `ProviderError` per search/scrape/extract |
+| `src/aria/agents/search/providers/exa.py` | Propaga `ProviderError` |
+| `src/aria/tools/tavily/mcp_server.py` | Key rotation loop (5 attempts) + ToolError |
+| `src/aria/tools/firecrawl/mcp_server.py` | Key rotation loop (5 attempts) + ToolError |
+| `src/aria/tools/exa/mcp_server.py` | Key rotation loop (5 attempts) + ToolError |
+| `src/aria/tools/searxng/mcp_server.py` | ToolError per errori e SearXNG disabilitato |
+| `.aria/kilocode/agents/search-agent.md` | Exa primario, error handling docs, Brave aggiunto |
+| `tests/integration/agents/search/test_providers.py` | Test aggiornati per nuovo comportamento errori |
+
+### Verifiche
+
+```
+ruff check: PASS (all modified files)
+ruff format --check: PASS (all formatted)
+mypy: PASS (0 errors in 9 files)
+pytest -q: 424 passed
+
+E2E Test Tavily MCP (key rotation):
+  - Init OK → search("crime series TV 2026") → 3 results
+  - Key rotation: tvly-fulviold (exhausted) → tvly-grazia (working)
+
+E2E Test Exa MCP:
+  - Init OK → search("crime series TV 2026 streaming") → 3 results
+```
+
+### Note operative
+
+- **Tavily**: 7/8 key funzionanti. Key rotation automatica.
+- **Exa**: 1/1 key funzionante. Primario per ricerca generale.
+- **Firecrawl**: 0/7 key funzionanti (tutte insufficient credits). Restituisce ToolError.
+- **Brave**: Key disponibile, wrapper npm funzionante.
+- **SearXNG**: Richiede `ARIA_SEARCH_SEARXNG_URL` (non configurato).
+
+### Prossimo passo
+
+- [ ] Riavviare sessione ARIA e testare ricerca end-to-end via conductor
+- [ ] Aggiungere crediti Firecrawl per riattivare scraping
+- [ ] Configurare SearXNG locale per fallback illimitato
+
+---
+
+## 2026-04-23T17:05 — SearXNG Self-Hosted Deployment + E2E Verification
+
+**Operazione**: DEPLOY+VERIFY (infra + config)
+**Autore**: general-manager (Kilo orchestrator)
+**Scope**: Deploy SearXNG come provider di fallback self-hosted illimitato
+
+### Deployment SearXNG
+
+1. **Docker container**: `searxng/searxng:latest` su `localhost:8888`
+   - Restart policy: `unless-stopped` (sopravvive a reboot)
+   - Port mapping: `127.0.0.1:8888->8080/tcp` (no external access)
+2. **Configurazione**: `.aria/runtime/searxng/settings.yml`
+   - JSON format abilitato
+   - Motori: Google, Bing, DuckDuckGo, Qwant, Brave
+   - Lingua: it-IT (default), en (secondaria)
+3. **MCP config**: `.aria/kilocode/kilo.json`
+   - `searxng-script` environment: `ARIA_SEARCH_SEARXNG_URL=http://localhost:8888`
+   - Wrapper: `scripts/wrappers/searxng-wrapper.sh`
+
+### E2E Verification SearXNG MCP
+
+```
+SearXNG MCP server init → search("Python programming language") → 10 results
+Format: JSON via stdout (FastMCP stdio transport)
+Container status: Up, healthy
+```
+
+### Provider Status (aggiornato)
+
+| Provider | Stato | Note |
+|----------|-------|------|
+| **Exa** | ✅ Primario | 1/1 key, credits disponibili |
+| **Tavily** | ✅ Secondario | 7/8 key, rotation automatica |
+| **Brave** | ⚠️ Disponibile | Via npm wrapper, da testare E2E |
+| **SearXNG** | ✅ Fallback | Self-hosted, localhost:8888, illimitato |
+| **Firecrawl** | ❌ Credits esauriti | 0/7 key — richiede top-up |
+
+### Quality Gates Finali
+
+```
+ruff check: PASS
+ruff format --check: PASS
+mypy: PASS (0 errors in 70 source files)
+pytest -q: 424 passed
+```
+
+### Files aggiunti/modificati in questa fase
+
+| File | Modifica |
+|------|----------|
+| `.aria/runtime/searxng/settings.yml` | Creato — SearXNG config |
+| `.aria/kilocode/kilo.json` | Aggiunto ARIA_SEARCH_SEARXNG_URL |
+
+### Prossimi passi
+
+- [ ] Riavviare `bin/aria repl` e testare ricerca end-to-end via conductor
+- [ ] Top-up crediti Firecrawl
+- [ ] Valutare systemd service per SearXNG (attualmente Docker unless-stopped)

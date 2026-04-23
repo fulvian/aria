@@ -10,18 +10,27 @@ tier: 1
 
 ## Provider Supportati (MVP)
 
-| Provider | Tier gratuito | Forte su | Costo incremento |
-|----------|---------------|----------|------------------|
-| **Tavily** | 1.000 req/mese | LLM-ready synthesis, news | $0.008/req |
-| **Firecrawl** | 500 credits lifetime | Deep scraping, extract AI | ~$0.005–0.015/page |
-| **Brave** | $5/mese free credits | Privacy, volume (50 req/s) | $0.005/web, $0.004/ans |
-| **Exa** | 1.000 req/mese | Semantic search academic | $0.007/req |
-| **SearXNG** | Self-hosted, illimitato | Meta, privacy totale | Zero (solo infra) |
-| **SerpAPI** | 100 req/mese | Fallback ultima istanza | $5/1k |
-
-DuckDuckGo **esplicitamente escluso** (no API ufficiale, scraping fragile).
+| Provider | Tier gratuito | Forte su | Costo incremento | Stato (2026-04-23) |
+|----------|---------------|----------|------------------|--------------------|
+| **Exa** | 1.000 req/mese | Semantic search academic | $0.007/req | ✅ Attivo (primario) |
+| **Tavily** | 1.000 req/mese | LLM-ready synthesis, news | $0.008/req | ✅ Attivo (7/8 key, rotation) |
+| **Firecrawl** | 500 credits lifetime | Deep scraping, extract AI | ~$0.005–0.015/page | ❌ Credits esauriti |
+| **Brave** | $5/mese free credits | Privacy, volume (50 req/s) | $0.005/web | ⚠️ Da verificare npm |
+| **SearXNG** | Self-hosted, illimitato | Meta, privacy totale | Zero (solo infra) | ✅ localhost:8888, Docker |
+| **SerpAPI** | 100 req/mese | Fallback ultima istanza | $5/1k | Non configurato |
 
 *source: `docs/foundation/aria_foundation_blueprint.md` §11.1*
+
+## Key Rotation Automatica
+
+Ogni MCP server implementa key rotation:
+1. Acquisisce key da `CredentialManager.acquire(provider)`
+2. Esegue la chiamata API
+3. Se `ProviderError(credits_exhausted)` → `cm.report_failure()` → prova key successiva
+4. Max 5 tentativi per request
+5. Se tutti falliscono → `raise ToolError(...)` → FastMCP segnala `isError: true`
+
+*source: `src/aria/tools/*/mcp_server.py`*
 
 ## Intent-Aware Routing
 
@@ -32,15 +41,20 @@ INTENT_ROUTING = {
     "news":         ["tavily", "brave_news"],
     "academic":     ["exa", "tavily"],
     "deep_scrape":  ["firecrawl_extract", "firecrawl_scrape"],
-    "general":      ["brave", "tavily"],
+    "general":      ["exa", "tavily"],       # Exa primario per general
     "privacy":      ["searxng", "brave"],
     "fallback":     ["serpapi"],
 }
 ```
 
-Classifier: mini-skill `intent-classifier` basata su keyword + (opzionale) zero-shot LLM call.
-
 *source: `docs/foundation/aria_foundation_blueprint.md` §11.2*
+
+## Error Handling (post-fix 2026-04-23)
+
+- `ProviderError` con `reason`, `status_code`, `retryable` propagato da ogni provider
+- `KeyExhaustedError` per HTTP 401/402/403/432 → non ritentabile con stessa key
+- FastMCP `ToolError` per segnalare `isError: true` al LLM
+- Il LLM può distinguere "nessun risultato" (success) da "provider rotto" (isError)
 
 ## API Key Rotation con Circuit Breaker
 
@@ -60,22 +74,6 @@ providers:
         cooldown_until: null
     rotation_strategy: least_used   # round_robin | least_used | failover
 ```
-
-### Pattern di utilizzo
-
-```python
-cm = CredentialManager()
-key = cm.acquire("tavily", strategy="least_used")
-response = call_api(key)
-cm.report_success("tavily", key.id, credits_used=1)  # oppure
-cm.report_failure("tavily", key.id, reason="rate_limit")
-```
-
-### Circuit breaker
-
-- **Closed** (normale) → errori rari tollerati
-- **Open** → dopo 3 failure in 5min → cooldown 30min
-- **Half-open** → dopo cooldown, 1 tentativo; se ok → closed, se fail → open esteso
 
 *source: `docs/foundation/aria_foundation_blueprint.md` §11.3*
 
@@ -103,7 +101,7 @@ Runbook deterministico:
 
 1. Health-check provider ogni 5 minuti
 2. Fallback tree per intent:
-   - `news/general`: Tavily → Brave → SearXNG → cache stale
+   - `news/general`: Exa → Tavily → Brave → SearXNG → cache stale
    - `deep_scrape`: Firecrawl → fetch+readability → solo metadata
    - `academic`: Exa → Tavily → Brave web
 3. Se tutti esterni down → modalità `local-only` (cache + SearXNG)
@@ -114,12 +112,24 @@ Runbook deterministico:
 ## Implementazione Codice
 
 ```
+src/aria/tools/
+├── tavily/mcp_server.py    # FastMCP + key rotation loop
+├── firecrawl/mcp_server.py # FastMCP + key rotation loop
+├── exa/mcp_server.py       # FastMCP + key rotation loop
+└── searxng/mcp_server.py   # FastMCP + ToolError
+
 src/aria/agents/search/
-├── __init__.py
-├── router.py          # Intent-aware routing
-├── dedup.py           # URL dedup + ranking
+├── router.py               # Intent-aware routing
+├── dedup.py                # URL dedup + ranking
+├── schema.py               # SearchHit, ProviderError, Intent
 └── providers/
-    └── (tavily, firecrawl, brave, exa, searxng, serpapi)
+    ├── _http.py             # Shared retry + KeyExhaustedError
+    ├── tavily.py            # TavilyProvider
+    ├── firecrawl.py         # FirecrawlProvider
+    ├── exa.py               # ExaProvider
+    ├── searxng.py           # SearXNGProvider
+    ├── brave.py             # BraveProvider
+    └── serpapi.py           # SerpAPIProvider
 ```
 
 ## Vedi anche
