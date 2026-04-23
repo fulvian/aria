@@ -1,12 +1,12 @@
 # Project State
 
-## Current Phase: Phase 5 - Delivery (search agent fix committed, workspace verified)
+## Current Phase: Phase 4 - Verification (search tier/rotation stabilization)
 ## Started: 2026-04-21T07:40:00+02:00
 ## PRD: docs/foundation/aria_foundation_blueprint.md
 ## TDD: docs/plans/google_workspace_agent_full_operational_plan.md
-## Implementation: Sprint 1.6 (workspace agents) + Search Agent Critical Fix (key rotation, error propagation, SearXNG deployment)
-## Tests: 424 passed (ruff PASS, mypy PASS, pytest PASS)
-## Deployment: Pending — ARIA session E2E test + Firecrawl credit top-up
+## Implementation: Searcher Optimizer hardening (terminal key quarantine, dynamic key rotation, tier-aligned search prompts)
+## Tests: Targeted verification PASS (ruff/mypy on modified source; pytest rotator/providers)
+## Deployment: Pending — live ARIA conductor E2E validation on exhausted-key scenario
 
 ## Agent History
 | Timestamp | Agent | Action | Status |
@@ -39,6 +39,7 @@
 | 2026-04-23T11:07+02:00 | general-manager | Root-caused H1 (scope inflation) and fixed kilo.json MCP config: --tool-tier core --read-only | completed |
 | 2026-04-23T11:10+02:00 | general-manager | Verified scope coherence passes with --tool-tier core --read-only; all 418 tests passing | completed |
 | 2026-04-23T11:23+02:00 | general-manager | Added slides to tier_map['core'] and slides.readonly to scopes metadata; scope coherence still passes | completed |
+| 2026-04-23T23:10+02:00 | general-manager | Fixed search key-rotation escalation and aligned search-agent/skill routing to tier policy | completed |
 
 ## Skills Invoked
 | Phase | Skill | Outcome |

@@ -34,8 +34,14 @@ logger = logging.getLogger(__name__)
 
 mcp = FastMCP("tavily-mcp")
 
-# Key rotation constants
-MAX_KEY_ROTATION_ATTEMPTS = 5
+DEFAULT_MAX_KEY_ROTATION_ATTEMPTS = 5
+
+
+def _rotation_attempts(cm: CredentialManager, provider: str) -> int:
+    """Compute rotation attempts to cover all configured keys at least once."""
+    status = cm.status(provider)
+    key_count = len(status.get("keys", [])) if isinstance(status, dict) else 0
+    return max(DEFAULT_MAX_KEY_ROTATION_ATTEMPTS, key_count)
 
 
 async def _search_with_rotation(query: str, top_k: int) -> list[dict[str, object]]:
@@ -52,8 +58,9 @@ async def _search_with_rotation(query: str, top_k: int) -> list[dict[str, object
     """
     cm = CredentialManager()
     last_error: str = ""
+    max_attempts = _rotation_attempts(cm, "tavily")
 
-    for attempt in range(MAX_KEY_ROTATION_ATTEMPTS):
+    for attempt in range(max_attempts):
         key_info = await cm.acquire("tavily")
         if key_info is None:
             raise ToolError(
@@ -89,20 +96,16 @@ async def _search_with_rotation(query: str, top_k: int) -> list[dict[str, object
                 key_info.key_id,
                 reason=exc.reason,
             )
-            await provider.close()
             continue
         except Exception as exc:
             last_error = str(exc)
             logger.error("Tavily unexpected error (attempt %d): %s", attempt + 1, exc)
-            await provider.close()
             continue
         finally:
             # Ensure provider client is cleaned up on each attempt
-            pass
+            await provider.close()
 
-    raise ToolError(
-        f"Tavily: all {MAX_KEY_ROTATION_ATTEMPTS} key attempts failed. Last error: {last_error}"
-    )
+    raise ToolError(f"Tavily: all {max_attempts} key attempts failed. Last error: {last_error}")
 
 
 @mcp.tool

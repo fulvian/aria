@@ -35,25 +35,14 @@ logger = logging.getLogger(__name__)
 
 mcp = FastMCP("firecrawl-mcp")
 
-# Key rotation constants
-MAX_KEY_ROTATION_ATTEMPTS = 5
+DEFAULT_MAX_KEY_ROTATION_ATTEMPTS = 5
 
 
-async def _acquire_working_provider() -> tuple[FirecrawlProvider, CredentialManager, str]:
-    """Acquire a provider with a working API key.
-
-    Returns:
-        Tuple of (provider, credential_manager, key_id).
-
-    Raises:
-        ToolError: If no keys are available.
-    """
-    cm = CredentialManager()
-    key_info = await cm.acquire("firecrawl")
-    if key_info is None:
-        raise ToolError("Firecrawl: no API keys configured or all keys are on cooldown")
-    provider = FirecrawlProvider(api_key=key_info.key.get_secret_value())
-    return provider, cm, key_info.key_id
+def _rotation_attempts(cm: CredentialManager, provider: str) -> int:
+    """Compute rotation attempts to cover all configured keys at least once."""
+    status = cm.status(provider)
+    key_count = len(status.get("keys", [])) if isinstance(status, dict) else 0
+    return max(DEFAULT_MAX_KEY_ROTATION_ATTEMPTS, key_count)
 
 
 @mcp.tool
@@ -69,8 +58,9 @@ async def search(query: str, top_k: int = 10) -> dict[str, object]:
     """
     cm = CredentialManager()
     last_error: str = ""
+    max_attempts = _rotation_attempts(cm, "firecrawl")
 
-    for attempt in range(MAX_KEY_ROTATION_ATTEMPTS):
+    for attempt in range(max_attempts):
         key_info = await cm.acquire("firecrawl")
         if key_info is None:
             raise ToolError(
@@ -103,17 +93,15 @@ async def search(query: str, top_k: int = 10) -> dict[str, object]:
                 exc.message,
             )
             await cm.report_failure("firecrawl", key_info.key_id, reason=exc.reason)
-            await provider.close()
             continue
         except Exception as exc:
             last_error = str(exc)
             logger.error("Firecrawl unexpected error (attempt %d): %s", attempt + 1, exc)
-            await provider.close()
             continue
+        finally:
+            await provider.close()
 
-    raise ToolError(
-        f"Firecrawl: all {MAX_KEY_ROTATION_ATTEMPTS} key attempts failed. Last error: {last_error}"
-    )
+    raise ToolError(f"Firecrawl: all {max_attempts} key attempts failed. Last error: {last_error}")
 
 
 @mcp.tool
@@ -126,30 +114,52 @@ async def scrape(url: str) -> dict[str, object]:
     Returns:
         JSON with markdown content and metadata.
     """
-    try:
-        provider, cm, key_id = await _acquire_working_provider()
-    except ToolError:
-        raise
+    cm = CredentialManager()
+    last_error: str = ""
+    max_attempts = _rotation_attempts(cm, "firecrawl")
 
-    try:
-        hit = await provider.scrape(url)
-        await cm.report_success("firecrawl", key_id, credits_used=1)
-        if hit is None:
-            return {"success": False, "error": "Scrape returned no content"}
+    for attempt in range(max_attempts):
+        key_info = await cm.acquire("firecrawl")
+        if key_info is None:
+            raise ToolError(
+                "Firecrawl scrape: no available API keys "
+                f"after {attempt} attempts. Last error: {last_error}"
+            )
 
-        return {
-            "success": True,
-            "url": str(hit.url),
-            "title": hit.title,
-            "markdown": hit.snippet,
-            "provider": hit.provider,
-        }
-    except ProviderError as exc:
-        await cm.report_failure("firecrawl", key_id, reason=exc.reason)
-        raise ToolError(f"Firecrawl scrape failed: {exc.message}") from exc
-    except Exception as exc:
-        logger.error("Firecrawl scrape error: %s", exc)
-        raise ToolError(f"Firecrawl scrape failed: {exc}") from exc
+        provider = FirecrawlProvider(api_key=key_info.key.get_secret_value())
+        try:
+            hit = await provider.scrape(url)
+            await cm.report_success("firecrawl", key_info.key_id, credits_used=1)
+            if hit is None:
+                return {"success": False, "error": "Scrape returned no content"}
+
+            return {
+                "success": True,
+                "url": str(hit.url),
+                "title": hit.title,
+                "markdown": hit.snippet,
+                "provider": hit.provider,
+            }
+        except ProviderError as exc:
+            last_error = exc.message
+            logger.warning(
+                "Firecrawl scrape key %s failed (attempt %d): %s",
+                key_info.key_id,
+                attempt + 1,
+                exc.message,
+            )
+            await cm.report_failure("firecrawl", key_info.key_id, reason=exc.reason)
+            continue
+        except Exception as exc:
+            last_error = str(exc)
+            logger.error("Firecrawl scrape unexpected error (attempt %d): %s", attempt + 1, exc)
+            continue
+        finally:
+            await provider.close()
+
+    raise ToolError(
+        f"Firecrawl scrape: all {max_attempts} key attempts failed. Last error: {last_error}"
+    )
 
 
 @mcp.tool
@@ -168,21 +178,43 @@ async def extract(
     Returns:
         JSON with extracted data.
     """
-    try:
-        provider, cm, key_id = await _acquire_working_provider()
-    except ToolError:
-        raise
+    cm = CredentialManager()
+    last_error: str = ""
+    max_attempts = _rotation_attempts(cm, "firecrawl")
 
-    try:
-        data = await provider.extract(url=url, prompt=prompt, schema=schema)
-        await cm.report_success("firecrawl", key_id, credits_used=1)
-        return {"success": True, "data": data}
-    except ProviderError as exc:
-        await cm.report_failure("firecrawl", key_id, reason=exc.reason)
-        raise ToolError(f"Firecrawl extract failed: {exc.message}") from exc
-    except Exception as exc:
-        logger.error("Firecrawl extract error: %s", exc)
-        raise ToolError(f"Firecrawl extract failed: {exc}") from exc
+    for attempt in range(max_attempts):
+        key_info = await cm.acquire("firecrawl")
+        if key_info is None:
+            raise ToolError(
+                "Firecrawl extract: no available API keys "
+                f"after {attempt} attempts. Last error: {last_error}"
+            )
+
+        provider = FirecrawlProvider(api_key=key_info.key.get_secret_value())
+        try:
+            data = await provider.extract(url=url, prompt=prompt, schema=schema)
+            await cm.report_success("firecrawl", key_info.key_id, credits_used=1)
+            return {"success": True, "data": data}
+        except ProviderError as exc:
+            last_error = exc.message
+            logger.warning(
+                "Firecrawl extract key %s failed (attempt %d): %s",
+                key_info.key_id,
+                attempt + 1,
+                exc.message,
+            )
+            await cm.report_failure("firecrawl", key_info.key_id, reason=exc.reason)
+            continue
+        except Exception as exc:
+            last_error = str(exc)
+            logger.error("Firecrawl extract unexpected error (attempt %d): %s", attempt + 1, exc)
+            continue
+        finally:
+            await provider.close()
+
+    raise ToolError(
+        f"Firecrawl extract: all {max_attempts} key attempts failed. Last error: {last_error}"
+    )
 
 
 if __name__ == "__main__":

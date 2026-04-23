@@ -74,6 +74,29 @@ async def test_circuit_breaker_transitions(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_terminal_failure_reason_opens_key_immediately(tmp_path: Path) -> None:
+    sops = _FakeSops()
+    rotator = Rotator(sops=cast(Any, sops), state_path=tmp_path / "state.enc.yaml")
+    rotator.sync_provider_keys(
+        "tavily",
+        [
+            {"key_id": "tvly-1", "credits_total": 100},
+            {"key_id": "tvly-2", "credits_total": 100},
+        ],
+    )
+
+    await rotator.report_failure("tavily", "tvly-1", "credits_exhausted")
+
+    status = rotator.status("tavily")
+    by_id = {item["key_id"]: item for item in status["keys"]}
+    assert by_id["tvly-1"]["circuit_state"] == CircuitState.OPEN.value
+
+    next_key = await rotator.acquire("tavily")
+    assert next_key is not None
+    assert next_key.key_id == "tvly-2"
+
+
+@pytest.mark.asyncio
 async def test_flush_persists_runtime(tmp_path: Path) -> None:
     sops = _FakeSops()
     state_path = tmp_path / "runtime.enc.yaml"

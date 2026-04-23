@@ -771,3 +771,43 @@ pytest: 103 passed (52 new + 51 existing)
 1. `docs/llm_wiki/wiki/search-agent.md` — Aggiunta sezione Economic Router con architettura, flow, quality gates, KPI
 2. `docs/llm_wiki/wiki/index.md` — Aggiornate fonti e timestamp
 3. `docs/llm_wiki/wiki/log.md` — Entry corrente
+
+---
+
+## 2026-04-23T23:10 — Search Tier Routing Alignment + Immediate Key Quarantine
+
+**Operazione**: DEBUG+IMPLEMENT (stabilizzazione routing/search)
+**Autore**: general-manager (Kilo orchestrator)
+**Scope**: Correzione mancata rotazione key su quota exhausted e riallineamento routing LLM ai tier A/B/C
+
+### Diagnosi
+
+- In caso di key quota exhausted, il rotator apriva il circuito solo dopo 3 failure: nello stesso ciclo MCP veniva ritentata la stessa key, causando fallback prematuro.
+- `firecrawl` aveva rotation loop completo solo su `search`; `scrape`/`extract` usavano single-key acquire.
+- Prompt/skill LLM non allineati al routing a tier del Searcher Optimizer (first-pass Tier A non sempre applicato).
+
+### Fix applicati
+
+1. `src/aria/credentials/rotator.py`
+   - Aggiunta quarantena immediata per reason terminali (`credits_exhausted`, `quota_exhausted`, `invalid_key`, `http_401/402/403/432`, ecc.) con circuito OPEN immediato.
+2. `src/aria/tools/tavily/mcp_server.py`
+   - Tentativi rotation dinamici: `max(5, numero_key_configurate)`.
+3. `src/aria/tools/exa/mcp_server.py`
+   - Tentativi rotation dinamici e cleanup provider sempre in `finally`.
+4. `src/aria/tools/firecrawl/mcp_server.py`
+   - Tentativi rotation dinamici su `search`, `scrape`, `extract` (no single-key path).
+5. `.aria/kilocode/agents/search-agent.md`
+   - Routing aggiornato a Tier A→B→C con quality gate prima dell'escalation.
+6. `.aria/kilocode/skills/deep-research/SKILL.md`
+   - Procedura aggiornata a first-pass SearXNG + escalation controllata.
+7. `docs/llm_wiki/wiki/search-agent.md`
+   - Wiki allineato a rotation dinamica e tier routing corrente.
+
+### Verifiche
+
+```
+uv run ruff check src/aria/credentials/rotator.py src/aria/tools/tavily/mcp_server.py src/aria/tools/exa/mcp_server.py src/aria/tools/firecrawl/mcp_server.py: PASS
+uv run mypy src/aria/credentials/rotator.py src/aria/tools/tavily/mcp_server.py src/aria/tools/exa/mcp_server.py src/aria/tools/firecrawl/mcp_server.py: PASS
+uv run pytest -q tests/unit/credentials/test_rotator.py: PASS (8 passed)
+uv run pytest -q tests/integration/agents/search/test_providers.py: PASS (15 passed)
+```

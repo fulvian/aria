@@ -15,7 +15,7 @@ sources:
   - src/aria/agents/search/fusion.py
   - src/aria/agents/search/quota_state.py
   - src/aria/agents/search/telemetry.py
-last_updated: 2026-04-23
+last_updated: 2026-04-23T23:10:00+02:00
 tier: 1
 ---
 
@@ -54,10 +54,10 @@ Il search subsystem ha 3 layer separati, ciascuno con responsabilità distinta:
 
 | Provider | Tier gratuito | Forte su | Costo | Stato | Tool MCP |
 |----------|---------------|----------|-------|-------|----------|
-| **Exa** | 1.000 req/mese | Semantic search, academic | $0.007/req | ✅ Primario (1/1 key) | `exa-script_search` |
-| **Tavily** | 1.000 req/mese | LLM-ready synthesis, news | $0.008/req | ✅ Secondario (7/8 key) | `tavily-mcp_search` |
-| **SearXNG** | Self-hosted, illimitato | Meta-search privacy | Zero | ✅ Fallback (Docker) | `searxng-script_search` |
-| **Brave** | $5/mese free credits | Privacy, volume | $0.005/web | ⚠️ Da verificare npm | `brave-mcp_brave_web_search` |
+| **SearXNG** | Self-hosted, illimitato | Meta-search privacy | Zero | ✅ Tier A primario (Docker) | `searxng-script_search` |
+| **Brave** | $5/mese free credits | Privacy, volume | $0.005/web | ✅ Tier B economico | `brave-mcp_brave_web_search` |
+| **Exa** | 1.000 req/mese | Semantic search, academic | $0.007/req | ✅ Tier B high-precision (1/1 key) | `exa-script_search` |
+| **Tavily** | 1.000 req/mese | LLM-ready synthesis, news | $0.008/req | ✅ Tier B riserva (7/8 key) | `tavily-mcp_search` |
 | **Firecrawl** | 500 credits lifetime | Deep scraping, extract AI | ~$0.01/page | ❌ Credits esauriti (0/7) | `firecrawl-mcp_search/scrape/extract` |
 | **SerpAPI** | 100 req/mese | Fallback ultima istanza | $5/1k | Non configurato | N/A |
 
@@ -79,7 +79,7 @@ Ogni provider è esposto come tool MCP via FastMCP. KiloCode risolve il tool ID 
 | **Wrapper** | `scripts/wrappers/exa-wrapper.sh` |
 | **Config kilo.json** | `exa-script` → `command: [exa-wrapper.sh]` |
 | **API key** | Via CredentialManager (`cm.acquire("exa")`) |
-| **Key rotation** | Sì — max 5 tentativi |
+| **Key rotation** | Sì — tentativi dinamici (almeno 5, fino a coprire tutte le key) |
 | **Endpoint** | `POST https://api.exa.ai/search` |
 | **Max results** | 25 |
 
@@ -92,7 +92,7 @@ Ogni provider è esposto come tool MCP via FastMCP. KiloCode risolve il tool ID 
 | **Wrapper** | `scripts/wrappers/tavily-wrapper.sh` |
 | **Config kilo.json** | `tavily-mcp` → `command: [tavily-wrapper.sh]` |
 | **API key** | Via CredentialManager (`cm.acquire("tavily")`) |
-| **Key rotation** | Sì — max 5 tentativi |
+| **Key rotation** | Sì — tentativi dinamici (almeno 5, fino a coprire tutte le key) |
 | **Endpoint** | `POST https://api.tavily.com/search` |
 | **Max results** | 20 |
 | **Extra** | Include `published_at` nei risultati |
@@ -106,7 +106,7 @@ Ogni provider è esposto come tool MCP via FastMCP. KiloCode risolve il tool ID 
 | **Wrapper** | `scripts/wrappers/firecrawl-wrapper.sh` |
 | **Config kilo.json** | `firecrawl-mcp` → `command: [firecrawl-wrapper.sh]` |
 | **API key** | Via CredentialManager (`cm.acquire("firecrawl")`) |
-| **Key rotation** | Sì — max 5 tentativi (search), single-key (scrape/extract) |
+| **Key rotation** | Sì — tentativi dinamici su search/scrape/extract |
 | **Endpoint search** | `POST https://api.firecrawl.dev/v1/search` |
 | **Endpoint scrape** | `POST https://api.firecrawl.dev/v1/scrape` |
 | **Endpoint extract** | `POST https://api.firecrawl.dev/v1/extract` |
@@ -114,8 +114,8 @@ Ogni provider è esposto come tool MCP via FastMCP. KiloCode risolve il tool ID 
 **Tool dettaglio:**
 
 1. **`search(query, top_k=10)`** — Web search con key rotation loop completo
-2. **`scrape(url)`** — Estrazione markdown da singolo URL. Usa `_acquire_working_provider()` (single key, no rotation loop)
-3. **`extract(url, prompt, schema?)`** — Estrazione strutturata AI. Stesso pattern di scrape
+2. **`scrape(url)`** — Estrazione markdown da singolo URL con rotation loop.
+3. **`extract(url, prompt, schema?)`** — Estrazione strutturata AI con rotation loop.
 
 ### SearXNG — `searxng-script_search`
 
@@ -179,7 +179,7 @@ I provider a pagamento (Tavily, Exa, Firecrawl) usano questo flusso per ogni chi
 ```
 search(query)
   │
-  ├─ for attempt in range(5):
+  ├─ for attempt in range(max(5, configured_keys)):
   │     │
   │     ├─ cm.acquire("provider") → KeyInfo o None
   │     │     └─ None → raise ToolError("no available keys")
@@ -199,7 +199,7 @@ search(query)
   │     │
   │     └─ end for
   │
-  └─ raise ToolError("all 5 key attempts failed")
+  └─ raise ToolError("all dynamic key attempts failed")
 ```
 
 ### Quali errori attivano la rotation

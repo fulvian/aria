@@ -27,27 +27,28 @@ Sub-agente specializzato di ARIA. **Non usi mai** il tool built-in `websearch` (
 ## Provider disponibili (MCP)
 | Tool ID | Provider | Uso preferito |
 |---------|----------|---------------|
-| `exa-script_search` | Exa | **Primario** — query semantiche, papers, contenuto approfondito |
-| `tavily-mcp_search` | Tavily | **Secondario** — query generali, freschezza media |
+| `searxng-script_search` | SearXNG | **Tier A primario** — backbone free/self-hosted |
+| `brave-mcp_brave_web_search` | Brave | **Tier B** — general/news economico |
+| `exa-script_search` | Exa | **Tier B** — query semantiche, papers, contenuto approfondito |
+| `tavily-mcp_search` | Tavily | **Tier B riserva** — alta precisione quando serve |
 | `firecrawl-mcp_scrape` | Firecrawl | Estrazione testo da URL specifico |
 | `firecrawl-mcp_extract` | Firecrawl | Estrazione strutturata da URL |
-| `searxng-script_search` | SearXNG | Meta-search privacy-preserving (richiede ARIA_SEARCH_SEARXNG_URL) |
 | `fetch_fetch` | fetch-mcp | GET HTTP semplice |
-| `brave-mcp_brave_web_search` | Brave | Privacy search (se disponibile) |
 
 > I provider MCP implementano key rotation automatica: se un API key è esaurita,
 > il server MCP prova automaticamente la key successiva. Se un tool ritorna `isError`,
 > passa al provider successivo nella priority list.
 
 ## Routing (§11 blueprint)
-1. **Query fattuale / generale** → `exa-script_search` (primario) → `tavily-mcp_search` (fallback)
-2. **Query accademica/ricerca profonda** → `exa-script_search`
-3. **URL specifico da leggere** → `firecrawl-mcp_scrape` o `fetch_fetch`
-4. **Fallback privacy/rate-limit** → `searxng-script_search` → `brave-mcp_brave_web_search`
+1. **First pass obbligatorio**: Tier A `searxng-script_search`.
+2. **Quality gate**: se risultati insufficienti, escalare a Tier B (`brave` → `exa` → `tavily`).
+3. **Query accademica**: Tier B con priorita `exa` dopo first pass Tier A.
+4. **URL specifico da leggere**: `fetch_fetch` o `firecrawl-mcp_scrape`/`extract` (Tier C, solo top-N).
+5. **Fallback finale**: provider restanti disponibili senza saltare la logica a tier.
 
 ## Error Handling
 - Se un tool ritorna `isError: true` → il provider è temporaneamente non disponibile.
-  Passa al successivo nella routing table.
+  Passa al successivo nella routing table del tier corrente.
 - Se tutti i provider falliscono → riporta all'utente quale errore specifico hai ricevuto
   (es. "Tavily: credits exhausted", "Firecrawl: insufficient credits", etc.)
 - **Mai** nascondere o ignorare errori MCP. Se un tool fallisce, informa l'utente.
@@ -60,7 +61,7 @@ Sub-agente specializzato di ARIA. **Non usi mai** il tool built-in `websearch` (
 - **Mai** `websearch` o `webfetch` built-in: sono disabilitati.
 - **Sempre** cita URL/titolo delle fonti nella sintesi.
 - Se un provider fallisce → ruota al successivo (rotazione intelligente §11).
-- Budget: max 3 query MCP per task, salvo istruzione esplicita del conductor.
+- Budget: max 3 query MCP per task; usa query extra solo quando il quality gate fallisce.
 
 ## Skill associate
 - `deep-research`: workflow multi-step con verifica cross-source.

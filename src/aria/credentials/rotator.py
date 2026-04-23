@@ -109,6 +109,25 @@ class Rotator:
     MAX_COOLDOWN_MINUTES = 120  # max cooldown (2 hours)
     HALF_OPEN_PROBES = 1  # probe requests in half_open state
 
+    # Errors that indicate the current key should be quarantined immediately.
+    # This avoids retrying the same exhausted/invalid key multiple times in a single request.
+    TERMINAL_FAILURE_REASONS = {
+        "credits_exhausted",
+        "credit_exhausted",
+        "quota_exhausted",
+        "insufficient_credits",
+        "insufficient_credit",
+        "invalid_api_key",
+        "invalid_key",
+        "key_revoked",
+        "unauthorized",
+        "forbidden",
+        "http_401",
+        "http_402",
+        "http_403",
+        "http_432",
+    }
+
     # Flush interval (opportunistic flush every 5s OR on failure state change)
     FLUSH_INTERVAL_SECONDS = 5.0
 
@@ -405,6 +424,9 @@ class Rotator:
             key_state = prov.keys[key_id]
             key_state.last_error = reason
 
+            normalized_reason = reason.strip().lower().replace(" ", "_")
+            is_terminal_reason = normalized_reason in self.TERMINAL_FAILURE_REASONS
+
             now = self._clock()
 
             if (
@@ -421,7 +443,19 @@ class Rotator:
             old_state = key_state.circuit_state
             changed = False
 
-            if key_state.circuit_state == CircuitState.HALF_OPEN:
+            if is_terminal_reason:
+                key_state.circuit_state = CircuitState.OPEN
+                key_state.failure_count = max(key_state.failure_count, self.FAILURE_THRESHOLD)
+                cooldown_seconds = (
+                    retry_after if retry_after is not None else self.MAX_COOLDOWN_MINUTES * 60
+                )
+                key_state.cooldown_until = datetime.fromtimestamp(
+                    now.timestamp() + cooldown_seconds,
+                    tz=UTC,
+                )
+                changed = True
+
+            elif key_state.circuit_state == CircuitState.HALF_OPEN:
                 # Failure in half_open → back to OPEN with doubled cooldown
                 key_state.circuit_state = CircuitState.OPEN
                 cooldown_mins = self.COOLDOWN_MINUTES * (2**key_state.failure_count)

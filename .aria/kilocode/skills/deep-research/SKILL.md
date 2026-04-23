@@ -26,7 +26,11 @@ contenuti, sintetizzare report strutturato.
 
 ## Procedura
 1. Pianifica 3-7 sub-query diverse che coprono il tema da angolazioni distinte
-2. Per ogni sub-query invoca il router: Tavily > Brave > Firecrawl > Exa
+2. Per ogni sub-query usa routing a tier:
+   - Tier A: `searxng-script_search` (sempre first-pass)
+   - Tier B: `brave-mcp_brave_web_search` poi `exa-script_search` poi `tavily-mcp_search`
+   - Tier C: `firecrawl-mcp_scrape`/`firecrawl-mcp_extract` solo per approfondire top-N URL
+   Escala al tier successivo solo se quality gate fallisce (pochi risultati, bassa coverage, bassa recency)
 3. Deduplica URL (Levenshtein title + URL canonicalization)
 4. Per top-N risultati, scrape full content via firecrawl
 5. Classifica per rilevanza e data
@@ -37,3 +41,4 @@ contenuti, sintetizzare report strutturato.
 - Cita SEMPRE le fonti con URL
 - Se fonti contraddittorie, riportale entrambe
 - Se meno di 3 fonti trovate, dichiara "ricerca povera"
+- Se un provider ritorna errore di quota/API key esaurita, prova il provider successivo dello stesso tier o tier successivo

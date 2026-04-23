@@ -26,7 +26,14 @@ logger = logging.getLogger(__name__)
 
 mcp = FastMCP("exa-script")
 
-MAX_KEY_ROTATION_ATTEMPTS = 5
+DEFAULT_MAX_KEY_ROTATION_ATTEMPTS = 5
+
+
+def _rotation_attempts(cm: CredentialManager, provider: str) -> int:
+    """Compute rotation attempts to cover all configured keys at least once."""
+    status = cm.status(provider)
+    key_count = len(status.get("keys", [])) if isinstance(status, dict) else 0
+    return max(DEFAULT_MAX_KEY_ROTATION_ATTEMPTS, key_count)
 
 
 @mcp.tool
@@ -44,8 +51,9 @@ async def search(query: str, top_k: int = 10) -> dict[str, object]:
     """
     cm = CredentialManager()
     last_error: str = ""
+    max_attempts = _rotation_attempts(cm, "exa")
 
-    for attempt in range(MAX_KEY_ROTATION_ATTEMPTS):
+    for attempt in range(max_attempts):
         key_info = await cm.acquire("exa")
         if key_info is None:
             raise ToolError(
@@ -77,17 +85,15 @@ async def search(query: str, top_k: int = 10) -> dict[str, object]:
                 exc.message,
             )
             await cm.report_failure("exa", key_info.key_id, reason=exc.reason)
-            await provider.close()
             continue
         except Exception as exc:
             last_error = str(exc)
             logger.error("Exa unexpected error (attempt %d): %s", attempt + 1, exc)
-            await provider.close()
             continue
+        finally:
+            await provider.close()
 
-    raise ToolError(
-        f"Exa: all {MAX_KEY_ROTATION_ATTEMPTS} key attempts failed. Last error: {last_error}"
-    )
+    raise ToolError(f"Exa: all {max_attempts} key attempts failed. Last error: {last_error}")
 
 
 if __name__ == "__main__":
