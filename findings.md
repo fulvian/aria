@@ -339,3 +339,53 @@ feat(workspace): Sprint 1.6 Phase C-F - advanced skills, scheduler activation, t
 - Branch: feat/sprint-1-2-scheduler-gateway
 - Commit pushed: ✅
 - Quality gates: PASS (342 tests)
+
+## 12. Telegram gateway no-reply incident (2026-04-23)
+
+- Runtime state check: `aria-gateway.service` was inactive (`dead`), which fully explains no reply behavior
+  at the time of user report.
+- Service start verification succeeded (`systemctl --user start aria-gateway.service`) and polling resumed.
+- Code-level criticalities identified for definitive remediation:
+  1) handlers restricted to `filters.ChatType.PRIVATE` (group/channel messages ignored);
+  2) daemon does not wire `ConductorBridge` consumer on `gateway.user_message`;
+  3) no `gateway.reply` subscription to send bridge outputs back to Telegram chat;
+  4) payload schema mismatch (`user_id` vs `telegram_user_id`) between adapter and bridge;
+  5) no dedicated integration tests for gateway adapter/bridge reply loop.
+- Config fragility: `src/aria/config.py` header claims `.env` loading, but implementation only reads
+  `os.environ`; launch paths outside systemd/`bin/aria` can silently produce empty whitelist.
+
+## 13. Telegram gateway definitive remediation (2026-04-23)
+
+- Implemented full gateway wiring in daemon:
+  - initialized episodic store and `ConductorBridge`;
+  - subscribed `gateway.user_message` -> bridge handler;
+  - subscribed `gateway.reply` -> Telegram adapter reply handler;
+  - graceful shutdown now closes episodic store.
+- Implemented reply delivery loop in adapter:
+  - `send_text(chat_id, text)` for explicit outbound sends;
+  - `handle_gateway_reply(payload)` with session-based routing and user-id fallback.
+- Fixed payload schema coherence by adding `telegram_user_id` to `gateway.user_message` publish payload.
+- Hardened systemd operations: `scripts/install_systemd.sh start` now runs `enable --now` for
+  scheduler/gateway to prevent dead services after reboot.
+- Added gateway unit tests (`tests/unit/gateway/test_telegram_adapter.py`) covering payload emission and
+  reply routing paths.
+
+## 14. Gateway Conductor runtime hardening incompatibility (2026-04-23)
+
+- After daemon wiring fix, runtime logs exposed a second-order blocker: Conductor child spawn via Node/V8
+  crashed inside the gateway service with executable-memory permission failures.
+- Root cause: `MemoryDenyWriteExecute=true` in `systemd/aria-gateway.service` is incompatible with
+  Node/V8 executable memory requirements.
+- Applied fix: set `MemoryDenyWriteExecute=false` for gateway user service, reinstall units, restart service.
+- Runtime verification:
+  - `systemctl --user show aria-gateway.service -p MemoryDenyWriteExecute` -> `no`
+  - unit state is `enabled` + `active`.
+
+## 15. Telegram chat-type processing scope (2026-04-23)
+
+- Removed private-only gating at handler registration level (`filters.ChatType.PRIVATE`) to prevent silent
+  non-processing outside private chats.
+- Security posture preserved through runtime whitelist checks (`AuthGuard.is_allowed_telegram_user`).
+- Validation:
+  - gateway unit tests still passing (`tests/unit/gateway`: 12 passed),
+  - service restarted and active.

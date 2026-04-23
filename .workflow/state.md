@@ -1,12 +1,12 @@
 # Project State
 
-## Current Phase: Phase 4 - Verification (search tier/rotation stabilization)
+## Current Phase: Phase 4 - Verification (telegram gateway remediation)
 ## Started: 2026-04-21T07:40:00+02:00
 ## PRD: docs/foundation/aria_foundation_blueprint.md
 ## TDD: docs/plans/google_workspace_agent_full_operational_plan.md
-## Implementation: Searcher Optimizer hardening (terminal key quarantine, dynamic key rotation, tier-aligned search prompts)
-## Tests: Targeted verification PASS (ruff/mypy on modified source; pytest rotator/providers)
-## Deployment: Pending — live ARIA conductor E2E validation on exhausted-key scenario
+## Implementation: Gateway wiring fix + reply loop + payload coherence + systemd hardening (MDWE compatibility)
+## Tests: Targeted gateway quality gates PASS (ruff/mypy + unit tests)
+## Deployment: Pending — operator e2e validation via Telegram conversation flow
 
 ## Agent History
 | Timestamp | Agent | Action | Status |
@@ -40,6 +40,10 @@
 | 2026-04-23T11:10+02:00 | general-manager | Verified scope coherence passes with --tool-tier core --read-only; all 418 tests passing | completed |
 | 2026-04-23T11:23+02:00 | general-manager | Added slides to tier_map['core'] and slides.readonly to scopes metadata; scope coherence still passes | completed |
 | 2026-04-23T23:10+02:00 | general-manager | Fixed search key-rotation escalation and aligned search-agent/skill routing to tier policy | completed |
+| 2026-04-23T23:29+02:00 | general-manager | Diagnosed Telegram no-reply incident: service inactive + gateway wiring criticalities | completed |
+| 2026-04-23T23:35+02:00 | general-manager | Implemented Telegram remediation: daemon bridge wiring, reply delivery loop, systemd enable-now start path, adapter tests | completed |
+| 2026-04-23T23:49+02:00 | general-manager | Fixed gateway systemd MDWE incompatibility causing Node/V8 Conductor child spawn crashes | completed |
+| 2026-04-23T23:55+02:00 | general-manager | Removed private-only chat filter constraints from Telegram handlers and re-verified gateway subset | completed |
 
 ## Skills Invoked
 | Phase | Skill | Outcome |

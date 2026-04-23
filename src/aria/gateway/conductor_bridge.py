@@ -6,8 +6,9 @@ Spawns KiloCode child sessions for Conductor delegation.
 
 Strategies (tried in order per sprint-03 plan):
   A. npx --yes --package @kilocode/cli kilo run --session <id>
-     --agent aria-conductor --input '<msg>'
-  B. kilo (or kilocode) chat --input '<msg>' with KILOCODE_SESSION_ID
+     --agent aria-conductor --format json --auto '<msg>'
+  B. kilo (or kilocode) run --session <id> --agent aria-conductor
+     --format json --auto '<msg>'
 
 The Conductor runs in an isolated child session with separate context window.
 Transcript is saved to `.aria/kilocode/sessions/children/<id>.json`.
@@ -259,7 +260,10 @@ class ConductorBridge:
                     child_session_id,
                     "--agent",
                     "aria-conductor",
-                    "--input",
+                    "--format",
+                    "json",
+                    "--auto",
+                    "--",
                     input_text,
                 ]
 
@@ -342,7 +346,7 @@ class ConductorBridge:
         session_id: str,
         trace_id: str,
     ) -> dict[str, Any]:
-        """Fallback strategy B: direct executable chat with input file IPC.
+        """Fallback strategy B: direct executable ``kilo run`` invocation.
 
         Args:
             input_text: User message.
@@ -353,14 +357,6 @@ class ConductorBridge:
             Dict with result.
         """
         child_session_id = str(uuid.uuid4())
-        input_file = self._children_dir / f"{child_session_id}.input.json"
-
-        # Write input to file
-        self._children_dir.mkdir(parents=True, exist_ok=True)
-        input_file.write_text(
-            json.dumps({"input": input_text, "session_id": session_id}),
-            encoding="utf-8",
-        )
 
         env = {
             "HOME": os.environ.get("ARIA_KILO_HOME", "/home/fulvio/coding/aria/.aria/kilo-home"),
@@ -385,9 +381,16 @@ class ConductorBridge:
         for executable in ("kilo", "kilocode"):
             cmd = [
                 executable,
-                "chat",
-                "--input",
-                str(input_file),
+                "run",
+                "--session",
+                child_session_id,
+                "--agent",
+                "aria-conductor",
+                "--format",
+                "json",
+                "--auto",
+                "--",
+                input_text,
             ]
 
             try:
@@ -405,21 +408,31 @@ class ConductorBridge:
         else:
             raise RuntimeError("Conductor fallback failed: no Kilo executable found in PATH")
 
-        try:
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=self._timeout_s)
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=self._timeout_s)
 
-            if proc.returncode != 0:
-                stderr_text = stderr.decode("utf-8", errors="replace")[:500]
-                raise RuntimeError(f"Conductor fallback failed: {stderr_text}")
+        if proc.returncode != 0:
+            stderr_text = stderr.decode("utf-8", errors="replace")[:500]
+            raise RuntimeError(f"Conductor fallback failed: {stderr_text}")
 
-            stdout_text = stdout.decode("utf-8", errors="replace").strip()
-            return {
-                "text": stdout_text[:2000],
-                "child_session_id": child_session_id,
-                "tokens_used": 0,
-            }
+        stdout_text = stdout.decode("utf-8", errors="replace").strip()
+        for raw_line in reversed(stdout_text.splitlines()):
+            cleaned_line = raw_line.strip()
+            if not cleaned_line:
+                continue
+            try:
+                output_data = json.loads(cleaned_line)
+                if isinstance(output_data, dict):
+                    return {
+                        "text": str(output_data.get("result", stdout_text[:2000])),
+                        "child_session_id": child_session_id,
+                        "tokens_used": int(output_data.get("tokens_used", 0) or 0),
+                        "framed_tool_output": self._extract_framed_tool_output(output_data),
+                    }
+            except json.JSONDecodeError:
+                continue
 
-        finally:
-            # Clean up input file
-            if input_file.exists():
-                input_file.unlink()
+        return {
+            "text": stdout_text[:2000],
+            "child_session_id": child_session_id,
+            "tokens_used": 0,
+        }

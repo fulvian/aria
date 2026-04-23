@@ -356,12 +356,18 @@ journalctl --user -u aria-scheduler.service -p err --no-pager -n 20
 # - "Failed to drop capabilities" + status=218/CAPABILITIES:
 #   in user mode desktop non usare PrivateDevices=true o ProtectKernelModules=true
 #   (vedi ADR-0008)
+# - crash V8 durante risposta AI (`SetPermissionsOnExecutableMemoryChunk`):
+#   verificare `MemoryDenyWriteExecute=false` in aria-gateway.service
 # - "No such file or directory": path sbagliato in EnvironmentFile o ReadWritePaths
 ```
 
 ### 7.2 Gateway non si connette a Telegram
 
 ```bash
+# 0. Verificare che il servizio sia attivo e abilitato
+systemctl --user status aria-gateway.service --no-pager
+systemctl --user is-enabled aria-gateway.service
+
 # 1. Verificare token configurato
 journalctl --user -u aria-gateway.service --no-pager | grep -i token
 
@@ -370,6 +376,10 @@ curl -s https://api.telegram.org/bot<TOKEN>/getMe | python -m json.tool
 
 # 3. Verificare whitelist in .env
 grep ARIA_TELEGRAM_WHITELIST ~/coding/aria/.env
+
+# 4. Se il servizio è disabilitato/inattivo, riallineare install/start
+~/coding/aria/scripts/install_systemd.sh install
+~/coding/aria/scripts/install_systemd.sh start
 ```
 
 ### 7.3 HITL non arriva su Telegram

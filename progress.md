@@ -404,3 +404,56 @@ uv run pytest -q                          # 418 passed
 ```
 
 **Quality Gates**: 418 tests passing
+
+### 2026-04-23 (Telegram no-reply incident analysis)
+
+- Performed wiki-first reconstruction (`docs/llm_wiki/wiki/index.md`, `log.md`, `gateway.md`).
+- Verified runtime state:
+  - `systemctl --user status aria-gateway.service` -> inactive (dead)
+  - `systemctl --user status aria-scheduler.service` -> inactive (dead)
+- Collected gateway journal evidence and confirmed polling behavior when active.
+- Started `aria-gateway.service` and verified active polling startup sequence.
+- Completed code audit on `gateway` stack and recorded criticalities in wiki/log:
+  - private-chat-only handler filters,
+  - missing ConductorBridge wiring,
+  - missing gateway.reply -> Telegram bridge,
+  - adapter/bridge payload key mismatch,
+  - test coverage gap for end-to-end gateway reply loop.
+
+### 2026-04-23 (Telegram no-reply definitive fix implementation)
+
+- Implemented runtime wiring in `src/aria/gateway/daemon.py`:
+  - `create_episodic_store(config)` + `ConductorBridge(...)`
+  - bus subscriptions for `gateway.user_message` and `gateway.reply`
+  - close episodic store on daemon shutdown
+- Implemented outbound reply handling in `src/aria/gateway/telegram_adapter.py`:
+  - `send_text(chat_id, text)`
+  - `handle_gateway_reply(payload)` with session destination + user-id fallback
+- Added payload compatibility field in text handler publish path: `telegram_user_id`.
+- Hardened operational start path in `scripts/install_systemd.sh`: `enable --now` for gateway/scheduler.
+- Added unit tests: `tests/unit/gateway/test_telegram_adapter.py`.
+- Verification executed:
+  - `uv run pytest -q tests/unit/gateway/test_telegram_adapter.py tests/unit/gateway/test_conductor_bridge.py` -> 5 passed
+  - `uv run ruff check src/aria/gateway/daemon.py src/aria/gateway/telegram_adapter.py tests/unit/gateway/test_telegram_adapter.py` -> PASS
+  - `uv run mypy src/aria/gateway/daemon.py src/aria/gateway/telegram_adapter.py` -> PASS
+  - `uv run pytest -q tests/unit/gateway` -> 12 passed
+
+### 2026-04-23 (Gateway Conductor spawn hardening fix)
+
+- Post-remediation runtime check on journal revealed V8 crash on Conductor spawn under systemd user unit.
+- Root cause confirmed: `MemoryDenyWriteExecute=true` in `aria-gateway.service` blocks Node/V8 executable pages.
+- Applied service fix:
+  - `systemd/aria-gateway.service`: `MemoryDenyWriteExecute=false` with explanatory note.
+  - Reinstalled unit files and restarted gateway service.
+  - Verified runtime properties: `MemoryDenyWriteExecute=no`, `ActiveState=active`, `UnitFileState=enabled`.
+
+### 2026-04-23 (Telegram handler scope broadening)
+
+- Removed `filters.ChatType.PRIVATE` constraints from command/text/photo/voice handlers in
+  `src/aria/gateway/telegram_adapter.py`.
+- Whitelist guard remains the authorization gate, so only whitelisted users are processed.
+- Re-validated gateway quality subset and restarted gateway service:
+  - `uv run ruff check ...` PASS
+  - `uv run mypy ...` PASS
+  - `uv run pytest -q tests/unit/gateway` -> 12 passed
+  - `systemctl --user status aria-gateway.service` -> active (running)

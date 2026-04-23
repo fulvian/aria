@@ -28,6 +28,7 @@ async def _async_main() -> int:  # noqa: PLR0915
     from aria.config import get_config
     from aria.credentials import CredentialManager
     from aria.gateway.auth import AuthGuard
+    from aria.gateway.conductor_bridge import ConductorBridge
     from aria.gateway.hitl_responder import on_hitl_created
     from aria.gateway.metrics_server import (
         start_metrics_server,
@@ -35,6 +36,7 @@ async def _async_main() -> int:  # noqa: PLR0915
     )
     from aria.gateway.session_manager import SessionManager
     from aria.gateway.telegram_adapter import TelegramAdapter
+    from aria.memory.episodic import create_episodic_store
     from aria.scheduler.hitl import HitlManager
     from aria.scheduler.notify import SdNotifier
     from aria.scheduler.store import TaskStore
@@ -59,6 +61,10 @@ async def _async_main() -> int:  # noqa: PLR0915
     _hitl_manager = HitlManager(task_store, bus, config)
     # HITL responder subscribes to bus events; no further reference needed
     _ = _hitl_manager
+
+    # Initialize episodic store and conductor bridge
+    episodic_store = await create_episodic_store(config)
+    conductor_bridge = ConductorBridge(bus=bus, store=episodic_store, config=config)
 
     # Initialize Telegram adapter
     telegram_adapter = TelegramAdapter(
@@ -90,6 +96,8 @@ async def _async_main() -> int:  # noqa: PLR0915
 
     bus.subscribe("hitl.resolved", _on_hitl_resolved)
     bus.subscribe("hitl.created", _on_hitl_created)
+    bus.subscribe("gateway.user_message", conductor_bridge.handle_user_message)
+    bus.subscribe("gateway.reply", telegram_adapter.handle_gateway_reply)
 
     start_metrics_server(host="127.0.0.1", port=9090)
 
@@ -104,6 +112,7 @@ async def _async_main() -> int:  # noqa: PLR0915
         logger.info("Shutting down ARIA Gateway daemon...")
         await notifier.stop("shutdown")
         await task_store.close()
+        await episodic_store.close()
         await sessions.close()
         stop_metrics_server()
         logger.info("ARIA Gateway daemon stopped")
@@ -136,6 +145,7 @@ def main(argv: list[str] | None = None) -> int:
             from aria.config import get_config
             from aria.credentials import CredentialManager
             from aria.gateway.auth import AuthGuard
+            from aria.gateway.conductor_bridge import ConductorBridge
             from aria.gateway.metrics_server import (
                 is_metrics_server_running,
                 start_metrics_server,
@@ -143,6 +153,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             from aria.gateway.session_manager import SessionManager
             from aria.gateway.telegram_adapter import TelegramAdapter
+            from aria.memory.episodic import create_episodic_store
             from aria.scheduler.hitl import HitlManager
             from aria.scheduler.notify import SdNotifier
             from aria.scheduler.store import TaskStore
@@ -152,11 +163,13 @@ def main(argv: list[str] | None = None) -> int:
                 get_config,
                 CredentialManager,
                 AuthGuard,
+                ConductorBridge,
                 is_metrics_server_running,
                 start_metrics_server,
                 stop_metrics_server,
                 SessionManager,
                 TelegramAdapter,
+                create_episodic_store,
                 HitlManager,
                 SdNotifier,
                 TaskStore,

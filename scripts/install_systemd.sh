@@ -138,15 +138,15 @@ start_services() {
     log_info "Starting ARIA services..."
 
     if [[ -f "$SYSTEMD_USER_DIR/aria-scheduler.service" ]]; then
-        systemctl --user start aria-scheduler.service
-        log_info "Started aria-scheduler.service"
+        systemctl --user enable --now aria-scheduler.service
+        log_info "Enabled and started aria-scheduler.service"
     else
         log_info "aria-scheduler.service not installed, skipping start"
     fi
 
     if [[ -f "$SYSTEMD_USER_DIR/aria-gateway.service" ]]; then
-        systemctl --user start aria-gateway.service
-        log_info "Started aria-gateway.service"
+        systemctl --user enable --now aria-gateway.service
+        log_info "Enabled and started aria-gateway.service"
     else
         log_info "aria-gateway.service not installed, skipping start"
     fi

@@ -17,10 +17,13 @@ WatchdogSec=60s
 NotifyAccess=main
 
 # Security hardening (desktop-compatible baseline)
-# NOTE: In systemd --user sessions on desktop Linux, both PrivateDevices=true
+# NOTE 1: In systemd --user sessions on desktop Linux, both PrivateDevices=true
 # and ProtectKernelModules=true fail at exec with status=218/CAPABILITIES
 # ("Failed to drop capabilities: Operation not permitted"). Keep those
 # directives disabled for user mode; document divergence in ADR-0008.
+# NOTE 2: Gateway spawns KiloCode/Node child processes through ConductorBridge.
+# Node/V8 requires executable memory pages; MemoryDenyWriteExecute=true causes
+# V8 fatal crashes during child session spawn. Keep it disabled for gateway.
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=tmpfs
@@ -30,7 +33,7 @@ ProtectControlGroups=true
 ProtectKernelTunables=true
 RestrictSUIDSGID=true
 LockPersonality=true
-MemoryDenyWriteExecute=true
+MemoryDenyWriteExecute=false
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 SystemCallArchitectures=native
 

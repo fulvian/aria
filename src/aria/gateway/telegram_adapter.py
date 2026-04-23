@@ -232,28 +232,26 @@ class TelegramAdapter:
         )
 
         # Register handlers
-        app.add_handler(CommandHandler("start", self._handle_start, filters.ChatType.PRIVATE))
-        app.add_handler(CommandHandler("help", self._handle_help, filters.ChatType.PRIVATE))
-        app.add_handler(CommandHandler("status", self._handle_status, filters.ChatType.PRIVATE))
-        app.add_handler(CommandHandler("run", self._handle_run, filters.ChatType.PRIVATE))
+        app.add_handler(CommandHandler("start", self._handle_start))
+        app.add_handler(CommandHandler("help", self._handle_help))
+        app.add_handler(CommandHandler("status", self._handle_status))
+        app.add_handler(CommandHandler("run", self._handle_run))
 
         # Text message handler (echo for Sprint 1.2, publishes gateway.user_message)
         app.add_handler(
             MessageHandler(
-                filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE,
+                filters.TEXT & ~filters.COMMAND,
                 self._handle_text,
             )
         )
 
         # Photo handler
-        app.add_handler(
-            MessageHandler(filters.PHOTO & filters.ChatType.PRIVATE, self._handle_photo)
-        )
+        app.add_handler(MessageHandler(filters.PHOTO, self._handle_photo))
 
         # Voice/Audio handler
         app.add_handler(
             MessageHandler(
-                (filters.VOICE | filters.AUDIO) & filters.ChatType.PRIVATE,
+                filters.VOICE | filters.AUDIO,
                 self._handle_voice,
             )
         )
@@ -461,6 +459,7 @@ class TelegramAdapter:
             {
                 "session_id": session.id if session else None,
                 "user_id": user_id,
+                "telegram_user_id": str(user_id),
                 "text": text,
                 "locale": session.locale if session else "it-IT",
             },
@@ -468,6 +467,70 @@ class TelegramAdapter:
 
         # In Sprint 1.2, echo back as confirmation
         await update.message.reply_text(f"📨 Ricevuto: {text[:100]}...")
+
+    async def send_text(self, chat_id: int, text: str) -> bool:
+        """Send a plain text message to a Telegram chat.
+
+        Args:
+            chat_id: Telegram chat/user ID.
+            text: Message body.
+
+        Returns:
+            True on successful send, False otherwise.
+        """
+        if self._app is None:
+            logger.warning("Cannot send message: Telegram app is not initialized")
+            return False
+
+        try:
+            await self._app.bot.send_message(chat_id=chat_id, text=text)
+            return True
+        except Exception as exc:  # pragma: no cover - network/runtime dependent
+            logger.exception("Failed sending Telegram message to chat_id=%s: %s", chat_id, exc)
+            return False
+
+    async def handle_gateway_reply(self, payload: dict[str, Any]) -> None:
+        """Consume ``gateway.reply`` event and deliver response to Telegram user.
+
+        Payload supports either:
+        - session-based delivery: {session_id, text}
+        - direct user-based delivery: {telegram_user_id|user_id, text}
+        """
+        text = str(payload.get("text", "")).strip()
+        if not text:
+            logger.warning("gateway.reply payload without text")
+            return
+
+        chat_id: int | None = None
+
+        session_id = payload.get("session_id")
+        if session_id:
+            session = await self._sessions.get_session(str(session_id))
+            if session is not None:
+                try:
+                    chat_id = int(session.external_user_id)
+                except ValueError:
+                    logger.warning(
+                        "Invalid external_user_id in session %s: %s",
+                        session.id,
+                        session.external_user_id,
+                    )
+
+        if chat_id is None:
+            raw_user_id = payload.get("telegram_user_id", payload.get("user_id"))
+            if raw_user_id is not None:
+                try:
+                    chat_id = int(str(raw_user_id))
+                except ValueError:
+                    logger.warning("Invalid gateway.reply user id: %s", raw_user_id)
+
+        if chat_id is None:
+            logger.warning(
+                "gateway.reply dropped: no resolvable destination", extra={"payload": payload}
+            )
+            return
+
+        await self.send_text(chat_id=chat_id, text=text)
 
     async def _handle_photo(self, update: Update, context: Any) -> None:  # noqa: ANN401
         """Handle photo messages — download and process OCR.
