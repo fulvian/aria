@@ -1,12 +1,12 @@
 # Project State
 
-## Current Phase: Phase 4 - Verification (workspace policy pragmatization in progress)
+## Current Phase: Phase 5 - Delivery (search agent fix committed, workspace verified)
 ## Started: 2026-04-21T07:40:00+02:00
 ## PRD: docs/foundation/aria_foundation_blueprint.md
 ## TDD: docs/plans/google_workspace_agent_full_operational_plan.md
-## Implementation: Sprint 1.6 Phase A-F plus post-implementation conformance remediation and pragmatic policy hardening (destructive-only HITL + profiled workspace routing)
-## Tests: Pending re-run after policy updates
-## Deployment: Pending final QA/HITL sign-off
+## Implementation: Sprint 1.6 (workspace agents) + Search Agent Critical Fix (key rotation, error propagation, SearXNG deployment)
+## Tests: 424 passed (ruff PASS, mypy PASS, pytest PASS)
+## Deployment: Pending — ARIA session E2E test + Firecrawl credit top-up
 
 ## Agent History
 | Timestamp | Agent | Action | Status |

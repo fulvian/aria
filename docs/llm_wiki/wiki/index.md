@@ -8,7 +8,7 @@ sources:
   - pyproject.toml
   - Makefile
   - docs/operations/runbook.md
-last_updated: 2026-04-23T15:35
+last_updated: 2026-04-23T17:45
 tier: 1
 ---
 
@@ -35,8 +35,8 @@ in pagine Markdown interconnesse leggibili da umani e LLM. Le fonti grezze (`doc
 | [[gateway]] | Telegram gateway, sessioni multi-utente, auth, multimodalità, canali | `gateway`, `telegram`, `multimodal` |
 | [[agents-hierarchy]] | Gerarchia agenti (Conductor, Search, Workspace, System), child sessions, tool matrix | `agents`, `conductor`, `subagents` |
 | [[skills-layer]] | Formato SKILL.md, progressive disclosure, registry, skills MVP, versioning | `skills`, `workflows` |
-| [[tools-mcp]] | MCP ecosystem, tool priority ladder, server configurati, wrapper scripts, npx resolution | `tools`, `mcp`, `providers` |
-| [[search-agent]] | Provider search (Tavily, Firecrawl, Brave, Exa, SearXNG), routing, dedup, circuit breaker | `search`, `providers`, `routing` |
+| [[tools-mcp]] | MCP ecosystem, tool priority ladder, search server architecture, wrapper scripts | `tools`, `mcp`, `providers`, `search-architecture` |
+| [[search-agent]] | Provider search, 3-layer arch, key rotation, error handling, SearXNG deployment, MCP tool registry | `search`, `providers`, `routing`, `key-rotation` |
 | [[workspace-agent]] | Google Workspace integration, OAuth PKCE, scope, triage email, calendar | `workspace`, `google`, `oauth` |
 | [[credentials]] | Credential management: SOPS+age, keyring, circuit breaker, rotation, audit | `security`, `credentials`, `sops` |
 | [[adrs]] | Sommario di tutti gli ADR (ADR-0001–ADR-0010) con stato e decisioni chiave | `adr`, `decisions`, `governance` |

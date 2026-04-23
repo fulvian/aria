@@ -609,3 +609,47 @@ pytest -q: 424 passed
 - [ ] Riavviare `bin/aria repl` e testare ricerca end-to-end via conductor
 - [ ] Top-up crediti Firecrawl
 - [ ] Valutare systemd service per SearXNG (attualmente Docker unless-stopped)
+
+---
+
+## 2026-04-23T17:45 — Riscrittura completa wiki search-agent + tools-mcp
+
+**Operazione**: MAINTENANCE (riscrittura wiki)
+**Autore**: general-manager (Kilo orchestrator)
+**Scope**: Documentazione completa e precisa dell'architettura search tools
+
+### Modifiche
+
+1. **`docs/llm_wiki/wiki/search-agent.md`** — Riscrittura totale:
+   - Architettura a 3 layer (Search-Agent → MCP Server → Provider Adapter)
+   - MCP Tool Registry completo: ogni tool con server name, wrapper, endpoint, key rotation
+   - Key rotation flow diagram passo-passo
+   - Tabella codici HTTP e azione (401/402/403/432 → rotation, 429/5xx → retry)
+   - Error classes gerarchia (KeyExhaustedError → ProviderError → ToolError)
+   - SearXNG deployment e comportamento Docker al riavvio
+   - Output format JSON comune
+   - Mappa codice completa con tutti i file
+   - Fallback tree come visto dal LLM
+
+2. **`docs/llm_wiki/wiki/tools-mcp.md`** — Riscrittura totale:
+   - Registry completo server MCP con tipo, tool esposti, avvio, key rotation
+   - Search MCP Server Architecture diagram (wrapper → FastMCP → provider)
+   - SearXNG eccezione documentata (no key, no rotation, lazy singleton)
+   - Implementazione codice aggiornata con tutti i wrapper
+   - MCP Tool ID namespacing con esempi concreti
+
+3. **`docs/llm_wiki/wiki/index.md`** — Aggiornamento:
+   - Descrizione search-agent e tools-mcp aggiornata
+   - Timestamp aggiornato
+
+### Fonti consultate
+
+- `src/aria/tools/tavily/mcp_server.py` (130 righe)
+- `src/aria/tools/exa/mcp_server.py` (94 righe)
+- `src/aria/tools/firecrawl/mcp_server.py` (189 righe)
+- `src/aria/tools/searxng/mcp_server.py` (70 righe)
+- `src/aria/agents/search/providers/_http.py` (121 righe)
+- `src/aria/agents/search/schema.py` (136 righe)
+- `src/aria/agents/search/providers/searxng.py` (146 righe)
+- `.aria/kilocode/agents/search-agent.md` (66 righe)
+- `scripts/wrappers/tavily-wrapper.sh`, `searxng-wrapper.sh`

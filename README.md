@@ -10,7 +10,7 @@ ARIA is a **personal AI agent** built on KiloCode CLI as the cognitive engine, e
 
 | Capability | Description |
 |------------|-------------|
-| **Deep Research** | Multi-provider web search (Tavily, Firecrawl, Brave, Exa, SearXNG) with intelligent routing and deduplication |
+| **Deep Research** | Multi-provider web search (Exa, Tavily, Firecrawl, SearXNG, Brave) with automatic key rotation and intelligent routing |
 | **Memory** | 5D episodic/semantic memory with actor-aware tagging, verbatim preservation, and async distillation |
 | **Scheduling** | Cron-based task automation with budget gates, policy gates, and HITL (Human-In-The-Loop) for actions |
 | **Workspace** | Google Workspace integration (Gmail, Calendar, Drive, Docs, Sheets) via OAuth PKCE |
@@ -122,7 +122,7 @@ ARIA follows ten inderogable architectural principles defined in [Foundation Blu
 | Agent | Purpose | Tools |
 |-------|---------|-------|
 | **ARIA-Conductor** | Primary orchestrator; intent classification, dispatch to sub-agents | Memory only |
-| **Search-Agent** | Web research with multi-provider routing | Tavily, Firecrawl, Brave, Exa, SearXNG |
+| **Search-Agent** | Web research with multi-provider routing, automatic key rotation | Exa, Tavily, Firecrawl, SearXNG, Brave |
 | **Workspace-Agent** | Gmail, Calendar, Drive, Docs, Sheets | Google Workspace MCP |
 | **Compaction-Agent** | Context Lifecycle Manager; T0→T1 distillation | Memory (async) |
 | **Summary-Agent** | Session summarization | Memory (async) |
@@ -137,8 +137,7 @@ aria/
 ├── bin/aria                 # Launcher script (isolated KiloCode)
 ├── .aria/                   # Isolated state (gitignored)
 │   ├── kilocode/            # KiloCode config, agents, skills, sessions
-│   │   ├── kilo.json       # KiloCode configuration
-│   │   ├── mcp.json       # MCP server registry
+│   │   ├── kilo.json       # KiloCode + MCP configuration
 │   │   ├── agents/        # Agent definitions
 │   │   │   ├── aria-conductor.md
 │   │   │   ├── search-agent.md

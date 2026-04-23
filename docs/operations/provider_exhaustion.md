@@ -1,8 +1,9 @@
 ---
 document: ARIA Search Provider Exhaustion Runbook
-version: 1.0.0
-status: draft
+version: 1.1.0
+status: active
 date_created: 2026-04-20
+date_updated: 2026-04-23
 owner: fulvio
 sprint: 1.3
 ---
@@ -49,22 +50,22 @@ aria_provider_status{provider="tavily",status="credits_exhausted"} 3
 
 ### News / General
 ```
-Tavily → Brave → SearXNG (se configurato) → cache stale (banner "modalità degradata")
+Exa → Tavily → Brave → SearXNG (localhost:8888) → cache stale (banner "modalità degradata")
 ```
 
 ### Academic
 ```
-Exa → Tavily → Brave web → cache stale
+Exa → Tavily → Brave web → SearXNG → cache stale
 ```
 
 ### Deep Scrape
 ```
-Firecrawl → fetch+readability locale → solo metadata+fonti (no full content)
+Firecrawl → fetch_fetch (via fetch-mcp) + readability → solo metadata+fonti (no full content)
 ```
 
 ### Privacy
 ```
-SearXNG (self-hosted) → Brave → Tavily
+SearXNG (self-hosted, localhost:8888) → Brave → Tavily → Exa
 ```
 
 ### Tutti i provider down
@@ -111,25 +112,41 @@ aria creds reload
 
 ## 5. Configurazione SearXNG (Local-Only Mode)
 
-### Setup SearXNG self-hosted
+### Setup SearXNG self-hosted (già deployato)
 
 ```bash
-# Install SearXNG (Docker o bare metal)
-docker run -d -p 8888:8080 \
-  -v $(pwd)/searxng:/etc/searxng \
+# Container attivo
+docker ps --filter name=searxng
+
+# Se non attivo, avvia:
+docker run -d -p 127.0.0.1:8888:8080 \
+  -v /home/fulvio/coding/aria/.aria/runtime/searxng:/etc/searxng \
   --name searxng \
-  SearXNG/SearXNG
-
-# Verifica
-curl "http://localhost:8888/search?q=test&format=json"
+  --restart unless-stopped \
+  searxng/searxng:latest
 ```
 
-### Configura ARIA
+Stato attuale: container `searxng` attivo su `localhost:8888`, restart policy `unless-stopped`.
 
-```bash
-export ARIA_SEARCH_SEARXNG_URL="http://localhost:8888"
-# Aggiungi a .env
+### Configurazione ARIA
+
+Già configurato in `.aria/kilocode/kilo.json`:
+```json
+"searxng-script": {
+  "environment": {
+    "ARIA_SEARCH_SEARXNG_URL": "http://localhost:8888"
+  }
+}
 ```
+
+### Comportamento Docker
+
+| Scenario | Risultato |
+|----------|-----------|
+| Container crash | Docker riavvia automaticamente (`unless-stopped`) |
+| Spegnimento PC | Docker daemon si avvia al boot → container riavviato |
+| `docker stop searxng` | Resta fermo fino a `docker start searxng` |
+| `bin/aria repl` | Non interagisce con Docker — indipendenti |
 
 ## 6. Recovery Procedure
 
