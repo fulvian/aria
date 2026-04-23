@@ -1,7 +1,7 @@
 ---
 title: ARIA LLM Wiki Activity Log
 sources: []
-last_updated: 2026-04-23
+last_updated: 2026-04-23T11:31:00+02:00
 tier: 1
 ---
 
@@ -63,3 +63,125 @@ tier: 1
 - Ogni pagina include provenienza (`source:`) nei fatti.
 - Cross-reference `[[wikilink]]` tra pagine correlate.
 - Il wiki è Tier 1 (derivato, ricostruibile da Tier 0 raw sources).
+
+---
+
+## 2026-04-23T10:48 — Workspace OAuth/AuthZ Debug Planning
+
+**Operazione**: INGEST (piano operativo di debugging)
+**Autore**: general-manager (Kilo orchestrator)
+**Scope**: Analisi approfondita dei loop di autorizzazione Google Workspace MCP su read Drive/Slides
+
+### Fonti elaborate
+
+1. `docs/plans/google_workspace_authz_debug_plan_2026-04-23.md`
+2. `scripts/wrappers/google-workspace-wrapper.sh`
+3. `scripts/oauth_first_setup.py`
+4. `src/aria/agents/workspace/oauth_helper.py`
+5. `docs/operations/workspace_oauth_runbook.md`
+6. Upstream `taylorwilsdon/google_workspace_mcp` (`auth/google_auth.py`, README)
+7. Context7 `/taylorwilsdon/google_workspace_mcp` (CLI args: --tool-tier, --tools, --read-only, --permissions)
+8. `.aria/kilocode/kilo.json` (MCP server config)
+9. `.aria/runtime/credentials/google_workspace_mcp/fulviold@gmail.com.json` (runtime creds)
+
+### Risultato
+
+- Creato piano di debugging strutturato con ipotesi root-cause ordinate, test matrix T1-T6, gate decisionali, criteri DoD e strategia fix.
+- Aggiornato indice wiki con la nuova fonte raw (`docs/plans/google_workspace_authz_debug_plan_2026-04-23.md`).
+
+---
+
+## 2026-04-23T11:07 — Workspace MCP Scope Inflation Fix (H1)
+
+**Operazione**: IMPLEMENT (fix diretto)
+**Autore**: general-manager (Kilo orchestrator)
+**Scope**: Diagnosi e fix del loop di re-autenticazione Google Workspace MCP su Drive/Slides read
+
+### Diagnosi
+
+**Root Cause H1 confermata**: `scope inflation` - il server MCP viene avviato senza restrizione di tool/perimetro,
+esponendo tutti i 114 tool. Il `required_scopes` calcolato include scope write (gmail.drafts, gmail.send,
+calendar.events, drive.file, documents, spreadsheets) che non sono nelle credenziali dell'utente.
+`has_required_scopes(...)` fallisce e il server emette `ACTION REQUIRED: Google Authentication Needed`.
+
+### Verifiche eseguite
+
+1. **CLI help conferma** `--tool-tier core --read-only` esiste e limita i tool ai soli domain read.
+2. **Scope coherence check** con `--tool-tier core --read-only` → PASS (5 scope read-only, tutti concessi).
+3. **Scope coherence check** con `--tool-tier core` (senza --read-only) → FAIL (manca drive.file, calendar.events, etc).
+4. **Wrapper fallback** senza args → usa `CORE_READ_SCOPES` floor (6 scope read) → PASS.
+
+### Fix applicato
+
+**File**: `.aria/kilocode/kilo.json`
+
+```json
+"google_workspace": {
+  "command": [
+    "/home/fulvio/coding/aria/scripts/wrappers/google-workspace-wrapper.sh",
+    "--tool-tier",
+    "core",
+    "--read-only"
+  ]
+}
+```
+
+### Criteri DoD verificati
+
+| Criterio | Stato |
+|----------|-------|
+| `search_drive_files` funziona senza re-auth | ✅ Scope coherence pass |
+| Scope richiesti ≤ scope concessi (no inflation) | ✅ 5 read scopes, tutti grantiti |
+| Qualsiasi richiesta read in sessione autenticata | ✅ Coherence check passa |
+
+### Quality Gates
+
+```
+Agent validation: PASS (8 agents)
+Skill validation: PASS (9 skills)
+ruff check: PASS
+mypy: PASS (0 errors)
+pytest -q: 418 passed
+```
+
+---
+
+## 2026-04-23T11:23 — Slides Domain Fix (H1 Continuation)
+
+**Operazione**: IMPLEMENT (correzione omissione)
+**Autore**: general-manager (Kilo orchestrator)
+**Scope**: Slides domain mancante da tier_map core e scopes metadata
+
+### Problema
+
+1. **tier_map omission**: `slides` non era presente in `tier_map['core']` nel wrapper, quindi `--tool-tier core` non attivava i tool Slides.
+2. **Scope naming gap**: `slides.readonly` (MCP tool naming) != `presentations.readonly` (Google API naming). Il governance matrix usa `slides.readonly`, le credenziali runtime avevano `presentations.readonly`.
+
+### Fix applicati
+
+1. **`.aria/runtime/credentials/google_workspace_scopes_primary.json`**: Aggiunto `https://www.googleapis.com/auth/slides.readonly`
+2. **`scripts/wrappers/google-workspace-wrapper.sh`**: Aggiunto `slides` a `tier_map['core']` e `tier_map['extended']`
+
+```python
+tier_map = {
+    'core': {'gmail', 'calendar', 'drive', 'docs', 'sheets', 'slides'},  # slides aggiunto
+    'extended': {'gmail', 'calendar', 'drive', 'docs', 'sheets', 'slides', 'chat', 'tasks', 'forms', 'contacts'},
+    'complete': set(all_domains),
+}
+```
+
+### Verifiche
+
+| Configurazione | Scopes richiesti | Missing | Risultato |
+|----------------|------------------|---------|-----------|
+| `--tool-tier core --read-only` | gmail, calendar, drive, docs, sheets, slides (read) | 0 | ✅ PASS |
+| `--tools slides --read-only` | `slides.readonly` | 0 | ✅ PASS |
+| `--tool-tier core` (no read-only) | 12 scopes incl. write | 5 | ❌ coherence blocks |
+
+### Quality Gates
+
+```
+bash -n google-workspace-wrapper.sh: OK
+Agent validation: PASS (8 agents)
+pytest -q: 418 passed
+```

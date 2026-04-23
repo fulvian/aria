@@ -357,3 +357,50 @@ uv run pytest -q tests/unit/agents/workspace tests/unit/scheduler tests/integrat
 **Context7 Verified References:**
 - `/taylorwilsdon/google_workspace_mcp` — Official tool list (all underscore-prefix format)
 - `/modelcontextprotocol/python-sdk` — HITL patterns via `ctx.elicit()` and `ElicitResult`
+
+### 2026-04-23 (Google Workspace AuthZ Debug + Fix - H1 Scope Inflation)
+
+**Diagnosi Root Cause H1**:
+- Il server MCP `workspace-mcp` viene avviato senza restrizione tool perimetro
+- Con tutti i 114 tool attivi, `required_scopes` include scope write non concessi
+- `has_required_scopes()` fallisce → emette `ACTION REQUIRED: Google Authentication Needed`
+- L'URL di auth mostra scope enormi (Gmail+Calendar+Drive+Docs+Sheets+Slides+Chat+Tasks+etc)
+
+**Verifiche eseguite**:
+1. Context7 `/taylorwilsdon/google_workspace_mcp` → CLI supporta `--tool-tier core --read-only`
+2. Scope coherence check con `--tool-tier core --read-only` → ✅ PASS
+3. Scope coherence check con `--tool-tier core` (senza --read-only) → ❌ FAIL
+4. Wrapper fallback senza args → CORE_READ_SCOPES floor → ✅ PASS
+
+**Fix applicato** (`.aria/kilocode/kilo.json`):
+- Aggiunto `--tool-tier core --read-only` alla configurazione MCP `google_workspace`
+- Limita tool ai domain read-only: gmail, calendar, drive, docs, sheets
+- Scope coherence: 5 required scopes tutti concessi
+
+**Quality Gates**:
+```
+uv run python scripts/validate_agents.py  # PASS (8 agents)
+uv run python scripts/validate_skills.py  # PASS (9 skills)
+uv run ruff check src/                    # PASS
+uv run mypy src                           # PASS (0 errors)
+uv run pytest -q                          # 418 passed
+```
+
+### 2026-04-23 (Slides Scope Fix - H1 Continuation)
+
+**Issue**: Slides domain missing from `--tool-tier core` in wrapper tier_map.
+- Slides tools (get_presentation, get_page, get_page_thumbnail) use `slides.readonly` scope
+- This scope is equivalent to `presentations.readonly` (Google API naming)
+- Was already present in runtime creds but governance matrix tracks it as `slides.readonly`
+
+**Fix Applied**:
+1. Added `slides.readonly` to `.aria/runtime/credentials/google_workspace_scopes_primary.json`
+2. Added `slides` to `tier_map['core']` in `scripts/wrappers/google-workspace-wrapper.sh`
+
+**Verification**:
+```
+--tool-tier core --read-only: required=[gmail,calendar,drive,docs,sheets,slides] read-only ✅ PASS
+--tools slides --read-only: required=[slides.readonly] ✅ PASS
+```
+
+**Quality Gates**: 418 tests passing

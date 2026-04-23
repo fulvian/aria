@@ -139,7 +139,10 @@
     "google_workspace": {
       "type": "local",
       "command": [
-        "/home/fulvio/coding/aria/scripts/wrappers/google-workspace-wrapper.sh"
+        "/home/fulvio/coding/aria/scripts/wrappers/google-workspace-wrapper.sh",
+        "--tool-tier",
+        "core",
+        "--read-only"
       ],
       "enabled": true,
       "environment": {

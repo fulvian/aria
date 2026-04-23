@@ -35,6 +35,10 @@
 | 2026-04-22T20:42+02:00 | general-manager | Re-ran full quality gates (ruff/mypy/pytest, validators) with 414 passing tests | completed |
 | 2026-04-23T08:58+02:00 | general-manager | Revised security/workspace policies for read authorization and explicit-write authorization; fixed retrieval precision directives; expanded Slides read scopes | completed |
 | 2026-04-23T10:05+02:00 | general-manager | Relaxed HITL to destructive-only at runtime, enabled profiled workspace agent routing, added OAuth scope-floor/read-pack defaults, aligned blueprint/governance docs | completed |
+| 2026-04-23T10:48+02:00 | general-manager | Produced extended Google Workspace OAuth/AuthZ debugging plan for Drive/Slides read authorization failures | completed |
+| 2026-04-23T11:07+02:00 | general-manager | Root-caused H1 (scope inflation) and fixed kilo.json MCP config: --tool-tier core --read-only | completed |
+| 2026-04-23T11:10+02:00 | general-manager | Verified scope coherence passes with --tool-tier core --read-only; all 418 tests passing | completed |
+| 2026-04-23T11:23+02:00 | general-manager | Added slides to tier_map['core'] and slides.readonly to scopes metadata; scope coherence still passes | completed |
 
 ## Skills Invoked
 | Phase | Skill | Outcome |

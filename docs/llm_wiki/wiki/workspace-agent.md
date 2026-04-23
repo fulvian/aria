@@ -53,7 +53,9 @@ tier: 1
 | Docs | `documents` | Scrittura documenti |
 | Sheets | `spreadsheets.readonly` | Lettura fogli |
 | Sheets | `spreadsheets` | Scrittura fogli |
-| Slides | `presentations.readonly` | Lettura presentazioni |
+| Slides | `slides.readonly` / `presentations.readonly` | Lettura presentazioni |
+
+**Nota**: `slides.readonly` è il naming MCP tool; Google API usa `presentations.readonly`. Il wrapper gestisce l'alias automaticamente.
 
 **Scope escalation**: Richiede nuovo ADR esplicito + re-run `oauth_first_setup.py`. No silent scope creep.
 

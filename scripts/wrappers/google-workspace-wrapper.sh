@@ -118,8 +118,8 @@ def parse_cli_args(argv: list[str], all_domains: set[str]) -> tuple[set[str], bo
     read_only = '--read-only' in argv
 
     tier_map = {
-        'core': {'gmail', 'calendar', 'drive', 'docs', 'sheets'},
-        'extended': {'gmail', 'calendar', 'drive', 'docs', 'sheets', 'chat', 'tasks', 'forms', 'contacts'},
+        'core': {'gmail', 'calendar', 'drive', 'docs', 'sheets', 'slides'},
+        'extended': {'gmail', 'calendar', 'drive', 'docs', 'sheets', 'slides', 'chat', 'tasks', 'forms', 'contacts'},
         'complete': set(all_domains),
     }
 
