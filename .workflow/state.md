@@ -63,3 +63,19 @@
 - Phase D: Advanced Write Skill Pack (gmail-composer-pro, docs-editor-pro, sheets-editor-pro, slides-editor-pro)
 - Phase E: Scheduler/Automation Activation
 - Phase F: Verification, Telemetry, and Go-Live
+
+---
+
+## LLM Wiki Bootstrap (2026-04-23)
+
+| Item | Status |
+|------|--------|
+| `docs/llm_wiki/wiki/index.md` | ✅ Created |
+| `docs/llm_wiki/wiki/log.md` | ✅ Created |
+| 16 content pages | ✅ All created |
+| `docs/llm_wiki/ext_knowledge/llm-wiki-paradigm.md` | ✅ Created |
+| Cross-reference verification (16/16 wikilinks) | ✅ All resolve |
+| Total lines | 2018 |
+
+### Wiki Pages Created
+architecture.md, ten-commandments.md, project-layout.md, memory-subsystem.md, scheduler.md, gateway.md, agents-hierarchy.md, skills-layer.md, tools-mcp.md, search-agent.md, workspace-agent.md, credentials.md, adrs.md, governance.md, quality-gates.md, roadmap.md
