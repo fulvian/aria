@@ -1,7 +1,7 @@
 ---
 title: ARIA LLM Wiki Activity Log
 sources: []
-last_updated: 2026-04-23T15:35:00+02:00
+last_updated: 2026-04-23T19:20:00+02:00
 tier: 1
 ---
 
@@ -652,4 +652,63 @@ pytest -q: 424 passed
 - `src/aria/agents/search/schema.py` (136 righe)
 - `src/aria/agents/search/providers/searxng.py` (146 righe)
 - `.aria/kilocode/agents/search-agent.md` (66 righe)
-- `scripts/wrappers/tavily-wrapper.sh`, `searxng-wrapper.sh`
+ - `scripts/wrappers/tavily-wrapper.sh`, `searxng-wrapper.sh`
+
+---
+
+## 2026-04-23T19:20 — Deep-Research Skill Tool Name Fix + Search Agent Completion Audit
+
+**Operazione**: FIX + AUDIT
+**Autore**: general-manager (Kilo orchestrator)
+**Scope**: Completamento debug search agent — fix tool naming nella skill deep-research
+
+### Diagnosi
+
+Audit completo del search subsystem ha rivelato che `.aria/kilocode/skills/deep-research/SKILL.md`
+aveva **tutti** i tool names con convenzione errata:
+
+| Tool nel file | Tool corretto | Errore |
+|---------------|---------------|--------|
+| `tavily_mcp_tavily_search` | `tavily-mcp_search` | Doppio nome server + underscore vs hyphen |
+| `firecrawl_mcp_firecrawl_scrape` | `firecrawl-mcp_scrape` | Doppio nome server + underscore vs hyphen |
+| `firecrawl_mcp_firecrawl_extract` | `firecrawl-mcp_extract` | Doppio nome server + underscore vs hyphen |
+| `brave_mcp_brave_web_search` | `brave-mcp_brave_web_search` | Underscore vs hyphen nel server prefix |
+| `brave_mcp_brave_news_search` | `brave-mcp_brave_news_search` | Underscore vs hyphen nel server prefix |
+| `exa_script_search` | `exa-script_search` | Underscore vs hyphen nel server prefix |
+| `searxng_script_search` | `searxng-script_search` | Underscore vs hyphen nel server prefix |
+| `aria_memory_remember` | `aria-memory_remember` | Underscore vs hyphen nel server prefix |
+
+### Fix applicato
+
+1. **`.aria/kilocode/skills/deep-research/SKILL.md`** — Corretti tutti i tool names:
+   - Server prefixes: underscore → hyphen (per matchare `FastMCP("tavily-mcp")` etc.)
+   - Tool names: rimosso prefisso ridondante (es. `tavily_mcp_tavily_search` → `tavily-mcp_search`)
+   - Aggiunto `aria-memory_recall` mancante alla lista
+
+### Verifica anche: search-agent.md memory references
+
+- `aria-memory_recall` e `aria-memory_remember` sono **corretti** — il memory MCP server
+  usa `FastMCP("aria-memory")` con tool `recall` e `remember`.
+
+### Audit completo: stato search subsystem
+
+| Componente | Stato |
+|------------|-------|
+| Provider adapters (6) | ✅ Tutti implementati (Tavily, Exa, Firecrawl, Brave, SearXNG, SerpAPI) |
+| Custom MCP servers (4) | ✅ Key rotation + ToolError (Tavily, Exa, Firecrawl, SearXNG) |
+| Brave via upstream npm | ✅ Wrapper con SOPS key injection |
+| Wrapper scripts (5) | ✅ Tutti con env isolation |
+| Search-agent config | ✅ Tool names corretti, routing table aggiornata |
+| Deep-research skill | ✅ Tool names corretti (fix applicato ora) |
+| Integration tests (15) | ✅ Provider error handling + key rotation |
+| Provider status | Exa ✅ Primario, Tavily ✅ Secondario (7/8), SearXNG ✅ Fallback, Firecrawl ❌ Credits esauriti |
+
+### Quality Gates
+
+```
+uv run python scripts/validate_agents.py  # PASS (8 agents)
+uv run python scripts/validate_skills.py  # PASS (9 skills)
+uv run ruff check src/                    # PASS
+uv run mypy src/                          # PASS (0 errors, 70 files)
+uv run pytest -q                          # 424 passed
+```

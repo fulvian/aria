@@ -5,14 +5,15 @@ description: Ricerca web approfondita multi-provider con deduplica e sintesi
 trigger-keywords: [ricerca, search, approfondisci, analizza tema, deep, research]
 user-invocable: true
 allowed-tools:
-  - tavily_mcp_tavily_search
-  - firecrawl_mcp_firecrawl_scrape
-  - firecrawl_mcp_firecrawl_extract
-  - brave_mcp_brave_web_search
-  - brave_mcp_brave_news_search
-  - exa_script_search
-  - searxng_script_search
-  - aria_memory_remember
+  - tavily-mcp_search
+  - firecrawl-mcp_scrape
+  - firecrawl-mcp_extract
+  - brave-mcp_brave_web_search
+  - brave-mcp_brave_news_search
+  - exa-script_search
+  - searxng-script_search
+  - aria-memory_remember
+  - aria-memory_recall
 max-tokens: 50000
 estimated-cost-eur: 0.10
 ---
