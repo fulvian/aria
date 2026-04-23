@@ -960,6 +960,84 @@ systemctl --user restart aria-gateway.service && systemctl --user status aria-ga
 
 ---
 
+## 2026-04-24T00:11 — Conductor CLI invocation fix (`kilo run`)
+
+**Operazione**: DEBUG+IMPLEMENT+VERIFY
+**Autore**: general-manager (Kilo orchestrator)
+**Scope**: risolvere errore utente Telegram `Conductor fallback failed:` dopo primo round remediation
+
+### Diagnosi runtime
+
+- Journal gateway mostrava errore ripetuto su tutti i pacchetti npx con usage:
+  - `kilo run [message..]`
+  - codice invocava `--input <msg>` non supportato dalla CLI corrente.
+- Conseguenza: strategy A falliva sempre e strategy B (`kilo chat --input`) era obsoleta/incompatibile.
+
+### Fix applicato
+
+1. `src/aria/gateway/conductor_bridge.py`
+   - Strategy A aggiornata a:
+     - `kilo run --session <id> --agent aria-conductor --format json --auto -- <message>`
+   - Strategy B aggiornata da `kilo chat --input` a `kilo run` con stessi flag.
+   - Parsing JSON mantenuto su output line-based.
+
+2. `src/aria/scheduler/runner.py`
+   - `_execute_workspace_via_kilocode` aggiornato allo stesso pattern (`--format json --auto -- <prompt>`).
+
+3. Test anti-regressione aggiunti/aggiornati
+   - `tests/unit/gateway/test_conductor_bridge.py`:
+     - verifica assenza `--input` e presenza `--format json --auto -- <message>`.
+   - `tests/unit/scheduler/test_runner_workspace.py`:
+     - verifica command shape runner senza `--input`.
+
+### Verifica
+
+```
+uv run ruff check src/aria/gateway/conductor_bridge.py src/aria/scheduler/runner.py tests/unit/gateway/test_conductor_bridge.py tests/unit/scheduler/test_runner_workspace.py: PASS
+uv run mypy src/aria/gateway/conductor_bridge.py src/aria/scheduler/runner.py: PASS
+uv run pytest -q tests/unit/gateway/test_conductor_bridge.py tests/unit/scheduler/test_runner_workspace.py: PASS (11 passed)
+systemctl --user restart aria-gateway.service && systemctl --user status aria-gateway.service --no-pager: active (running)
+```
+
+---
+
+## 2026-04-24T00:19 — Final CLI contract correction (`--session` removed for one-shot run)
+
+**Operazione**: DEBUG+IMPLEMENT+VERIFY
+**Autore**: general-manager (Kilo orchestrator)
+**Scope**: eliminare secondo failure mode emerso nel test smoke post-fix (`Session not found`)
+
+### Diagnosi
+
+- Il test smoke di `kilo run` con `--session <new_id>` falliva con:
+  - `NotFoundError: Session not found: <id>`
+- Conferma semantica CLI: `--session` serve a continuare sessioni esistenti, non a crearne una nuova.
+
+### Fix applicato
+
+1. `src/aria/gateway/conductor_bridge.py`
+   - rimosso `--session` da strategy A e B (`kilo run` one-shot).
+
+2. `src/aria/scheduler/runner.py`
+   - rimosso `--session` da `_execute_workspace_via_kilocode`.
+
+3. Test aggiornati
+   - `tests/unit/gateway/test_conductor_bridge.py`: ora verifica assenza `--session`.
+   - `tests/unit/scheduler/test_runner_workspace.py`: ora verifica assenza `--session`.
+
+### Verifica
+
+```
+uv run ruff check src/aria/gateway/conductor_bridge.py src/aria/scheduler/runner.py tests/unit/gateway/test_conductor_bridge.py tests/unit/scheduler/test_runner_workspace.py: PASS
+uv run mypy src/aria/gateway/conductor_bridge.py src/aria/scheduler/runner.py: PASS
+uv run pytest -q tests/unit/gateway/test_conductor_bridge.py tests/unit/scheduler/test_runner_workspace.py: PASS (11 passed)
+systemctl --user restart aria-gateway.service && systemctl --user status aria-gateway.service --no-pager: active (running)
+```
+
+
+
+---
+
 ## 2026-04-24T00:05 — Search Provider Root Cause Fix: SOPS Decryption Caching
 
 **Operazione**: DEBUG+IMPLEMENT (critical reliability fix)

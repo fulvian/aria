@@ -187,6 +187,17 @@ src/aria/gateway/
    - source: `systemd/aria-gateway.service`, `scripts/install_systemd.sh`
    - last_updated: 2026-04-23
 
+8. **Compatibilita CLI Kilo (`run`)**
+   - Root cause ulteriore emersa in E2E: bridge usava `--input` (non supportato da `kilo run` corrente).
+   - Correzione applicata:
+     - usa prompt come argomento posizionale (`-- <message>`)
+     - forza `--format json --auto` per parsing stabile e non-interattivo
+     - fallback aggiornato da `kilo chat --input` a `kilo run` con stessi flag.
+   - ulteriore correzione: rimosso `--session` dai run one-shot (il flag è per continuare sessioni esistenti).
+   - allineamento analogo nel runner scheduler workspace.
+   - source: `src/aria/gateway/conductor_bridge.py`, `src/aria/scheduler/runner.py`
+   - last_updated: 2026-04-24
+
 ## Vedi anche
 
 - [[scheduler]] — HITL pending management

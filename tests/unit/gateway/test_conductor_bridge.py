@@ -2,9 +2,16 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+import json
+from typing import TYPE_CHECKING
+from unittest.mock import patch
+
+import pytest
 
 from aria.gateway.conductor_bridge import ConductorBridge
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class _NoopBus:
@@ -13,15 +20,14 @@ class _NoopBus:
 
 
 class _NoopStore:
-    async def add(self, **kwargs):
+    async def add(self, **kwargs: object) -> None:
         _ = kwargs
-        return None
 
 
-def test_extract_framed_tool_output_wraps_and_sanitizes(tmp_path: Path):
+def test_extract_framed_tool_output_wraps_and_sanitizes(tmp_path: Path) -> None:
     bridge = ConductorBridge(
         bus=_NoopBus(),
-        store=_NoopStore(),
+        store=_NoopStore(),  # type: ignore[arg-type]
         config=object(),
         sessions_dir=tmp_path,
     )
@@ -36,12 +42,57 @@ def test_extract_framed_tool_output_wraps_and_sanitizes(tmp_path: Path):
     assert "ignore me" in framed
 
 
-def test_extract_framed_tool_output_ignores_empty_payloads(tmp_path: Path):
+def test_extract_framed_tool_output_ignores_empty_payloads(tmp_path: Path) -> None:
     bridge = ConductorBridge(
         bus=_NoopBus(),
-        store=_NoopStore(),
+        store=_NoopStore(),  # type: ignore[arg-type]
         config=object(),
         sessions_dir=tmp_path,
     )
     assert bridge._extract_framed_tool_output({}) is None
     assert bridge._extract_framed_tool_output({"tool_output": "   "}) is None
+
+
+@pytest.mark.asyncio
+async def test_spawn_conductor_uses_positional_message_not_input_flag(tmp_path: Path) -> None:
+    bridge = ConductorBridge(
+        bus=_NoopBus(),
+        store=_NoopStore(),  # type: ignore[arg-type]
+        config=object(),
+        sessions_dir=tmp_path,
+        timeout_s=5,
+    )
+
+    calls: list[list[str]] = []
+
+    class _Proc:
+        returncode = 0
+
+        async def communicate(self) -> tuple[bytes, bytes]:
+            payload = {"result": "ok", "tokens_used": 7}
+            return json.dumps(payload).encode("utf-8"), b""
+
+    async def _fake_create_subprocess_exec(*cmd: object, **kwargs: object) -> _Proc:
+        calls.append([str(x) for x in cmd])
+        _ = kwargs
+        return _Proc()
+
+    with (
+        patch("aria.gateway.conductor_bridge._kilo_npx_packages", return_value=["@kilocode/cli"]),
+        patch(
+            "aria.gateway.conductor_bridge.asyncio.create_subprocess_exec",
+            side_effect=_fake_create_subprocess_exec,
+        ),
+    ):
+        result = await bridge._spawn_conductor("ciao", "s1", "t1")
+
+    assert result["text"] == "ok"
+    assert calls
+    first_cmd = calls[0]
+    assert "--input" not in first_cmd
+    assert "--session" not in first_cmd
+    assert "--format" in first_cmd
+    assert "json" in first_cmd
+    assert "--auto" in first_cmd
+    assert "--" in first_cmd
+    assert "ciao" in first_cmd

@@ -42,6 +42,14 @@ logger = logging.getLogger(__name__)
 DEFAULT_CONDUCTOR_TIMEOUT_S = 600
 
 
+def _new_kilo_session_id() -> str:
+    """Generate a Kilo-compatible session id.
+
+    Kilo validates that session IDs start with ``ses``.
+    """
+    return f"ses_{uuid.uuid4().hex}"
+
+
 def _kilo_npx_packages() -> list[str]:
     env_packages = os.getenv("ARIA_KILO_NPX_PACKAGES", "").strip()
     if env_packages:
@@ -219,7 +227,7 @@ class ConductorBridge:
         Raises:
             RuntimeError: If subprocess fails.
         """
-        child_session_id = str(uuid.uuid4())
+        child_session_id = _new_kilo_session_id()
 
         # Prepare subprocess
         env = {
@@ -256,8 +264,6 @@ class ConductorBridge:
                     kilo_package,
                     "kilo",
                     "run",
-                    "--session",
-                    child_session_id,
                     "--agent",
                     "aria-conductor",
                     "--format",
@@ -356,7 +362,7 @@ class ConductorBridge:
         Returns:
             Dict with result.
         """
-        child_session_id = str(uuid.uuid4())
+        child_session_id = _new_kilo_session_id()
 
         env = {
             "HOME": os.environ.get("ARIA_KILO_HOME", "/home/fulvio/coding/aria/.aria/kilo-home"),
@@ -382,8 +388,6 @@ class ConductorBridge:
             cmd = [
                 executable,
                 "run",
-                "--session",
-                child_session_id,
                 "--agent",
                 "aria-conductor",
                 "--format",

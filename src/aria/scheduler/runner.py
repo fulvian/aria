@@ -21,6 +21,7 @@ from .schema import TaskRun
 
 logger = logging.getLogger(__name__)
 
+
 if TYPE_CHECKING:
     from ..config import AriaConfig
     from .budget_gate import BudgetGate
@@ -509,8 +510,6 @@ class TaskRunner:
         cmd = [
             kilo_executable,
             "run",
-            "--session",
-            str(uuid.uuid4()),
             "--agent",
             str(request.get("sub_agent", "workspace-agent")),
             "--format",

@@ -389,3 +389,21 @@ feat(workspace): Sprint 1.6 Phase C-F - advanced skills, scheduler activation, t
 - Validation:
   - gateway unit tests still passing (`tests/unit/gateway`: 12 passed),
   - service restarted and active.
+
+## 16. Conductor CLI argument mismatch (2026-04-24)
+
+- User E2E error confirmed: `Conductor fallback failed:`.
+- Root cause from journal:
+  - bridge invoked `kilo run ... --input <msg>` but current CLI expects positional `message`.
+  - fallback path still used obsolete `kilo chat --input` pattern.
+- Applied definitive fix:
+  - bridge strategy A/B now use `kilo run --format json --auto -- <message>`;
+  - scheduler workspace runner aligned to same invocation contract.
+- Added anti-regression tests for command shape in bridge and runner unit suites.
+
+## 17. Conductor CLI session semantics mismatch (2026-04-24)
+
+- Secondary failure discovered during smoke validation: `--session <new_id>` on `kilo run` returns
+  `Session not found` because the flag is for continuing existing sessions only.
+- Definitive fix: removed `--session` from one-shot invocations in both gateway bridge and scheduler runner.
+- Updated tests now explicitly assert that `--session` is not present in run commands.

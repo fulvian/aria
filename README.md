@@ -255,9 +255,18 @@ See `./bin/aria --help` for full command reference.
 
 | Document | Description |
 |----------|-------------|
+| [Runbook](./docs/operations/runbook.md) | Service operations and troubleshooting (scheduler/gateway/memory) |
 | [Provider Exhaustion](./docs/operations/provider_exhaustion.md) | Provider degradation runbook |
 | [Disaster Recovery](./docs/operations/disaster_recovery.md) | Backup/restore procedures |
 | [Telemetry](./docs/operations/telemetry.md) | Metrics and observability |
+
+### Telegram Gateway Notes (2026-04)
+
+- The gateway now uses a full event loop: `gateway.user_message -> ConductorBridge -> gateway.reply -> TelegramAdapter`.
+- `kilo run` invocations use positional messages with `--format json --auto` (no `--input`, no one-shot `--session`).
+- `scripts/install_systemd.sh start` enables+starts services (`enable --now`) to avoid inactive daemons after reboot.
+- For live troubleshooting, follow `docs/operations/runbook.md` section 7.2 and inspect:
+  `journalctl --user -u aria-gateway.service -f`.
 
 ## Quality Gates
 

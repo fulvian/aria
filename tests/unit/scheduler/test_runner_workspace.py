@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
@@ -184,3 +185,50 @@ def test_workspace_error_classification(mock_dependencies: tuple) -> None:
     assert runner._classify_workspace_error("Connection timeout") == "network"
     assert runner._classify_workspace_error("HITL required") == "policy"
     assert runner._classify_workspace_error("unexpected server error") == "tool_error"
+
+
+@pytest.mark.asyncio
+async def test_workspace_kilo_run_uses_positional_prompt_not_input_flag(
+    mock_dependencies: tuple,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store, budget, policy, hitl, bus, config = mock_dependencies
+    runner = TaskRunner(store, budget, policy, hitl, bus, config)
+
+    captured_cmd: list[str] = []
+
+    class _Proc:
+        returncode = 0
+
+        async def communicate(self) -> tuple[bytes, bytes]:
+            return json.dumps({"result": "ok"}).encode("utf-8"), b""
+
+    async def _fake_create_subprocess_exec(*cmd: object, **kwargs: object) -> _Proc:
+        captured_cmd.extend(str(part) for part in cmd)
+        _ = kwargs
+        return _Proc()
+
+    monkeypatch.setattr("aria.scheduler.runner.shutil.which", lambda _name: "/usr/bin/kilo")
+    monkeypatch.setattr(
+        "aria.scheduler.runner.asyncio.create_subprocess_exec",
+        _fake_create_subprocess_exec,
+    )
+
+    result = await runner._execute_workspace_via_kilocode(
+        {
+            "task_id": "t1",
+            "task_name": "demo",
+            "skill": "docs-structure-reader",
+            "sub_agent": "workspace-docs-read",
+            "payload": {"doc_id": "abc"},
+            "trace_id": "trace-1",
+        }
+    )
+
+    assert result["success"] is True
+    assert "--input" not in captured_cmd
+    assert "--session" not in captured_cmd
+    assert "--format" in captured_cmd
+    assert "json" in captured_cmd
+    assert "--auto" in captured_cmd
+    assert "--" in captured_cmd

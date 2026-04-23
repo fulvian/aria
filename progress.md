@@ -457,3 +457,30 @@ uv run pytest -q                          # 418 passed
   - `uv run mypy ...` PASS
   - `uv run pytest -q tests/unit/gateway` -> 12 passed
   - `systemctl --user status aria-gateway.service` -> active (running)
+
+### 2026-04-24 (Conductor fallback failure fix)
+
+- Investigated user-reported Telegram error `Conductor fallback failed:`.
+- Journal evidence showed CLI usage mismatch (`kilo run [message..]` while code used `--input`).
+- Updated invocation contract:
+  - `src/aria/gateway/conductor_bridge.py` strategy A/B -> positional message with
+    `--format json --auto -- <message>`.
+  - `src/aria/scheduler/runner.py` workspace sub-agent spawn aligned to same pattern.
+- Added/updated regression tests:
+  - `tests/unit/gateway/test_conductor_bridge.py`
+  - `tests/unit/scheduler/test_runner_workspace.py`
+- Verification executed:
+  - `uv run ruff check ...` PASS
+  - `uv run mypy src/aria/gateway/conductor_bridge.py src/aria/scheduler/runner.py` PASS
+  - `uv run pytest -q tests/unit/gateway/test_conductor_bridge.py tests/unit/scheduler/test_runner_workspace.py` -> 11 passed
+  - gateway service restarted and active.
+
+### 2026-04-24 (Final Kilo run semantics alignment)
+
+- Identified second CLI contract issue in smoke run: `--session` on one-shot `kilo run` triggers
+  `Session not found` for non-existing IDs.
+- Removed `--session` from:
+  - `src/aria/gateway/conductor_bridge.py` strategy A/B
+  - `src/aria/scheduler/runner.py` workspace executor
+- Updated regression tests to assert no `--session` flag is used.
+- Re-verified lint/type/tests for modified scope and restarted gateway service.

@@ -5,7 +5,7 @@
 ## PRD: docs/foundation/aria_foundation_blueprint.md
 ## TDD: docs/plans/google_workspace_agent_full_operational_plan.md
 ## Implementation: Gateway wiring fix + reply loop + payload coherence + systemd hardening (MDWE compatibility)
-## Tests: Targeted gateway quality gates PASS (ruff/mypy + unit tests)
+## Tests: Targeted gateway/scheduler quality gates PASS (ruff/mypy + unit tests)
 ## Deployment: Pending — operator e2e validation via Telegram conversation flow
 
 ## Agent History
@@ -44,6 +44,8 @@
 | 2026-04-23T23:35+02:00 | general-manager | Implemented Telegram remediation: daemon bridge wiring, reply delivery loop, systemd enable-now start path, adapter tests | completed |
 | 2026-04-23T23:49+02:00 | general-manager | Fixed gateway systemd MDWE incompatibility causing Node/V8 Conductor child spawn crashes | completed |
 | 2026-04-23T23:55+02:00 | general-manager | Removed private-only chat filter constraints from Telegram handlers and re-verified gateway subset | completed |
+| 2026-04-24T00:11+02:00 | general-manager | Fixed Kilo CLI invocation contract (`--input` -> positional message) in conductor bridge and scheduler runner; added regression tests | completed |
+| 2026-04-24T00:19+02:00 | general-manager | Removed invalid one-shot `--session` usage from Kilo run commands and updated regression tests | completed |
 
 ## Skills Invoked
 | Phase | Skill | Outcome |
