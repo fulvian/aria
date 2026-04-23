@@ -64,6 +64,8 @@ Questi file sono le fonti autoritative da cui il wiki è derivato:
 | AGENTS.md | `AGENTS.md` | Regole per coding agents |
 | README.md | `README.md` | Overview, quick start, architettura |
 | Runbook | `docs/operations/runbook.md` | Operazioni day-to-day |
+| Workspace OAuth Runbook | `docs/operations/workspace_oauth_runbook.md` | Procedure OAuth operative, troubleshooting, dynamic pruning |
+| OAuth Debug Plan 2026-04-23 | `docs/plans/google_workspace_authz_debug_plan_2026-04-23.md` | Piano esteso di diagnosi authz per Workspace MCP (Drive/Slides read) |
 
 ## External Knowledge
 

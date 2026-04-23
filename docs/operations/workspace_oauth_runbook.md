@@ -1,6 +1,6 @@
 ---
 document: Google Workspace OAuth Runbook
-version: 1.0.0
+version: 1.1.0
 status: draft
 date_created: 2026-04-22
 owner: fulvio
@@ -16,6 +16,8 @@ This runbook documents the standard operational procedures for Google Workspace 
 ## Overview
 
 ARIA uses OAuth 2.0 with PKCE to authenticate with Google Workspace APIs. The refresh token is stored in the OS keyring, and a runtime credentials file is created for the `workspace-mcp` server.
+
+From 2026-04-23, the wrapper applies **dynamic tool pruning** before server start: enabled `--tools` are reduced to domains whose read scope is actually granted by the current refresh token. This prevents OAuth loops caused by stale or incomplete scope grants.
 
 **Key components:**
 - `oauth_first_setup.py` — Initial OAuth consent flow
@@ -86,6 +88,29 @@ from aria.agents.workspace.oauth_helper import GoogleOAuthHelper
 h = GoogleOAuthHelper()
 print('Configured:', h.is_configured())
 "
+```
+
+**Inspect real granted scopes from refresh token (source of truth):**
+```bash
+/home/fulvio/coding/aria/.venv/bin/python - <<'PY'
+import json, urllib.parse, urllib.request
+from pathlib import Path
+import sys
+sys.path.insert(0, '/home/fulvio/coding/aria/src')
+from aria.credentials.keyring_store import KeyringStore
+
+session = json.loads(Path('.aria/runtime/credentials/google_oauth_manual_session.json').read_text())
+refresh = KeyringStore().get_oauth('google_workspace', 'primary')
+payload = urllib.parse.urlencode({
+    'client_id': session['client_id'],
+    'client_secret': session.get('client_secret', ''),
+    'refresh_token': refresh,
+    'grant_type': 'refresh_token',
+}).encode()
+req = urllib.request.Request('https://oauth2.googleapis.com/token', data=payload, headers={'Content-Type':'application/x-www-form-urlencoded'})
+with urllib.request.urlopen(req, timeout=20) as r:
+    print(json.loads(r.read().decode()).get('scope', ''))
+PY
 ```
 
 ---
@@ -223,6 +248,27 @@ python scripts/oauth_first_setup.py --scopes "gmail.readonly,gmail.modify,gmail.
 **Resolution:**
 1. Check current scopes: `cat .aria/runtime/credentials/google_workspace_scopes_primary.json`
 2. Re-consent with correct scopes: `python scripts/oauth_first_setup.py --scopes "..."`
+
+### Repeated `ACTION REQUIRED` on Drive/Slides read
+
+**Cause:** enabled tool domain requires a scope not present in the currently granted refresh token scopes.
+
+**Resolution path (deterministic):**
+1. Check granted scopes via token refresh endpoint (command in section 2).
+2. Ensure ARIA is restarted so wrapper dynamic pruning is applied.
+3. If missing scope is required (e.g. `presentations.readonly`), run explicit re-consent:
+
+```bash
+python scripts/oauth_first_setup.py --scope-pack core-read --account primary
+```
+
+4. Re-run wrapper smoke test:
+
+```bash
+./scripts/wrappers/google-workspace-wrapper.sh --help
+```
+
+If output contains `INFO: workspace wrapper pruned tools missing granted scope: ...`, pruning is active and OAuth loop protection is in place.
 
 ### Wrapper fails with "credential file permissions too open"
 

@@ -83,7 +83,8 @@ Il server `google_workspace_mcp` upstream richiede un file JSON con le credenzia
 2. Crea il runtime credentials file con permessi corretti
 3. Imposta `WORKSPACE_MCP_CREDENTIALS_DIR`
 4. Normalizza args di startup MCP: se mancano selettori (`--tool-tier`, `--tools`, `--permissions`), forza default sicuro `--tools gmail calendar drive docs sheets slides --read-only` per evitare scope inflation e loop di re-auth su richieste read
-5. Esegue `uvx workspace-mcp` con args effettivi
+5. Prune dinamico dei tool in base agli scope **realmente grantiti** dal refresh token (es. se manca `presentations.readonly`, il dominio `slides` viene rimosso automaticamente dagli args MCP)
+6. Esegue `uvx workspace-mcp` con args effettivi
 
 *source: `scripts/wrappers/google-workspace-wrapper.sh` (update 2026-04-23)*
 

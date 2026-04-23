@@ -396,6 +396,137 @@ build_workspace_mcp_args() {
     fi
 }
 
+prune_workspace_args_by_granted_scopes() {
+    local -n _args_ref=$1
+    local refresh_token="$2"
+    local client_id="$3"
+    local client_secret="$4"
+
+    if ! is_truthy "${WORKSPACE_AUTO_PRUNE_TO_GRANTED_SCOPES:-true}"; then
+        return 0
+    fi
+
+    local serialized_args
+    serialized_args="$(printf '%s\n' "${_args_ref[@]}")"
+
+    local pruned_output
+    if ! pruned_output="$(
+        GW_SERIALIZED_ARGS="$serialized_args" \
+        GW_REFRESH_TOKEN="$refresh_token" \
+        GW_CLIENT_ID="$client_id" \
+        GW_CLIENT_SECRET="$client_secret" \
+        "$PYTHON_BIN" - <<'PY'
+import json
+import os
+import sys
+import urllib.parse
+import urllib.request
+
+GOOGLE_SCOPE_PREFIX = 'https://www.googleapis.com/auth/'
+
+args = [line for line in os.environ.get('GW_SERIALIZED_ARGS', '').splitlines() if line]
+if '--tools' not in args:
+    print('\n'.join(args))
+    raise SystemExit(0)
+
+refresh_token = os.environ.get('GW_REFRESH_TOKEN', '').strip()
+client_id = os.environ.get('GW_CLIENT_ID', '').strip()
+client_secret = os.environ.get('GW_CLIENT_SECRET', '').strip()
+override_raw = os.environ.get('WORKSPACE_GRANTED_SCOPES_OVERRIDE', '').strip()
+
+granted = set()
+if override_raw:
+    granted = {
+        scope.strip()
+        for scope in override_raw.replace(',', ' ').split()
+        if scope.strip().startswith(GOOGLE_SCOPE_PREFIX)
+    }
+
+if not granted:
+    if not refresh_token or not client_id:
+        print('\n'.join(args))
+        raise SystemExit(0)
+
+    payload = {
+        'client_id': client_id,
+        'refresh_token': refresh_token,
+        'grant_type': 'refresh_token',
+    }
+    if client_secret:
+        payload['client_secret'] = client_secret
+
+    try:
+        request = urllib.request.Request(
+            'https://oauth2.googleapis.com/token',
+            data=urllib.parse.urlencode(payload).encode('utf-8'),
+            headers={'Content-Type': 'application/x-www-form-urlencoded'},
+        )
+        with urllib.request.urlopen(request, timeout=10) as response:
+            token_data = json.loads(response.read().decode('utf-8'))
+    except Exception:
+        print('\n'.join(args))
+        raise SystemExit(0)
+
+    granted = {
+        scope.strip()
+        for scope in str(token_data.get('scope', '')).split()
+        if scope.strip().startswith(GOOGLE_SCOPE_PREFIX)
+    }
+
+if not granted:
+    print('\n'.join(args))
+    raise SystemExit(0)
+
+required = {
+    'gmail': f'{GOOGLE_SCOPE_PREFIX}gmail.readonly',
+    'calendar': f'{GOOGLE_SCOPE_PREFIX}calendar.readonly',
+    'drive': f'{GOOGLE_SCOPE_PREFIX}drive.readonly',
+    'docs': f'{GOOGLE_SCOPE_PREFIX}documents.readonly',
+    'sheets': f'{GOOGLE_SCOPE_PREFIX}spreadsheets.readonly',
+    'slides': f'{GOOGLE_SCOPE_PREFIX}presentations.readonly',
+}
+
+idx = args.index('--tools') + 1
+tool_end = idx
+while tool_end < len(args) and not args[tool_end].startswith('--'):
+    tool_end += 1
+
+tools = args[idx:tool_end]
+keep_tools = []
+dropped = []
+for tool in tools:
+    name = tool.strip().lower()
+    needed = required.get(name)
+    if needed and needed not in granted:
+        dropped.append((name, needed))
+        continue
+    keep_tools.append(tool)
+
+if not dropped or not keep_tools:
+    print('\n'.join(args))
+    raise SystemExit(0)
+
+new_args = args[:idx] + keep_tools + args[tool_end:]
+drop_details = ', '.join(f'{name}({scope})' for name, scope in dropped)
+print(f'INFO: workspace wrapper pruned tools missing granted scope: {drop_details}', file=sys.stderr)
+print('\n'.join(new_args))
+PY
+    )"; then
+        return 0
+    fi
+
+    local -a pruned_args=()
+    while IFS= read -r line; do
+        if [[ -n "$line" ]]; then
+            pruned_args+=("$line")
+        fi
+    done <<<"$pruned_output"
+
+    if [[ ${#pruned_args[@]} -gt 0 ]]; then
+        _args_ref=("${pruned_args[@]}")
+    fi
+}
+
 # Main
 main() {
     local -a effective_args
@@ -448,6 +579,8 @@ main() {
     export GOOGLE_MCP_CREDENTIALS_DIR="$ARIA_HOME/.aria/runtime/credentials/google_workspace_mcp"
 
     if [[ -n "${user_google_email:-}" ]]; then
+        prune_workspace_args_by_granted_scopes effective_args "$refresh_token" "$client_id" "$client_secret"
+
         local wrapper_args_serialized=""
         if [[ ${#effective_args[@]} -gt 0 ]]; then
             wrapper_args_serialized="$(printf '%q ' "${effective_args[@]}")"

@@ -1,7 +1,7 @@
 ---
 title: ARIA LLM Wiki Activity Log
 sources: []
-last_updated: 2026-04-23T11:31:00+02:00
+last_updated: 2026-04-23T12:41:00+02:00
 tier: 1
 ---
 
@@ -243,6 +243,67 @@ uv run pytest -q tests/unit/scripts/test_google_workspace_wrapper.py: 3 passed
    - introdotta variabile `WORKSPACE_DEFAULT_TOOLS` (override opzionale, csv).
 3. **`tests/unit/scripts/test_google_workspace_wrapper.py`**
    - aggiornati assertion default e aggiunto test per override `WORKSPACE_DEFAULT_TOOLS`.
+
+### Verifiche
+
+```
+bash -n scripts/wrappers/google-workspace-wrapper.sh: OK
+uv run pytest -q tests/unit/scripts/test_google_workspace_wrapper.py: 4 passed
+```
+
+---
+
+## 2026-04-23T12:41 — Documentation Consolidation (Runbook + Wiki)
+
+**Operazione**: INGEST/MAINTENANCE
+**Autore**: general-manager (Kilo orchestrator)
+**Scope**: allineamento documentazione operativa e wiki al fix definitivo auth-loop
+
+### Aggiornamenti effettuati
+
+1. **`docs/operations/workspace_oauth_runbook.md`**
+   - bump versione a `1.1.0`.
+   - aggiunta sezione operativa su dynamic tool pruning.
+   - aggiunto comando diagnostico per leggere gli scope realmente grantiti via token refresh endpoint.
+   - aggiunta runbook path per errore "Repeated ACTION REQUIRED on Drive/Slides read".
+2. **`docs/llm_wiki/wiki/index.md`**
+   - aggiunta nuova fonte raw: `docs/operations/workspace_oauth_runbook.md`.
+
+### Esito
+
+- Documentazione progetto aggiornata e coerente con hardening v3.
+- Wiki index/log aggiornati con provenienza e timestamp.
+
+---
+
+## 2026-04-23T12:33 — Definitive Auth-Loop Root Cause & Dynamic Tool Pruning
+
+**Operazione**: DEBUG+IMPLEMENT (hardening v3)
+**Autore**: general-manager (Kilo orchestrator)
+**Scope**: eliminare definitivamente loop OAuth su richiesta Slides/Drive read con credenziali parziali gia presenti
+
+### Root cause confermata
+
+- Il refresh token attivo in keyring **non** include `presentations.readonly` (granted scopes reali da token refresh endpoint).
+- La configurazione runtime richiedeva anche il dominio `slides`, quindi `workspace-mcp` entrava in `ACTION REQUIRED` ad ogni richiesta.
+- Il controllo precedente usava metadati scope locali (file runtime), non la lista scope realmente grantita dal token.
+
+### Fix applicato
+
+1. **`scripts/wrappers/google-workspace-wrapper.sh`**
+   - aggiunta `prune_workspace_args_by_granted_scopes`.
+   - prima di avviare `workspace-mcp`, il wrapper effettua token refresh e legge gli scope grantiti reali.
+   - rimuove automaticamente dai `--tools` i domini senza scope read corrispondente (es. `slides` senza `presentations.readonly`).
+   - supporta override diagnostico: `WORKSPACE_GRANTED_SCOPES_OVERRIDE`.
+2. **`.aria/kilocode/agents/workspace-slides-read.md`**
+   - aggiunto fallback operativo su `google_workspace_get_drive_file_content`.
+   - policy esplicita anti-auth-loop: evitare escalation a nuovo consenso quando i tool Drive read sono gia disponibili.
+
+### Evidenza runtime
+
+```
+INFO: workspace wrapper pruned tools missing granted scope: slides(https://www.googleapis.com/auth/presentations.readonly)
+```
 
 ### Verifiche
 
