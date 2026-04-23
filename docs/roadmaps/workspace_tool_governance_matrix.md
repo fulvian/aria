@@ -32,9 +32,8 @@ This matrix provides a centralized governance registry for all 114 tools exposed
 ## HITL Triggers (per P7)
 
 HITL is required when:
-- Tool modifies, creates, or deletes data (write operations)
-- Tool sends content externally (email, chat, calendar events)
-- Tool accesses sensitive data at scale
+- Tool performs destructive/irreversible actions (delete, revoke, overwrite, permission hardening)
+- Tool accesses sensitive data at high scale with material blast radius
 - Operation is expensive (high API quota consumption)
 
 ---

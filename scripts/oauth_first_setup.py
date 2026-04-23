@@ -6,7 +6,8 @@ Performs Google's OAuth 2.0 PKCE flow for first-time authorization.
 Stores the refresh_token in the OS keyring via aria.credentials.KeyringStore.
 
 Usage:
-    python scripts/oauth_first_setup.py --scopes "gmail.readonly,gmail.modify,gmail.send,calendar.readonly,calendar.events,drive.readonly,drive.file,documents.readonly,documents,spreadsheets.readonly,spreadsheets,presentations.readonly" --account primary [--client-secret-prompt]
+    python scripts/oauth_first_setup.py --account primary [--scope-pack core-read-write]
+    python scripts/oauth_first_setup.py --scopes "gmail.readonly,drive.readonly,presentations.readonly" --account primary
 
 Exit codes:
     0 - Success
@@ -49,6 +50,30 @@ DEFAULT_TIMEOUT_SECONDS = 300  # 5 minutes
 MIN_CODE_VERIFIER_LENGTH = 43
 MAX_CODE_VERIFIER_LENGTH = 128
 GOOGLE_SCOPE_PREFIX = "https://www.googleapis.com/auth/"
+DEFAULT_SCOPE_PACKS: dict[str, list[str]] = {
+    "core-read": [
+        "gmail.readonly",
+        "calendar.readonly",
+        "drive.readonly",
+        "documents.readonly",
+        "spreadsheets.readonly",
+        "presentations.readonly",
+    ],
+    "core-read-write": [
+        "gmail.readonly",
+        "gmail.modify",
+        "gmail.send",
+        "calendar.readonly",
+        "calendar.events",
+        "drive.readonly",
+        "drive.file",
+        "documents.readonly",
+        "documents",
+        "spreadsheets.readonly",
+        "spreadsheets",
+        "presentations.readonly",
+    ],
+}
 
 
 # === Exceptions ===
@@ -509,8 +534,14 @@ def main() -> int:
     )
     parser.add_argument(
         "--scopes",
-        required=True,
+        required=False,
         help="Comma-separated list of OAuth scopes",
+    )
+    parser.add_argument(
+        "--scope-pack",
+        default="core-read-write",
+        choices=sorted(DEFAULT_SCOPE_PACKS.keys()),
+        help="Predefined scope pack used when --scopes is omitted",
     )
     parser.add_argument(
         "--account",
@@ -537,7 +568,10 @@ def main() -> int:
     args = parser.parse_args()
 
     # Parse scopes
-    scopes = [normalize_scope(s) for s in args.scopes.split(",") if s.strip()]
+    if args.scopes:
+        scopes = [normalize_scope(s) for s in args.scopes.split(",") if s.strip()]
+    else:
+        scopes = [normalize_scope(s) for s in DEFAULT_SCOPE_PACKS[args.scope_pack]]
 
     # Get client ID from environment
     client_id = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "").strip()

@@ -1,20 +1,152 @@
 {
   "$schema": "https://app.kilo.ai/config.json",
   "default_agent": "aria-conductor",
-  "agents_dir": "./agents",
-  "skills_dir": "./skills",
-  "modes_dir": "./modes",
-  "mcp_config": "./mcp.json",
-  "sessions_dir": "./sessions",
-  "locale": "it-IT",
-  "model": {
-    "provider": "anthropic",
-    "id": "claude-sonnet-4-7"
+  "agent": {
+    "aria-conductor": {
+      "mode": "primary"
+    },
+    "search-agent": {
+      "mode": "subagent"
+    },
+    "workspace-agent": {
+      "mode": "subagent"
+    },
+    "workspace-mail-read": {
+      "mode": "subagent"
+    },
+    "workspace-mail-write": {
+      "mode": "subagent"
+    },
+    "workspace-calendar-read": {
+      "mode": "subagent"
+    },
+    "workspace-calendar-write": {
+      "mode": "subagent"
+    },
+    "workspace-docs-read": {
+      "mode": "subagent"
+    },
+    "workspace-docs-write": {
+      "mode": "subagent"
+    },
+    "workspace-sheets-read": {
+      "mode": "subagent"
+    },
+    "workspace-sheets-write": {
+      "mode": "subagent"
+    },
+    "workspace-slides-read": {
+      "mode": "subagent"
+    },
+    "workspace-slides-write": {
+      "mode": "subagent"
+    }
   },
-  "hooks": {
-    "PreToolUse": [],
-    "PostToolUse": [],
-    "UserPromptSubmit": [],
-    "Stop": []
+  "mcp": {
+    "filesystem": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "--package=@modelcontextprotocol/server-filesystem",
+        "mcp-server-filesystem",
+        "/home/fulvio/coding/aria"
+      ],
+      "enabled": true
+    },
+    "git": {
+      "type": "local",
+      "command": [
+        "uvx",
+        "mcp-server-git",
+        "--repository",
+        "/home/fulvio/coding/aria"
+      ],
+      "enabled": true
+    },
+    "github": {
+      "type": "local",
+      "command": [
+        "/home/fulvio/coding/aria/scripts/wrappers/github-wrapper.sh"
+      ],
+      "enabled": true
+    },
+    "sequential-thinking": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "--package=@modelcontextprotocol/server-sequential-thinking",
+        "mcp-server-sequential-thinking"
+      ],
+      "enabled": true
+    },
+    "fetch": {
+      "type": "local",
+      "command": [
+        "uvx",
+        "mcp-server-fetch"
+      ],
+      "enabled": true
+    },
+    "aria-memory": {
+      "type": "local",
+      "command": [
+        "/home/fulvio/coding/aria/.venv/bin/python",
+        "-m",
+        "aria.memory.mcp_server"
+      ],
+      "enabled": true,
+      "environment": {
+        "ARIA_HOME": "/home/fulvio/coding/aria"
+      }
+    },
+    "tavily-mcp": {
+      "type": "local",
+      "command": [
+        "/home/fulvio/coding/aria/scripts/wrappers/tavily-wrapper.sh"
+      ],
+      "enabled": true
+    },
+    "firecrawl-mcp": {
+      "type": "local",
+      "command": [
+        "/home/fulvio/coding/aria/scripts/wrappers/firecrawl-wrapper.sh"
+      ],
+      "enabled": true
+    },
+    "brave-mcp": {
+      "type": "local",
+      "command": [
+        "/home/fulvio/coding/aria/scripts/wrappers/brave-wrapper.sh"
+      ],
+      "enabled": true
+    },
+    "exa-script": {
+      "type": "local",
+      "command": [
+        "/home/fulvio/coding/aria/scripts/wrappers/exa-wrapper.sh"
+      ],
+      "enabled": true
+    },
+    "searxng-script": {
+      "type": "local",
+      "command": [
+        "/home/fulvio/coding/aria/scripts/wrappers/searxng-wrapper.sh"
+      ],
+      "enabled": true
+    },
+    "google_workspace": {
+      "type": "local",
+      "command": [
+        "/home/fulvio/coding/aria/scripts/wrappers/google-workspace-wrapper.sh"
+      ],
+      "enabled": true,
+      "environment": {
+        "MCP_ENABLE_OAUTH21": "false",
+        "GOOGLE_OAUTH_REDIRECT_URI": "http://localhost:8080/callback",
+        "GOOGLE_OAUTH_USE_PKCE": "true"
+      }
+    }
   }
 }

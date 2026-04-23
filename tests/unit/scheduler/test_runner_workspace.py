@@ -44,14 +44,9 @@ async def test_workspace_requires_skill(mock_dependencies: tuple) -> None:
 
 
 @pytest.mark.asyncio
-async def test_write_skill_enforces_hitl_policy(mock_dependencies: tuple) -> None:
+async def test_non_destructive_write_skill_allows_policy_allow(mock_dependencies: tuple) -> None:
     store, budget, policy, hitl, bus, config = mock_dependencies
-    executor = AsyncMock(
-        return_value={
-            "success": True,
-            "summary": "should not run",
-        }
-    )
+    executor = AsyncMock(return_value={"success": True, "summary": "executed"})
     runner = TaskRunner(store, budget, policy, hitl, bus, config, workspace_executor=executor)
 
     task = make_task(
@@ -64,8 +59,34 @@ async def test_write_skill_enforces_hitl_policy(mock_dependencies: tuple) -> Non
 
     result = await runner._exec_workspace_task(task)
 
+    assert result.outcome == "success"
+    executor.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_destructive_workspace_operation_requires_hitl_policy(
+    mock_dependencies: tuple,
+) -> None:
+    store, budget, policy, hitl, bus, config = mock_dependencies
+    executor = AsyncMock(return_value={"success": True, "summary": "should not run"})
+    runner = TaskRunner(store, budget, policy, hitl, bus, config, workspace_executor=executor)
+
+    task = make_task(
+        name="destructive-without-ask",
+        category="workspace",
+        trigger_type="manual",
+        policy="allow",
+        payload={
+            "skill": "docs-editor-pro",
+            "sub_agent": "workspace-docs-write",
+            "operation_mode": "delete",
+        },
+    )
+
+    result = await runner._exec_workspace_task(task)
+
     assert result.outcome == "blocked_policy"
-    assert "requires policy=ask or explicit user write intent" in (result.result_summary or "")
+    assert "Destructive workspace operation" in (result.result_summary or "")
     executor.assert_not_called()
 
 

@@ -58,6 +58,14 @@ wrapper_args_raw = os.environ.get('GW_WRAPPER_ARGS', '')
 aria_home = Path('$ARIA_HOME')
 
 GOOGLE_SCOPE_PREFIX = 'https://www.googleapis.com/auth/'
+CORE_READ_SCOPES = {
+    f'{GOOGLE_SCOPE_PREFIX}gmail.readonly',
+    f'{GOOGLE_SCOPE_PREFIX}calendar.readonly',
+    f'{GOOGLE_SCOPE_PREFIX}drive.readonly',
+    f'{GOOGLE_SCOPE_PREFIX}documents.readonly',
+    f'{GOOGLE_SCOPE_PREFIX}spreadsheets.readonly',
+    f'{GOOGLE_SCOPE_PREFIX}presentations.readonly',
+}
 
 
 def normalize_scope(scope: str) -> str:
@@ -144,21 +152,23 @@ def parse_cli_args(argv: list[str], all_domains: set[str]) -> tuple[set[str], bo
     return domains, read_only, permissions
 
 
-def enforce_scope_coherence(resolved_scopes: list[str], argv: list[str]) -> None:
+def enforce_scope_coherence(resolved_scopes: list[str], argv: list[str]) -> set[str]:
     enforce = os.environ.get('WORKSPACE_ENFORCE_SCOPE_COHERENCE', 'true').strip().lower()
     if enforce in {'0', 'false', 'no'}:
-        return
+        return set()
 
     matrix_path = aria_home / 'docs' / 'roadmaps' / 'workspace_tool_governance_matrix.md'
     rows = parse_governance_rows(matrix_path)
     if not rows:
-        return
+        return set()
 
     all_domains = {row['domain'] for row in rows}
     active_domains, read_only, permissions = parse_cli_args(argv, all_domains)
 
     if not active_domains:
-        return
+        # Pragmatic default: when no explicit tier/tools are provided, assume core read
+        # coverage is needed to avoid runtime authorization prompts for simple read tasks.
+        return set(CORE_READ_SCOPES)
 
     required_scopes: set[str] = set()
     gmail_level_map = {
@@ -201,6 +211,8 @@ def enforce_scope_coherence(resolved_scopes: list[str], argv: list[str]) -> None
             + '. Re-run oauth setup with required scopes or adjust --tools/--tool-tier/--permissions.'
         )
 
+    return required_scopes
+
 # Load scopes from canonical source (per W1.1 - de-hardcode)
 # Priority: 1) WORKSPACE_SCOPES_OVERRIDE env var, 2) scopes file, 3) empty
 scopes = []
@@ -218,7 +230,16 @@ else:
 
 scopes = sorted({normalize_scope(scope) for scope in scopes if normalize_scope(scope)})
 wrapper_args = shlex.split(wrapper_args_raw)
-enforce_scope_coherence(scopes, wrapper_args)
+coherence_required = enforce_scope_coherence(scopes, wrapper_args)
+
+# Scope floor policy (default: core-read) to keep read operations functional across
+# Drive/Docs/Sheets/Slides even when runtime scopes metadata is stale/incomplete.
+scope_floor_mode = os.environ.get('WORKSPACE_SCOPE_FLOOR', 'core-read').strip().lower()
+scope_floor = set()
+if scope_floor_mode in {'core-read', 'read-core', 'read'}:
+    scope_floor |= CORE_READ_SCOPES
+
+effective_scopes = sorted(set(scopes) | scope_floor | coherence_required)
 
 creds_dir = Path(os.environ['GOOGLE_MCP_CREDENTIALS_DIR']).expanduser()
 creds_dir.mkdir(parents=True, exist_ok=True)
@@ -273,7 +294,7 @@ payload = {
     'token_uri': 'https://oauth2.googleapis.com/token',
     'client_id': client_id,
     'client_secret': client_secret,
-    'scopes': scopes,
+    'scopes': effective_scopes,
     'expiry': expiry_value,
 }
 

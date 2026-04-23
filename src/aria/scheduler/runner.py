@@ -309,14 +309,15 @@ class TaskRunner:
         Execution flow:
         1. Validate payload has required fields
         2. Map skill to workspace profile (read vs write)
-        3. Enforce HITL policy for non-explicit write skills
+        3. Enforce HITL policy for destructive operations
         4. Execute skill via configured workspace executor
         5. Emit structured telemetry
         6. Return result
 
         Write skills (gmail-composer-pro, docs-editor-pro, sheets-editor-pro,
-        slides-editor-pro) require HITL approval only when write intent is not
-        explicit in the originating user request.
+        slides-editor-pro) are allowed without HITL by default. HITL is only
+        required for destructive/irreversible operations when write intent is
+        not explicit in the originating user request.
 
         Args:
             task: The workspace task to execute.
@@ -346,11 +347,18 @@ class TaskRunner:
         expected_sub_agent = self._select_workspace_profile(skill)
         sub_agent = expected_sub_agent or requested_sub_agent
 
-        # Enforce HITL policy for write skills unless explicit user intent is present.
+        # Enforce HITL only for destructive workspace operations.
         explicit_user_write = self._is_explicit_user_write_authorized(payload)
-        if skill_metadata["requires_hitl"] and task.policy != "ask" and not explicit_user_write:
+        destructive_operation = self._is_destructive_workspace_operation(skill, payload)
+        if (
+            destructive_operation
+            and not skill_metadata["is_read"]
+            and task.policy != "ask"
+            and not explicit_user_write
+        ):
             summary = (
-                f"Write skill '{skill}' requires policy=ask or explicit user write intent; "
+                f"Destructive workspace operation for skill '{skill}' requires policy=ask or "
+                f"explicit user write intent; "
                 f"task policy is '{task.policy}'"
             )
             self._log_workspace_telemetry(
@@ -685,26 +693,26 @@ class TaskRunner:
             },  # read-only skill
         }
 
-        # Write skills (require HITL approval before execution)
+        # Write skills (HITL only for destructive actions)
         write_skills = {
             "gmail-composer-pro": {
                 "is_read": False,
-                "requires_hitl": True,
+                "requires_hitl": False,
                 "description": "Gmail compose and send",
             },
             "docs-editor-pro": {
                 "is_read": False,
-                "requires_hitl": True,
+                "requires_hitl": False,
                 "description": "Docs editing",
             },
             "sheets-editor-pro": {
                 "is_read": False,
-                "requires_hitl": True,
+                "requires_hitl": False,
                 "description": "Sheets editing",
             },
             "slides-editor-pro": {
                 "is_read": False,
-                "requires_hitl": True,
+                "requires_hitl": False,
                 "description": "Slides editing",
             },
         }
@@ -714,8 +722,40 @@ class TaskRunner:
         if skill in write_skills:
             return write_skills[skill]
 
-        # Unknown skill - assume write (safer)
+        # Unknown skill - assume write, require HITL only if destructive flags are present.
         return {"is_read": False, "requires_hitl": True, "description": f"Unknown skill: {skill}"}
+
+    def _is_destructive_workspace_operation(self, skill: str, payload: dict[str, Any]) -> bool:
+        """Return True when workspace operation is destructive/irreversible.
+
+        The policy is intentionally pragmatic:
+        - read and non-destructive writes are allowed without HITL,
+        - destructive operations require HITL unless explicitly authorized.
+        """
+        if bool(payload.get("destructive")):
+            return True
+
+        destructive_tokens = {
+            "delete",
+            "remove",
+            "erase",
+            "destroy",
+            "purge",
+            "revoke",
+            "overwrite",
+            "truncate",
+        }
+
+        operation_mode = str(payload.get("operation_mode", "")).strip().lower()
+        if operation_mode in destructive_tokens:
+            return True
+
+        write_operation = str(payload.get("write_operation", "")).strip().lower()
+        if any(token in write_operation for token in destructive_tokens):
+            return True
+
+        skill_lower = skill.strip().lower()
+        return any(token in skill_lower for token in destructive_tokens)
 
     def _is_explicit_user_write_authorized(self, payload: dict[str, Any]) -> bool:
         """Return True when user has explicitly requested the write action."""

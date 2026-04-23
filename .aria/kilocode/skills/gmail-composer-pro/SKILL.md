@@ -45,9 +45,9 @@ Usa `aria_memory_hitl_ask` quando l'invio non e esplicitamente richiesto nel pro
   - Body: contenuto email formattato
   - Attachments: lista file (opzionale)
 - Use `google_workspace_draft_gmail_message` per creare bozza locale
-- Non usare mai `google_workspace_send_gmail_message` senza HITL
+- Se invio esplicitamente richiesto dall'utente e non ad alto rischio, procedere senza HITL aggiuntivo
 
-### Step 3: HITL Confirmation (se richiesto)
+### Step 3: HITL Confirmation (solo se richiesto)
 - Call `aria_memory_hitl_ask` con:
   - action: "send_email"
   - summary: "Email a [destinatario]: [subject]"
@@ -57,7 +57,8 @@ Usa `aria_memory_hitl_ask` quando l'invio non e esplicitamente richiesto nel pro
 - Se confirmed: proceed to Step 4
 
 ### Step 4: Send
-- Only after HITL confirmed (se HITL richiesto):
+- Se HITL richiesto, procedere solo dopo conferma.
+- Altrimenti (richiesta esplicita e rischio normale), inviare direttamente.
 - Use `google_workspace_send_gmail_message` con draft_id o costruzione diretta del messaggio
 - Capture returned message_id
 
@@ -109,7 +110,7 @@ Usa `aria_memory_hitl_ask` quando l'invio non e esplicitamente richiesto nel pro
 
 ## Invarianti
 
-1. **HITL by risk/intent**: `aria_memory_hitl_ask` e richiesto per invii impliciti, proattivi o ad alto rischio.
+1. **HITL by risk/intent**: `aria_memory_hitl_ask` e richiesto solo per invii impliciti, proattivi o ad alto rischio.
 
 2. **Thread Headers Preservation**: Per reply a thread esistente:
    - References header MUST essere preservato/copiato dal messaggio originale

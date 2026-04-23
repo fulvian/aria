@@ -59,11 +59,11 @@ class TestWorkspaceSkillMetadata:
             ),
             "gmail-composer-pro": SkillMetadata(
                 name="gmail-composer-pro",
-                requires_hitl=True,
+                requires_hitl=False,
             ),
             "docs-editor-pro": SkillMetadata(
                 name="docs-editor-pro",
-                requires_hitl=True,
+                requires_hitl=False,
             ),
         }
 
@@ -92,12 +92,14 @@ class TestWorkspaceSkillMetadata:
 
     def test_hitl_requirement_mapping(self, skill_registry):
         """Test HITL requirement mapping for skills."""
-        hitl_required = ["gmail-composer-pro"]
+        hitl_required = []
         hitl_not_required = [
             "gmail-thread-intelligence",
             "docs-structure-reader",
             "sheets-analytics-reader",
             "slides-content-auditor",
+            "gmail-composer-pro",
+            "docs-editor-pro",
         ]
 
         for skill_name in hitl_required:
@@ -120,7 +122,7 @@ class TestWorkspaceSkillMetadata:
         skill = skill_registry.get("gmail-composer-pro")
         assert skill is not None
         assert skill.is_write is True
-        assert skill.requires_hitl is True
+        assert skill.requires_hitl is False
         assert skill.classify() == SkillType.WRITE
 
     def test_skill_with_editor_in_name(self):
@@ -149,19 +151,14 @@ class TestWorkspaceSkillMetadata:
 class TestSkillMetadataIntegration:
     """Integration tests for skill metadata with actual runner logic."""
 
-    def test_run_skill_with_hitl_required(self, mock_mcp_tools, mock_memory_tools):
-        """Test running a skill that requires HITL."""
-        memory_tools = mock_memory_tools
-
+    def test_run_skill_with_non_destructive_write(self, mock_mcp_tools, mock_memory_tools):
+        """Test running non-destructive write skill without HITL."""
         skill_name = "gmail-composer-pro"
         is_write = "composer" in skill_name or "editor" in skill_name
-        requires_hitl = "composer" in skill_name
+        requires_hitl = False
 
         assert is_write is True
-        assert requires_hitl is True
-
-        if requires_hitl:
-            hitl_response = memory_tools["aria_memory_hitl_ask"].return_value = {"action": "accept"}
+        assert requires_hitl is False
 
     def test_run_skill_without_hitl_required(self, mock_mcp_tools, mock_memory_tools):
         """Test running a skill that does not require HITL."""

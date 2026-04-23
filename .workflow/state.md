@@ -1,11 +1,11 @@
 # Project State
 
-## Current Phase: Phase 4 - Verification (Sprint 1.6 conformance remediation complete)
+## Current Phase: Phase 4 - Verification (workspace policy pragmatization in progress)
 ## Started: 2026-04-21T07:40:00+02:00
 ## PRD: docs/foundation/aria_foundation_blueprint.md
 ## TDD: docs/plans/google_workspace_agent_full_operational_plan.md
-## Implementation: Sprint 1.6 Phase A-F plus post-implementation conformance remediation and policy flexibilization (read-always-authorized, explicit-write authorization)
-## Tests: Pass (414 total tests passing)
+## Implementation: Sprint 1.6 Phase A-F plus post-implementation conformance remediation and pragmatic policy hardening (destructive-only HITL + profiled workspace routing)
+## Tests: Pending re-run after policy updates
 ## Deployment: Pending final QA/HITL sign-off
 
 ## Agent History
@@ -34,6 +34,7 @@
 | 2026-04-22T20:36+02:00 | general-manager | Restored validator integrity (deep-research tool IDs), aligned docs-editor-pro with Context7 capabilities, added scheduler workspace unit tests | completed |
 | 2026-04-22T20:42+02:00 | general-manager | Re-ran full quality gates (ruff/mypy/pytest, validators) with 414 passing tests | completed |
 | 2026-04-23T08:58+02:00 | general-manager | Revised security/workspace policies for read authorization and explicit-write authorization; fixed retrieval precision directives; expanded Slides read scopes | completed |
+| 2026-04-23T10:05+02:00 | general-manager | Relaxed HITL to destructive-only at runtime, enabled profiled workspace agent routing, added OAuth scope-floor/read-pack defaults, aligned blueprint/governance docs | completed |
 
 ## Skills Invoked
 | Phase | Skill | Outcome |

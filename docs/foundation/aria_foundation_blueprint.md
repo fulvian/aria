@@ -152,8 +152,8 @@ Ogni dato persistito **DEVE** essere etichettato con l'attore di origine: `user_
 ### P6 — Verbatim Preservation (Tier 0)
 La memoria episodica **DEVE** preservare il testo verbatim (Tier 0 raw) come fonte autoritativa. Distillazioni, riassunti e summarizations sono layer derivati asincroni (Tier 1+). La sintesi **non sovrascrive** mai il raw.
 
-### P7 — HITL on Destructive or Non-Explicit Actions
-Qualsiasi azione con uno di questi attributi **DEVE** passare per un gate HITL (Human-In-The-Loop) via Telegram o CLI: (a) distruttiva (delete, overwrite), (b) costosa in token/credits sopra soglia, (c) scrittura/modifica non richiesta esplicitamente nel prompt utente corrente, (d) autenticazione nuova.
+### P7 — HITL on Destructive, Costly, or Irreversible Actions
+Qualsiasi azione con uno di questi attributi **DEVE** passare per un gate HITL (Human-In-The-Loop) via Telegram o CLI: (a) distruttiva/irreversibile (delete, overwrite, revoke), (b) costosa in token/credits sopra soglia, (c) autenticazione nuova.
 
 Le operazioni di sola lettura sono sempre autorizzate.
 
@@ -812,7 +812,7 @@ Valori:
 
 Policy è determinata da:
 1. Override esplicito nel task
-2. Default per categoria (`search=allow`, `workspace.read=allow`, `workspace.write=ask_if_not_explicit`, `memory.forget=ask`)
+2. Default per categoria (`search=allow`, `workspace.read=allow`, `workspace.write=allow`, `workspace.destructive=ask`, `memory.forget=ask`)
 3. Override per orario (Quiet Hours: se `ask` scade in quiet hours, auto-`deny` o deferred al mattino)
 
 ### 6.5 DLQ e retry
@@ -1464,7 +1464,7 @@ owner: fulvio
 
 ### 12.2 Scope minimi
 
-In fase iniziale ARIA richiede **il minimo principio di privilegio**; scope aggiuntivi abilitati on-demand con nuovo consent.
+In fase iniziale ARIA richiede **il minimo principio di privilegio pragmatico**: baseline read completo per i servizi core Workspace, evitando riautorizzazioni ricorrenti sulle letture.
 
 | Servizio  | Scope                        | Giustificazione                     |
 |-----------|------------------------------|-------------------------------------|
@@ -1505,9 +1505,9 @@ Keyring service name pattern: `aria.google_workspace.<account_label>`. Router se
 | "Quanti meeting ho domani?"                         | `google_workspace/get_events`      |
 | "Crea un evento per lunedì alle 10 con X"           | `google_workspace/create_event` (autorizzazione implicita; HITL solo se rischio alto) |
 | "Riassumi il doc 'Q2 Strategy'"                     | `google_workspace/search_docs` → `google_workspace/get_doc_content` → skill `memory-distillation` |
-| "Aggiorna il foglio Budget con questi valori"       | `google_workspace/modify_sheet_values` (HITL `ask`) |
+| "Aggiorna il foglio Budget con questi valori"       | `google_workspace/modify_sheet_values` (HITL solo se l'operazione e distruttiva/irreversibile) |
 
-Le operazioni **read** sono sempre `policy=allow`. Le operazioni **write** usano `policy=ask` solo quando non richieste esplicitamente dall'utente o quando il rischio e alto.
+Le operazioni **read** sono sempre `policy=allow`. Le operazioni **write non distruttive** usano `policy=allow`; le operazioni **distruttive/irreversibili** usano `policy=ask`.
 
 ### 12.6 Retrieval fidelity (obbligatoria)
 

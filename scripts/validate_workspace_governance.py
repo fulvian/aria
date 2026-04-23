@@ -5,7 +5,7 @@ Validate Google Workspace Tool Governance Matrix per Phase 0 W0.4.
 Checks:
 1. Governance matrix exists at expected path
 2. All required columns present in each row
-3. Write tools have hitl_required = yes
+3. HITL is required only for destructive/irreversible tools
 4. No rows with missing required fields
 5. Policy values are valid (allow/ask/deny)
 
@@ -39,6 +39,18 @@ REQUIRED_COLUMNS = [
 VALID_POLICIES = {"allow", "ask", "deny"}
 VALID_RW = {"read", "write"}
 VALID_RISK = {"low", "medium", "high", "critical"}
+DESTRUCTIVE_KEYWORDS = {
+    "delete",
+    "remove",
+    "erase",
+    "destroy",
+    "purge",
+    "revoke",
+    "overwrite",
+    "batch_modify",
+    "set_permissions",
+    "manage_drive_access",
+}
 
 
 def parse_markdown_tables(content: str) -> list[dict[str, str]]:
@@ -163,12 +175,15 @@ def validate_row(row: dict[str, str], row_num: int) -> list[str]:
             f"Row '{row['tool_name']}': invalid risk '{risk}' (must be one of {VALID_RISK})"
         )
 
-    # Write tools MUST have hitl_required = yes
-    if rw == "write":
+    # HITL MUST be enabled for destructive/irreversible tools.
+    tool_name = row.get("tool_name", "").lower()
+    is_destructive = any(keyword in tool_name for keyword in DESTRUCTIVE_KEYWORDS)
+    if is_destructive:
         hitl = row.get("hitl_required", "").lower()
         if hitl != "yes":
             errors.append(
-                f"Row '{row['tool_name']}': write tool without HITL (hitl_required must be 'yes')"
+                f"Row '{row['tool_name']}': destructive tool must require HITL "
+                "(hitl_required='yes')"
             )
 
     # Deny tools MUST NOT have hitl_required = no (deny already blocks)
@@ -200,8 +215,10 @@ def assert_policy_row(row: dict[str, str]) -> None:
     missing = [k for k in required if not row.get(k)]
     if missing:
         raise ValueError(f"governance row incomplete: {missing}")
-    if row["rw"] == "write" and row["hitl_required"].lower() != "yes":
-        raise ValueError(f"write tool without HITL: {row['tool_name']}")
+    tool_name = row["tool_name"].lower()
+    is_destructive = any(keyword in tool_name for keyword in DESTRUCTIVE_KEYWORDS)
+    if is_destructive and row["hitl_required"].lower() != "yes":
+        raise ValueError(f"destructive tool without HITL: {row['tool_name']}")
 
 
 def main() -> int:
