@@ -479,7 +479,7 @@ class TaskRunner:
         """Execute workspace task by invoking KiloCode sub-agent.
 
         The scheduler delegates workspace execution to the configured sub-agent
-        via `kilo run --agent <sub_agent> --input <prompt>`.
+        via `kilo run --agent <sub_agent> --format json --auto <prompt>`.
         """
         kilo_executable = shutil.which("kilo")
         if kilo_executable is None:
@@ -513,7 +513,10 @@ class TaskRunner:
             str(uuid.uuid4()),
             "--agent",
             str(request.get("sub_agent", "workspace-agent")),
-            "--input",
+            "--format",
+            "json",
+            "--auto",
+            "--",
             input_prompt,
         ]
 
