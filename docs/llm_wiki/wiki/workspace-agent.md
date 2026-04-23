@@ -53,9 +53,9 @@ tier: 1
 | Docs | `documents` | Scrittura documenti |
 | Sheets | `spreadsheets.readonly` | Lettura fogli |
 | Sheets | `spreadsheets` | Scrittura fogli |
-| Slides | `slides.readonly` / `presentations.readonly` | Lettura presentazioni |
+| Slides | `presentations.readonly` | Lettura presentazioni (Google API scope name) |
 
-**Nota**: `slides.readonly` è il naming MCP tool; Google API usa `presentations.readonly`. Il wrapper gestisce l'alias automaticamente.
+**Nota**: Il Google API scope per Slides è `presentations.readonly` (non `slides.readonly`). Il governance matrix (`docs/roadmaps/workspace_tool_governance_matrix.md`) è stato aggiornato per usare il naming corretto. La funzione `normalize_scope()` nel wrapper prepende `https://www.googleapis.com/auth/` allo scope name, quindi il nome base deve essere `presentations.readonly`.
 
 **Scope escalation**: Richiede nuovo ADR esplicito + re-run `oauth_first_setup.py`. No silent scope creep.
 
@@ -80,11 +80,12 @@ Il server `google_workspace_mcp` upstream richiede un file JSON con le credenzia
 
 `scripts/wrappers/google-workspace-wrapper.sh`:
 1. Legge refresh_token dal keyring
-2. Crea il runtime credentials file con permessi corretti
-3. Imposta `WORKSPACE_MCP_CREDENTIALS_DIR`
-4. Normalizza args di startup MCP: se mancano selettori (`--tool-tier`, `--tools`, `--permissions`), forza default sicuro `--tools gmail calendar drive docs sheets slides --read-only` per evitare scope inflation e loop di re-auth su richieste read
-5. Prune dinamico dei tool in base agli scope **realmente grantiti** dal refresh token (es. se manca `presentations.readonly`, il dominio `slides` viene rimosso automaticamente dagli args MCP)
-6. Esegue `uvx workspace-mcp` con args effettivi
+2. **Pre-refresh dell'access_token**: ottiene un access_token fresco prima di scrivere il credentials file, così workspace-mcp vede credenziali valide e non attiva il suo flusso OAuth interno (loop "ACTION REQUIRED")
+3. Crea il runtime credentials file con permessi corretti (access_token fresco + expiry futura)
+4. Imposta `GOOGLE_MCP_CREDENTIALS_DIR`
+5. Normalizza args di startup MCP: se mancano selettori (`--tool-tier`, `--tools`, `--permissions`), forza default sicuro `--tools gmail calendar drive docs sheets slides --read-only` per evitare scope inflation e loop di re-auth su richieste read
+6. Prune dinamico dei tool in base agli scope **realmente grantiti** dal refresh token (es. se manca `presentations.readonly`, il dominio `slides` viene rimosso automaticamente dagli args MCP)
+7. Esegue `uvx workspace-mcp` con args effettivi
 
 *source: `scripts/wrappers/google-workspace-wrapper.sh` (update 2026-04-23)*
 

@@ -74,7 +74,6 @@ Thumbs.db
 .aria/runtime/
 .aria/kilocode/sessions/
 .aria/credentials/**
-!.aria/credentials/.sops.yaml
 !.aria/credentials/secrets/
 !.aria/credentials/secrets/*.enc.yaml
 *.db
@@ -83,8 +82,7 @@ Thumbs.db
 *.db-shm
 
 # SOPS files (private keys outside repo, encrypted files stay)
-# .sops.yaml is committed (config only, no secrets)
-/.sops.yaml
+# .sops.yaml at project root is committed (config only, no secrets)
 
 # Logs
 *.log

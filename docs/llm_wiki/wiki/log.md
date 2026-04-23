@@ -1,7 +1,7 @@
 ---
 title: ARIA LLM Wiki Activity Log
 sources: []
-last_updated: 2026-04-23T12:41:00+02:00
+last_updated: 2026-04-23T15:35:00+02:00
 tier: 1
 ---
 
@@ -253,6 +253,76 @@ uv run pytest -q tests/unit/scripts/test_google_workspace_wrapper.py: 4 passed
 
 ---
 
+## 2026-04-23T13:20 — Slides Scope Root Cause + Pruning Fix + Single-User Mode
+
+**Operazione**: DEBUG+IMPLEMENT (hardening v4)
+**Autore**: general-manager (Kilo orchestrator)
+**Scope**: risolvere definitivamente il loop OAuth per ricerca/lettura Drive e Slides
+
+### Root cause finale (confermata via Context7 + token refresh diretto)
+
+**Fatto**: `presentations.readonly` **non è mai stato concesso** dall'account Google dell'utente.
+- Il token refresh endpoint restituisce 8 scope: calendar.events.readonly, calendar.readonly, documents.readonly, drive.readonly, gmail.modify, gmail.readonly, gmail.send, spreadsheets.readonly.
+- `presentations.readonly` **non è presente** anche dopo aver ri-autenticato con lo scope richiesto.
+- **Causa**: L'account `fulviold@gmail.com` è un account **Google personale** (gmail.com), non un account **Google Workspace**. Google Slides/Presentations API potrebbe non essere disponibile su account personali senza Workspace.
+
+### Fix applicati
+
+1. **`scripts/wrappers/google-workspace-wrapper.sh`**
+   - `prune_workspace_args_by_granted_scopes` ora ha fallback intelligente: quando **tutti** i tool richiesti mancano di scope, ripiega al sottoinsieme di tool **che hanno scope concessi** invece di uscire con errore.
+   - Loggato un WARNING quando si attiva il fallback.
+   - Questo permette a Drive read di funzionare anche se Slides non è disponibile.
+
+2. **`.aria/kilocode/kilo.json`**
+   - Aggiunto `--single-user` al comando google_workspace per evitare session mapping.
+   - Rimosso `slides` dalla lista tool di default (non disponibile senza Workspace).
+
+3. **`.aria/runtime/credentials/google_workspace_scopes_primary.json`**
+   - Rimosso `slides.readonly` (non è mai stato concesso).
+   - Aggiunta nota esplicativa.
+
+4. **`.aria/runtime/credentials/google_workspace_mcp/fulviold@gmail.com.json`**
+   - Aggiornato scopes alla lista reale (8 scope senza presentations).
+
+### Strategia operativa per Slides
+
+**Drive API fallback** (già implementato in `workspace-slides-read.md`):
+- `search_drive_files` → cerca file Google Slides in Drive
+- `get_drive_file_content` → legge contenuto del file (anche Slides export) via Drive API
+- Questo funziona perché `drive.readonly` È concesso.
+
+**Per ottenere Slides API completo** (se necessario in futuro):
+- Richiede account **Google Workspace** (non account gmail.com personale)
+- Oppure usare `get_drive_file_content` che legge i file come binary/Office e li exporta in formati leggibili.
+
+### Evidenze
+
+```
+Token refresh scopes (8 granted):
+  calendar.events.readonly, calendar.readonly, documents.readonly, 
+  drive.readonly, gmail.modify, gmail.readonly, gmail.send, spreadsheets.readonly
+  presentations.readonly: NOT PRESENT
+```
+
+### Verifiche
+
+```
+pytest tests/unit/scripts/test_google_workspace_wrapper.py: 4 passed
+wrapper dry-run test: PASS (gmail, calendar, drive, docs, sheets - no slides)
+workspace-mcp startup test: PASS (no ACTION REQUIRED, no re-auth loop)
+```
+
+### Note finale
+
+Il loop OAuth non era un bug del codice ARIA. Era causato da:
+1. Configurazione precedente che richiedeva `slides` tool anche se l'account non aveva `presentations.readonly`.
+2. Wrapper che non verificava gli scope realmente concessi prima di avviare MCP.
+3. Il pruning era già stato implementato ma il fallback per "tutti i tool mancanti" mancava.
+
+Il fix è ora robusto: il sistema ripiega automaticamente ai tool con scope disponibili invece di fallire o richiedere re-autenticazione.
+
+---
+
 ## 2026-04-23T12:41 — Documentation Consolidation (Runbook + Wiki)
 
 **Operazione**: INGEST/MAINTENANCE
@@ -311,3 +381,71 @@ INFO: workspace wrapper pruned tools missing granted scope: slides(https://www.g
 bash -n scripts/wrappers/google-workspace-wrapper.sh: OK
 uv run pytest -q tests/unit/scripts/test_google_workspace_wrapper.py: 4 passed
 ```
+
+---
+
+## 2026-04-23T15:35 — Presentations.readonly Scope Grant + Governance Matrix Fix + Token Pre-Refresh
+
+**Operazione**: IMPLEMENT + FIX (auth hardening finale)
+**Autore**: general-manager (Kilo orchestrator)
+**Scope**: Ottenere scope presentations.readonly per Google Slides, correggere governance matrix, aggiungere token pre-refresh al wrapper
+
+### Background
+
+L'analisi precedente (entry 2026-04-23T13:20) concludeva erroneamente che `presentations.readonly` non fosse disponibile su account Google personali. In realtà l'utente non aveva incluso lo scope nella sessione OAuth originale. Una re-autenticazione esplicita con `--scope-pack core-read` (incluso `presentations.readonly`) ha ottenuto il grant con successo.
+
+### Re-auth con presentations.readonly
+
+1. Ri-eseguito `scripts/oauth_first_setup.py --manual --scope-pack core-read --account primary`
+2. Il refresh token ora include `presentations.readonly` tra gli scope concessi
+3. Verificato via token refresh endpoint: `presentations.readonly` compare nella lista
+
+### Fix: Governance Matrix scope names
+
+Il file `docs/roadmaps/workspace_tool_governance_matrix.md` usava scope names errati per Slides:
+- `slides.readonly` → `presentations.readonly` (Google API naming)
+- `slides` → `presentations`
+- Aggiunti `presentations.readonly` e `presentations` nella sezione "Scope Reference"
+
+La funzione `normalize_scope()` nel wrapper prepends `https://www.googleapis.com/auth/` allo scope name. `slides.readonly` diventava `https://www.googleapis.com/auth/slides.readonly` che **non esiste** come scope Google. Questo causava il fallimento del controllo di coerenza scope nel wrapper.
+
+### Fix: Wrapper token pre-refresh
+
+Il wrapper ora effettua un pre-refresh dell'access token **prima** di scrivere il runtime credentials file:
+1. `main()` chiama `refresh_access_token()` per ottenere un access_token fresco
+2. Il token viene passato a `sync_workspace_credentials_file()` via env vars `GW_PRETOKEN`/`GW_PREEXPIRY`
+3. Il file Python legge le env vars e le usa come `final_token`/`final_expiry`
+
+**Perché**: `workspace-mcp` considera le credenziali "not refreshable" quando `token` è null. Con il pre-refresh, il file ha sempre un access_token valido e l'expiry nel futuro. Questo evita che workspace-mcp attivi il suo flusso OAuth interno (che innesca il loop "ACTION REQUIRED").
+
+### Fix: Dead code removal in sync_workspace_credentials_file()
+
+Rimossa la chiamata `refresh_access_token()` dentro `sync_workspace_credentials_file()` il cui risultato era catturato in variabili locali mai utilizzate. Il Python code legge da `GW_PRETOKEN`/`GW_PREEXPIRY` passati da `main()`.
+
+### Files modificati
+
+| File | Modifica |
+|------|----------|
+| `docs/roadmaps/workspace_tool_governance_matrix.md` | Scope names corretti per Slides (presentations.readonly/presentations) |
+| `scripts/wrappers/google-workspace-wrapper.sh` | Dead code removal in `sync_workspace_credentials_file()` |
+| `.aria/runtime/credentials/google_workspace_scopes_primary.json` | 9 scope inclusi presentations.readonly |
+| `.aria/runtime/credentials/google_oauth_manual_session.json` | Scopes/timestamp aggiornati |
+| `.aria/runtime/credentials/google_workspace_mcp/fulviold@gmail.com.json` | Token valido con presentations.readonly |
+
+### Evidenze
+
+```
+Token refresh scopes (9 granted):
+  calendar.events.readonly, calendar.readonly, documents.readonly,
+  drive.readonly, gmail.modify, gmail.readonly, gmail.send,
+  presentations.readonly, spreadsheets.readonly
+
+Wrapper dry-run: --tools gmail calendar drive docs sheets slides --read-only
+Wrapper startup: PASS (no ACTION REQUIRED, Slides tools registered)
+presentations.readonly in granted scopes: True
+```
+
+### Prossimo passo
+
+- [ ] Riavviare `bin/aria repl` e verificare che google_workspace MCP resti abilitato
+- [ ] Testare una lettura Slides reale (es. `google_workspace_get_presentation`)

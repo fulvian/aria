@@ -140,6 +140,7 @@
       "type": "local",
       "command": [
         "/home/fulvio/coding/aria/scripts/wrappers/google-workspace-wrapper.sh",
+        "--single-user",
         "--tools",
         "gmail",
         "calendar",

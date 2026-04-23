@@ -1,6 +1,6 @@
 ---
 document: Google Workspace OAuth Runbook
-version: 1.1.0
+version: 1.2.0
 status: draft
 date_created: 2026-04-22
 owner: fulvio
@@ -269,6 +269,35 @@ python scripts/oauth_first_setup.py --scope-pack core-read --account primary
 ```
 
 If output contains `INFO: workspace wrapper pruned tools missing granted scope: ...`, pruning is active and OAuth loop protection is in place.
+
+### "ACTION REQUIRED" loop at MCP startup (null token)
+
+**Cause:** The runtime credentials file has `token: null` and `expiry: 1970-01-01...`. workspace-mcp considers credentials "not refreshable" and triggers its own full OAuth consent flow, which KiloCode CLI disables as an error.
+
+**Resolution:**
+1. The wrapper now pre-refreshes the access token before writing the credentials file (as of 2026-04-23).
+2. If the issue persists, manually verify the credentials file:
+```bash
+cat .aria/runtime/credentials/google_workspace_mcp/fulviold@gmail.com.json | python3 -c "
+import json,sys,datetime
+d=json.load(sys.stdin)
+print(f'token: {\"valid\" if d.get(\"token\") else \"NULL\"} (len={len(d.get(\"token\",\"\") or \"\")})')
+exp=datetime.datetime.fromisoformat(d.get('expiry','1970-01-01T00:00:00+00:00'))
+now=datetime.datetime.now(datetime.timezone.utc)
+print(f'expiry: {\"FUTURE\" if exp>now else \"PAST\"} ({exp.isoformat()})')
+"
+```
+3. If token is still null, the pre-refresh may have failed. Check:
+```bash
+# Test pre-refresh directly
+WORKSPACE_WRAPPER_DRY_RUN=true ./scripts/wrappers/google-workspace-wrapper.sh
+```
+
+### Governance matrix scope mismatch (slides.readonly vs presentations.readonly)
+
+**Cause:** The governance matrix (`docs/roadmaps/workspace_tool_governance_matrix.md`) used `slides.readonly` as the scope name for Slides tools, but Google's actual OAuth scope is `presentations.readonly`. The wrapper's `normalize_scope()` function prepends the prefix, creating a non-existent scope URL.
+
+**Resolution:** Ensure the governance matrix uses `presentations.readonly` (not `slides.readonly`) for Slides read tools and `presentations` (not `slides`) for Slides write tools. Fixed as of 2026-04-23.
 
 ### Wrapper fails with "credential file permissions too open"
 

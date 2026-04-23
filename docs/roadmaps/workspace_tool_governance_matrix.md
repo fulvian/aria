@@ -143,11 +143,11 @@ HITL is required when:
 
 | tool_name | domain | rw | risk | policy | hitl_required | min_scope | owner | testcase_id |
 |-----------|--------|-----|------|--------|---------------|-----------|-------|-------------|
-| create_presentation | slides | write | medium | ask | yes | slides | workspace-owner | GW-SL-001 |
-| get_presentation | slides | read | low | allow | no | slides.readonly | workspace-owner | GW-SL-002 |
-| batch_update_presentation | slides | write | high | ask | yes | slides | workspace-owner | GW-SL-003 |
-| get_page | slides | read | low | allow | no | slides.readonly | workspace-owner | GW-SL-004 |
-| get_page_thumbnail | slides | read | low | allow | no | slides.readonly | workspace-owner | GW-SL-005 |
+| create_presentation | slides | write | medium | ask | yes | presentations | workspace-owner | GW-SL-001 |
+| get_presentation | slides | read | low | allow | no | presentations.readonly | workspace-owner | GW-SL-002 |
+| batch_update_presentation | slides | write | high | ask | yes | presentations | workspace-owner | GW-SL-003 |
+| get_page | slides | read | low | allow | no | presentations.readonly | workspace-owner | GW-SL-004 |
+| get_page_thumbnail | slides | read | low | allow | no | presentations.readonly | workspace-owner | GW-SL-005 |
 
 ---
 
@@ -252,6 +252,8 @@ HITL is required when:
 - `https://www.googleapis.com/auth/spreadsheets.readonly`
 - `https://www.googleapis.com/auth/spreadsheets`
 - `https://www.googleapis.com/auth/spreadsheets`
+- `https://www.googleapis.com/auth/presentations.readonly`
+- `https://www.googleapis.com/auth/presentations`
 - `https://www.googleapis.com/auth/forms`
 - `https://www.googleapis.com/auth/forms.readonly`
 - `https://www.googleapis.com/auth/chat.readonly`

@@ -36,11 +36,63 @@ except Exception as e:
 "
 }
 
+# Pre-refresh the access token so workspace-mcp sees valid credentials
+# and doesn't trigger its own OAuth re-auth flow.
+refresh_access_token() {
+    local refresh_token="$1"
+    local client_id="$2"
+    local client_secret="$3"
+
+    "$PYTHON_BIN" -c "
+import json, os, sys, urllib.parse, urllib.request
+
+refresh_token = os.environ['GW_REFRESH_TOKEN'].strip()
+client_id = os.environ['GW_CLIENT_ID'].strip()
+client_secret = os.environ.get('GW_CLIENT_SECRET', '').strip()
+
+if not refresh_token or not client_id:
+    # Output empty — caller will fall back to null token
+    print('')
+    sys.exit(0)
+
+payload = {
+    'client_id': client_id,
+    'refresh_token': refresh_token,
+    'grant_type': 'refresh_token',
+}
+if client_secret:
+    payload['client_secret'] = client_secret
+
+try:
+    req = urllib.request.Request(
+        'https://oauth2.googleapis.com/token',
+        data=urllib.parse.urlencode(payload).encode('utf-8'),
+        headers={'Content-Type': 'application/x-www-form-urlencoded'},
+    )
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        data = json.loads(resp.read().decode('utf-8'))
+    access_token = data.get('access_token', '')
+    expires_in = data.get('expires_in', 3600)
+    if access_token:
+        from datetime import datetime, timezone, timedelta
+        expiry = (datetime.now(timezone.utc) + timedelta(seconds=expires_in)).isoformat()
+        print(f'{access_token}\n{expiry}')
+    else:
+        print('')
+except Exception as e:
+    print(f'WARN: token refresh failed: {e}', file=sys.stderr)
+    print('')
+" 2>/dev/null
+}
+
 sync_workspace_credentials_file() {
     local user_email="$1"
     local client_id="$2"
     local client_secret="$3"
     local refresh_token="$4"
+
+    # Pre-refreshed token is passed via GW_PRETOKEN / GW_PREEXPIRY env vars
+    # (set in main() before calling this function).
 
     "$PYTHON_BIN" -c "
 import json
@@ -55,6 +107,8 @@ client_id = os.environ['GW_CLIENT_ID'].strip()
 client_secret = os.environ.get('GW_CLIENT_SECRET', '').strip()
 refresh_token = os.environ['GW_REFRESH_TOKEN'].strip()
 wrapper_args_raw = os.environ.get('GW_WRAPPER_ARGS', '')
+prerefreshed_token = os.environ.get('GW_PRETOKEN', '').strip()
+prerefreshed_expiry = os.environ.get('GW_PREEXPIRY', '').strip()
 aria_home = Path('$ARIA_HOME')
 
 GOOGLE_SCOPE_PREFIX = 'https://www.googleapis.com/auth/'
@@ -286,16 +340,25 @@ if creds_path.exists():
 # Important: a blank token with null expiry is considered valid by google-auth,
 # which can produce unauthenticated requests (Drive 403 unregistered callers).
 # Force refresh path when we only have refresh_token bootstrap material.
-expiry_value = existing_expiry if existing_token else '1970-01-01T00:00:00+00:00'
+# Pre-refreshed token takes priority over existing file token.
+if prerefreshed_token:
+    final_token = prerefreshed_token
+    final_expiry = prerefreshed_expiry if prerefreshed_expiry else '1970-01-01T00:00:00+00:00'
+elif existing_token:
+    final_token = existing_token
+    final_expiry = existing_expiry if existing_expiry else '1970-01-01T00:00:00+00:00'
+else:
+    final_token = None
+    final_expiry = '1970-01-01T00:00:00+00:00'
 
 payload = {
-    'token': existing_token,
+    'token': final_token,
     'refresh_token': refresh_token,
     'token_uri': 'https://oauth2.googleapis.com/token',
     'client_id': client_id,
     'client_secret': client_secret,
     'scopes': effective_scopes,
-    'expiry': expiry_value,
+    'expiry': final_expiry,
 }
 
 fd = os.open(str(creds_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
@@ -502,8 +565,34 @@ for tool in tools:
         continue
     keep_tools.append(tool)
 
-if not dropped or not keep_tools:
+if not dropped:
+    # No tools were pruned - all requested scopes are granted
     print('\n'.join(args))
+    raise SystemExit(0)
+
+if not keep_tools:
+    # ALL requested tools were pruned - user lacks ALL required scopes.
+    # Fall back to a minimal set of definitely-granted scopes so at least
+    # Drive read works (via get_drive_file_content). Slides/Docs/etc will
+    # require separate re-authorization with specific scopes.
+    # Use the subset of tools that ARE granted.
+    minimal_granted = []
+    for tool in tools:
+        name = tool.strip().lower()
+        needed = required.get(name)
+        if needed and needed in granted:
+            minimal_granted.append(tool)
+
+    if not minimal_granted:
+        # Nothing at all is granted - should not happen but be safe
+        print('\n'.join(args))
+        raise SystemExit(0)
+
+    drop_details = ', '.join(f'{name}({scope})' for name, scope in dropped)
+    print(f'WARNING: Missing granted scopes for all requested tools. ', file=sys.stderr)
+    print(f'Driving: falling back to granted tools: {" ".join(minimal_granted)}', file=sys.stderr)
+    new_args = args[:idx] + minimal_granted + args[tool_end:]
+    print('\n'.join(new_args))
     raise SystemExit(0)
 
 new_args = args[:idx] + keep_tools + args[tool_end:]
@@ -581,6 +670,15 @@ main() {
     if [[ -n "${user_google_email:-}" ]]; then
         prune_workspace_args_by_granted_scopes effective_args "$refresh_token" "$client_id" "$client_secret"
 
+        # Pre-refresh access token so workspace-mcp gets valid credentials
+        # and doesn't trigger its own OAuth re-auth flow.
+        local refreshed
+        refreshed="$(refresh_access_token "$refresh_token" "$client_id" "$client_secret")" || refreshed=""
+        local fresh_access_token
+        local fresh_expiry
+        fresh_access_token="$(printf '%s\n' "$refreshed" | sed -n '1p')"
+        fresh_expiry="$(printf '%s\n' "$refreshed" | sed -n '2p')"
+
         local wrapper_args_serialized=""
         if [[ ${#effective_args[@]} -gt 0 ]]; then
             wrapper_args_serialized="$(printf '%q ' "${effective_args[@]}")"
@@ -591,6 +689,8 @@ main() {
         GW_CLIENT_SECRET="$client_secret" \
         GW_REFRESH_TOKEN="$refresh_token" \
         GW_WRAPPER_ARGS="$wrapper_args_serialized" \
+        GW_PRETOKEN="$fresh_access_token" \
+        GW_PREEXPIRY="$fresh_expiry" \
         sync_workspace_credentials_file "$user_google_email" "$client_id" "$client_secret" "$refresh_token"
     fi
 

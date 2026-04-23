@@ -8,7 +8,7 @@ sources:
   - pyproject.toml
   - Makefile
   - docs/operations/runbook.md
-last_updated: 2026-04-23
+last_updated: 2026-04-23T15:35
 tier: 1
 ---
 
@@ -66,6 +66,7 @@ Questi file sono le fonti autoritative da cui il wiki è derivato:
 | Runbook | `docs/operations/runbook.md` | Operazioni day-to-day |
 | Workspace OAuth Runbook | `docs/operations/workspace_oauth_runbook.md` | Procedure OAuth operative, troubleshooting, dynamic pruning |
 | OAuth Debug Plan 2026-04-23 | `docs/plans/google_workspace_authz_debug_plan_2026-04-23.md` | Piano esteso di diagnosi authz per Workspace MCP (Drive/Slides read) |
+| Workspace Tool Governance Matrix | `docs/roadmaps/workspace_tool_governance_matrix.md` | Registry di 114 tool MCP con domain, rw, risk, policy, HITL, min_scope |
 
 ## External Knowledge
 

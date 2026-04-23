@@ -314,6 +314,39 @@ Format: `<type>(<scope>): <description>`
 - Agents MUST NOT delete remote branches without explicit instruction
 - Agents MUST fetch and rebase on latest `main` before finalizing work
 
+## Mandatory Knowledge Infrastructure
+
+### LLM Wiki — WIKI-FIRST Reconstruction
+Before consulting raw sources, always reconstruct project context by reading:
+1. `docs/llm_wiki/wiki/index.md` — wiki index with page list and raw source mapping
+2. `docs/llm_wiki/wiki/log.md` — timestamped activity log of wiki operations
+
+Raw sources (Tier 0) are consulted only when wiki coverage is missing or uncertain.
+
+### Wiki Structure Guarantee
+Ensure these directories exist before workflow execution:
+- `docs/llm_wiki/` — wiki root
+- `docs/llm_wiki/ext_knowledge/` — external reference docs
+- `docs/llm_wiki/wiki/` — wiki pages
+
+If missing, run bootstrap immediately.
+
+### Wiki Maintenance (continuous)
+For each meaningful task, execute maintenance operations:
+1. Update affected wiki pages in `docs/llm_wiki/wiki/`
+2. Refresh `docs/llm_wiki/wiki/index.md` (page list, raw source mapping)
+3. Append timestamped entry to `docs/llm_wiki/wiki/log.md`
+
+Every wiki fact must record: `source: <path>`, `last_updated: <date>`.
+
+### Context7 — Library Verification Before Code
+**MANDATORY** for all code/config deliverables:
+1. Call `context7_resolve-library-id` with library name + query to obtain Context7 library ID
+2. Call `context7_query-docs` with library ID + specific question to verify official API patterns
+3. Reject deliverables that use unverified, deprecated, or hallucinated libraries
+
+Verification must happen BEFORE writing any code or configuration. No exceptions.
+
 ## Agent Working Rules
 - Prefer minimal, reviewable diffs.
 - Do not perform destructive git actions without explicit user instruction.
