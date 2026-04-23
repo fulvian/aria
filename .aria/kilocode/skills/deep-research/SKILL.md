@@ -29,10 +29,12 @@ contenuti, sintetizzare report strutturato.
 2. Per ogni sub-query usa routing a tier:
    - Tier A: `searxng-script_search` (sempre first-pass)
    - Tier B: `brave-mcp_brave_web_search` poi `exa-script_search` poi `tavily-mcp_search`
-   - Tier C: `firecrawl-mcp_scrape`/`firecrawl-mcp_extract` solo per approfondire top-N URL
+   - Tier C: `fetch_fetch` per approfondire top-N URL
+   - `firecrawl-mcp_scrape`/`firecrawl-mcp_extract` **SOLO** per scrape/extract esplicito di URL trovati da altri provider
    Escala al tier successivo solo se quality gate fallisce (pochi risultati, bassa coverage, bassa recency)
+   Se Firecrawl tools ritornano `isError` (credits exhausted HTTP 402), salta e usa `fetch_fetch` al suo posto
 3. Deduplica URL (Levenshtein title + URL canonicalization)
-4. Per top-N risultati, scrape full content via firecrawl
+4. Per top-N risultati, scrape full content via `fetch_fetch` (o firecrawl se esplicitamente richiesto)
 5. Classifica per rilevanza e data
 6. Sintetizza report con sezioni: TL;DR, Findings, Open Questions, Sources
 7. Salva report in memoria episodica con tag `research_report`

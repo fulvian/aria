@@ -10,13 +10,17 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import TYPE_CHECKING
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
 from aria.agents.search.providers.exa import ExaProvider
 from aria.agents.search.schema import ProviderError
-from aria.credentials.manager import CredentialManager
+from aria.tools._cred import get_credential_manager
+
+if TYPE_CHECKING:
+    from aria.credentials.manager import CredentialManager
 
 logging.basicConfig(
     level=os.getenv("ARIA_LOG_LEVEL", "INFO"),
@@ -25,6 +29,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 mcp = FastMCP("exa-script")
+logger.info("Exa MCP server starting, credential manager will be cached on first tool call")
 
 DEFAULT_MAX_KEY_ROTATION_ATTEMPTS = 5
 
@@ -49,7 +54,7 @@ async def search(query: str, top_k: int = 10) -> dict[str, object]:
     Returns:
         JSON with search results or error information.
     """
-    cm = CredentialManager()
+    cm = await get_credential_manager()
     last_error: str = ""
     max_attempts = _rotation_attempts(cm, "exa")
 

@@ -17,13 +17,17 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import TYPE_CHECKING
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
 from aria.agents.search.providers.tavily import TavilyProvider
 from aria.agents.search.schema import ProviderError
-from aria.credentials.manager import CredentialManager
+from aria.tools._cred import get_credential_manager
+
+if TYPE_CHECKING:
+    from aria.credentials.manager import CredentialManager
 
 # === Setup ===
 logging.basicConfig(
@@ -33,6 +37,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 mcp = FastMCP("tavily-mcp")
+logger.info("Tavily MCP server starting, credential manager will be cached on first tool call")
 
 DEFAULT_MAX_KEY_ROTATION_ATTEMPTS = 5
 
@@ -56,7 +61,7 @@ async def _search_with_rotation(query: str, top_k: int) -> list[dict[str, object
     Raises:
         ToolError: If all keys are exhausted or no keys are available.
     """
-    cm = CredentialManager()
+    cm = await get_credential_manager()
     last_error: str = ""
     max_attempts = _rotation_attempts(cm, "tavily")
 

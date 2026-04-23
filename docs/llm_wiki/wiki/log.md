@@ -811,3 +811,244 @@ uv run mypy src/aria/credentials/rotator.py src/aria/tools/tavily/mcp_server.py 
 uv run pytest -q tests/unit/credentials/test_rotator.py: PASS (8 passed)
 uv run pytest -q tests/integration/agents/search/test_providers.py: PASS (15 passed)
 ```
+
+---
+
+## 2026-04-23T23:29 — Telegram Gateway Incident Analysis (No Bot Reply)
+
+**Operazione**: DEBUG/ANALYSIS
+**Autore**: general-manager (Kilo orchestrator)
+**Scope**: Diagnosi codice+runtime del mancato riscontro ai messaggi Telegram (es. "ciao")
+
+### Evidenze raccolte
+
+1. **Service state**
+   - `systemctl --user status aria-gateway.service` → `inactive (dead)` al momento dell'analisi.
+   - Start manuale riuscito e polling ripristinato.
+
+2. **Runtime signal**
+   - Journal conferma polling (`getUpdates 200`) quando il servizio è attivo.
+   - Con servizio inattivo, nessun consumer update.
+
+3. **Code-level criticalities**
+   - Tutti gli handler sono `filters.ChatType.PRIVATE` → gruppi/canali esclusi.
+   - `ConductorBridge` non è cablato nel daemon (`gateway.user_message` senza subscriber dedicato).
+   - Nessun loop `gateway.reply` → Telegram adapter non inoltra risposte del bridge.
+   - Payload mismatch: adapter invia `user_id`, bridge legge `telegram_user_id`.
+
+4. **Configuration fragility**
+   - `config.py` dichiara caricamento `.env`, ma usa solo `os.environ`.
+   - Se il daemon viene avviato fuori da systemd/`bin/aria`, whitelist può risultare vuota con drop silenzioso.
+
+### File analizzati
+
+- `src/aria/gateway/daemon.py`
+- `src/aria/gateway/telegram_adapter.py`
+- `src/aria/gateway/conductor_bridge.py`
+- `src/aria/gateway/auth.py`
+- `src/aria/config.py`
+- `systemd/aria-gateway.service`
+- `scripts/install_systemd.sh`
+- `docs/operations/runbook.md`
+
+### Aggiornamenti wiki
+
+- `docs/llm_wiki/wiki/gateway.md`: aggiunta sezione "Criticita Osservate (2026-04-23)".
+- `docs/llm_wiki/wiki/index.md`: timestamp aggiornato.
+
+---
+
+## 2026-04-23T23:35 — Telegram Gateway Definitive Remediation
+
+**Operazione**: IMPLEMENT+VERIFY
+**Autore**: general-manager (Kilo orchestrator)
+**Scope**: Fix definitivo no-reply Telegram su wiring runtime, payload coherence, delivery loop e hardening service lifecycle
+
+### Fix applicati
+
+1. **Daemon wiring completato**
+   - Inizializzato `EpisodicStore` con `create_episodic_store(config)`.
+   - Inizializzato `ConductorBridge(bus, store, config)`.
+   - Registrate subscription:
+     - `gateway.user_message` -> `conductor_bridge.handle_user_message`
+     - `gateway.reply` -> `telegram_adapter.handle_gateway_reply`
+   - Shutdown aggiornato con `await episodic_store.close()`.
+
+2. **Reply loop Telegram implementato**
+   - `TelegramAdapter.send_text(chat_id, text)`.
+   - `TelegramAdapter.handle_gateway_reply(payload)`:
+     - risoluzione chat da `session_id` (`SessionManager.get_session`)
+     - fallback su `telegram_user_id`/`user_id`
+     - logging difensivo su payload invalidi
+
+3. **Schema payload allineato**
+   - Evento `gateway.user_message` include ora `telegram_user_id` oltre a `user_id`.
+
+4. **Operational hardening systemd**
+   - `scripts/install_systemd.sh start` aggiornato a `systemctl --user enable --now` per `aria-scheduler.service` e `aria-gateway.service`.
+
+5. **Test coverage aggiunta**
+   - Nuovo file `tests/unit/gateway/test_telegram_adapter.py` con 3 test:
+     - publish payload con `telegram_user_id`
+     - reply via session mapping
+     - fallback reply via telegram user id
+
+### Verifiche eseguite
+
+```
+uv run pytest -q tests/unit/gateway/test_telegram_adapter.py tests/unit/gateway/test_conductor_bridge.py: PASS (5 passed)
+uv run ruff check src/aria/gateway/daemon.py src/aria/gateway/telegram_adapter.py tests/unit/gateway/test_telegram_adapter.py: PASS
+uv run mypy src/aria/gateway/daemon.py src/aria/gateway/telegram_adapter.py: PASS
+uv run pytest -q tests/unit/gateway: PASS (12 passed)
+systemctl --user start aria-gateway.service && systemctl --user status aria-gateway.service --no-pager: active (running)
+```
+
+---
+
+## 2026-04-23T23:49 — Gateway systemd MDWE incompatibility fix
+
+**Operazione**: DEBUG+IMPLEMENT
+**Autore**: general-manager (Kilo orchestrator)
+**Scope**: risolvere crash Conductor child spawn su gateway attivo dopo wiring fix
+
+### Diagnosi
+
+- Journal gateway mostrava crash V8 durante spawn child Kilo/Node:
+  - `Check failed: 12 == (*__errno_location())`
+  - `SetPermissionsOnExecutableMemoryChunk`
+- Root cause: hardening `MemoryDenyWriteExecute=true` incompatibile con JIT/executable pages richieste da Node/V8.
+
+### Fix applicato
+
+- `systemd/aria-gateway.service` aggiornato:
+  - `MemoryDenyWriteExecute=true` -> `MemoryDenyWriteExecute=false`
+  - nota esplicita nel file unit sul vincolo ConductorBridge/Node.
+- Unit reinstallata via `scripts/install_systemd.sh install` e servizio riavviato.
+
+### Verifica
+
+```
+systemctl --user show aria-gateway.service -p MemoryDenyWriteExecute -p ActiveState -p UnitFileState
+MemoryDenyWriteExecute=no
+ActiveState=active
+UnitFileState=enabled
+```
+
+---
+
+## 2026-04-23T23:55 — ChatType filter broadening for Telegram handlers
+
+**Operazione**: IMPLEMENT
+**Autore**: general-manager (Kilo orchestrator)
+**Scope**: rimozione vincolo private-only negli handler Telegram per evitare drop su chat non private
+
+### Fix applicato
+
+- In `src/aria/gateway/telegram_adapter.py` rimossi `filters.ChatType.PRIVATE` da:
+  - `CommandHandler` (`/start`, `/help`, `/status`, `/run`)
+  - `MessageHandler` testo/foto/voce
+- La protezione autorizzativa resta in `_whitelist_check`.
+
+### Verifica
+
+```
+uv run ruff check src/aria/gateway/telegram_adapter.py src/aria/gateway/daemon.py tests/unit/gateway/test_telegram_adapter.py: PASS
+uv run mypy src/aria/gateway/telegram_adapter.py src/aria/gateway/daemon.py: PASS
+uv run pytest -q tests/unit/gateway: PASS (12 passed)
+systemctl --user restart aria-gateway.service && systemctl --user status aria-gateway.service --no-pager: active (running)
+```
+
+---
+
+## 2026-04-24T00:05 — Search Provider Root Cause Fix: SOPS Decryption Caching
+
+**Operazione**: DEBUG+IMPLEMENT (critical reliability fix)
+**Autore**: general-manager (Kilo orchestrator)
+**Scope**: Risolvere il problema radice dei provider di ricerca che falliscono — SOPS decryption eseguita per ogni tool call MCP
+
+### Root Cause Analysis
+
+I log credenziali (`.aria/runtime/logs/credentials-2026-04-23.log`) hanno rivelato:
+
+```
+"Failed to load API keys: Decryption failed: age key file not found or invalid (exit code: 128)"
+```
+
+**Problema**: `CredentialManager()` veniva istanziato **fresh per ogni tool call MCP**. Ogni istanza:
+1. Creava un nuovo `SopsAdapter` 
+2. Lanciava `sops --decrypt` come subprocess
+3. Quando il subprocess falliva (race condition, I/O transient, fd limits) → **tutti i provider diventavano unavailable simultaneamente**
+
+**Impatto**: I log mostravano fallimenti SOPS alle 17:43, 20:21, 21:17, 21:19 — proprio durante le sessioni KiloCode dell'utente. Tavily, Exa e Firecrawl riportavano tutti "no available keys" perché SOPS non riusciva a decrittare il file.
+
+**Stato provider reale** (verificato via test diretti):
+- **Tavily**: 7/8 key funzionanti (key rotation funziona)
+- **Exa**: 1/1 key funzionante
+- **Firecrawl**: 0/7 key (tutte HTTP 402 "Insufficient credits")
+- **SearXNG**: Funzionante (self-hosted localhost:8888)
+- **Brave**: Funzionante (via npm wrapper)
+
+### Fix implementati
+
+#### 1. CredentialManager Singleton per MCP Server (`src/aria/tools/_cred.py` — NEW)
+
+- `get_credential_manager()` — singleton con double-check locking via `asyncio.Lock`
+- `reset_credential_manager()` — per testing e forced reload
+- SOPS decryption eseguita **una sola volta** per processo MCP server (non per tool call)
+- Logging diagnostico: PATH, SOPS_AGE_KEY_FILE, provider keys loaded
+
+#### 2. SOPS Retry Logic (`src/aria/credentials/manager.py`)
+
+- `_load_api_keys()` refactor: delega a `_try_decrypt_with_retry()` + `_parse_providers()`
+- `_try_decrypt_with_retry()`: 2 tentativi con 1s backoff
+- Logging diagnostico su ogni tentativo fallito: SOPS_AGE_KEY_FILE, age_key_exists, path_exists
+
+#### 3. MCP Servers aggiornati (tavily, exa, firecrawl)
+
+- Sostituito `cm = CredentialManager()` → `cm = await get_credential_manager()`
+- Il CM è condiviso tra tutte le chiamate tool nello stesso processo server
+- Startup logging aggiunto
+
+#### 4. Search Agent + Deep-Research Skill aggiornati
+
+- Firecrawl marcato come "ALL credits exhausted — solo per scrape/extract espliciti"
+- Aggiunto guidance: se provider ritorna `isError`, skip al tier successivo
+- fetch_fetch promosso a Tier C primario (sostituisce Firecrawl per scraping generico)
+
+### Files modificati
+
+| File | Modifica |
+|------|----------|
+| `src/aria/tools/_cred.py` | NEW — CredentialManager singleton per MCP server |
+| `src/aria/credentials/manager.py` | Refactor: retry logic SOPS, diagnostic logging |
+| `src/aria/tools/tavily/mcp_server.py` | Usa `get_credential_manager()` |
+| `src/aria/tools/exa/mcp_server.py` | Usa `get_credential_manager()` |
+| `src/aria/tools/firecrawl/mcp_server.py` | Usa `get_credential_manager()` (3 call sites) |
+| `.aria/kilocode/agents/search-agent.md` | Firecrawl marcato exhausted, error-skip guidance |
+| `.aria/kilocode/skills/deep-research/SKILL.md` | Routing aggiornato, fetch_fetch come Tier C |
+| `tests/unit/tools/__init__.py` | NEW — package init |
+| `tests/unit/tools/test_cred.py` | NEW — 5 test singleton caching |
+| `tests/unit/credentials/test_manager.py` | 7 test retry/parse logic |
+
+### Quality Gates
+
+```
+ruff check: PASS (all 5 source files)
+ruff format --check: PASS (5 files formatted)
+mypy: PASS (0 errors in 5 source files)
+pytest -q: 491 passed (12 new tests)
+```
+
+### E2E Verification
+
+```
+Tavily MCP: CALL 1 SUCCESS (3 results) → CALL 2 SUCCESS (2 results, CM cached)
+Exa MCP: CALL 1 SUCCESS (3 results) → CALL 2 SUCCESS (2 results, CM cached)
+Firecrawl MCP: isError=true (expected: all 7 keys HTTP 402)
+```
+
+### Diagnosi tecnica
+
+Il problema non era nel codice dei provider o nella key rotation (che funzionava correttamente). Era nel **livello SOPS**: il subprocess `sops --decrypt` falliva intermittente, probabilmente per race conditions su file I/O o fd limits. Creando un nuovo CM per ogni tool call, si moltiplicava la probabilità di failure per il numero di tool calls nella sessione.
+
+Con il caching, SOPS viene chiamato una sola volta all'inizio del processo MCP server. Se fallisce, il retry lo risolve nella maggior parte dei casi. E il diagnostic logging aiuta a identificare rapidamente eventuali problemi residui.

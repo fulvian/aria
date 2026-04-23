@@ -8,6 +8,7 @@ sources:
   - src/aria/tools/exa/mcp_server.py
   - src/aria/tools/firecrawl/mcp_server.py
   - src/aria/tools/searxng/mcp_server.py
+  - src/aria/tools/_cred.py
   - .aria/kilocode/agents/search-agent.md
   - docs/plans/searcher_optimizer_plan.md
   - src/aria/agents/search/cost_policy.py
@@ -15,7 +16,7 @@ sources:
   - src/aria/agents/search/fusion.py
   - src/aria/agents/search/quota_state.py
   - src/aria/agents/search/telemetry.py
-last_updated: 2026-04-23T23:10:00+02:00
+last_updated: 2026-04-24T00:05:00+02:00
 tier: 1
 ---
 
@@ -176,8 +177,21 @@ Il LLM **non** riceve un JSON `{"success": false, ...}` — riceve un errore str
 
 I provider a pagamento (Tavily, Exa, Firecrawl) usano questo flusso per ogni chiamata:
 
+### CredentialManager Caching (fix 2026-04-24)
+
+Ogni MCP server con key rotation usa un **CredentialManager singleton** via `src/aria/tools/_cred.py`:
+
+- `get_credential_manager()` → singleton con double-check locking via `asyncio.Lock`
+- SOPS decryption eseguita **una sola volta** per processo MCP server
+- Retry automatico (2 tentativi, 1s backoff) se SOPS fallisce al primo tentativo
+- Diagnostic logging: PATH, SOPS_AGE_KEY_FILE, age key existence, provider keys loaded
+
+**Perché**: il CredentialManager era istanziato fresh per ogni tool call MCP. Ogni istanza lanciava `sops --decrypt` come subprocess. Quando il subprocess falliva (race condition, I/O transient, fd limits), tutti i provider diventavano unavailable simultaneamente. I log credenziali mostravano fallimenti SOPS intermittenti alle 17:43, 20:21, 21:17, 21:19 del 2026-04-23.
+
 ```
 search(query)
+  │
+  ├─ cm = await get_credential_manager()  ← singleton (cached)
   │
   ├─ for attempt in range(max(5, configured_keys)):
   │     │

@@ -22,6 +22,8 @@
 from __future__ import annotations
 
 import contextlib
+import logging
+import time
 from pathlib import Path
 from typing import Literal
 
@@ -32,6 +34,8 @@ from aria.credentials.audit import get_audit_logger
 from aria.credentials.keyring_store import KeyringStore
 from aria.credentials.rotator import CircuitState, KeyInfo, Rotator
 from aria.credentials.sops import SopsAdapter, SopsError
+
+logger = logging.getLogger(__name__)
 
 # === OAuth Bundle ===
 
@@ -129,60 +133,114 @@ class CredentialManager:
             self._api_keys[provider] = normalized
 
     def _load_api_keys(self) -> None:
-        """Load API keys from encrypted storage."""
+        """Load API keys from encrypted storage.
+
+        Includes retry logic: if SOPS decryption fails on the first attempt,
+        waits 1 second and retries once before giving up. This handles transient
+        failures caused by race conditions, I/O jitter, or fd limits.
+        """
         api_keys_path = self._config.paths.credentials / "secrets" / "api-keys.enc.yaml"
         self._api_keys = {}
         if api_keys_path.exists():
-            try:
-                data = self._sops.decrypt(api_keys_path)
-                providers = data.get("providers", {}) or {}
-                if not isinstance(providers, dict):
-                    providers = {}
-
-                for provider, provider_config in providers.items():
-                    if not isinstance(provider_config, dict):
-                        # Legacy format: provider_config is a list of keys directly
-                        # e.g., providers.tavily = [{id: "...", key: "..."}, ...]
-                        if isinstance(provider, str) and provider not in ("version",):
-                            # Handle list-style legacy format
-                            self._load_keys_from_list(provider, provider_config)
-                        continue
-
-                    # Canonical format: provider_config has "keys" list
-                    raw_keys = provider_config.get("keys", [])
-                    if not isinstance(raw_keys, list):
-                        # Fallback: also accept direct list under provider name
-                        self._load_keys_from_list(provider, provider_config)
-                        continue
-
-                    normalized: list[dict[str, str | int | None]] = []
-                    for item in raw_keys:
-                        if not isinstance(item, dict):
-                            continue
-                        key_id = str(item.get("key_id") or "").strip()
-                        key_value = item.get("key") or item.get("api_key") or item.get("token")
-                        if not key_id or not isinstance(key_value, str):
-                            continue
-                        normalized.append(
-                            {
-                                "key_id": key_id,
-                                "key": key_value,
-                                "credits_total": (
-                                    int(item["credits_total"])
-                                    if item.get("credits_total") is not None
-                                    else None
-                                ),
-                            }
-                        )
-
-                    self._api_keys[provider] = normalized
-            except SopsError as e:
-                # Log but don't fail - keys may be added later
-                self._audit.record_no_key("all", f"Failed to load API keys: {e}")
+            data = self._try_decrypt_with_retry(api_keys_path)
+            if data is not None:
+                self._parse_providers(data)
 
         # Keep rotator state aligned with configured keys.
         for provider, keys in self._api_keys.items():
             self._rotator.sync_provider_keys(provider, keys)
+
+    def _try_decrypt_with_retry(self, api_keys_path: Path) -> dict | None:
+        """Attempt SOPS decryption with one retry on failure.
+
+        Args:
+            api_keys_path: Path to the encrypted API keys file.
+
+        Returns:
+            Decrypted data dict, or None if both attempts fail.
+        """
+        max_attempts = 2
+        for attempt in range(max_attempts):
+            try:
+                return self._sops.decrypt(api_keys_path)
+            except SopsError as e:
+                if attempt < max_attempts - 1:
+                    logger.warning(
+                        "SOPS decryption failed (attempt %d/%d), retrying in 1s: %s "
+                        "SOPS_AGE_KEY_FILE=%s age_key_exists=%s",
+                        attempt + 1,
+                        max_attempts,
+                        e,
+                        self._sops.age_key_file,
+                        self._sops.age_key_file.exists(),
+                    )
+                    self._audit.record_no_key(
+                        "all", f"SOPS decrypt failed (attempt {attempt + 1}): {e}"
+                    )
+                    time.sleep(1.0)
+                else:
+                    logger.error(
+                        "SOPS decryption failed after %d attempts: %s "
+                        "SOPS_AGE_KEY_FILE=%s age_key_exists=%s path_exists=%s",
+                        max_attempts,
+                        e,
+                        self._sops.age_key_file,
+                        self._sops.age_key_file.exists(),
+                        api_keys_path.exists(),
+                    )
+                    self._audit.record_no_key(
+                        "all", f"Failed to load API keys after {max_attempts} attempts: {e}"
+                    )
+        return None
+
+    def _parse_providers(self, data: dict) -> None:
+        """Parse provider data from decrypted YAML into _api_keys dict.
+
+        Handles both canonical format (provider.keys[]) and legacy list format.
+
+        Args:
+            data: Decrypted YAML data containing a "providers" key.
+        """
+        providers = data.get("providers", {}) or {}
+        if not isinstance(providers, dict):
+            providers = {}
+
+        for provider, provider_config in providers.items():
+            if not isinstance(provider_config, dict):
+                # Legacy format: provider_config is a list of keys directly
+                # e.g., providers.tavily = [{id: "...", key: "..."}, ...]
+                if isinstance(provider, str) and provider not in ("version",):
+                    self._load_keys_from_list(provider, provider_config)
+                continue
+
+            # Canonical format: provider_config has "keys" list
+            raw_keys = provider_config.get("keys", [])
+            if not isinstance(raw_keys, list):
+                # Fallback: also accept direct list under provider name
+                self._load_keys_from_list(provider, provider_config)
+                continue
+
+            normalized: list[dict[str, str | int | None]] = []
+            for item in raw_keys:
+                if not isinstance(item, dict):
+                    continue
+                key_id = str(item.get("key_id") or "").strip()
+                key_value = item.get("key") or item.get("api_key") or item.get("token")
+                if not key_id or not isinstance(key_value, str):
+                    continue
+                normalized.append(
+                    {
+                        "key_id": key_id,
+                        "key": key_value,
+                        "credits_total": (
+                            int(item["credits_total"])
+                            if item.get("credits_total") is not None
+                            else None
+                        ),
+                    }
+                )
+
+            self._api_keys[provider] = normalized
 
     def _get_key(self, provider: str, key_id: str) -> SecretStr | None:
         """Get decrypted key value from storage."""

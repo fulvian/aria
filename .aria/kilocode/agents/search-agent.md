@@ -31,20 +31,26 @@ Sub-agente specializzato di ARIA. **Non usi mai** il tool built-in `websearch` (
 | `brave-mcp_brave_web_search` | Brave | **Tier B** — general/news economico |
 | `exa-script_search` | Exa | **Tier B** — query semantiche, papers, contenuto approfondito |
 | `tavily-mcp_search` | Tavily | **Tier B riserva** — alta precisione quando serve |
-| `firecrawl-mcp_scrape` | Firecrawl | Estrazione testo da URL specifico |
-| `firecrawl-mcp_extract` | Firecrawl | Estrazione strutturata da URL |
+| `firecrawl-mcp_scrape` | Firecrawl | Estrazione testo da URL specifico (**SOLO per scrape/extract espliciti**) |
+| `firecrawl-mcp_extract` | Firecrawl | Estrazione strutturata da URL (**SOLO per scrape/extract espliciti**) |
 | `fetch_fetch` | fetch-mcp | GET HTTP semplice |
+
+> **Firecrawl: ALL keys exhausted (HTTP 402).** Usa Firecrawl SOLO per richieste
+> esplicite di scrape/extract di un URL, mai per ricerca generale. Se i tool
+> Firecrawl ritornano `isError` (credits exhausted), usa `fetch_fetch` al suo posto.
 
 > I provider MCP implementano key rotation automatica: se un API key è esaurita,
 > il server MCP prova automaticamente la key successiva. Se un tool ritorna `isError`,
-> passa al provider successivo nella priority list.
+> passa al provider successivo nella priority list — **non ritentare** lo stesso provider
+> nella stessa richiesta.
 
 ## Routing (§11 blueprint)
-1. **First pass obbligatorio**: Tier A `searxng-script_search`.
+1. **First pass obbligatorio**: Tier A `searxng-script_search` (backbone principale).
 2. **Quality gate**: se risultati insufficienti, escalare a Tier B (`brave` → `exa` → `tavily`).
 3. **Query accademica**: Tier B con priorita `exa` dopo first pass Tier A.
-4. **URL specifico da leggere**: `fetch_fetch` o `firecrawl-mcp_scrape`/`extract` (Tier C, solo top-N).
+4. **URL specifico da leggere**: `fetch_fetch` preferito; `firecrawl-mcp_scrape`/`extract` solo se fetch fallisce e serve contenuto strutturato.
 5. **Fallback finale**: provider restanti disponibili senza saltare la logica a tier.
+6. **Error skip**: se un provider ritorna `isError`, passa al tier successivo. Mai ritentare lo stesso provider nella stessa richiesta.
 
 ## Error Handling
 - Se un tool ritorna `isError: true` → il provider è temporaneamente non disponibile.
