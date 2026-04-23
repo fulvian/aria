@@ -82,7 +82,10 @@ Il server `google_workspace_mcp` upstream richiede un file JSON con le credenzia
 1. Legge refresh_token dal keyring
 2. Crea il runtime credentials file con permessi corretti
 3. Imposta `WORKSPACE_MCP_CREDENTIALS_DIR`
-4. Esegue `uvx google_workspace_mcp`
+4. Normalizza args di startup MCP: se mancano selettori (`--tool-tier`, `--tools`, `--permissions`), forza default sicuro `--tool-tier core --read-only` per evitare scope inflation e loop di re-auth su richieste read
+5. Esegue `uvx workspace-mcp` con args effettivi
+
+*source: `scripts/wrappers/google-workspace-wrapper.sh` (update 2026-04-23)*
 
 ## Policy per Operazioni
 

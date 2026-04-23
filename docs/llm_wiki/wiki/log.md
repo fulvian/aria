@@ -185,3 +185,37 @@ bash -n google-workspace-wrapper.sh: OK
 Agent validation: PASS (8 agents)
 pytest -q: 418 passed
 ```
+
+---
+
+## 2026-04-23T11:58 — Workspace Wrapper Safe-Default Args Hardening
+
+**Operazione**: IMPLEMENT (hardening + test)
+**Autore**: general-manager (Kilo orchestrator)
+**Scope**: eliminare fallback OAuth con URL non utilizzabile quando il server viene avviato senza selector args
+
+### Diagnosi
+
+- In alcuni run il wrapper veniva invocato senza `--tool-tier/--tools/--permissions`.
+- `workspace-mcp` partiva quindi con toolset ampio, calcolando scope estesi e innescando `ACTION REQUIRED` anche su richieste solo read (Drive/Slides).
+
+### Fix applicato
+
+1. **`scripts/wrappers/google-workspace-wrapper.sh`**
+   - aggiunte funzioni `is_truthy` e `build_workspace_mcp_args`.
+   - se mancano selector args, il wrapper impone default robusto: `--tool-tier core --read-only`.
+   - sincronizzazione credenziali e bootstrap scope coerenti sugli **effective args** (non su raw `$*`).
+   - aggiunto `WORKSPACE_WRAPPER_DRY_RUN=true` per test/preflight non distruttivi.
+2. **`tests/unit/scripts/test_google_workspace_wrapper.py`**
+   - test su iniezione default safe args.
+   - test su preservazione args espliciti.
+   - test su disabilitazione `WORKSPACE_DEFAULT_READ_ONLY=false`.
+3. **`docs/llm_wiki/wiki/workspace-agent.md`**
+   - documentato comportamento safe-default del wrapper.
+
+### Verifiche
+
+```
+bash -n scripts/wrappers/google-workspace-wrapper.sh: OK
+uv run pytest -q tests/unit/scripts/test_google_workspace_wrapper.py: 3 passed
+```

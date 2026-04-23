@@ -338,8 +338,52 @@ print(user_email)
 "
 }
 
+is_truthy() {
+    local value="${1:-}"
+    value="${value,,}"
+    [[ -n "$value" && "$value" != "0" && "$value" != "false" && "$value" != "no" ]]
+}
+
+build_workspace_mcp_args() {
+    local -n _out_args=$1
+    shift
+
+    local -a input_args=("$@")
+    _out_args=("${input_args[@]}")
+
+    local has_selector=0
+    local idx=0
+    while [[ $idx -lt ${#input_args[@]} ]]; do
+        case "${input_args[$idx]}" in
+            --tool-tier|--tools|--permissions)
+                has_selector=1
+                ;;
+        esac
+        idx=$((idx + 1))
+    done
+
+    if [[ $has_selector -eq 0 ]]; then
+        local default_tier="${WORKSPACE_DEFAULT_TOOL_TIER:-core}"
+        if [[ -n "$default_tier" ]]; then
+            _out_args+=("--tool-tier" "$default_tier")
+        fi
+
+        if is_truthy "${WORKSPACE_DEFAULT_READ_ONLY:-true}"; then
+            _out_args+=("--read-only")
+        fi
+    fi
+}
+
 # Main
 main() {
+    local -a effective_args
+    build_workspace_mcp_args effective_args "$@"
+
+    if is_truthy "${WORKSPACE_WRAPPER_DRY_RUN:-false}"; then
+        printf '%s\n' "${effective_args[@]}"
+        return 0
+    fi
+
     # Get refresh token from keyring
     local refresh_token
     refresh_token="$(get_refresh_token)"
@@ -382,17 +426,22 @@ main() {
     export GOOGLE_MCP_CREDENTIALS_DIR="$ARIA_HOME/.aria/runtime/credentials/google_workspace_mcp"
 
     if [[ -n "${user_google_email:-}" ]]; then
+        local wrapper_args_serialized=""
+        if [[ ${#effective_args[@]} -gt 0 ]]; then
+            wrapper_args_serialized="$(printf '%q ' "${effective_args[@]}")"
+        fi
+
         GW_USER_EMAIL="$user_google_email" \
         GW_CLIENT_ID="$client_id" \
         GW_CLIENT_SECRET="$client_secret" \
         GW_REFRESH_TOKEN="$refresh_token" \
-        GW_WRAPPER_ARGS="$*" \
+        GW_WRAPPER_ARGS="$wrapper_args_serialized" \
         sync_workspace_credentials_file "$user_google_email" "$client_id" "$client_secret" "$refresh_token"
     fi
 
     # Execute upstream Google Workspace MCP via uvx
     # Context7 docs: command is `workspace-mcp`
-    exec uvx workspace-mcp "$@"
+    exec uvx workspace-mcp "${effective_args[@]}"
 }
 
 main "$@"
