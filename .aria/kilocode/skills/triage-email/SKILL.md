@@ -30,7 +30,7 @@ Leggere l'inbox Gmail delle ultime 24h, classificare per urgenza, generare diges
 2. Per ogni messaggio: `google_workspace_get_gmail_message_content` → estrai `from`, `subject`, `snippet`, `timestamp`
 3. Classifica heuristically: newsletter / personal / work / urgent (keyword)
 4. Sintesi: digest markdown con sezioni per classe
-5. Per urgenti: crea proposta di follow-up in bozza (`google_workspace_draft_gmail_message`) solo dopo `aria_memory_hitl_ask`
+5. Per urgenti: crea proposta di follow-up in bozza (`google_workspace_draft_gmail_message`); usa `aria_memory_hitl_ask` solo se la bozza non e esplicitamente richiesta
 6. Salva digest in memoria: `aria_memory_remember` actor=AGENT_INFERENCE, tag=`email_digest`
 7. Reply Telegram con digest
 

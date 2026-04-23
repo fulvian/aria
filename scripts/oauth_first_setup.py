@@ -6,7 +6,7 @@ Performs Google's OAuth 2.0 PKCE flow for first-time authorization.
 Stores the refresh_token in the OS keyring via aria.credentials.KeyringStore.
 
 Usage:
-    python scripts/oauth_first_setup.py --scopes "gmail.readonly,gmail.modify,calendar.events,drive.file,documents,spreadsheets" --account primary [--client-secret-prompt]
+    python scripts/oauth_first_setup.py --scopes "gmail.readonly,gmail.modify,gmail.send,calendar.readonly,calendar.events,drive.readonly,drive.file,documents.readonly,documents,spreadsheets.readonly,spreadsheets,presentations.readonly" --account primary [--client-secret-prompt]
 
 Exit codes:
     0 - Success

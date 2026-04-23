@@ -1,7 +1,7 @@
 ---
 name: slides-editor-pro
 version: 1.0.0
-description: Skill per operazioni di modifica batch su presentazioni Google Slides - crea, legge, aggiorna presentazioni e gestisce commenti con approvazione HITL obbligatoria.
+description: Skill per operazioni di modifica batch su presentazioni Google Slides - crea, legge, aggiorna presentazioni e gestisce commenti con HITL condizionale.
 trigger-keywords:
   - slides
   - edit
@@ -30,11 +30,11 @@ estimated-cost-eur: 0.20
 
 ## Obiettivo
 
-Skill specializzato per operazioni di modifica batch su presentazioni Google Slides. Gestisce aggiornamenti atomici di testo e stili, modifiche strutturali delle slide e gestione commenti. Tutte le operazioni di scrittura richiedono approvazione HITL esplicita prima dell'applicazione.
+Skill specializzato per operazioni di modifica batch su presentazioni Google Slides. Gestisce aggiornamenti atomici di testo e stili, modifiche strutturali delle slide e gestione commenti. HITL viene usato solo per operazioni di scrittura implicite/proattive o ad alto rischio.
 
-## HITL Mandatory
+## HITL Condizionale
 
-**OBBLIGATORIO**: Prima di qualsiasi operazione `batch_update_presentation`, lo skill DEVE invocare `aria_memory_hitl_ask` per ottenere conferma esplicita dall'utente. Le operazioni di scrittura non vengono mai eseguite senza approvazione umana.
+Prima di `batch_update_presentation`, invoca `aria_memory_hitl_ask` quando la modifica non e esplicitamente richiesta dall'utente o quando il rischio e alto.
 
 Flow obbligatorio:
 1. Leggere la presentazione corrente (`get_presentation`)
@@ -51,7 +51,7 @@ Flow obbligatorio:
 - Identificare: slide count, layout, elementi modificabili
 - Costruire il diff delle modifiche proposte
 
-### Fase 2: HITL Approval
+### Fase 2: HITL Approval (se richiesto)
 - Chiamare `aria_memory_hitl_ask` con:
   - Riepilogo stato corrente
   - Lista operazioni batch dettagliata
@@ -115,7 +115,7 @@ Flow obbligatorio:
 2. **Atomicità batch**: Applicare modifiche in un'unica `batch_update_presentation`; in caso errore, riportare esito senza assumere rollback implicito
 3. **Limite operazioni**: Massimo 20 operazioni per batch senza consenso esplicito
 4. **Integrità slide**: L'ordine e layout delle slide DEVE essere preservato
-5. **HITL obbligatorio**: Qualsiasi `batch_update` richiede `aria_memory_hitl_ask` preventiva
+5. **HITL by risk/intent**: `batch_update` impliciti/proattivi o ad alto rischio richiedono `aria_memory_hitl_ask`
 6. **Verifica post-write**: Sempre leggere dopo aver scritto per validazione
 7. **Tag memory**: Tutte le operazioni taggate con `slides_editor_pro` per tracciabilità
 

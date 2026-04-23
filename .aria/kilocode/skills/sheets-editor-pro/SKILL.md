@@ -1,7 +1,7 @@
 ---
 name: sheets-editor-pro
 version: 1.0.0
-description: Modifica fogli di lavoro Google Sheets con supporto HITL: aggiornamento valori, formattazione, regole condizionali, aggiunta righe, ridimensionamento dimensioni
+description: Modifica fogli di lavoro Google Sheets con supporto HITL condizionale: aggiornamento valori, formattazione, regole condizionali, aggiunta righe, ridimensionamento dimensioni
 trigger-keywords: [sheets, edit, modify, spreadsheet, cell, format]
 user-invocable: true
 allowed-tools:
@@ -33,11 +33,12 @@ Modifica fogli di lavoro Google Sheets in modo sicuro e tracciato. Questo skill 
 - **Dimensioni**: aggiunta/rimozione righe e colonne
 - **Commenti**: aggiunta, reply, risoluzione commenti
 
-Tutte le operazioni di scrittura richiedono HITL obbligatorio prima dell'applicazione.
+Le operazioni di scrittura usano HITL solo quando non sono esplicitamente richieste o sono ad alto rischio.
 
-## HITL Obbligatorio
+## HITL Condizionale
 
-**PRIMA di qualsiasi operazione di scrittura**, questo skill DEVE chiamare `aria_memory_hitl_ask` per ottenere conferma esplicita dall'utente. Non procedere mai con modifiche senza approvazione HITL.
+Per modifiche richieste esplicitamente nel prompt, l'autorizzazione e implicita.
+Usare `aria_memory_hitl_ask` per modifiche implicite/proattive o ad alto rischio.
 
 ## Procedura
 
@@ -64,7 +65,7 @@ Tutte le operazioni di scrittura richiedono HITL obbligatorio prima dell'applica
   - **Tipo operazione**: UPDATE, APPEND, DELETE, FORMAT
 - Se le modifiche superano i 10 range update, richiedere consenso esplicito per batch estesi.
 
-### Step 5: HITL - Richiesta approvazione
+### Step 5: HITL - Richiesta approvazione (se richiesta)
 
 - Chiamare `aria_memory_hitl_ask` con il riepilogo completo delle modifiche.
 - Includere nell'ask:
@@ -137,11 +138,11 @@ Tutte le operazioni di scrittura richiedono HITL obbligatorio prima dell'applica
 
 1. **ALWAYS read before write**: Mai chiamare `google_workspace_modify_sheet_values` senza aver prima chiamato `google_workspace_read_sheet_values` per ottenere lo stato corrente.
 2. **ALWAYS present ranges before HITL**: Il riepilogo HITL deve sempre includere tutti gli intervalli coinvolti (Sheet!Range) e i valori correnti vs nuovi.
-3. **HITL before any write**: Qualsiasi operazione di scrittura (modify, create, comment) richiede approvazione esplicita via `aria_memory_hitl_ask`. Non saltare mai questo step.
+3. **HITL by risk/intent**: Operazioni implicite/proattive o ad alto rischio richiedono approvazione via `aria_memory_hitl_ask`.
 4. **Max 10 ranges per batch**: Più di 10 range updates richiedono consenso esplicito per batch esteso.
 5. **Quota limits**: Rispettare i limiti Google Sheets API (100 richieste/minuto). Inserire delay appropriati per operazioni batch.
 6. **Verify after write**: Dopo ogni modifica, chiamare `google_workspace_read_sheet_values` per confermare l'applicazione corretta.
 7. **Memory tagging**: Tutti i dati salvati in memoria devono essere taggati con `sheets_editor_pro`.
 8. **No overwrite without backup**: Non sovrascrivere celle con dati non letti senza aver prima letto lo stato.
-9. **Comment operations need separate HITL**: Operazioni sui commenti richiedono HITL separato dall'operazione principale.
+9. **Comment operations**: Le operazioni sui commenti seguono la stessa regola condizionale per HITL.
 10. **User confirmation required**: L'utente deve sempre confermare i valori prima dell'applicazione, anche per modifiche apparentemente semplici.

@@ -22,12 +22,13 @@ Generare bozza Google Docs da input utente, usando contesto dalla memoria.
 ## Procedura
 1. Recupera contesto da memoria via `aria_memory_recall` (sessioni recenti, decisioni)
 2. Genera bozza markdown + proponi titolo
-3. HITL "Crea doc '<titolo>' in Drive? [Sì] [Modifica titolo] [Annulla]"
+3. Se la creazione non e gia esplicitamente richiesta dall'utente, chiedi conferma HITL
 4. `google_workspace_create_doc` con titolo + contenuto bozza
 5. Reply con link Drive al documento creato
 
-## HITL Obbligatorio
-Prima di creare documento, chiedere conferma all'utente.
+## HITL Condizionale
+Per creazioni esplicitamente richieste dall'utente, la richiesta stessa vale come autorizzazione.
+Usare HITL solo per scritture implicite o ad alto rischio.
 
 ## Invarianti
 - NON sovrascrivere documenti esistenti

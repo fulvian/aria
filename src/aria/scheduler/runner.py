@@ -309,13 +309,14 @@ class TaskRunner:
         Execution flow:
         1. Validate payload has required fields
         2. Map skill to workspace profile (read vs write)
-        3. Enforce HITL policy for write skills
+        3. Enforce HITL policy for non-explicit write skills
         4. Execute skill via configured workspace executor
         5. Emit structured telemetry
         6. Return result
 
         Write skills (gmail-composer-pro, docs-editor-pro, sheets-editor-pro,
-        slides-editor-pro) MUST have gone through HITL approval before this point.
+        slides-editor-pro) require HITL approval only when write intent is not
+        explicit in the originating user request.
 
         Args:
             task: The workspace task to execute.
@@ -345,10 +346,11 @@ class TaskRunner:
         expected_sub_agent = self._select_workspace_profile(skill)
         sub_agent = expected_sub_agent or requested_sub_agent
 
-        # Enforce HITL policy on all write skills (P7)
-        if skill_metadata["requires_hitl"] and task.policy != "ask":
+        # Enforce HITL policy for write skills unless explicit user intent is present.
+        explicit_user_write = self._is_explicit_user_write_authorized(payload)
+        if skill_metadata["requires_hitl"] and task.policy != "ask" and not explicit_user_write:
             summary = (
-                f"Write skill '{skill}' requires policy=ask for HITL approval; "
+                f"Write skill '{skill}' requires policy=ask or explicit user write intent; "
                 f"task policy is '{task.policy}'"
             )
             self._log_workspace_telemetry(
@@ -714,6 +716,18 @@ class TaskRunner:
 
         # Unknown skill - assume write (safer)
         return {"is_read": False, "requires_hitl": True, "description": f"Unknown skill: {skill}"}
+
+    def _is_explicit_user_write_authorized(self, payload: dict[str, Any]) -> bool:
+        """Return True when user has explicitly requested the write action."""
+        if bool(payload.get("user_explicit_request")):
+            return True
+        if bool(payload.get("explicit_write_intent")):
+            return True
+
+        source = str(payload.get("request_origin", "")).strip().lower()
+        return source in {"interactive_user", "user_prompt"} and bool(
+            payload.get("write_requested")
+        )
 
     async def _report_run(
         self,

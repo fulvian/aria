@@ -141,17 +141,26 @@ class QuietHours:
 class PolicyGate:
     """Policy evaluation gate for task execution.
 
-    Implements the policy rules from blueprint §6.4:
-    1. Task policy=allow in quiet hours -> ALLOW (read-only only)
-    2. Task policy=ask in quiet hours -> DEFERRED (shift to quiet_hours_end)
-    3. Task policy=deny -> DENY always
-    4. payload.policy_override takes precedence
-
-    Read-only categories during quiet hours: search, memory
+    Implements policy rules from blueprint §6.4 with read-first flexibility:
+    1. Read-only tasks are always ALLOW unless explicit deny.
+    2. Write tasks with policy=ask in quiet hours -> DEFERRED.
+    3. Write tasks with policy=allow in quiet hours -> DENY.
+    4. Task policy=deny -> DENY always.
+    5. payload.policy_override takes precedence.
     """
 
-    # Categories considered read-only
+    # Categories considered read-only by default
     READ_ONLY_CATEGORIES = {"search", "memory"}
+
+    # Workspace skills explicitly considered read-only
+    READ_ONLY_WORKSPACE_SKILLS = {
+        "triage-email",
+        "gmail-thread-intelligence",
+        "calendar-orchestration",
+        "docs-structure-reader",
+        "sheets-analytics-reader",
+        "slides-content-auditor",
+    }
 
     def __init__(
         self,
@@ -201,6 +210,10 @@ class PolicyGate:
         if base_policy == "deny":
             return PolicyDecision.DENY
 
+        # Read-only tasks are always authorized unless explicitly denied.
+        if self._is_read_only_task(task):
+            return PolicyDecision.ALLOW
+
         # Check quiet hours
         decision = PolicyDecision.ALLOW
         if self._quiet_hours.is_active(now):
@@ -229,6 +242,32 @@ class PolicyGate:
             decision = PolicyDecision.ASK
 
         return decision
+
+    def _is_read_only_task(self, task: Task) -> bool:
+        """Infer whether a task is read-only.
+
+        Read operations should always be authorized by policy unless explicitly denied.
+        """
+        if task.category in self.READ_ONLY_CATEGORIES:
+            return True
+        if task.category != "workspace":
+            return False
+
+        payload = task.payload or {}
+        has_explicit_write = bool(payload.get("explicit_write_intent")) or bool(
+            payload.get("write_operation")
+        )
+        if has_explicit_write:
+            return False
+
+        operation_mode = str(payload.get("operation_mode", "")).strip().lower()
+        if operation_mode in {"read", "readonly", "read-only"}:
+            return True
+        if operation_mode in {"write", "modify", "delete"}:
+            return False
+
+        skill = str(payload.get("skill", "")).strip()
+        return skill in self.READ_ONLY_WORKSPACE_SKILLS
 
     def get_deferred_time(self, task: Task, now: datetime | None = None) -> datetime:
         """Get the deferred execution time for a DEFERRED decision.

@@ -9,11 +9,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, time
-from pathlib import Path
-from typing import Any
-from unittest.mock import MagicMock
-from uuid import uuid4
+from datetime import UTC, datetime
 
 import pytest
 
@@ -252,6 +248,48 @@ def test_policy_gate_quiet_hours_deny_write_category(
 
     decision = policy_gate.evaluate(task, now=late_night)
     assert decision == PolicyDecision.DENY
+
+
+def test_policy_gate_quiet_hours_allow_workspace_read_skill(
+    policy_gate: PolicyGate,
+) -> None:
+    """Workspace read skills are always allowed, including quiet hours."""
+    import zoneinfo
+
+    tz = zoneinfo.ZoneInfo("Europe/Rome")
+    late_night = datetime(2026, 4, 20, 23, 0, 0, tzinfo=tz)
+
+    task = make_task(
+        name="Quiet Hours Slides Read",
+        category="workspace",
+        trigger_type="cron",
+        policy="allow",
+        payload={"skill": "slides-content-auditor"},
+    )
+
+    decision = policy_gate.evaluate(task, now=late_night)
+    assert decision == PolicyDecision.ALLOW
+
+
+def test_policy_gate_read_task_with_ask_policy_is_allowed(
+    policy_gate: PolicyGate,
+) -> None:
+    """Read tasks should not require HITL even if policy is ask."""
+    import zoneinfo
+
+    tz = zoneinfo.ZoneInfo("Europe/Rome")
+    midday = datetime(2026, 4, 20, 12, 0, 0, tzinfo=tz)
+
+    task = make_task(
+        name="Workspace Read With Ask",
+        category="workspace",
+        trigger_type="manual",
+        policy="ask",
+        payload={"operation_mode": "read"},
+    )
+
+    decision = policy_gate.evaluate(task, now=midday)
+    assert decision == PolicyDecision.ALLOW
 
 
 def test_policy_gate_quiet_hours_defer_ask(

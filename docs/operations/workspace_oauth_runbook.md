@@ -42,7 +42,7 @@ ARIA uses OAuth 2.0 with PKCE to authenticate with Google Workspace APIs. The re
 ./scripts/bootstrap.sh --check
 
 # 2. Run OAuth setup
-python scripts/oauth_first_setup.py --scopes "gmail.readonly,gmail.modify,gmail.send,calendar.events,drive.file,documents,spreadsheets"
+python scripts/oauth_first_setup.py --scopes "gmail.readonly,gmail.modify,gmail.send,calendar.readonly,calendar.events,drive.readonly,drive.file,documents.readonly,documents,spreadsheets.readonly,spreadsheets,presentations.readonly"
 
 # 3. Verify
 python3 -c "
@@ -130,10 +130,10 @@ print('Keyring token:', 'None' if token is None else '***' + token[-4:])
 **Steps:**
 ```bash
 # 1. Run setup again (will prompt for fresh consent)
-python scripts/oauth_first_setup.py --scopes "gmail.readonly,gmail.modify,gmail.send,calendar.events,drive.file,documents,spreadsheets"
+python scripts/oauth_first_setup.py --scopes "gmail.readonly,gmail.modify,gmail.send,calendar.readonly,calendar.events,drive.readonly,drive.file,documents.readonly,documents,spreadsheets.readonly,spreadsheets,presentations.readonly"
 
 # 2. If adding new scopes, specify them
-python scripts/oauth_first_setup.py --scopes "gmail.readonly,gmail.modify,gmail.send,calendar.events,drive.file,documents,spreadsheets"
+python scripts/oauth_first_setup.py --scopes "gmail.readonly,gmail.modify,gmail.send,calendar.readonly,calendar.events,drive.readonly,drive.file,documents.readonly,documents,spreadsheets.readonly,spreadsheets,presentations.readonly"
 
 # 3. Verify new scopes
 python3 -c "
@@ -154,10 +154,15 @@ print('Scopes:', h.get_scopes())
 | `gmail.readonly` | Read emails, labels, filters |
 | `gmail.modify` | Modify labels, manage filters |
 | `gmail.send` | Send emails |
+| `calendar.readonly` | Read events without write intent |
 | `calendar.events` | Manage calendar events |
+| `drive.readonly` | Read/search all accessible Drive files |
 | `drive.file` | Access Drive files created by app |
+| `documents.readonly` | Read Google Docs |
 | `documents` | Read/write Google Docs |
+| `spreadsheets.readonly` | Read Google Sheets |
 | `spreadsheets` | Read/write Google Sheets |
+| `presentations.readonly` | Read Google Slides |
 
 ### Adding New Scopes
 
@@ -167,7 +172,7 @@ print('Scopes:', h.get_scopes())
 3. Verify scopes file updated
 4. Test with: `google-workspace-wrapper.sh`
 
-**Note:** Broad scopes (`gmail`, `calendar`, `drive`, `drive.readonly`, `calendar.readonly`) require explicit ADR approval.
+**Note:** Broad scopes (`gmail`, `calendar`, `drive`, `presentations`) require explicit ADR approval.
 
 ---
 
@@ -208,7 +213,7 @@ find .aria/runtime/credentials/google_workspace_mcp -name "*.json" -exec chmod 6
 
 **Resolution:**
 ```bash
-python scripts/oauth_first_setup.py --scopes "gmail.readonly,gmail.modify,gmail.send,calendar.events,drive.file,documents,spreadsheets"
+python scripts/oauth_first_setup.py --scopes "gmail.readonly,gmail.modify,gmail.send,calendar.readonly,calendar.events,drive.readonly,drive.file,documents.readonly,documents,spreadsheets.readonly,spreadsheets,presentations.readonly"
 ```
 
 ### "Missing OAuth scopes for enabled toolset"

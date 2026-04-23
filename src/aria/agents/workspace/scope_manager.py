@@ -26,14 +26,20 @@ if TYPE_CHECKING:
 
 # === Constants ===
 
-# Minimal scopes per blueprint §12.2
+# Baseline scopes per blueprint §12.2 (read-first)
 MINIMAL_SCOPES: list[str] = [
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/gmail.modify",
+    "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/calendar.readonly",
     "https://www.googleapis.com/auth/calendar.events",
+    "https://www.googleapis.com/auth/drive.readonly",
     "https://www.googleapis.com/auth/drive.file",
+    "https://www.googleapis.com/auth/documents.readonly",
     "https://www.googleapis.com/auth/documents",
+    "https://www.googleapis.com/auth/spreadsheets.readonly",
     "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/presentations.readonly",
 ]
 
 # Broad scopes that require explicit ADR
@@ -41,8 +47,7 @@ BROAD_SCOPES: list[str] = [
     "https://www.googleapis.com/auth/gmail",  # full gmail
     "https://www.googleapis.com/auth/calendar",  # full calendar
     "https://www.googleapis.com/auth/drive",  # full drive
-    "https://www.googleapis.com/auth/drive.readonly",  # full drive readonly
-    "https://www.googleapis.com/auth/calendar.readonly",  # full calendar readonly
+    "https://www.googleapis.com/auth/presentations",  # full Slides read/write
 ]
 
 _BROAD_SCOPE_SET = set(BROAD_SCOPES)

@@ -8,6 +8,7 @@ permission:
   bash: deny
   webfetch: deny
 allowed-tools:
+  - google_workspace_search_drive_files
   - google_workspace_get_presentation
   - google_workspace_get_page
   - google_workspace_get_page_thumbnail

@@ -1,7 +1,7 @@
 ---
 name: docs-editor-pro
 version: 1.0.0
-description: Skill per operazioni supportate su Google Docs via MCP - creazione documento e lifecycle commenti con HITL obbligatorio
+description: Skill per operazioni supportate su Google Docs via MCP - creazione documento e lifecycle commenti con HITL condizionale
 trigger-keywords: [doc, edit, modifica, google docs, commento, aggiorna, replace, sostituisci]
 user-invocable: true
 allowed-tools:
@@ -27,10 +27,11 @@ Eseguire in modo sicuro le operazioni Docs effettivamente disponibili nel toolse
 
 Le modifiche strutturali di contenuto (insert/delete/find-replace/batchUpdate testo) **non sono esposte** dal server MCP corrente e non devono essere simulate.
 
-HITL obbligatorio prima di ogni operazione di scrittura.
+HITL condizionale per operazioni di scrittura non esplicite o ad alto rischio.
 
-## HITL Mandatory
-**PRIMA di qualsiasi operazione di scrittura**, deve essere chiamato `aria_memory_hitl_ask` per ottenere conferma esplicita dall'utente. Non procedere mai senza conferma HITL.
+## HITL Condizionale
+Per write richieste esplicitamente nel prompt, l'autorizzazione e implicita.
+Usare `aria_memory_hitl_ask` per write implicite, proattive o ad alto rischio.
 
 ## Procedura
 
@@ -51,7 +52,7 @@ HITL obbligatorio prima di ogni operazione di scrittura.
    - Documento target e anchor di commento
    - Numero di operazioni che verranno eseguite
 
-### Fase 4: HITL Confirmation
+### Fase 4: HITL Confirmation (se richiesto)
 1. Chiamare `aria_memory_hitl_ask` con:
    - Riassunto delle modifiche
    - Diff preview completo
@@ -117,7 +118,7 @@ Solo dopo HITL confermato:
 2. **ALWAYS present plan before HITL**: Mostrare sempre preview delle azioni supportate prima della conferma
 3. **ALWAYS verify post-write**: Dopo ogni write, verificare che sia stato applicato correttamente
 4. **No batch > 10**: Nessuna batch operation può superare le 10 operazioni senza explicit user consent
-5. **HITL before write**: Obbligatorio attendere conferma HITL prima di qualsiasi write
+5. **HITL by risk/intent**: Richiedi conferma HITL per write implicite/proattive o ad alto rischio
 6. **Document existence check**: Verificare sempre che il documento esista prima di tentare modifiche
 7. **Comment threading**: Reply to comment deve specificare il comment_id parent
 8. **Unsupported ops blocked**: Richieste di editing testo non supportate devono tornare `unsupported_operation` con guidance esplicita

@@ -65,8 +65,39 @@ async def test_write_skill_enforces_hitl_policy(mock_dependencies: tuple) -> Non
     result = await runner._exec_workspace_task(task)
 
     assert result.outcome == "blocked_policy"
-    assert "requires policy=ask" in (result.result_summary or "")
+    assert "requires policy=ask or explicit user write intent" in (result.result_summary or "")
     executor.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_write_skill_allows_explicit_user_request_without_ask(
+    mock_dependencies: tuple,
+) -> None:
+    store, budget, policy, hitl, bus, config = mock_dependencies
+    executor = AsyncMock(
+        return_value={
+            "success": True,
+            "summary": "executed",
+        }
+    )
+    runner = TaskRunner(store, budget, policy, hitl, bus, config, workspace_executor=executor)
+
+    task = make_task(
+        name="explicit-write",
+        category="workspace",
+        trigger_type="manual",
+        policy="allow",
+        payload={
+            "skill": "gmail-composer-pro",
+            "sub_agent": "workspace-mail-write",
+            "user_explicit_request": True,
+        },
+    )
+
+    result = await runner._exec_workspace_task(task)
+
+    assert result.outcome == "success"
+    executor.assert_called_once()
 
 
 @pytest.mark.asyncio
