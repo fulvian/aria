@@ -219,3 +219,34 @@ pytest -q: 418 passed
 bash -n scripts/wrappers/google-workspace-wrapper.sh: OK
 uv run pytest -q tests/unit/scripts/test_google_workspace_wrapper.py: 3 passed
 ```
+
+---
+
+## 2026-04-23T12:20 — Workspace Scope De-Inflation (core tier bypass)
+
+**Operazione**: IMPLEMENT (hardening v2)
+**Autore**: general-manager (Kilo orchestrator)
+**Scope**: eliminare richieste OAuth su scope read non necessari (tasks/chat/forms/script/contacts) durante lettura Drive/Slides
+
+### Diagnosi
+
+- Log utente conferma che il server continua a richiedere scope read di domini extra (`tasks`, `forms`, `chat`, `script`, `contacts`, `cse`) anche per task Slides/Drive.
+- Root cause: `--tool-tier core --read-only` lato upstream include un set piu ampio del necessario per i profili ARIA read.
+
+### Fix applicato
+
+1. **`.aria/kilocode/kilo.json`**
+   - `google_workspace.command` aggiornato da `--tool-tier core --read-only` a:
+     `--tools gmail calendar drive docs sheets slides --read-only`.
+2. **`scripts/wrappers/google-workspace-wrapper.sh`**
+   - default fallback aggiornato: quando mancano selector args, inietta `--tools` espliciti (gmail/calendar/drive/docs/sheets/slides) invece di `--tool-tier core`.
+   - introdotta variabile `WORKSPACE_DEFAULT_TOOLS` (override opzionale, csv).
+3. **`tests/unit/scripts/test_google_workspace_wrapper.py`**
+   - aggiornati assertion default e aggiunto test per override `WORKSPACE_DEFAULT_TOOLS`.
+
+### Verifiche
+
+```
+bash -n scripts/wrappers/google-workspace-wrapper.sh: OK
+uv run pytest -q tests/unit/scripts/test_google_workspace_wrapper.py: 4 passed
+```

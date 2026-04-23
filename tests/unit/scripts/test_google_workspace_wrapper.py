@@ -26,7 +26,16 @@ def _run_wrapper(*args: str, extra_env: dict[str, str] | None = None) -> list[st
 
 def test_wrapper_injects_safe_defaults_when_no_tool_selector() -> None:
     output = _run_wrapper()
-    assert output == ["--tool-tier", "core", "--read-only"]
+    assert output == [
+        "--tools",
+        "gmail",
+        "calendar",
+        "drive",
+        "docs",
+        "sheets",
+        "slides",
+        "--read-only",
+    ]
 
 
 def test_wrapper_keeps_explicit_tool_selection_unchanged() -> None:
@@ -36,4 +45,9 @@ def test_wrapper_keeps_explicit_tool_selection_unchanged() -> None:
 
 def test_wrapper_can_disable_default_read_only_injection() -> None:
     output = _run_wrapper(extra_env={"WORKSPACE_DEFAULT_READ_ONLY": "false"})
-    assert output == ["--tool-tier", "core"]
+    assert output == ["--tools", "gmail", "calendar", "drive", "docs", "sheets", "slides"]
+
+
+def test_wrapper_allows_custom_default_toolset() -> None:
+    output = _run_wrapper(extra_env={"WORKSPACE_DEFAULT_TOOLS": "drive,slides"})
+    assert output == ["--tools", "drive", "slides", "--read-only"]

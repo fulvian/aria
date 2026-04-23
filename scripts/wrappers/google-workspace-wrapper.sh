@@ -344,6 +344,18 @@ is_truthy() {
     [[ -n "$value" && "$value" != "0" && "$value" != "false" && "$value" != "no" ]]
 }
 
+emit_default_tools() {
+    local raw_tools="${WORKSPACE_DEFAULT_TOOLS:-gmail,calendar,drive,docs,sheets,slides}"
+    local normalized="${raw_tools//,/ }"
+
+    for tool in $normalized; do
+        local trimmed="${tool//[[:space:]]/}"
+        if [[ -n "$trimmed" ]]; then
+            printf '%s\n' "$trimmed"
+        fi
+    done
+}
+
 build_workspace_mcp_args() {
     local -n _out_args=$1
     shift
@@ -363,9 +375,19 @@ build_workspace_mcp_args() {
     done
 
     if [[ $has_selector -eq 0 ]]; then
-        local default_tier="${WORKSPACE_DEFAULT_TOOL_TIER:-core}"
-        if [[ -n "$default_tier" ]]; then
-            _out_args+=("--tool-tier" "$default_tier")
+        local -a default_tools=()
+        while IFS= read -r tool; do
+            default_tools+=("$tool")
+        done < <(emit_default_tools)
+
+        if [[ ${#default_tools[@]} -gt 0 ]]; then
+            _out_args+=("--tools")
+            _out_args+=("${default_tools[@]}")
+        else
+            local default_tier="${WORKSPACE_DEFAULT_TOOL_TIER:-core}"
+            if [[ -n "$default_tier" ]]; then
+                _out_args+=("--tool-tier" "$default_tier")
+            fi
         fi
 
         if is_truthy "${WORKSPACE_DEFAULT_READ_ONLY:-true}"; then
