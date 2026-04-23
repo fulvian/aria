@@ -9,6 +9,12 @@ sources:
   - src/aria/tools/firecrawl/mcp_server.py
   - src/aria/tools/searxng/mcp_server.py
   - .aria/kilocode/agents/search-agent.md
+  - docs/plans/searcher_optimizer_plan.md
+  - src/aria/agents/search/cost_policy.py
+  - src/aria/agents/search/quality_gate.py
+  - src/aria/agents/search/fusion.py
+  - src/aria/agents/search/quota_state.py
+  - src/aria/agents/search/telemetry.py
 last_updated: 2026-04-23
 tier: 1
 ---
@@ -395,9 +401,16 @@ providers:
 ```
 src/aria/
 ├── agents/search/
-│   ├── schema.py               # SearchHit, ProviderError, Intent, INTENT_ROUTING
-│   ├── router.py               # Intent-aware routing (regex classifier)
+│   ├── schema.py               # SearchHit, ProviderError, Intent, INTENT_ROUTING (free-first)
+│   ├── router.py               # Economic Router — tiered free-first with quality gates + RRF
 │   ├── dedup.py                # URL dedup + ranking
+│   ├── cache.py                # SearchCache (episodic memory, 6h TTL)
+│   ├── health.py               # ProviderHealth (periodic probes)
+│   ├── cost_policy.py          # CostPolicy, CostTier (A→B→C→D), QueryBudget
+│   ├── quality_gate.py         # QualityGate, QualityThresholds per intent
+│   ├── quota_state.py          # QuotaState, ProviderQuota (daily/monthly windows)
+│   ├── fusion.py               # reciprocal_rank_fusion (RRF with k=60)
+│   ├── telemetry.py            # SearchTelemetry, KPIs, ProviderStats
 │   └── providers/
 │       ├── _http.py             # request_json_with_retry, KeyExhaustedError, RetryableProviderError
 │       ├── tavily.py            # TavilyProvider — POST /search, key in params
@@ -424,6 +437,89 @@ scripts/wrappers/
 ```
 
 *source: analisi struttura `src/aria/`*
+
+---
+
+## Economic Router — Free-First Tiered Routing (Apr 2026)
+
+Implementato per Searcher Optimizer Plan (`docs/plans/searcher_optimizer_plan.md`).
+
+### Principio operativo
+
+```
+Tier A (free-unlimited): SearXNG → primario massivo
+Tier B (free-limited):   Brave, Tavily, Exa → crediti mensili
+Tier C (costly):         Firecrawl → estrazione strutturata
+Tier D (paid fallback):  SerpAPI → ultima istanza
+```
+
+Default: usare Tier A finché quality gate non fallisce; salire di tier solo quando necessario.
+
+### Flow del router aggiornato
+
+```
+query → classify intent → check cache
+  │
+  ├─ For each tier (A → B → C → D):
+  │     For each provider in tier (sorted by cost):
+  │       1. Check quota (quota_state)
+  │       2. Check health (ProviderHealth)
+  │       3. Execute search via provider adapter
+  │       4. Record telemetry event
+  │     After Tier A:
+  │       Evaluate quality gates
+  │       If PASSED → break (no escalation)
+  │       If FAILED → continue to next tier (escalation)
+  │
+  ├─ If multiple providers contributed:
+  │     Apply RRF fusion (k=60, window=40)
+  │
+  └─ Dedup + rank → cache → return
+```
+
+### Quality gates (soglie per intent)
+
+| Gate | Default | News | Academic | Deep Scrape |
+|------|---------|------|----------|-------------|
+| min_unique_results | 6 | 5 | 4 | 1 |
+| min_distinct_domains | 4 | 3 | 3 | 1 |
+| min_recency_ratio | 0.3 | 0.4 (3d) | 0.2 (365d) | 0.0 |
+| min_top3_score_mean | 0.65 | 0.6 | 0.7 | 0.5 |
+
+### Budget guardrails
+
+- `QueryBudget.max_credits`: limite crediti per query
+- `QueryBudget.max_tier`: tier massimo consentito
+- `QuotaState`: tracking daily/monthly per provider
+- Reserve mode: provider preservati per intent ad alto valore
+
+### RRF Fusion
+
+- `rank_constant = 60` (industry baseline)
+- `window_size = 40` (per contenere latenza)
+- Formula: `rrf_score(d) = Σ providers 1/(k + rank_i(d))`
+
+### KPI target (per continuous optimization)
+
+| KPI | Target |
+|-----|--------|
+| paid_calls_ratio | -40% su 30 giorni |
+| avg_credit_cost_per_query | -35% |
+| quality_pass_rate_first_tier | ≥ 60% |
+| fallback_success_rate | ≥ 95% |
+| empty_success_rate | < 3% |
+
+### Nuovi moduli Python
+
+| Modulo | Scopo |
+|--------|-------|
+| `cost_policy.py` | Classificazione tier, stima costo per query, QueryBudget |
+| `quality_gate.py` | Valutazione sufficienza risultati, soglie per intent |
+| `quota_state.py` | Tracking quota runtime, reset giornaliero/mensile, reserve mode |
+| `fusion.py` | RRF fusion con parametri configurabili |
+| `telemetry.py` | Metriche costo/qualità/provider, KPI calculation |
+
+*source: `docs/plans/searcher_optimizer_plan.md`, `src/aria/agents/search/router.py`*
 
 ---
 

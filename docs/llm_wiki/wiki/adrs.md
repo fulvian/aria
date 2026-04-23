@@ -96,6 +96,16 @@ tier: 1
   - Permessi `0700`/`0600`, keyring come fonte autoritativa
   - File eliminato su revoke, escluso da git
 
+### ADR-0011: Searcher Optimizer — Free-First Economic Router
+- **Status**: Approved (2026-04-23)
+- **Decisioni chiave**:
+  - Tiered cost classification: A(free-unlimited) → B(free-limited) → C(costly) → D(paid)
+  - Quality gates per intent: unique_results, distinct_domains, recency_ratio, top3_score_mean
+  - RRF fusion (k=60) for multi-provider result merging
+  - Budget enforcement via QuotaState with daily/monthly reset windows
+  - Telemetry for cost/quality KPIs
+  - 5 new modules: cost_policy, quality_gate, quota_state, fusion, telemetry
+
 ## Vedi anche
 
 - [[ten-commandments]] — P10 (Self-Documenting Evolution)

@@ -712,3 +712,62 @@ uv run ruff check src/                    # PASS
 uv run mypy src/                          # PASS (0 errors, 70 files)
 uv run pytest -q                          # 424 passed
 ```
+
+---
+
+## 2026-04-23T21:30 — Searcher Optimizer Implementation (Phase 0+1+2)
+
+**Operazione**: IMPLEMENT (full phased implementation)
+**Autore**: general-manager (Kilo orchestrator)
+**Scope**: Implementazione Searcher Optimizer Plan — Free-First Economic Router con quality gates, RRF fusion, e telemetry
+
+### Moduli nuovi creati (5)
+
+| File | Righe | Scopo |
+|------|-------|-------|
+| `src/aria/agents/search/cost_policy.py` | ~200 | CostTier enum, ProviderCostProfile, QueryBudget, CostPolicy engine |
+| `src/aria/agents/search/quality_gate.py` | ~230 | QualityGate, QualityThresholds, QualityReport, intent-specific thresholds |
+| `src/aria/agents/search/quota_state.py` | ~230 | ProviderQuota, QuotaState, daily/monthly windows, reserve mode |
+| `src/aria/agents/search/fusion.py` | ~140 | reciprocal_rank_fusion (RRF), RRFConfig, FusionResult |
+| `src/aria/agents/search/telemetry.py` | ~280 | SearchEvent, SearchTelemetry, KPIs, ProviderStats |
+
+### Moduli aggiornati (2)
+
+| File | Modifica |
+|------|----------|
+| `src/aria/agents/search/schema.py` | INTENT_ROUTING allineata a free-first order; PROVIDER_WEIGHTS aggiornati; costanti errore unificate |
+| `src/aria/agents/search/router.py` | Riscrittura completa: tiered routing, quality gates, RRF fusion, telemetry, budget enforcement |
+
+### Test nuovi (5 file, 52 test)
+
+| File | Tests |
+|------|-------|
+| `tests/unit/agents/search/test_cost_policy.py` | 13 |
+| `tests/unit/agents/search/test_quality_gate.py` | 9 |
+| `tests/unit/agents/search/test_fusion.py` | 8 |
+| `tests/unit/agents/search/test_telemetry.py` | 9 |
+| `tests/unit/agents/search/test_quota_state.py` | 13 |
+
+### Quality Gates
+
+```
+ruff check: PASS (all search modules)
+ruff format: PASS (unchanged)
+mypy: PASS (0 errors in 7 source files)
+pytest: 103 passed (52 new + 51 existing)
+```
+
+### Decisioni chiave
+
+- Context7 verification: Pydantic BaseModel, tenacity AsyncRetrying — API confirmed
+- Tier system: A(searxng=0) → B(brave,tavily,exa=1) → C(firecrawl=2) → D(serpapi=3)
+- RRF rank_constant = 60 (industry baseline per Azure/Elastic/OpenSearch)
+- Quality gates con soglie per-intent (news: recency strict; academic: score strict)
+- Budget enforcement tramite QuotaState con daily/monthly reset windows
+- Reserve mode per preservare provider per intent ad alto valore
+
+### Wiki maintenance
+
+1. `docs/llm_wiki/wiki/search-agent.md` — Aggiunta sezione Economic Router con architettura, flow, quality gates, KPI
+2. `docs/llm_wiki/wiki/index.md` — Aggiornate fonti e timestamp
+3. `docs/llm_wiki/wiki/log.md` — Entry corrente

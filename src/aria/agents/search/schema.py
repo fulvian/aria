@@ -97,27 +97,37 @@ class SearchProvider(Protocol):
         ...
 
 
-# Intent routing table per blueprint §11.2
+# Intent routing table — free-first order per Searcher Optimizer Plan §5.2.
+# Providers ordered by ascending cost tier:
+# A(searxng) → B(brave,tavily,exa) → C(firecrawl) → D(serpapi)
 INTENT_ROUTING: dict[Intent, list[str]] = {
-    Intent.NEWS: ["tavily", "brave_news"],
-    Intent.ACADEMIC: ["exa", "tavily"],
+    Intent.NEWS: ["searxng", "tavily", "brave_news", "exa"],
+    Intent.ACADEMIC: ["exa", "tavily", "searxng"],
     Intent.DEEP_SCRAPE: ["firecrawl_extract", "firecrawl_scrape"],
-    Intent.GENERAL: ["brave", "tavily"],
+    Intent.GENERAL: ["searxng", "brave", "exa", "tavily"],
     Intent.PRIVACY: ["searxng", "brave"],
     Intent.FALLBACK: ["serpapi"],
 }
 
-# Provider weights for ranking per blueprint §11.4
+# Provider weights for ranking per blueprint §11.4 and Searcher Optimizer Plan §5.
+# Free providers get competitive weight; paid providers get premium weight.
 PROVIDER_WEIGHTS: dict[str, float] = {
-    "tavily": 1.0,
+    "searxng": 0.85,
     "brave": 0.9,
     "brave_news": 0.85,
+    "tavily": 1.0,
+    "exa": 0.95,
     "firecrawl_scrape": 0.8,
     "firecrawl_extract": 0.8,
-    "exa": 0.95,
-    "searxng": 0.7,
     "serpapi": 0.6,
 }
+
+# Unified error reason constants per Searcher Optimizer Plan §6.3
+ERROR_QUOTA_EXHAUSTED = "quota_exhausted"
+ERROR_RATE_LIMITED = "rate_limited"
+ERROR_TRANSIENT_UPSTREAM = "transient_upstream"
+ERROR_INVALID_REQUEST = "invalid_request"
+ERROR_PROVIDER_DOWN = "provider_down"
 
 # Intent keywords for classifier (regex-based, no LLM per sprint-03 plan)
 INTENT_KEYWORDS: dict[Intent, list[str]] = {
