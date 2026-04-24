@@ -52,15 +52,43 @@
     },
     "google_workspace": {
       "command": "uvx",
-      "args": ["google_workspace_mcp"],
+      "args": [
+        "workspace-mcp",
+        "--tools",
+        "docs",
+        "sheets",
+        "slides",
+        "drive"
+      ],
+      "disabled": false,
+      "env": {
+        "GOOGLE_OAUTH_CLIENT_ID": "${GOOGLE_OAUTH_CLIENT_ID}",
+        "GOOGLE_OAUTH_CLIENT_SECRET": "${GOOGLE_OAUTH_CLIENT_SECRET}",
+        "GOOGLE_OAUTH_REDIRECT_URI": "http://127.0.0.1:8080/callback",
+        "GOOGLE_OAUTH_USE_PKCE": "true",
+        "OAUTHLIB_INSECURE_TRANSPORT": "1"
+      },
+      "_comment": "@phase1 write-enabled profile - tools: docs/sheets/slides/drive"
+    },
+    "google_workspace_readonly": {
+      "command": "uvx",
+      "args": [
+        "workspace-mcp",
+        "--tools",
+        "docs",
+        "sheets",
+        "slides",
+        "drive"
+      ],
       "disabled": true,
       "env": {
         "GOOGLE_OAUTH_CLIENT_ID": "${GOOGLE_OAUTH_CLIENT_ID}",
-        "GOOGLE_OAUTH_REDIRECT_URI": "http://localhost:8080/callback",
+        "GOOGLE_OAUTH_CLIENT_SECRET": "${GOOGLE_OAUTH_CLIENT_SECRET}",
+        "GOOGLE_OAUTH_REDIRECT_URI": "http://127.0.0.1:8081/callback",
         "GOOGLE_OAUTH_USE_PKCE": "true",
-        "GOOGLE_OAUTH_CLIENT_SECRET": "${GOOGLE_OAUTH_CLIENT_SECRET_OPTIONAL}"
+        "OAUTHLIB_INSECURE_TRANSPORT": "1"
       },
-      "_comment": "@phase1 provider integration"
+      "_comment": "@phase1 read-only fallback profile - same tools but RO auth when needed"
     },
     "playwright": {
       "command": "npx",

@@ -12,7 +12,7 @@ This wiki is the single source of project knowledge for LLMs working in this rep
 ```
 docs/llm_wiki/
 ├── ext_knowledge/          # Raw extracted sources (external docs)
-│   └── (empty - bootstrap pending)
+│   └── README.md
 ├── wiki/                  # Synthesized knowledge
 │   ├── index.md          # This file - wiki overview
 │   ├── log.md            # Implementation log
@@ -30,18 +30,34 @@ docs/llm_wiki/
 | `src/aria/memory/mcp_server.py` | MCP server with 11 tools | varies |
 | `src/aria/gateway/conductor_bridge.py` | Gateway conductor bridge | 2026-04-24 |
 | `src/aria/gateway/daemon.py` | Gateway daemon | 2026-04-24 |
+| `.aria/kilocode/mcp.json` | MCP server runtime configuration | 2026-04-24 |
+| `docs/handoff/mcp_google_workspace_oauth_handoff.md` | OAuth callback failure handoff | 2026-04-21 |
+| `.aria/kilo-home/.google_workspace_mcp/logs/mcp_server_debug.log` | Runtime MCP auth/tool logs | 2026-04-24 |
+| `docs/implementation/workspace-write-reliability/baseline-inventory.md` | Phase 0 baseline inventory | 2026-04-24 |
+| `scripts/oauth_first_setup.py` | PKCE utilities | 2026-04-24 |
+| `scripts/workspace_auth.py` | OAuth scope verification | 2026-04-24 |
+| `scripts/workspace-write-health.py` | Health check CLI | 2026-04-24 |
+| `scripts/wrappers/google-workspace-wrapper.sh` | MCP wrapper | 2026-04-24 |
 
 ## Pages
 
 | Page | Description | Status |
 |------|-------------|--------|
 | [[memory-subsystem]] | Memory subsystem architecture, gaps, tools (updated 2026-04-24) | Active |
+| [[google-workspace-mcp-write-reliability]] | Root causes and remediation for Docs/Sheets/Slides write path | Active |
 | [[log]] | Implementation log with timestamps | Active |
 
 ## Bootstrap Log
 
 - 2026-04-24: Wiki bootstrapped during memory gap remediation Sprint 1.2
 - Prior to bootstrap, wiki directory existed but was empty (only `.obsidian/`)
+- 2026-04-24: Added Google Workspace MCP write reliability page and remediation plan provenance
+
+## Implementation Branch
+
+- **Branch**: `feature/workspace-write-reliability`
+- **Status**: Phase 1 bootstrap complete, Phase 2 pending
+- **Staged files**: 10 files (config, scripts, docs)
 
 ## Relevant Files
 
