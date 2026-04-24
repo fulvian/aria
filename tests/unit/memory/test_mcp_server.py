@@ -171,3 +171,55 @@ def test_main_transport_paths(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None
     monkeypatch.setenv("ARIA_MEMORY_MCP_TRANSPORT", "stdio")
     monkeypatch.setattr(mcp_server.mcp, "run", lambda: None)
     assert mcp_server.main() == 0
+
+
+@pytest.mark.asyncio
+async def test_hitl_approve_forget_episodic_tombstones_entry(tmp_path, monkeypatch) -> None:
+    """hitl_approve resolves forget_episodic by tombstoning the entry."""
+    import aria.memory.mcp_server as srv
+    from aria.memory.episodic import create_episodic_store
+    from aria.memory.schema import Actor, EpisodicEntry, content_hash
+
+    from datetime import UTC, datetime
+    from uuid import uuid4
+    from unittest.mock import MagicMock
+
+    config = MagicMock()
+    config.paths.runtime = tmp_path
+    config.memory.t0_retention_days = 365
+    config.memory.t2_enabled = False
+    monkeypatch.setattr("aria.memory.mcp_server._store", None)
+    monkeypatch.setattr("aria.memory.mcp_server._semantic", None)
+    monkeypatch.setattr("aria.memory.mcp_server._clm", None)
+    monkeypatch.setattr("aria.memory.mcp_server.get_config", lambda: config)
+
+    store, semantic, clm = await srv._ensure_store()
+
+    entry = EpisodicEntry(
+        session_id=uuid4(),
+        ts=datetime.now(UTC),
+        actor=Actor.USER_INPUT,
+        role="user",
+        content="entry to forget",
+        content_hash=content_hash("entry to forget"),
+    )
+    await store.insert(entry)
+
+    # Enqueue HITL forget
+    hitl_id = await store.enqueue_hitl(
+        target_id=entry.id,
+        action="forget_episodic",
+        reason="test",
+        trace_id="test-trace",
+        channel="test",
+    )
+
+    # Approve
+    result = await srv.hitl_approve(hitl_id)
+
+    assert result["status"] == "ok"
+    assert result["action"] == "forget_episodic"
+    # Entry should now be tombstoned
+    visible = await store.get(entry.id)
+    assert visible is None
+    await store.close()

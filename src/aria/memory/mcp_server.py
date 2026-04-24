@@ -1,7 +1,7 @@
 # ARIA Memory MCP Server
 #
-# FastMCP 3.x server exposing 7 memory tools.
-# Per blueprint §5.6 and sprint plan W1.1.L.
+# FastMCP 3.x server exposing 11 memory tools.
+# Per blueprint §5.6 and sprint plan W1.1.L / Sprint 1.2.
 #
 # Tools:
 # 1. remember - Write T0 episodic entry
@@ -11,6 +11,10 @@
 # 5. curate - HITL-gated promote/demote/forget
 # 6. forget - HITL-gated soft delete
 # 7. stats - Memory telemetry
+# 8. hitl_ask - Queue a human-in-the-loop approval request
+# 9. hitl_list_pending - List all pending HITL approval requests
+# 10. hitl_cancel - Cancel a pending HITL request before approval
+# 11. hitl_approve - Approve a pending HITL request and execute the action
 #
 # Transport: stdio (configurable via ARIA_MEMORY_MCP_TRANSPORT)
 #
@@ -49,7 +53,7 @@ _config = None
 
 async def _ensure_store() -> tuple[EpisodicStore, SemanticStore, CLM]:
     """Ensure stores are initialized (lazy init)."""
-    global _store, _semantic, _clm, _config
+    global _store, _semantic, _clm, _config  # noqa: PLW0603
 
     if _store is None:
         _config = get_config()
@@ -427,6 +431,188 @@ async def stats() -> dict:
         return {"error": str(e)}
 
 
+@mcp.tool
+async def hitl_ask(
+    action: str,
+    target_id: str,
+    reason: str | None = None,
+) -> dict:
+    """Queue a human-in-the-loop approval request for a memory operation.
+
+    Per blueprint P5/HITL: destructive operations (forget, hard-delete)
+    MUST be approved by a human before execution.
+
+    Args:
+        action: The action to approve (forget_episodic, forget_semantic)
+        target_id: UUID of the target entry/chunk
+        reason: Optional human-readable reason for the request
+
+    Returns:
+        {"status": "pending_hitl", "hitl_id": "...", "message": "..."}
+    """
+    trace_id = os.environ.get("ARIA_TRACE_ID") or new_trace_id()
+    set_trace_id(trace_id)
+
+    try:
+        store, _, _ = await _ensure_store()
+        target_uuid = uuid.UUID(target_id)
+        channel = os.environ.get("ARIA_HITL_CHANNEL", "mcp")
+        hitl_id = await store.enqueue_hitl(
+            target_id=target_uuid,
+            action=action,
+            reason=reason,
+            trace_id=trace_id,
+            channel=channel,
+        )
+        return {
+            "status": "pending_hitl",
+            "hitl_id": hitl_id,
+            "message": f"HITL approval requested for {action} on {target_id}",
+        }
+
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+@mcp.tool
+async def hitl_list_pending(limit: int = 100) -> list[dict]:
+    """List all pending HITL approval requests.
+
+    Args:
+        limit: Max number of records to return (default 100)
+
+    Returns:
+        List of pending HITL records
+    """
+    trace_id = os.environ.get("ARIA_TRACE_ID") or new_trace_id()
+    set_trace_id(trace_id)
+
+    try:
+        store, _, _ = await _ensure_store()
+        return await store.list_hitl_pending(limit=limit)
+
+    except Exception as e:
+        return [{"error": str(e)}]
+
+
+@mcp.tool
+async def hitl_cancel(hitl_id: str) -> dict:
+    """Cancel a pending HITL request (before approval).
+
+    Args:
+        hitl_id: The HITL request ID to cancel
+
+    Returns:
+        {"status": "ok"} or {"status": "error", "error": "..."}
+    """
+    trace_id = os.environ.get("ARIA_TRACE_ID") or new_trace_id()
+    set_trace_id(trace_id)
+
+    try:
+        store, _, _ = await _ensure_store()
+        conn = await store._ensure_connected()
+        cursor = await conn.execute(
+            "UPDATE memory_hitl_pending SET status = 'cancelled', resolved_at = ? "
+            "WHERE id = ? AND status = 'pending'",
+            (int(datetime.now(UTC).timestamp()), hitl_id),
+        )
+        await conn.commit()
+        if cursor.rowcount == 0:
+            return {"status": "error", "error": "HITL request not found or already resolved"}
+        return {"status": "ok", "hitl_id": hitl_id}
+
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+@mcp.tool
+async def hitl_approve(hitl_id: str) -> dict:
+    """Approve a pending HITL request and execute the consequent action.
+
+    Supported actions:
+    - forget_episodic: tombstones the target episodic entry
+    - forget_semantic: deletes the target semantic chunk
+
+    Args:
+        hitl_id: The HITL request ID to approve
+
+    Returns:
+        {"status": "ok", "action": "...", "target_id": "..."} or error
+    """
+    trace_id = os.environ.get("ARIA_TRACE_ID") or new_trace_id()
+    set_trace_id(trace_id)
+
+    try:
+        store, semantic, _ = await _ensure_store()
+        conn = await store._ensure_connected()
+
+        # Fetch the pending record
+        cursor = await conn.execute(
+            "SELECT id, target_id, action, status FROM memory_hitl_pending WHERE id = ?",
+            (hitl_id,),
+        )
+        row = await cursor.fetchone()
+
+        if not row:
+            return {"status": "error", "error": f"HITL request {hitl_id} not found"}
+
+        if row["status"] != "pending":
+            return {
+                "status": "error",
+                "error": f"HITL request {hitl_id} is not pending (status={row['status']})",
+            }
+
+        action = row["action"]
+        target_id = row["target_id"]
+
+        # Execute the action
+        if action == "forget_episodic":
+            import uuid as _uuid
+
+            tombstoned = await store.tombstone(
+                _uuid.UUID(target_id),
+                reason=f"approved via hitl_approve({hitl_id})",
+            )
+            if not tombstoned:
+                return {
+                    "status": "error",
+                    "error": f"Entry {target_id} not found or already tombstoned",
+                }
+
+        elif action == "forget_semantic":
+            import uuid as _uuid
+
+            deleted = await semantic.delete(_uuid.UUID(target_id))
+            if not deleted:
+                return {
+                    "status": "error",
+                    "error": f"Semantic chunk {target_id} not found",
+                }
+
+        else:
+            return {
+                "status": "error",
+                "error": f"Unsupported HITL action: {action}",
+            }
+
+        # Mark resolved
+        await conn.execute(
+            "UPDATE memory_hitl_pending SET status = 'approved', resolved_at = ? WHERE id = ?",
+            (int(datetime.now(UTC).timestamp()), hitl_id),
+        )
+        await conn.commit()
+
+        return {
+            "status": "ok",
+            "hitl_id": hitl_id,
+            "action": action,
+            "target_id": target_id,
+        }
+
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
 # === Main ===
 
 
@@ -440,7 +626,7 @@ def main() -> int:
     log_dir.mkdir(parents=True, exist_ok=True)
 
     # Override logging to file
-    log_file = log_dir / f"mcp-aria-memory-{datetime.now().strftime('%Y-%m-%d')}.log"
+    log_file = log_dir / f"mcp-aria-memory-{datetime.now(UTC).strftime('%Y-%m-%d')}.log"
 
     handler = logging.FileHandler(log_file)
     from aria.utils.logging import JsonLineFormatter
