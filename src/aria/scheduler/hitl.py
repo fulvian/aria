@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from aria.scheduler.store import HitlRequest
+from aria.scheduler.store import HitlRequest, Task
 
 if TYPE_CHECKING:
     from aria.config import ARIAConfig
@@ -45,21 +45,21 @@ class HitlManager:
         self._bus = bus
         self._config = config
 
-    async def enqueue(self, task_id: str, reason: str, trace_id: str | None = None) -> HitlRequest:
+    async def enqueue(self, task: Task, trace_id: str | None = None) -> HitlRequest:
         """Enqueue a task for HITL approval."""
         import uuid
 
         req = HitlRequest(
             id=str(uuid.uuid4()),
-            target_id=task_id,
-            action="approve_task",
-            reason=reason,
-            trace_id=trace_id,
+            task_id=task.id,
+            run_id=None,
+            question=f"Approve task '{task.name}' (category={task.category}, policy={task.policy})?",
+            options_json=None,
             channel="scheduler",
         )
         await self._store.create_hitl_request(req)
-        await self._bus.hitl_created(req.id, task_id, req.action)
-        logger.info("HITL request enqueued: %s for task %s", req.id, task_id)
+        await self._bus.hitl_created(req.id, task.id, task.name)
+        logger.info("HITL request enqueued: %s for task %s", req.id, task.id)
         return req
 
     async def resolve(self, hitl_id: str, response: str) -> bool:

@@ -144,7 +144,6 @@ class TaskRunner:
                 int(time.time() * 1000),
                 outcome=result.outcome,
                 result_summary=result.result_summary,
-                error=result.error,
             )
 
             # Update task next_run_at for cron tasks
@@ -156,7 +155,6 @@ class TaskRunner:
 
                     tz: datetime.tzinfo = zoneinfo.ZoneInfo(task.timezone)
                 else:
-
                     tz: datetime.tzinfo = UTC
                 cron = croniter(task.schedule_cron, datetime.now(tz))
                 task.next_run_at = int(cron.get_next(datetime).timestamp() * 1000)
@@ -173,7 +171,6 @@ class TaskRunner:
                 int(time.time() * 1000),
                 outcome="failed",
                 result_summary=str(exc),
-                error=str(exc),
             )
             return RunResult(
                 run_id=run_id,
@@ -319,10 +316,10 @@ class HitlManager:
         """Enqueue a task for HITL approval."""
         req = HitlRequest(
             id=str(_uuid.uuid4()),
-            target_id=task.id,
-            action="approve_task",
-            reason=f"Task {task.name} requires human approval",
-            trace_id=None,
+            task_id=task.id,
+            run_id=None,
+            question=f"Approve task '{task.name}' (category={task.category}, policy={task.policy})?",
+            options_json=None,
             channel="scheduler",
         )
         return await self._store.create_hitl_request(req)

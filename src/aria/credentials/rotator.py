@@ -146,7 +146,7 @@ class Rotator:
                 data = self.sops.decrypt(self.state_path)
                 # Backward compatibility: keys may be persisted as a list in YAML.
                 providers = data.get("providers", {}) if isinstance(data, dict) else {}
-                for provider_name, provider_data in providers.items():
+                for _provider_name, provider_data in providers.items():
                     keys_data = (
                         provider_data.get("keys", {}) if isinstance(provider_data, dict) else {}
                     )
