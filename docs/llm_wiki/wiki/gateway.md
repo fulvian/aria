@@ -91,16 +91,62 @@ Il gateway include un HITL responder (`src/aria/gateway/hitl_responder.py`) che:
 ```
 src/aria/gateway/
 ├── __init__.py
-├── daemon.py             # systemd entrypoint
-├── telegram_adapter.py   # python-telegram-bot v22 integration
-├── session_manager.py    # SQLite session management
-├── auth.py               # Whitelist + HMAC
-├── multimodal.py         # OCR/vision, Whisper
-├── conductor_bridge.py   # Spawn KiloCode subprocess
-├── hitl_responder.py     # HITL via Telegram
-├── metrics_server.py     # Prometheus endpoint
-└── schema.py             # Pydantic models
+├── daemon.py               # systemd entrypoint
+├── telegram_adapter.py     # python-telegram-bot v22 integration
+├── telegram_formatter.py   # Markdown→Telegram HTML converter + message splitter
+├── session_manager.py      # SQLite session management
+├── auth.py                 # Whitelist + HMAC
+├── multimodal.py           # OCR/vision, Whisper
+├── conductor_bridge.py     # Spawn KiloCode subprocess (NDJSON parsing)
+├── hitl_responder.py       # HITL via Telegram
+├── metrics_server.py       # Prometheus endpoint
+└── schema.py               # Pydantic models
 ```
+
+*source: `src/aria/gateway/`*
+*last_updated: 2026-04-24*
+
+## Formattazione Risposte Telegram
+
+### Pipeline di risposta
+
+1. KiloCode (`kilo run --format json --auto`) emette NDJSON streaming events su stdout
+2. `ConductorBridge._spawn_conductor()` chiama `_parse_kilo_ndjson_output()` per estrarre testo
+3. Il testo (Markdown) passa via `gateway.reply` event
+4. `TelegramAdapter.send_text()` converte Markdown→HTML e invia con `parse_mode=ParseMode.HTML`
+
+### `_parse_kilo_ndjson_output()` — Strategia di parsing
+
+| Strategia | Condizione | Output |
+|-----------|------------|--------|
+| 1. NDJSON text events | Trova `type: "text"` in streaming events | `part.text` concatenati |
+| 2. Legacy result key | Trova `result` nell'ultimo JSON line | `result` value |
+| 3. Raw fallback | Nessun JSON valido | `stdout_text[:2000]` |
+
+*source: `src/aria/gateway/conductor_bridge.py`*
+*last_updated: 2026-04-24*
+
+### `markdown_to_telegram_html()` — Conversione
+
+Conversioni supportate (regex-based, stdlib only):
+
+| Markdown | Telegram HTML |
+|----------|---------------|
+| `## Heading` | `<b>Heading</b>` |
+| `**bold**` | `<b>bold</b>` |
+| `*italic*` | `<i>italic</i>` |
+| `` `code` `` | `<code>code</code>` |
+| ` ```code``` ` | `<pre>code</pre>` |
+| `[text](url)` | `<a href="url">text</a>` |
+| `- item` / `* item` | `• item` |
+| `<`, `>`, `&` | `&lt;`, `&gt;`, `&amp;` (escaped) |
+
+- HTML tags sicuri (`<b>`, `<i>`, `<code>`, `<pre>`, `<a>`) preservati
+- Code blocks protetti da HTML escaping
+- Messaggi lunghi splitati a 4096 caratteri (limite Telegram)
+
+*source: `src/aria/gateway/telegram_formatter.py`*
+*last_updated: 2026-04-24*
 
 ## Criticita Osservate (2026-04-23)
 
@@ -196,6 +242,19 @@ src/aria/gateway/
    - ulteriore correzione: rimosso `--session` dai run one-shot (il flag è per continuare sessioni esistenti).
    - allineamento analogo nel runner scheduler workspace.
    - source: `src/aria/gateway/conductor_bridge.py`, `src/aria/scheduler/runner.py`
+   - last_updated: 2026-04-24
+
+9. **Formattazione risposte Telegram (raw JSON → HTML formattato)**
+   - Problema: KiloCode emette NDJSON streaming events (`type: "text"`, `type: "step_start"`, etc.)
+     che venivano mostrati come raw JSON all'utente Telegram.
+   - Root cause: `_spawn_conductor()` cercava `result` key nel JSON (inexistente per NDJSON),
+     fallback a `stdout_text[:2000]` (raw dump), e `send_text()` inviava senza `parse_mode`.
+   - Fix applicato:
+     - Creato `telegram_formatter.py` con `markdown_to_telegram_html()` e `split_telegram_message()`
+     - Aggiunto `_parse_kilo_ndjson_output()` nel conductor bridge (3-tier: NDJSON→result→raw)
+     - `send_text()` ora converte Markdown→HTML e invia con `parse_mode=ParseMode.HTML`
+     - Messaggi > 4096 caratteri splitati automaticamente
+   - source: `src/aria/gateway/telegram_formatter.py`, `src/aria/gateway/conductor_bridge.py`, `src/aria/gateway/telegram_adapter.py`
    - last_updated: 2026-04-24
 
 ## Vedi anche

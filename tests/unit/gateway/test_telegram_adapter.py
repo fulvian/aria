@@ -65,7 +65,11 @@ async def test_handle_gateway_reply_resolves_chat_id_from_session() -> None:
 
     await adapter.handle_gateway_reply({"session_id": "s1", "text": "risposta"})
 
-    bot.send_message.assert_awaited_once_with(chat_id=987117252, text="risposta")
+    bot.send_message.assert_awaited_once()
+    call_kwargs = bot.send_message.await_args.kwargs
+    assert call_kwargs["chat_id"] == 987117252
+    assert "risposta" in call_kwargs["text"]
+    assert call_kwargs["parse_mode"] is not None
 
 
 @pytest.mark.asyncio
@@ -85,4 +89,56 @@ async def test_handle_gateway_reply_falls_back_to_telegram_user_id() -> None:
         }
     )
 
-    bot.send_message.assert_awaited_once_with(chat_id=987117252, text="fallback")
+    bot.send_message.assert_awaited_once()
+    call_kwargs = bot.send_message.await_args.kwargs
+    assert call_kwargs["chat_id"] == 987117252
+    assert "fallback" in call_kwargs["text"]
+
+
+@pytest.mark.asyncio
+async def test_send_text_converts_markdown_to_html() -> None:
+    """send_text should convert Markdown to Telegram HTML."""
+    adapter, _auth, _sessions, _bus, _cm = _make_adapter()
+
+    bot = MagicMock()
+    bot.send_message = AsyncMock()
+    adapter._app = SimpleNamespace(bot=bot)
+
+    result = await adapter.send_text(chat_id=123, text="## Heading\n**bold**")
+
+    assert result is True
+    call_kwargs = bot.send_message.await_args.kwargs
+    assert call_kwargs["chat_id"] == 123
+    assert "<b>Heading</b>" in call_kwargs["text"]
+    assert "<b>bold</b>" in call_kwargs["text"]
+
+
+@pytest.mark.asyncio
+async def test_send_text_splits_long_messages() -> None:
+    """send_text should split messages longer than 4096 chars into multiple calls."""
+    adapter, _auth, _sessions, _bus, _cm = _make_adapter()
+
+    bot = MagicMock()
+    bot.send_message = AsyncMock()
+    adapter._app = SimpleNamespace(bot=bot)
+
+    long_text = "x" * 5000
+    result = await adapter.send_text(chat_id=123, text=long_text)
+
+    assert result is True
+    assert bot.send_message.await_count >= 2
+
+
+@pytest.mark.asyncio
+async def test_send_text_returns_false_when_app_not_initialized() -> None:
+    adapter, _auth, _sessions, _bus, _cm = _make_adapter()
+    adapter._app = None
+    result = await adapter.send_text(chat_id=123, text="hello")
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_send_text_returns_true_for_empty_text() -> None:
+    adapter, _auth, _sessions, _bus, _cm = _make_adapter()
+    result = await adapter.send_text(chat_id=123, text="   ")
+    assert result is True

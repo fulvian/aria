@@ -1,13 +1,73 @@
 ---
 title: ARIA LLM Wiki Activity Log
 sources: []
-last_updated: 2026-04-23T19:20:00+02:00
+last_updated: 2026-04-24T09:04:00+02:00
 tier: 1
 ---
 
 # ARIA LLM Wiki — Activity Log
 
 > Append-only. Ogni operazione di ingest, query o manutenzione del wiki registra una entry qui.
+
+---
+
+## 2026-04-24T09:04 — Telegram Response Formatting Fix (raw JSON → formatted HTML)
+
+**Operation**: IMPLEMENT — Fix Telegram raw JSON output rendering
+**Pages affected**: [[gateway]]
+**Sources**: `src/aria/gateway/telegram_formatter.py` (new), `src/aria/gateway/conductor_bridge.py`, `src/aria/gateway/telegram_adapter.py`
+
+### Root Cause
+
+KiloCode (`kilo run --format json --auto`) outputs NDJSON streaming events on stdout:
+```json
+{"type":"step_start","timestamp":...,"part":{"type":"step-start"}}
+{"type":"text","timestamp":...,"part":{"type":"text","text":"## Heading\n- **item**"}}
+{"type":"step_finish","timestamp":...,"part":{"reason":"stop"}}
+```
+
+Two bugs:
+1. `_spawn_conductor()` searched for non-existent `result` key → fell back to `stdout_text[:2000]` (raw JSON dump)
+2. `send_text()` sent without `parse_mode` → Telegram displayed raw text
+
+### Fix Applied
+
+1. **`telegram_formatter.py`** (NEW, 151 LOC) — Markdown→Telegram HTML converter + message splitter
+2. **`conductor_bridge.py`** — Added `_parse_kilo_ndjson_output()` with 3-tier strategy:
+   - Tier 1: Extract text from `type: "text"` NDJSON events
+   - Tier 2: Fall back to `result` key in last JSON line (legacy)
+   - Tier 3: Raw text fallback
+3. **`telegram_adapter.py`** — `send_text()` now converts MD→HTML, splits long messages, sends with `parse_mode=ParseMode.HTML`
+
+### Tests
+
+- 38 new formatter tests (`test_telegram_formatter.py`)
+- 8 new NDJSON parsing tests (`test_conductor_bridge.py`)
+- 4 new adapter tests (`test_telegram_adapter.py`)
+- Total: 63 gateway tests, 543 project-wide — all passing
+
+### Quality Gates
+
+```
+ruff check: PASS
+ruff format --check: PASS
+mypy: PASS (0 errors in 3 files)
+pytest: 543 passed
+```
+
+---
+
+## 2026-04-24T09:15 — Telegram Response Formatting Fix
+
+**Operation**: Implementation — Fix Telegram raw JSON output
+**Pages affected**: [[gateway]]
+**Sources**: `src/aria/gateway/telegram_formatter.py` (new), `src/aria/gateway/conductor_bridge.py`, `src/aria/gateway/telegram_adapter.py`
+
+Changes:
+1. Created `telegram_formatter.py` — Markdown→Telegram HTML converter + message splitter
+2. Added `_parse_kilo_ndjson_output()` in `conductor_bridge.py` — properly extracts text from KiloCode NDJSON streaming events
+3. Updated `send_text()` in `telegram_adapter.py` — uses HTML formatting + chunked sending
+4. Tests: 63 passing (38 new formatter tests, 8 new NDJSON tests, 4 new adapter tests)
 
 ---
 
@@ -1130,3 +1190,113 @@ Firecrawl MCP: isError=true (expected: all 7 keys HTTP 402)
 Il problema non era nel codice dei provider o nella key rotation (che funzionava correttamente). Era nel **livello SOPS**: il subprocess `sops --decrypt` falliva intermittente, probabilmente per race conditions su file I/O o fd limits. Creando un nuovo CM per ogni tool call, si moltiplicava la probabilità di failure per il numero di tool calls nella sessione.
 
 Con il caching, SOPS viene chiamato una sola volta all'inizio del processo MCP server. Se fallisce, il retry lo risolve nella maggior parte dei casi. E il diagnostic logging aiuta a identificare rapidamente eventuali problemi residui.
+
+---
+
+## 2026-04-24T10:30 — Memory Subsystem Health Check
+
+**Operazione**: AUDIT (health check completo)
+**Autore**: Claude (claude-sonnet-4-6)
+**Scope**: Analisi conformità del memory subsystem rispetto a blueprint §5 e Ten Commandments
+
+### Metodo
+
+1. Wiki-first: letti `index.md` + `log.md` + `memory-subsystem.md`
+2. Analisi codice: tutti i file `src/aria/memory/*.py` (schema, episodic, semantic, clm, actor_tagging, migrations, mcp_server)
+3. Confronto con blueprint §5.1–§5.7 e ADR-0002, ADR-0004
+4. Verifica runtime live: query diretta su `.aria/runtime/memory/episodic.db`
+5. Esecuzione test: `pytest -q tests/unit/memory/` → 32 passed
+
+### Stato Runtime Verificato
+
+| Metrica | Valore |
+|---------|--------|
+| T0 entries | 1005 |
+| T1 semantic chunks | **0** |
+| SQLite versione | 3.51.3 |
+| Migrations applicate | 3/3 |
+| WAL file | 282KB non checkpointato |
+
+### Risultati principali
+
+**Conforme:**
+- Schema Pydantic (§5.5) — tutti i modelli corretti
+- T0 SQLite WAL mode attivo — WAL + sync=NORMAL + SQLite 3.51.3
+- Actor-Aware Tagging (P5) — trust scores, aggregate rules, derive_actor
+- P6 Verbatim Preservation — no UPDATE, tombstone-only, content_hash
+- MCP 10 tool (7 spec + 3 HITL extra) — tutti funzionanti
+- Unit tests: 32/32 passing
+- T2/T3 stub corretti con feature flag
+- Systemd service correttamente hardened
+
+**Gap critici:**
+1. **CLM mai eseguito**: 0 T1 chunk da 1005 T0. Nessun scheduler task/hook post-session.
+2. **HITL approval path mancante**: `forget/curate` creano HITL record ma non c'è approvazione né esecuzione consequente.
+3. **Retention non applicata**: config ha `t0_retention_days=365` ma nessun codice pruna T0.
+4. **WAL episodic.db non checkpointato**: reaper checkpoint solo scheduler.db.
+5. **Integration tests assenti**.
+
+### Output
+
+- **Report completo**: `docs/analysis/memory_subsystem_health_check_2026-04-24.md`
+- **Wiki aggiornata**: `docs/llm_wiki/wiki/memory-subsystem.md` — stato runtime + gap table
+
+---
+
+## 2026-04-24T11:30 — Memory Gap Remediation Plan Created
+
+**Operazione**: PLAN (implementazione gap remediation)
+**Autore**: Claude (claude-sonnet-4-6)
+**Scope**: Piano completo per chiudere tutti i 7 gap identificati dall'health check del memory subsystem
+
+### Piano creato
+
+- **File**: `docs/plans/memory_gaps_remediation_plan_2026-04-24.md`
+- **Task totali**: 8 (7 gap + wiki update)
+- **Libraries verificate via Context7**: FastMCP `@mcp.tool`, aiosqlite `execute`/`fetchone`/`rowcount`
+
+### Gap coperti
+
+| Gap | Task | Soluzione |
+|-----|------|-----------|
+| CLM mai eseguito | Task 3+4 | Post-session hook in ConductorBridge + cron 6h scheduler |
+| HITL approval path mancante | Task 2 | `hitl_approve` MCP tool (11° tool) |
+| Retention T0 non applicata | Task 1+5 | `prune_old_entries()` + Reaper esteso |
+| WAL episodic.db non checkpointato | Task 5 | Reaper + `memory-wal-checkpoint` cron task |
+| Integration tests assenti | Task 6 | 6 integration tests in `tests/integration/memory/` |
+| Backup non schedulato | Task 7 | `aria-backup.timer` systemd unit |
+| T1 compression 90gg | — | DEFERRED — T1 vuoto, rivalutare dopo 30gg di CLM attivo |
+
+---
+
+## 2026-04-24T10:45 — Memory Wiki Enrichment post-Health Check
+
+**Operazione**: MAINTENANCE (wiki update)
+**Autore**: Claude (claude-sonnet-4-6)
+**Scope**: Aggiornamento completo `memory-subsystem.md` con evidenze dell'health check
+
+### Aggiornamenti
+
+1. **`docs/llm_wiki/wiki/memory-subsystem.md`**:
+   - Tabella Storage Tiers arricchita con colonna `Stato impl`
+   - Trust scores espliciti per ogni actor (1.0/0.9/0.6/0.5) con fonte `actor_tagging.py`
+   - Sezione CLM: dettagli implementazione estrattiva Sprint 1.1 + warning CLM mai eseguito
+   - Tabella MCP tools aggiornata con stato per tool (✅/⚠️)
+   - Nuova sezione "HITL Implementation State" — enqueue only, approval path mancante
+   - Nuova sezione "Schema SQLite (Migrations)" — 3 migration, PRAGMAs, version check
+   - Tabella Governance con colonna Spec vs Implementazione
+   - Stato Runtime Live arricchito: actor distribution, WAL detail, semantic/ dir
+   - Tabella Gap Critici espansa con colonna Dettaglio
+   - Provenienza `source:` aggiunta ad ogni sezione
+
+2. **`docs/llm_wiki/wiki/index.md`**:
+   - Aggiunta `docs/analysis/memory_subsystem_health_check_2026-04-24.md` come raw source
+
+### Fonti
+
+- `src/aria/memory/actor_tagging.py` — trust scores verificati
+- `src/aria/memory/clm.py` — implementazione estrattiva
+- `src/aria/memory/mcp_server.py` — 10 tool inventory
+- `src/aria/memory/migrations.py` — 3 migration details
+- `.aria/runtime/memory/episodic.db` — runtime state verificato
+- `docs/analysis/memory_subsystem_health_check_2026-04-24.md` — gap analysis

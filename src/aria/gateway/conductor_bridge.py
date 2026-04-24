@@ -50,6 +50,82 @@ def _new_kilo_session_id() -> str:
     return f"ses_{uuid.uuid4().hex}"
 
 
+def _parse_kilo_ndjson_output(stdout_text: str) -> dict[str, Any]:
+    """Parse KiloCode NDJSON streaming output from stdout.
+
+    KiloCode emits newline-delimited JSON events when run with ``--format json``.
+    Each event is a dict with ``type`` and ``part`` fields.  We collect text
+    from events of ``type == "text"`` (or ``part.type == "text"``).
+
+    Falls back to the legacy single-JSON-result parsing (looking for ``result``
+    key in the last valid JSON line), and finally to raw text if nothing matches.
+
+    Args:
+        stdout_text: Raw stdout from KiloCode subprocess.
+
+    Returns:
+        Dict with keys: text (str), tokens_used (int), result_raw (dict | None).
+    """
+    text_parts: list[str] = []
+    last_json: dict[str, Any] | None = None
+    tokens_used = 0
+
+    for line in stdout_text.splitlines():
+        cleaned = line.strip()
+        if not cleaned:
+            continue
+        try:
+            event = json.loads(cleaned)
+        except json.JSONDecodeError:
+            continue
+
+        if not isinstance(event, dict):
+            continue
+
+        last_json = event
+
+        # Collect text from streaming events
+        event_type = event.get("type", "")
+        part = event.get("part")
+        if event_type == "text" and isinstance(part, dict):
+            part_text = part.get("text", "")
+            if part_text:
+                text_parts.append(part_text)
+            # Check for tokens_used in part metadata
+            if "tokens_used" in part:
+                tokens_used = int(part["tokens_used"] or 0)
+            time_info = part.get("time")
+            if isinstance(time_info, dict) and "tokens_used" in time_info:
+                tokens_used = int(time_info["tokens_used"] or 0)
+
+        # Also try top-level tokens_used
+        if "tokens_used" in event:
+            tokens_used = int(event["tokens_used"] or 0)
+
+    # Strategy 1: we found NDJSON text events → concatenate
+    if text_parts:
+        return {
+            "text": "".join(text_parts).strip(),
+            "tokens_used": tokens_used,
+            "result_raw": last_json,
+        }
+
+    # Strategy 2: fallback to legacy single-result JSON (look for "result" key)
+    if last_json is not None and "result" in last_json:
+        return {
+            "text": str(last_json["result"]),
+            "tokens_used": int(last_json.get("tokens_used", 0) or 0),
+            "result_raw": last_json,
+        }
+
+    # Strategy 3: raw text
+    return {
+        "text": stdout_text[:2000],
+        "tokens_used": 0,
+        "result_raw": None,
+    }
+
+
 def _kilo_npx_packages() -> list[str]:
     env_packages = os.getenv("ARIA_KILO_NPX_PACKAGES", "").strip()
     if env_packages:
@@ -295,26 +371,14 @@ class ConductorBridge:
                     continue
 
                 stdout_text = stdout.decode("utf-8", errors="replace").strip()
-                for raw_line in reversed(stdout_text.splitlines()):
-                    cleaned_line = raw_line.strip()
-                    if not cleaned_line:
-                        continue
-                    try:
-                        output_data = json.loads(cleaned_line)
-                        if isinstance(output_data, dict):
-                            return {
-                                "text": str(output_data.get("result", stdout_text[:2000])),
-                                "child_session_id": child_session_id,
-                                "tokens_used": int(output_data.get("tokens_used", 0) or 0),
-                                "framed_tool_output": self._extract_framed_tool_output(output_data),
-                            }
-                    except json.JSONDecodeError:
-                        continue
-
+                parsed = _parse_kilo_ndjson_output(stdout_text)
                 return {
-                    "text": stdout_text[:2000],
+                    "text": parsed["text"],
                     "child_session_id": child_session_id,
-                    "tokens_used": 0,
+                    "tokens_used": parsed["tokens_used"],
+                    "framed_tool_output": self._extract_framed_tool_output(
+                        parsed["result_raw"] or {}
+                    ),
                 }
 
             logger.warning("Conductor strategy A packages exhausted, trying strategy B")
@@ -419,24 +483,10 @@ class ConductorBridge:
             raise RuntimeError(f"Conductor fallback failed: {stderr_text}")
 
         stdout_text = stdout.decode("utf-8", errors="replace").strip()
-        for raw_line in reversed(stdout_text.splitlines()):
-            cleaned_line = raw_line.strip()
-            if not cleaned_line:
-                continue
-            try:
-                output_data = json.loads(cleaned_line)
-                if isinstance(output_data, dict):
-                    return {
-                        "text": str(output_data.get("result", stdout_text[:2000])),
-                        "child_session_id": child_session_id,
-                        "tokens_used": int(output_data.get("tokens_used", 0) or 0),
-                        "framed_tool_output": self._extract_framed_tool_output(output_data),
-                    }
-            except json.JSONDecodeError:
-                continue
-
+        parsed = _parse_kilo_ndjson_output(stdout_text)
         return {
-            "text": stdout_text[:2000],
+            "text": parsed["text"],
             "child_session_id": child_session_id,
-            "tokens_used": 0,
+            "tokens_used": parsed["tokens_used"],
+            "framed_tool_output": self._extract_framed_tool_output(parsed["result_raw"] or {}),
         }

@@ -30,6 +30,7 @@ from telegram.ext import (
     filters,
 )
 
+from aria.gateway.telegram_formatter import markdown_to_telegram_html, split_telegram_message
 from aria.utils.logging import get_logger
 
 if TYPE_CHECKING:
@@ -469,25 +470,45 @@ class TelegramAdapter:
         await update.message.reply_text(f"📨 Ricevuto: {text[:100]}...")
 
     async def send_text(self, chat_id: int, text: str) -> bool:
-        """Send a plain text message to a Telegram chat.
+        """Send a text message to a Telegram chat, converting Markdown to HTML.
+
+        Converts Markdown to Telegram-compatible HTML, splits into chunks
+        if the message exceeds 4096 characters, and sends each chunk with
+        ``parse_mode=ParseMode.HTML``.
 
         Args:
             chat_id: Telegram chat/user ID.
-            text: Message body.
+            text: Message body (may contain Markdown).
 
         Returns:
-            True on successful send, False otherwise.
+            True if ALL chunks sent successfully, False otherwise.
         """
+        if not text.strip():
+            return True
+
         if self._app is None:
             logger.warning("Cannot send message: Telegram app is not initialized")
             return False
 
-        try:
-            await self._app.bot.send_message(chat_id=chat_id, text=text)
+        html_text = markdown_to_telegram_html(text)
+        chunks = split_telegram_message(html_text)
+
+        if not chunks:
             return True
-        except Exception as exc:  # pragma: no cover - network/runtime dependent
-            logger.exception("Failed sending Telegram message to chat_id=%s: %s", chat_id, exc)
-            return False
+
+        all_ok = True
+        for chunk in chunks:
+            try:
+                await self._app.bot.send_message(
+                    chat_id=chat_id,
+                    text=chunk,
+                    parse_mode=ParseMode.HTML,
+                )
+            except Exception as exc:  # pragma: no cover - network/runtime dependent
+                logger.exception("Failed sending Telegram message to chat_id=%s: %s", chat_id, exc)
+                all_ok = False
+
+        return all_ok
 
     async def handle_gateway_reply(self, payload: dict[str, Any]) -> None:
         """Consume ``gateway.reply`` event and deliver response to Telegram user.

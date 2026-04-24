@@ -8,7 +8,7 @@ sources:
   - pyproject.toml
   - Makefile
   - docs/operations/runbook.md
-last_updated: 2026-04-24T00:19
+last_updated: 2026-04-24T09:04
 tier: 1
 ---
 
@@ -67,6 +67,8 @@ Questi file sono le fonti autoritative da cui il wiki è derivato:
 | Workspace OAuth Runbook | `docs/operations/workspace_oauth_runbook.md` | Procedure OAuth operative, troubleshooting, dynamic pruning |
 | OAuth Debug Plan 2026-04-23 | `docs/plans/google_workspace_authz_debug_plan_2026-04-23.md` | Piano esteso di diagnosi authz per Workspace MCP (Drive/Slides read) |
 | Workspace Tool Governance Matrix | `docs/roadmaps/workspace_tool_governance_matrix.md` | Registry di 114 tool MCP con domain, rw, risk, policy, HITL, min_scope |
+| Memory Health Check 2026-04-24 | `docs/analysis/memory_subsystem_health_check_2026-04-24.md` | Audit conformità memory subsystem vs blueprint §5: gap CLM, HITL, retention |
+| Memory Gap Remediation Plan | `docs/plans/memory_gaps_remediation_plan_2026-04-24.md` | Piano implementazione per chiudere tutti i 7 gap: CLM scheduling, HITL approve, retention, WAL, tests, backup |
 
 ## External Knowledge
 
