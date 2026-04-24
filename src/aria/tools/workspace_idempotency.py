@@ -65,7 +65,7 @@ class IdempotencyRecord:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> IdempotencyRecord:
+    def from_dict(cls, data: dict) -> "IdempotencyRecord":
         return cls(
             key=data["key"],
             operation=data["operation"],
