@@ -481,6 +481,32 @@ class EpisodicStore:
         await conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
         await conn.execute("VACUUM")
 
+    async def prune_old_entries(self, retention_days: int) -> int:
+        """Tombstone T0 entries older than retention_days.
+
+        Per P6: uses tombstone, never hard delete.
+
+        Args:
+            retention_days: Entries older than this are tombstoned.
+
+        Returns:
+            Number of entries tombstoned.
+        """
+        conn = await self._ensure_connected()
+        cutoff_ts = int(datetime.now(UTC).timestamp()) - retention_days * 86400
+        cursor = await conn.execute(
+            """
+            INSERT INTO episodic_tombstones (episodic_id, tombstoned_at, reason)
+            SELECT id, ?, 'retention_expired'
+            FROM episodic
+            WHERE ts < ?
+              AND id NOT IN (SELECT episodic_id FROM episodic_tombstones)
+            """,
+            (int(time.time()), cutoff_ts),
+        )
+        await conn.commit()
+        return cursor.rowcount
+
     async def stats(self) -> MemoryStats:
         """Get memory statistics.
 

@@ -69,3 +69,58 @@ async def test_insert_get_search_tombstone_and_hitl(tmp_path: Path, config: ARIA
         assert stats.t0_count >= 1
     finally:
         await store.close()
+
+
+@pytest.mark.asyncio
+async def test_prune_old_entries_tombstones_expired(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """prune_old_entries tombstones entries older than retention_days."""
+    import aria.memory.episodic as episodic_mod
+
+    monkeypatch.setenv("ARIA_HOME", str(tmp_path))
+    monkeypatch.setenv("ARIA_RUNTIME", str(tmp_path / ".aria" / "runtime"))
+    monkeypatch.setenv("ARIA_CREDENTIALS", str(tmp_path / ".aria" / "credentials"))
+    monkeypatch.setattr(episodic_mod, "MIN_SQLITE_VERSION", (3, 0, 0))
+    config = ARIAConfig.from_env()
+
+    from aria.memory.episodic import EpisodicStore
+    from aria.memory.schema import Actor, EpisodicEntry, content_hash
+
+    db_path = tmp_path / "episodic.db"
+    store = EpisodicStore(db_path, config)
+    await store.connect()
+
+    # Old entry (40 days ago)
+    old_ts = datetime.now(UTC) - timedelta(days=40)
+    old_entry = EpisodicEntry(
+        session_id=uuid4(),
+        ts=old_ts,
+        actor=Actor.USER_INPUT,
+        role="user",
+        content="old content to prune",
+        content_hash=content_hash("old content to prune"),
+    )
+    await store.insert(old_entry)
+
+    # Recent entry (1 day ago)
+    recent_entry = EpisodicEntry(
+        session_id=uuid4(),
+        ts=datetime.now(UTC) - timedelta(days=1),
+        actor=Actor.USER_INPUT,
+        role="user",
+        content="recent content",
+        content_hash=content_hash("recent content"),
+    )
+    await store.insert(recent_entry)
+
+    pruned = await store.prune_old_entries(retention_days=30)
+
+    assert pruned == 1
+    # Old entry should be tombstoned (not visible)
+    result = await store.get(old_entry.id)
+    assert result is None
+    # Recent entry still visible
+    result = await store.get(recent_entry.id)
+    assert result is not None
+    await store.close()
