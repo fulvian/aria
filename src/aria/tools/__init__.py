@@ -4,5 +4,10 @@
 # - Provider wrappers (Tavily, Brave, Firecrawl, Exa)
 # - Dedup and ranking utilities
 # - Caching helpers
+# - Google Workspace write utilities (workspace_errors, workspace_retry, workspace_idempotency)
 
-__all__ = []
+__all__ = [
+    "workspace_errors",
+    "workspace_retry",
+    "workspace_idempotency",
+]
