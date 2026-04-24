@@ -1,0 +1,12 @@
+[Unit]
+Description=ARIA weekly backup timer
+Requires=aria-backup.service
+
+[Timer]
+# Every Sunday at 02:00 local time
+OnCalendar=weekly
+RandomizedDelaySec=1800
+Persistent=true
+
+[Install]
+WantedBy=timers.target

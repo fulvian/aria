@@ -1,0 +1,22 @@
+[Unit]
+Description=ARIA Backup — one-shot encrypted backup of episodic.db and credentials
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/coding/aria/scripts/backup.sh
+WorkingDirectory=%h/coding/aria
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+PrivateTmp=true
+ReadWritePaths=%h/.aria-backups
+ReadWritePaths=%h/coding/aria/.aria
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=aria-backup
+
+[Install]
+WantedBy=default.target

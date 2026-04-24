@@ -89,6 +89,7 @@ class ConductorBridge:
         config: Any,  # AriaConfig  # noqa: ANN401
         sessions_dir: Path | None = None,
         timeout_s: int = DEFAULT_CONDUCTOR_TIMEOUT_S,
+        clm: Any | None = None,  # CLM  # noqa: ANN401
     ) -> None:
         """Initialize bridge.
 
@@ -98,10 +99,12 @@ class ConductorBridge:
             config: AriaConfig instance.
             sessions_dir: Path to KiloCode sessions dir.
             timeout_s: Subprocess timeout in seconds.
+            clm: Optional CLM instance for post-session distillation.
         """
         self._bus = bus
         self._store = store
         self._config = config
+        self._clm = clm
         self._sessions_dir = sessions_dir or Path(
             os.getenv(
                 "KILOCODE_STATE_DIR",
@@ -207,6 +210,31 @@ class ConductorBridge:
                 "trace_id": trace_id,
             },
         )
+
+        # Step 5: Trigger CLM distillation asynchronously (non-blocking)
+        if aria_session_id:
+            asyncio.create_task(self._distill_session_bg(aria_session_id))
+
+    async def _distill_session_bg(self, session_id: str) -> None:
+        """Fire-and-forget CLM distillation after session completes."""
+        if self._clm is None:
+            return
+        try:
+            import uuid as _uuid
+
+            sess_uuid = _uuid.UUID(session_id)
+            chunks = await self._clm.distill_session(sess_uuid)
+            logger.info(
+                "Post-session distillation: session=%s chunks_created=%d",
+                session_id,
+                len(chunks),
+            )
+        except Exception as exc:
+            logger.warning(
+                "Post-session distillation failed: session=%s error=%s",
+                session_id,
+                exc,
+            )
 
     async def _spawn_conductor(
         self,
