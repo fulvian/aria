@@ -55,6 +55,41 @@ Implementation complete. Verification requires OAuth credentials.
 
 ---
 
+## 2026-04-25T19:23 — OAuth Re-Authentication Required for Write Scopes
+
+**Operation**: ANALYZE + DOCUMENT
+**Branch**: `feature/workspace-write-reliability`
+
+### Finding: Current Credentials Have READ-ONLY Scopes Only
+
+Analyzed `.aria/runtime/credentials/google_workspace_mcp/fulviold@gmail.com.json`:
+
+| Scope | Status |
+|-------|--------|
+| `https://www.googleapis.com/auth/documents` | ✗ READONLY only |
+| `https://www.googleapis.com/auth/spreadsheets` | ✗ READONLY only |
+| `https://www.googleapis.com/auth/presentations` | ✗ READONLY only |
+| `https://www.googleapis.com/auth/drive.file` | ✗ MISSING |
+
+Token expired: 2026-04-24T11:12:55 (current: 2026-04-25T19:23)
+
+### Action Required
+
+When browser access is available, re-run OAuth consent flow with write scopes enabled.
+Instructions documented in [[google-workspace-mcp-write-reliability]] under "OAuth Re-Authentication Instructions".
+
+User decision: Will perform re-authentication when browser is available.
+
+### Files Affected
+
+- `.aria/runtime/credentials/google_workspace_mcp/fulviold@gmail.com.json` - needs update after re-auth
+
+### Status
+
+Awaiting user action for OAuth re-authentication with browser.
+
+---
+
 ## 2026-04-25T10:15 — Memory Subsystem Lint Optimization Complete
 
 **Operation**: REFACTOR + QUALITY GATE
