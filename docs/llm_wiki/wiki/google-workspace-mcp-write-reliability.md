@@ -1,7 +1,7 @@
 # Google Workspace MCP Write Reliability
 
-**Last Updated**: 2026-04-24
-**Status**: IN PROGRESS - Phase 3 verification
+**Last Updated**: 2026-04-25
+**Status**: PHASE 3 VERIFICATION - In Progress
 **Branch**: `feature/workspace-write-reliability`
 
 ## Purpose
@@ -50,6 +50,28 @@ Documenta criticita e remediation strategy per i tool di creazione/modifica Goog
 - [x] Idempotency keys (`workspace_idempotency.py`)
 - [x] Error mapping user-facing (`workspace_errors.py`)
 - [x] Bug fix: forward reference in `IdempotencyRecord.from_dict()`
+
+### Phase 3 - Verification Suite ⚠️ (In Progress)
+- [x] Unit tests for retry logic, idempotency, error mapping (`tests/unit/tools/test_workspace_write.py`)
+- [x] Health check CLI (`scripts/workspace-write-health.py`)
+- [ ] Integration tests with live OAuth (requires `TEST_GOOGLE_WORKSPACE=1`)
+- [ ] CI gate for write tools registration/scopes (PENDING)
+- [ ] 50-run smoke test for >= 99% success rate (requires live OAuth)
+
+**Note**: Unit tests are skipped by default due to `TEST_GOOGLE_WORKSPACE` guard.
+Pure logic tests (retry, idempotency, error classes) verified via direct import.
+
+### Phase 4 - Operational Hardening ✓ (2026-04-24)
+- [x] Runbook: `docs/implementation/workspace-write-reliability/runbook.md`
+- [x] Health check CLI
+- [x] Error budget metrics
+- [x] RTO targets documented
+
+### Key Verified Behaviors (2026-04-25)
+- Retry backoff: monotonic increase, capped at 60s ✓
+- Idempotency key: deterministic, unique per operation+params ✓
+- IdempotencyStore: tracks, deduplicates, marks completed ✓
+- Error classes: AuthError, ScopeError, QuotaError, ModeError, NetworkError ✓
 
 ## New Files Created
 
