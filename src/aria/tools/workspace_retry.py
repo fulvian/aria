@@ -39,9 +39,7 @@ class WorkspaceRetryConfig:
             return exception.response.status_code in (429, 500, 502, 503, 504)
         if isinstance(exception, httpx.TimeoutException):
             return True
-        if isinstance(exception, httpx.NetworkError):
-            return True
-        return False
+        return isinstance(exception, httpx.NetworkError)
 
 
 def create_google_api_retry(

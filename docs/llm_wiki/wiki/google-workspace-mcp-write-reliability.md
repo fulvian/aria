@@ -1,7 +1,7 @@
 # Google Workspace MCP Write Reliability
 
 **Last Updated**: 2026-04-24
-**Status**: IN PROGRESS - Phase 1 implementation
+**Status**: IN PROGRESS - Phase 3 verification
 **Branch**: `feature/workspace-write-reliability`
 
 ## Purpose
@@ -28,8 +28,9 @@ Documenta criticita e remediation strategy per i tool di creazione/modifica Goog
 - PKCE S256 + state + loopback IP callback ✓
 - Scope minimi per capability (documents/spreadsheets/presentations/drive.file) ✓
 - Verifica granted scopes prima di eseguire write (in progress)
-- Retry truncated exponential backoff + jitter su 429/5xx (pending)
-- Structured logging per ogni tool write (`trace_id`, `tool_name`, `status`, `reason`) (pending)
+- Retry truncated exponential backoff + jitter su 429/5xx ✓
+- Structured logging per ogni tool write (`trace_id`, `tool_name`, `status`, `reason`) ✓
+- Idempotency key generation + dedup store ✓
 
 ## Implementation Status
 
@@ -44,10 +45,11 @@ Documenta criticita e remediation strategy per i tool di creazione/modifica Goog
 - [x] Created `workspace-write-health.py` CLI
 - [ ] OAuth scope verification post-auth (in progress)
 
-### Phase 2 - Write Path Robustness (pending)
-- [ ] Retry/backoff with jitter
-- [ ] Idempotency keys
-- [ ] Error mapping user-facing
+### Phase 2 - Write Path Robustness ✓ (2026-04-24)
+- [x] Retry/backoff with jitter (`workspace_retry.py`)
+- [x] Idempotency keys (`workspace_idempotency.py`)
+- [x] Error mapping user-facing (`workspace_errors.py`)
+- [x] Bug fix: forward reference in `IdempotencyRecord.from_dict()`
 
 ## New Files Created
 

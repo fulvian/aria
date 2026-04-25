@@ -53,7 +53,9 @@ class HitlManager:
             id=str(uuid.uuid4()),
             task_id=task.id,
             run_id=None,
-            question=f"Approve task '{task.name}' (category={task.category}, policy={task.policy})?",
+            question=(
+                f"Approve task '{task.name}' (category={task.category}, policy={task.policy})?"
+            ),
             options_json=None,
             channel="scheduler",
         )

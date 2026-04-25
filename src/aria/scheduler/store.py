@@ -17,10 +17,11 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import time
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 import aiosqlite
 
@@ -291,10 +292,8 @@ class TaskStore:
             ("cost_eur", "REAL"),
             ("logs_path", "TEXT"),
         ]:
-            try:
+            with contextlib.suppress(Exception):
                 await self._conn.execute(f"ALTER TABLE task_runs ADD COLUMN {col} {col_type}")
-            except Exception:
-                pass  # Column already exists
         await self._conn.commit()
 
     async def close(self) -> None:
@@ -317,9 +316,21 @@ class TaskStore:
         row = task.to_row()
         await conn.execute(
             """
-            INSERT OR REPLACE INTO tasks
-            (id, name, category, trigger_type, trigger_config, schedule_cron, timezone, next_run_at, policy, budget_tokens, budget_cost_eur, max_retries, retry_count, last_error, owner_user_id, payload, lease_owner, lease_expires_at, status, created_at, updated_at)
-            VALUES (:id, :name, :category, :trigger_type, :trigger_config, :schedule_cron, :timezone, :next_run_at, :policy, :budget_tokens, :budget_cost_eur, :max_retries, :retry_count, :last_error, :owner_user_id, :payload, :lease_owner, :lease_expires_at, :status, :created_at, :updated_at)
+            INSERT OR REPLACE INTO tasks (
+                id, name, category, trigger_type, trigger_config,
+                schedule_cron, timezone, next_run_at, policy,
+                budget_tokens, budget_cost_eur, max_retries, retry_count,
+                last_error, owner_user_id, payload,
+                lease_owner, lease_expires_at,
+                status, created_at, updated_at
+            ) VALUES (
+                :id, :name, :category, :trigger_type, :trigger_config,
+                :schedule_cron, :timezone, :next_run_at, :policy,
+                :budget_tokens, :budget_cost_eur, :max_retries, :retry_count,
+                :last_error, :owner_user_id, :payload,
+                :lease_owner, :lease_expires_at,
+                :status, :created_at, :updated_at
+            )
             """,
             row,
         )
@@ -361,13 +372,25 @@ class TaskStore:
         await conn.execute(
             """
             UPDATE tasks SET
-                name=:name, category=:category, trigger_type=:trigger_type,
-                trigger_config=:trigger_config, schedule_cron=:schedule_cron, timezone=:timezone,
-                next_run_at=:next_run_at, policy=:policy, budget_tokens=:budget_tokens,
-                budget_cost_eur=:budget_cost_eur, max_retries=:max_retries, retry_count=:retry_count,
-                last_error=:last_error, owner_user_id=:owner_user_id, payload=:payload,
-                lease_owner=:lease_owner, lease_expires_at=:lease_expires_at,
-                status=:status, updated_at=:updated_at
+                name=:name,
+                category=:category,
+                trigger_type=:trigger_type,
+                trigger_config=:trigger_config,
+                schedule_cron=:schedule_cron,
+                timezone=:timezone,
+                next_run_at=:next_run_at,
+                policy=:policy,
+                budget_tokens=:budget_tokens,
+                budget_cost_eur=:budget_cost_eur,
+                max_retries=:max_retries,
+                retry_count=:retry_count,
+                last_error=:last_error,
+                owner_user_id=:owner_user_id,
+                payload=:payload,
+                lease_owner=:lease_owner,
+                lease_expires_at=:lease_expires_at,
+                status=:status,
+                updated_at=:updated_at
             WHERE id=:id
             """,
             row,
@@ -421,10 +444,9 @@ class TaskStore:
             (task_id,),
         )
         row = await cursor.fetchone()
-        if row and row["lease_owner"] and row["lease_expires_at"]:
-            if row["lease_expires_at"] > now:
-                # Lease is valid and not expired
-                return False
+        if row and row["lease_owner"] and row["lease_expires_at"] and row["lease_expires_at"] > now:
+            # Lease is valid and not expired
+            return False
         # Acquire lease
         await conn.execute(
             "UPDATE tasks SET lease_owner=?, lease_expires_at=? WHERE id=?",
@@ -449,7 +471,9 @@ class TaskStore:
         grace_ms = grace_s * 1000
         # First delete task_runs for stale tasks, then delete the tasks
         await conn.execute(
-            "DELETE FROM task_runs WHERE task_id IN (SELECT id FROM tasks WHERE lease_expires_at IS NOT NULL AND lease_expires_at < ?)",
+            "DELETE FROM task_runs WHERE task_id IN ("
+            "SELECT id FROM tasks WHERE lease_expires_at IS NOT NULL AND lease_expires_at < ?"
+            ")",
             (now - grace_ms,),
         )
         cursor = await conn.execute(
@@ -466,8 +490,15 @@ class TaskStore:
         conn = await self._ensure_connected()
         await conn.execute(
             """
-            INSERT INTO hitl_pending (id, task_id, run_id, question, options_json, channel, user_response, created_at, expires_at, resolved_at)
-            VALUES (:id, :task_id, :run_id, :question, :options_json, :channel, :user_response, :created_at, :expires_at, :resolved_at)
+            INSERT INTO hitl_pending (
+                id, task_id, run_id, question, options_json,
+                channel, user_response,
+                created_at, expires_at, resolved_at
+            ) VALUES (
+                :id, :task_id, :run_id, :question, :options_json,
+                :channel, :user_response,
+                :created_at, :expires_at, :resolved_at
+            )
             """,
             req.to_row(),
         )
@@ -488,7 +519,11 @@ class TaskStore:
         """Resolve a HITL request by setting user_response and resolved_at."""
         conn = await self._ensure_connected()
         cursor = await conn.execute(
-            "UPDATE hitl_pending SET user_response = ?, resolved_at = ? WHERE id = ? AND resolved_at IS NULL",
+            (
+                "UPDATE hitl_pending "
+                "SET user_response = ?, resolved_at = ? "
+                "WHERE id = ? AND resolved_at IS NULL"
+            ),
             (user_response, resolved_at, hitl_id),
         )
         await conn.commit()
@@ -506,7 +541,11 @@ class TaskStore:
         expired_rows = [dict(row) for row in await cursor.fetchall()]
         # Mark them as expired
         cursor = await conn.execute(
-            "UPDATE hitl_pending SET user_response = 'expired', resolved_at = ? WHERE resolved_at IS NULL AND created_at < ?",
+            (
+                "UPDATE hitl_pending "
+                "SET user_response = 'expired', resolved_at = ? "
+                "WHERE resolved_at IS NULL AND created_at < ?"
+            ),
             (int(time.time() * 1000), cutoff),
         )
         await conn.commit()

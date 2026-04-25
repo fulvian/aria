@@ -12,8 +12,10 @@ Test coverage:
 """
 
 import os
+from typing import Any
+from unittest.mock import AsyncMock, Mock
+
 import pytest
-from unittest.mock import Mock, patch, AsyncMock
 
 # Skip tests if credentials not available
 pytestmark = pytest.mark.skipif(
@@ -26,7 +28,7 @@ class TestWorkspaceWriteTools:
     """Test suite for Google Workspace write operations."""
 
     @pytest.fixture
-    def mock_mcp_client(self):
+    def mock_mcp_client(self) -> Mock:
         """Mock MCP client for testing."""
         client = Mock()
         client.call_tool = AsyncMock()
@@ -35,10 +37,9 @@ class TestWorkspaceWriteTools:
     # === Docs Tests ===
 
     @pytest.mark.asyncio
-    async def test_create_doc(self, mock_mcp_client):
+    async def test_create_doc(self, mock_mcp_client: Mock) -> None:
         """Verify create_doc creates document with valid ID and URL."""
         # Arrange
-        from aria.tools.workspace_idempotency import create_idempotent_key_for_doc
 
         mock_mcp_client.call_tool.return_value = {
             "documentId": "doc_123",
@@ -53,7 +54,7 @@ class TestWorkspaceWriteTools:
         # In real test: verify documentId and URL are valid
 
     @pytest.mark.asyncio
-    async def test_modify_doc_text(self, mock_mcp_client):
+    async def test_modify_doc_text(self, mock_mcp_client: Mock) -> None:
         """Verify modify_doc_text updates content and verifies change."""
         # Arrange
         mock_mcp_client.call_tool.return_value = {"success": True}
@@ -70,7 +71,7 @@ class TestWorkspaceWriteTools:
     # === Sheets Tests ===
 
     @pytest.mark.asyncio
-    async def test_create_spreadsheet(self, mock_mcp_client):
+    async def test_create_spreadsheet(self, mock_mcp_client: Mock) -> None:
         """Verify create_spreadsheet creates file with valid ID."""
         mock_mcp_client.call_tool.return_value = {
             "spreadsheetId": "sheet_456",
@@ -86,7 +87,7 @@ class TestWorkspaceWriteTools:
         # In real test: verify spreadsheetId matches expected format
 
     @pytest.mark.asyncio
-    async def test_modify_sheet_values(self, mock_mcp_client):
+    async def test_modify_sheet_values(self, mock_mcp_client: Mock) -> None:
         """Verify modify_sheet_values updates range with expected values."""
         mock_mcp_client.call_model.return_value = {"success": True}
 
@@ -104,7 +105,7 @@ class TestWorkspaceWriteTools:
     # === Slides Tests ===
 
     @pytest.mark.asyncio
-    async def test_create_presentation(self, mock_mcp_client):
+    async def test_create_presentation(self, mock_mcp_client: Mock) -> None:
         """Verify create_presentation creates presentation."""
         mock_mcp_client.call_tool.return_value = {
             "presentationId": "slide_789",
@@ -119,7 +120,7 @@ class TestWorkspaceWriteTools:
         assert result is not None
 
     @pytest.mark.asyncio
-    async def test_batch_update_presentation(self, mock_mcp_client):
+    async def test_batch_update_presentation(self, mock_mcp_client: Mock) -> None:
         """Verify batch_update_presentation inserts/updates slide elements."""
         mock_mcp_client.call_tool.return_value = {"success": True}
 
@@ -138,7 +139,7 @@ class TestWorkspaceWriteTools:
     # === Negative Tests ===
 
     @pytest.mark.asyncio
-    async def test_read_only_mode_fails_explicitly(self):
+    async def test_read_only_mode_fails_explicitly(self) -> None:
         """Verify RO profile fails with explicit error, not silent fallback."""
         from aria.tools.workspace_errors import ModeError
 
@@ -153,7 +154,7 @@ class TestWorkspaceWriteTools:
         assert "create_doc" in error.message
 
     @pytest.mark.asyncio
-    async def test_missing_scope_fails_with_remediation(self):
+    async def test_missing_scope_fails_with_remediation(self) -> None:
         """Verify missing scope error includes remediation hint."""
         from aria.tools.workspace_errors import ScopeError, format_workspace_error
 
@@ -176,7 +177,7 @@ class TestWorkspaceWriteTools:
 class TestRetryLogic:
     """Test retry logic with backoff."""
 
-    def test_calculate_backoff(self):
+    def test_calculate_backoff(self) -> None:
         """Verify truncated exponential backoff with jitter."""
         from aria.tools.workspace_retry import (
             WorkspaceRetryConfig,
@@ -202,33 +203,40 @@ class TestRetryLogic:
         wait_10 = calculate_backoff(10, config)
         assert wait_10 <= 60.0
 
-    def test_is_retryable(self):
+    def test_is_retryable(self) -> None:
         """Verify retryable exception types."""
-        from aria.tools.workspace_retry import WorkspaceRetryConfig
         import httpx
+
+        from aria.tools.workspace_retry import WorkspaceRetryConfig
 
         config = WorkspaceRetryConfig()
 
         # 429 is retryable
         response_429 = Mock()
         response_429.status_code = 429
-        assert config.is_retryable(httpx.HTTPStatusError("429", response=response_429))
+        assert config.is_retryable(
+            httpx.HTTPStatusError("429", request=Mock(), response=response_429)
+        )
 
         # 500 is retryable
         response_500 = Mock()
         response_500.status_code = 500
-        assert config.is_retryable(httpx.HTTPStatusError("500", response=response_500))
+        assert config.is_retryable(
+            httpx.HTTPStatusError("500", request=Mock(), response=response_500)
+        )
 
         # 400 is not retryable
         response_400 = Mock()
         response_400.status_code = 400
-        assert not config.is_retryable(httpx.HTTPStatusError("400", response=response_400))
+        assert not config.is_retryable(
+            httpx.HTTPStatusError("400", request=Mock(), response=response_400)
+        )
 
 
 class TestIdempotency:
     """Test idempotency key generation and deduplication."""
 
-    def test_generate_idempotency_key(self):
+    def test_generate_idempotency_key(self) -> None:
         """Verify deterministic key generation."""
         from aria.tools.workspace_idempotency import generate_idempotency_key
 
@@ -239,7 +247,7 @@ class TestIdempotency:
         assert key1 == key2
         assert len(key1) == 64  # SHA-256 hex
 
-    def test_different_inputs_different_keys(self):
+    def test_different_inputs_different_keys(self) -> None:
         """Verify different inputs produce different keys."""
         from aria.tools.workspace_idempotency import generate_idempotency_key
 
@@ -248,7 +256,7 @@ class TestIdempotency:
 
         assert key1 != key2
 
-    def test_idempotency_store_check_duplicate(self):
+    def test_idempotency_store_check_duplicate(self) -> None:
         """Verify duplicate detection works."""
         from aria.tools.workspace_idempotency import IdempotencyStore
 
@@ -269,7 +277,7 @@ class TestIdempotency:
         # Should return existing resource ID
         assert duplicate_id == "doc_123"
 
-    def test_different_operation_same_params(self):
+    def test_different_operation_same_params(self) -> None:
         """Verify different operations don't dedupe each other."""
         from aria.tools.workspace_idempotency import IdempotencyStore
 

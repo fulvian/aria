@@ -526,7 +526,7 @@ async def hitl_cancel(hitl_id: str) -> dict:
 
 
 @mcp.tool
-async def hitl_approve(hitl_id: str) -> dict:
+async def hitl_approve(hitl_id: str) -> dict:  # noqa: PLR0911
     """Approve a pending HITL request and execute the consequent action.
 
     Supported actions:

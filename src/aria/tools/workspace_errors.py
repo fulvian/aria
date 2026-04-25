@@ -63,7 +63,7 @@ class AuthError(WorkspaceError):
         tool_name: str | None = None,
         http_status: int | None = None,
         details: dict | None = None,
-    ):
+    ) -> None:
         super().__init__(
             category=ErrorCategory.AUTH,
             message=message,
@@ -85,7 +85,7 @@ class ScopeError(WorkspaceError):
         missing_scopes: set[str] | None = None,
         tool_name: str | None = None,
         details: dict | None = None,
-    ):
+    ) -> None:
         super().__init__(
             category=ErrorCategory.SCOPE,
             message=message,
@@ -106,7 +106,7 @@ class QuotaError(WorkspaceError):
         tool_name: str | None = None,
         http_status: int | None = None,
         details: dict | None = None,
-    ):
+    ) -> None:
         super().__init__(
             category=ErrorCategory.QUOTA,
             message=message,
@@ -126,7 +126,7 @@ class ModeError(WorkspaceError):
         message: str,
         tool_name: str | None = None,
         details: dict | None = None,
-    ):
+    ) -> None:
         super().__init__(
             category=ErrorCategory.MODE,
             message=message,
@@ -144,7 +144,7 @@ class NetworkError(WorkspaceError):
         message: str,
         tool_name: str | None = None,
         details: dict | None = None,
-    ):
+    ) -> None:
         super().__init__(
             category=ErrorCategory.NETWORK,
             message=message,
