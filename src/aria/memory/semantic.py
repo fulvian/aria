@@ -12,6 +12,8 @@
 #   store = SemanticStore(db_path)
 #   chunks = await store.search("preferences", top_k=5)
 
+# ruff: noqa: E501
+
 from __future__ import annotations
 
 import json

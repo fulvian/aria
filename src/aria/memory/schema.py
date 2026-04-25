@@ -12,7 +12,10 @@
 # Usage:
 #   from aria.memory.schema import Actor, EpisodicEntry, SemanticChunk, MemoryStats
 #
-#   entry = EpisodicEntry(session_id=uuid4(), ts=datetime.now(tz=UTC), actor=Actor.USER_INPUT, role="user", content="Hello")
+#   entry = EpisodicEntry(
+#       session_id=uuid4(), ts=datetime.now(tz=UTC), actor=Actor.USER_INPUT,
+#       role="user", content="Hello"
+#   )
 
 from __future__ import annotations
 
@@ -77,7 +80,7 @@ class EpisodicEntry(BaseModel):
     tags: list[str] = Field(default_factory=list)
     meta: dict[str, object] = Field(default_factory=dict)
 
-    def __init__(self, **data) -> None:
+    def __init__(self, **data: object) -> None:  # noqa: ANN003
         # Auto-generate content_hash if not provided
         if ("content_hash" not in data or not data["content_hash"]) and "content" in data:
             data["content_hash"] = content_hash(data["content"])

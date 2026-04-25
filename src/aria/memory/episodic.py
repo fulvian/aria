@@ -159,8 +159,10 @@ class EpisodicStore:
 
         await conn.execute(
             """
-            INSERT INTO episodic (id, session_id, ts, actor, role, content, content_hash, tags, meta)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO episodic (
+                id, session_id, ts, actor, role,
+                content, content_hash, tags, meta
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 str(entry.id),
@@ -207,8 +209,10 @@ class EpisodicStore:
 
         await conn.executemany(
             """
-            INSERT INTO episodic (id, session_id, ts, actor, role, content, content_hash, tags, meta)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO episodic (
+                id, session_id, ts, actor, role,
+                content, content_hash, tags, meta
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             rows,
         )
@@ -399,8 +403,9 @@ class EpisodicStore:
 
         await conn.execute(
             """
-            INSERT OR REPLACE INTO episodic_tombstones (episodic_id, tombstoned_at, reason, actor_user_id)
-            VALUES (?, ?, ?, ?)
+            INSERT OR REPLACE INTO episodic_tombstones (
+                episodic_id, tombstoned_at, reason, actor_user_id
+            ) VALUES (?, ?, ?, ?)
             """,
             (str(id), int(_time.time()), reason, actor_user_id),
         )
@@ -426,8 +431,10 @@ class EpisodicStore:
         hitl_id = str(_uuid.uuid4())
         await conn.execute(
             """
-            INSERT INTO memory_hitl_pending (id, target_id, action, reason, trace_id, channel, status, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
+            INSERT INTO memory_hitl_pending (
+                id, target_id, action, reason,
+                trace_id, channel, status, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
             """,
             (
                 hitl_id,
@@ -566,9 +573,10 @@ class EpisodicStore:
         avg_entry_size = row[0] if row else 0.0
 
         # DB file size
-        import os
-
-        storage_bytes = os.path.getsize(self._db_path) if self._db_path.exists() else 0
+        try:
+            storage_bytes = self._db_path.stat().st_size  # noqa: ASYNC240
+        except OSError:
+            storage_bytes = 0
 
         return MemoryStats(
             t0_count=t0_count,

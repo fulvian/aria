@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 import time
 import uuid as _uuid
+from collections.abc import Callable  # noqa: TC003
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Literal
 
@@ -318,7 +319,9 @@ class HitlManager:
             id=str(_uuid.uuid4()),
             task_id=task.id,
             run_id=None,
-            question=f"Approve task '{task.name}' (category={task.category}, policy={task.policy})?",
+            question=(
+                f"Approve task '{task.name}' (category={task.category}, policy={task.policy})?"
+            ),
             options_json=None,
             channel="scheduler",
         )
@@ -331,7 +334,7 @@ class EventBus:
     def __init__(self) -> None:
         self._subscribers: dict[str, list] = {}
 
-    def subscribe(self, event: str, handler) -> None:
+    def subscribe(self, event: str, handler: Callable[..., object]) -> None:  # noqa: ANN401
         if event not in self._subscribers:
             self._subscribers[event] = []
         self._subscribers[event].append(handler)

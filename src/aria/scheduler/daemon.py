@@ -76,7 +76,7 @@ async def _seed_memory_tasks(store: TaskStore, config: ARIAConfig) -> None:
         logger.info("Seeded memory-wal-checkpoint cron task")
 
 
-async def _async_main() -> int:
+async def _async_main() -> int:  # noqa: PLR0915
     """Async main entry point for scheduler daemon."""
     from aria.config import get_config
     from aria.memory.episodic import create_episodic_store

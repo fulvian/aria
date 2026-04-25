@@ -132,6 +132,10 @@ ignore = [
     "ARG001",  # unused-function-argument (stub code)
 ]
 
+[tool.ruff.lint.per-file-ignores]
+"src/aria/memory/migrations.py" = ["E501"]
+"src/aria/memory/semantic.py" = ["E501"]
+
 [tool.mypy]
 python_version = "3.11"
 strict = false

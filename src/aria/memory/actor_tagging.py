@@ -50,17 +50,13 @@ def derive_actor_from_role(
     if is_tool_result:
         return Actor.TOOL_OUTPUT
 
-    role_lower = role.lower()
-    if role_lower == "user":
-        return Actor.USER_INPUT
-    elif role_lower == "assistant":
-        return Actor.AGENT_INFERENCE
-    elif role_lower == "tool":
-        return Actor.TOOL_OUTPUT
-    elif role_lower == "system":
-        return Actor.SYSTEM_EVENT
-    else:
-        return Actor.SYSTEM_EVENT
+    role_actor_map: dict[str, Actor] = {
+        "user": Actor.USER_INPUT,
+        "assistant": Actor.AGENT_INFERENCE,
+        "tool": Actor.TOOL_OUTPUT,
+        "system": Actor.SYSTEM_EVENT,
+    }
+    return role_actor_map.get(role.lower(), Actor.SYSTEM_EVENT)
 
 
 def actor_trust_score(actor: Actor) -> float:
@@ -75,7 +71,7 @@ def actor_trust_score(actor: Actor) -> float:
     return TRUST_SCORES.get(actor, 0.5)
 
 
-def actor_aggregate(actors: list[Actor]) -> Actor:
+def actor_aggregate(actors: list[Actor]) -> Actor:  # noqa: PLR0911
     """Aggregate multiple actors into one.
 
     Per blueprint P5 - downgrade rules:
@@ -91,33 +87,23 @@ def actor_aggregate(actors: list[Actor]) -> Actor:
     """
     if not actors:
         return Actor.SYSTEM_EVENT
-
-    # Single actor
     if len(actors) == 1:
         return actors[0]
 
-    # Check for USER_INPUT + TOOL_OUTPUT mix
+    # Count occurrences of each actor type
     has_user = Actor.USER_INPUT in actors
     has_tool = Actor.TOOL_OUTPUT in actors
     has_inference = Actor.AGENT_INFERENCE in actors
 
-    # If mix includes AGENT_INFERENCE, result is AGENT_INFERENCE (don't promote)
+    # Priority: inference > (user+tool) > user > tool > system
     if has_inference:
         return Actor.AGENT_INFERENCE
-
-    # If both user and tool present → TOOL_OUTPUT
     if has_user and has_tool:
         return Actor.TOOL_OUTPUT
-
-    # If only user → USER_INPUT
     if has_user:
         return Actor.USER_INPUT
-
-    # If only tool → TOOL_OUTPUT
     if has_tool:
         return Actor.TOOL_OUTPUT
-
-    # Only system events
     return Actor.SYSTEM_EVENT
 
 
