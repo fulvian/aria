@@ -7,11 +7,21 @@ set -euo pipefail
 # === ARIA paths ===
 ARIA_HOME="${ARIA_HOME:-/home/fulvio/coding/aria}"
 export ARIA_HOME
+ARIA_KILO_HOME="${ARIA_KILO_HOME:-$ARIA_HOME/.aria/kilo-home}"
+export ARIA_KILO_HOME
+
+# Force fully isolated Kilo runtime under ARIA only.
+export HOME="$ARIA_KILO_HOME"
+export XDG_CONFIG_HOME="$HOME/.config"
+export XDG_DATA_HOME="$HOME/.local/share"
+export XDG_STATE_HOME="$HOME/.local/state"
+export XDG_CACHE_HOME="$HOME/.cache"
 
 # === KiloCode isolation (P1: Isolation First) ===
 export KILOCODE_CONFIG_DIR="$ARIA_HOME/.aria/kilocode"
 export KILOCODE_STATE_DIR="$ARIA_HOME/.aria/kilocode/sessions"
 export KILOCODE_HOME="$KILOCODE_CONFIG_DIR"
+export KILO_DISABLE_EXTERNAL_SKILLS="${KILO_DISABLE_EXTERNAL_SKILLS:-true}"
 
 # === ARIA runtime paths ===
 export ARIA_RUNTIME="$ARIA_HOME/.aria/runtime"
@@ -43,6 +53,16 @@ check_prerequisites() {
         missing=1
     fi
 
+    if [[ ! -d "$KILOCODE_CONFIG_DIR/agents" ]]; then
+        echo "ERR: ARIA agents directory missing: $KILOCODE_CONFIG_DIR/agents" >&2
+        missing=1
+    fi
+
+    if [[ ! -d "$KILOCODE_CONFIG_DIR/skills" ]]; then
+        echo "ERR: ARIA skills directory missing: $KILOCODE_CONFIG_DIR/skills" >&2
+        missing=1
+    fi
+
     if [[ $missing -eq 1 ]]; then
         echo "Hint: Run ./scripts/bootstrap.sh to initialize the environment" >&2
         exit 1
@@ -52,6 +72,59 @@ check_prerequisites() {
     if [[ -f "$ARIA_HOME/.venv/bin/python" ]]; then
         export PATH="$ARIA_HOME/.venv/bin:$PATH"
     fi
+}
+
+prepare_isolated_runtime() {
+    mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME"
+    mkdir -p "$HOME/.kilo/agents" "$HOME/.kilo/skills"
+
+    # Keep isolated HOME-level Kilo paths synchronized from ARIA source-of-truth.
+    cp -a "$KILOCODE_CONFIG_DIR/agents/." "$HOME/.kilo/agents/"
+    cp -a "$KILOCODE_CONFIG_DIR/skills/." "$HOME/.kilo/skills/"
+}
+
+# === Kilo CLI compatibility ===
+declare -a KILO_CLI_CMD=()
+KILO_CLI_MODE=""
+
+resolve_kilo_cli() {
+    if command -v kilo >/dev/null 2>&1; then
+        KILO_CLI_CMD=("kilo")
+    elif command -v npx >/dev/null 2>&1; then
+        KILO_CLI_CMD=("npx" "--yes" "kilocode")
+    else
+        echo "ERR: Neither 'kilo' nor 'npx' is available in PATH" >&2
+        exit 1
+    fi
+
+    local help_text
+    if ! help_text="$(${KILO_CLI_CMD[@]} --help 2>&1)"; then
+        echo "ERR: Unable to execute Kilo CLI. Check your installation." >&2
+        exit 1
+    fi
+
+    if [[ "$help_text" == *"kilo [project]"* ]] || [[ "$help_text" == *"run [message..]"* ]]; then
+        KILO_CLI_MODE="modern"
+        return
+    fi
+
+    if [[ "$help_text" == *"chat"* ]]; then
+        KILO_CLI_MODE="legacy"
+        return
+    fi
+
+    echo "ERR: Unsupported Kilo CLI syntax detected. Update bin/aria launcher." >&2
+    exit 1
+}
+
+has_agent_arg() {
+    local arg=""
+    for arg in "$@"; do
+        if [[ "$arg" == "--agent" ]]; then
+            return 0
+        fi
+    done
+    return 1
 }
 
 # === Subcommands ===
@@ -93,6 +166,8 @@ EOF
 # === Main dispatch ===
 main() {
     check_prerequisites
+    prepare_isolated_runtime
+    resolve_kilo_cli
 
     local subcommand="${1:-repl}"
     shift || true
@@ -103,21 +178,36 @@ main() {
                 show_help
                 return 0
             fi
-            exec npx --yes kilocode chat "$@"
+            if [[ "$KILO_CLI_MODE" == "modern" ]]; then
+                if has_agent_arg "$@"; then
+                    exec "${KILO_CLI_CMD[@]}" "$ARIA_HOME" "$@"
+                fi
+                exec "${KILO_CLI_CMD[@]}" "$ARIA_HOME" --agent "${ARIA_DEFAULT_AGENT:-aria-conductor}" "$@"
+            fi
+            exec "${KILO_CLI_CMD[@]}" chat "$@"
             ;;
         run)
             if [[ "${1:-}" == "--help" || "${1:-}" == "-h" || "${1:-}" == "help" ]]; then
                 show_help
                 return 0
             fi
-            exec npx --yes kilocode chat --auto "$@"
+            if [[ "$KILO_CLI_MODE" == "modern" ]]; then
+                if has_agent_arg "$@"; then
+                    exec "${KILO_CLI_CMD[@]}" run --auto "$@"
+                fi
+                exec "${KILO_CLI_CMD[@]}" run --agent "${ARIA_DEFAULT_AGENT:-aria-conductor}" --auto "$@"
+            fi
+            exec "${KILO_CLI_CMD[@]}" chat --auto "$@"
             ;;
         mode)
             if [[ "${1:-}" == "--help" || "${1:-}" == "-h" || "${1:-}" == "help" ]]; then
                 show_help
                 return 0
             fi
-            exec npx --yes kilocode chat --mode "$@"
+            if [[ "$KILO_CLI_MODE" == "modern" ]]; then
+                exec "${KILO_CLI_CMD[@]}" "$ARIA_HOME" --agent "$@"
+            fi
+            exec "${KILO_CLI_CMD[@]}" chat --mode "$@"
             ;;
         schedule)
             exec python -m aria.scheduler.daemon "$@"

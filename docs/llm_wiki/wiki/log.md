@@ -1,5 +1,110 @@
 # Implementation Log
 
+## 2026-04-25T22:07 — LLM Wiki Finalized for Launcher Isolation Fix
+
+**Operation**: DOCUMENT + FINALIZE
+**Branch**: `feature/workspace-write-reliability`
+
+### Scope
+
+- Finalized wiki pages after isolation remediation on `bin/aria`.
+- Consolidated evidence that ARIA now runs with isolated HOME/XDG paths.
+
+### Validation Snapshot
+
+- `bin/aria repl --print-logs` loads only ARIA-local paths under `.aria/kilo-home`.
+- Default agent restored to `aria-conductor` in modern CLI flows.
+- No global Kilo profile modifications required.
+
+### Pages Updated
+
+- `docs/llm_wiki/wiki/aria-launcher-cli-compatibility.md`
+- `docs/llm_wiki/wiki/index.md`
+- `docs/llm_wiki/wiki/log.md`
+
+---
+
+## 2026-04-25T19:37 — ARIA Isolation Regression Fixed (Global Kilo Detach)
+
+**Operation**: RE-ANALYZE + HARDEN + VERIFY
+**Branch**: `feature/workspace-write-reliability`
+
+### User-Observed Regression
+
+- After previous hotfix, `bin/aria repl` started Kilo in generic/global profile instead of ARIA isolated profile.
+
+### Root Cause at Architecture Level
+
+1. Legacy command mismatch (`... chat`) had already been fixed.
+2. Remaining issue: launcher relied on legacy `KILOCODE_*` vars, but current Kilo runtime resolves paths from HOME/XDG.
+3. Result: CLI loaded from global locations (`~/.config/kilo`, `~/.local/share/kilo`) and not ARIA runtime.
+
+### Fix Implemented
+
+- Enforced isolated runtime home:
+  - `HOME=$ARIA_HOME/.aria/kilo-home`
+  - `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME`, `XDG_CACHE_HOME` set under ARIA
+- Preserved ARIA source config (`.aria/kilocode`) and synchronized custom assets to isolated modern paths:
+  - `$HOME/.kilo/agents`
+  - `$HOME/.kilo/skills`
+- Kept CLI compatibility resolver (`modern`/`legacy`) and set default agent on modern REPL/RUN:
+  - `aria-conductor`
+
+### Verification Evidence
+
+- `bin/aria repl --print-logs` now shows:
+  - config under `/home/fulvio/coding/aria/.aria/kilo-home/.config/kilo/...`
+  - DB under `/home/fulvio/coding/aria/.aria/kilo-home/.local/share/kilo/kilo.db`
+- TUI header shows `Aria-Conductor` as active agent.
+- `bin/aria run ... --print-logs` shows `> aria-conductor · ...`.
+
+### Outcome
+
+- ARIA runtime fully detached from global Kilo profile.
+- No upstream Kilo global config modified.
+
+---
+
+## 2026-04-25T19:24 — ARIA Launcher REPL Startup Regression Fixed
+
+**Operation**: ANALYZE + FIX + VERIFY
+**Branch**: `feature/workspace-write-reliability`
+
+### Problem Report
+
+- User-reported runtime error:
+  - `bin/aria repl`
+  - `Error: Failed to change directory to /home/fulvio/coding/aria/chat`
+
+### Root Cause
+
+- `bin/aria` still used legacy dispatch `npx --yes kilocode chat`.
+- Current Kilo CLI expects modern syntax (`kilo [project]`, `kilo run ...`), so `chat` was parsed as a project directory.
+
+### Fix Applied
+
+- Added runtime Kilo CLI resolver in `bin/aria`:
+  - prefer `kilo`, fallback `npx --yes kilocode`
+  - probe `--help` to detect `modern` vs `legacy` syntax
+- Updated subcommand dispatch for compatibility:
+  - `repl`: modern uses `<kilo_cmd> "$ARIA_HOME"`; legacy uses `chat`
+  - `run`: modern uses `run --auto`; legacy uses `chat --auto`
+  - `mode`: modern uses `--agent`; legacy uses `chat --mode`
+
+### Verification
+
+- `bash -n bin/aria` -> PASS
+- `bin/aria repl` -> no `.../chat` chdir error reproduced
+- `bin/aria repl --help` -> PASS
+
+### Documentation and Provenance
+
+- Added page: `docs/llm_wiki/wiki/aria-launcher-cli-compatibility.md`
+- Updated index: `docs/llm_wiki/wiki/index.md`
+- Context7 verified: `/kilo-org/kilocode` (CLI syntax)
+
+---
+
 ## 2026-04-25T19:30 — Workspace Write Reliability: Phase 3 Verification In Progress
 
 **Operation**: VERIFY + DOCUMENT

@@ -1,6 +1,6 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-04-24
+**Last Updated**: 2026-04-25
 **Status**: BOOTSTRAPPED
 
 ## Purpose
@@ -38,6 +38,7 @@ docs/llm_wiki/
 | `scripts/workspace_auth.py` | OAuth scope verification | 2026-04-24 |
 | `scripts/workspace-write-health.py` | Health check CLI | 2026-04-24 |
 | `scripts/wrappers/google-workspace-wrapper.sh` | MCP wrapper | 2026-04-24 |
+| `bin/aria` | ARIA launcher with hard runtime isolation + CLI compatibility | 2026-04-25 |
 
 ## Pages
 
@@ -45,6 +46,7 @@ docs/llm_wiki/
 |------|-------------|--------|
 | [[memory-subsystem]] | Memory subsystem architecture, gaps, tools (updated 2026-04-24) | Active |
 | [[google-workspace-mcp-write-reliability]] | Root causes and remediation for Docs/Sheets/Slides write path | Active |
+| [[aria-launcher-cli-compatibility]] | Root cause and robust fix for startup + isolation regressions | Active |
 | [[log]] | Implementation log with timestamps | Active |
 
 ## Bootstrap Log
@@ -56,8 +58,8 @@ docs/llm_wiki/
 ## Implementation Branch
 
 - **Branch**: `feature/workspace-write-reliability`
-- **Status**: Phase 1 bootstrap complete, Phase 2 pending
-- **Staged files**: 10 files (config, scripts, docs)
+- **Status**: Launcher isolation hotfix validated (2026-04-25)
+- **Focus**: ARIA runtime isolation + CLI compatibility hardening
 
 ## Relevant Files
 
