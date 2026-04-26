@@ -248,53 +248,68 @@ async def recall_episodic(
     session_id: str | None = None,
     since: str | None = None,
     limit: int = 50,
+    query: str | None = None,
+    include_benchmark: bool = False,
 ) -> list[dict]:
-    """Recall episodic entries chronologically (Tier 0).
+    """Recall episodic entries chronologically, optionally filtered by topic.
 
     Args:
-        session_id: Optional session filter
-        since: Optional start time (ISO8601)
-        limit: Max results (default 50)
+        session_id: Optional session filter (UUID).
+        since: Optional ISO8601 lower bound. Defaults to 7 days ago.
+        limit: Max results (default 50).
+        query: Optional FTS5 query. When provided, performs a full-text
+            search over the episodic content within the chosen window.
+        include_benchmark: When False (default) drops entries tagged with
+            "benchmark" or "test_seed".
 
     Returns:
-        List of EpisodicEntry
+        List of EpisodicEntry serialized to dict.
     """
     trace_id = os.environ.get("ARIA_TRACE_ID") or new_trace_id()
     set_trace_id(trace_id)
 
+    excluded = None if include_benchmark else ["benchmark", "test_seed"]
+
     try:
         store, _, _ = await _ensure_store()
 
-        results = []
-
-        if session_id:
+        if query:
+            # Topic search: FTS5 on content; tag filter applied client-side
+            entries = await store.search_text(query, top_k=max(limit, 1))
+            if excluded:
+                blocked = set(excluded)
+                entries = [e for e in entries if not blocked.intersection(e.tags)]
+            entries = entries[:limit]
+        elif session_id:
             sess_uuid = uuid.UUID(session_id)
             entries = await store.list_by_session(sess_uuid, limit=limit)
-        elif since:
-            since_dt = datetime.fromisoformat(since.replace("Z", "+00:00"))
-            now = datetime.now(UTC)
-            entries = await store.list_by_time_range(since_dt, now, limit=limit)
+            if excluded:
+                blocked = set(excluded)
+                entries = [e for e in entries if not blocked.intersection(e.tags)]
         else:
-            # Get recent entries across all sessions
             now = datetime.now(UTC)
-            week_ago = datetime.fromtimestamp(now.timestamp() - 7 * 86400, tz=UTC)
-            entries = await store.list_by_time_range(week_ago, now, limit=limit)
-
-        for entry in entries:
-            results.append(
-                {
-                    "id": str(entry.id),
-                    "session_id": str(entry.session_id),
-                    "ts": entry.ts.isoformat(),
-                    "actor": entry.actor.value if isinstance(entry.actor, Actor) else entry.actor,
-                    "role": entry.role,
-                    "content": entry.content,
-                    "content_hash": entry.content_hash,
-                    "tags": entry.tags,
-                }
+            since_dt = (
+                datetime.fromisoformat(since.replace("Z", "+00:00"))
+                if since
+                else datetime.fromtimestamp(now.timestamp() - 7 * 86400, tz=UTC)
+            )
+            entries = await store.list_by_time_range(
+                since_dt, now, limit=limit, exclude_tags=excluded
             )
 
-        return results
+        return [
+            {
+                "id": str(entry.id),
+                "session_id": str(entry.session_id),
+                "ts": entry.ts.isoformat(),
+                "actor": entry.actor.value if isinstance(entry.actor, Actor) else entry.actor,
+                "role": entry.role,
+                "content": entry.content,
+                "content_hash": entry.content_hash,
+                "tags": entry.tags,
+            }
+            for entry in entries
+        ]
 
     except Exception as e:
         return [{"error": str(e)}]

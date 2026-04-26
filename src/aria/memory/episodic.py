@@ -283,16 +283,20 @@ class EpisodicStore:
         since: datetime,
         until: datetime,
         limit: int = 500,
+        exclude_tags: list[str] | None = None,
     ) -> list[EpisodicEntry]:
-        """List entries in a time range.
+        """List entries in a time range, optionally excluding tagged rows.
 
         Args:
-            since: Start time
-            until: End time
-            limit: Max entries to return
+            since: Start time (inclusive).
+            until: End time (inclusive).
+            limit: Max entries to return.
+            exclude_tags: When provided, drops rows whose ``tags`` JSON array
+                contains any of the listed tags. Useful to filter out
+                benchmark/test sessions without tombstoning them.
 
         Returns:
-            List of EpisodicEntry
+            List of EpisodicEntry.
         """
         conn = await self._ensure_connected()
 
@@ -310,8 +314,11 @@ class EpisodicStore:
             (since_int, until_int, limit),
         )
         rows = await cursor.fetchall()
-
-        return [self._row_to_entry(row) for row in rows]
+        entries = [self._row_to_entry(row) for row in rows]
+        if exclude_tags:
+            blocked = set(exclude_tags)
+            entries = [e for e in entries if not blocked.intersection(e.tags)]
+        return entries
 
     async def search_text(
         self,
