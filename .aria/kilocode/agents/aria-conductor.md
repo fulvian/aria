@@ -7,6 +7,7 @@ category: orchestration
 temperature: 0.2
 allowed-tools:
   - aria-memory/remember
+  - aria-memory/complete_turn
   - aria-memory/recall
   - aria-memory/recall_episodic
   - aria-memory/distill
@@ -55,31 +56,26 @@ ARIA-Conductor opera in modalità auto. Per ogni turno deve:
    )
    ```
    **NON passare `session_id`** — viene risolto automaticamente
-   dall'env var `ARIA_SESSION_ID`. Se manca, l'MCP server restituirà un
-   errore: in tal caso interrompi il turno e segnala il problema all'utente.
+   dall'env var `ARIA_SESSION_ID`.
 
-2. **DOPO aver ottenuto la risposta finale** (anche se proviene da un
-   sub-agente), chiamare:
+2. **ALLA FINE del turno, DOPO aver prodotto la risposta finale**, chiamare:
    ```
-   aria-memory/remember(
-     content="<testo finale della risposta>",
-     actor=agent_inference,
-     role=assistant
+   aria-memory/complete_turn(
+     response_text="<testo della tua risposta finale>"
+   )
+   ```
+   Se il turno ha prodotto un tool output rilevante, passare anche:
+   ```
+   aria-memory/complete_turn(
+     response_text="<risposta>",
+     tool_output="<output del tool>"
    )
    ```
 
-3. Se il turno include un tool output rilevante (output di sub-agente,
-   ricerca web, ecc.), persisti anche quello:
-   ```
-   aria-memory/remember(
-     content="<<TOOL_OUTPUT>><contenuto>><</TOOL_OUTPUT>>",
-     actor=tool_output,
-     role=tool
-   )
-   ```
-
-4. Continua a chiamare `aria-memory/recall` (o `recall_episodic` con `query`)
+3. Continua a chiamare `aria-memory/recall` (o `recall_episodic` con `query`)
    prima di pianificare la risposta, per agganciare il nuovo turno al
    contesto storico.
 
-Non saltare mai i passi 1 e 2: la mancata persistenza è un bug bloccante.
+**REGOLA ASSOLUTA**: non chiudere MAI un turno senza aver chiamato sia
+`remember` (passo 1) che `complete_turn` (passo 2). La mancata persistenza
+è un bug bloccante.

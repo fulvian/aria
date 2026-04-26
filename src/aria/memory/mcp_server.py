@@ -186,6 +186,67 @@ async def remember(
 
 
 @mcp.tool
+async def complete_turn(
+    response_text: str,
+    tool_output: str | None = None,
+) -> dict:
+    """Persist the conductor's final response for the current turn.
+
+    Call this ONCE at the end of every turn with your final answer.
+    The session is resolved automatically from the environment.
+
+    Args:
+        response_text: The final answer text shown to the user.
+        tool_output: Optional relevant tool output (e.g. web search result).
+
+    Returns:
+        {"status": "ok", "entries": N}
+    """
+    trace_id = os.environ.get("ARIA_TRACE_ID") or new_trace_id()
+    set_trace_id(trace_id)
+
+    try:
+        store, _, _ = await _ensure_store()
+        sess_uuid = _get_session_id()
+        now = datetime.now(UTC)
+        count = 0
+
+        if tool_output:
+            entry_tool = EpisodicEntry(
+                session_id=sess_uuid,
+                ts=now,
+                actor=Actor.TOOL_OUTPUT,
+                role="tool",
+                content=tool_output,
+                content_hash=content_hash(tool_output),
+                tags=["tool_output_framed"],
+            )
+            await store.insert(entry_tool)
+            count += 1
+
+        entry_resp = EpisodicEntry(
+            session_id=sess_uuid,
+            ts=now,
+            actor=Actor.AGENT_INFERENCE,
+            role="assistant",
+            content=response_text,
+            content_hash=content_hash(response_text),
+            tags=["conductor_response"],
+        )
+        await store.insert(entry_resp)
+        count += 1
+
+        return {
+            "status": "ok",
+            "entries": count,
+            "session_id": str(sess_uuid),
+        }
+
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+@mcp.tool
 async def recall(
     query: str,
     top_k: int = 10,
