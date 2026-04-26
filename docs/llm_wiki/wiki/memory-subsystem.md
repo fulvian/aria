@@ -1,8 +1,8 @@
 # Memory Subsystem — Architecture, Gaps, and Tools
 
-**Last Updated**: 2026-04-24
-**Status**: OPERATIONAL — All 7 gaps closed
-**Source**: `src/aria/memory/`, `docs/analysis/memory_subsystem_health_check_2026-04-24.md`
+**Last Updated**: 2026-04-26
+**Status**: REMEDIATED — see Memory Recovery Plan
+**Source**: `src/aria/memory/`, `docs/plans/memory_recovery.md`
 
 ---
 
@@ -189,3 +189,22 @@ All memory subsystem code passes:
 | `src/aria/scheduler/reaper.py` | Background maintenance (WAL checkpoint + retention) |
 | `src/aria/scheduler/runner.py` | Task execution (category="memory" handler) |
 | `src/aria/scheduler/store.py` | TaskStore with HITL pending table |
+
+## Memory Recovery (2026-04-26)
+
+| Issue | Resolution |
+|-------|------------|
+| Conductor never persisted REPL turns | aria-conductor agent prompt now mandates `aria-memory/remember` for every user/assistant turn |
+| ARIA_SESSION_ID drifted per call | `bin/aria` exports a stable UUID; MCP server runs in `ARIA_MEMORY_STRICT_SESSION` mode |
+| ConductorBridge crashed on `_store.add` | Replaced with proper `EpisodicEntry` + `insert()` calls |
+| `recall_episodic` ignored topic queries | Added `query` parameter (FTS5) and benchmark exclusion |
+| CLM produced 0 chunks for general topics | Inclusive distillation: assistant turns + topic-fallback chunks |
+| 1000 benchmark entries polluted recall | One-shot tombstone via `scripts/memory/cleanup_benchmark_entries.py` |
+| Scheduler stuck on `cannot VACUUM` | `vacuum_wal()` skips gracefully on busy DB |
+
+### Context7 Verification (memory-recovery)
+
+| Library | Verified ID | Notes |
+|---------|-------------|-------|
+| fastmcp | /prefecthq/fastmcp | Adding optional kwargs to `@mcp.tool` is backward-compatible |
+| aiosqlite | /omnilib/aiosqlite | `VACUUM` requires no concurrent transaction; checkpoint is safe |

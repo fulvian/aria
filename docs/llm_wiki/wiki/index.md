@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
 **Last Updated**: 2026-04-26
-**Status**: BOOTSTRAPPED
+**Status**: BOOTSTRAPPED — memory recovery applied
 
 ## Purpose
 
@@ -43,6 +43,7 @@ docs/llm_wiki/
 | `bin/aria` | ARIA launcher with hard runtime isolation + CLI compatibility | 2026-04-25 |
 | `docs/plans/research_restore_plan.md` | Piano di ripristino routing ricerca con tier consecutivi e policy free-first | 2026-04-26 |
 | `docs/plans/research_restore_plan.md` | Ricerca deterministica: searxng > tavily > firecrawl > exa > brave (approved 2026-04-26) | 2026-04-26 |
+| `docs/plans/memory_recovery.md` | Piano di recupero memoria (auto-persistence, VACUUM safety, CLM inclusivo) | 2026-04-26 |
 
 ## Pages
 

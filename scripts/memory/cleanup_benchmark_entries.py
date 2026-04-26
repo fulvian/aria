@@ -6,6 +6,8 @@ Usage:
     uv run python -m scripts.memory.cleanup_benchmark_entries [--dry-run]
 """
 
+# ruff: noqa: T201
+
 from __future__ import annotations
 
 import argparse

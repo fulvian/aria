@@ -1,5 +1,37 @@
 # Implementation Log
 
+## 2026-04-26T21:30 — Memory Recovery Plan Implemented
+
+**Operation**: INVESTIGATE + FIX + VERIFY
+**Branch**: `fix/memory-recovery`
+**Plan**: `docs/plans/memory_recovery.md`
+
+### Symptom
+- REPL session about barbecue not retrievable later via `recall` / `recall_episodic`.
+- All real-conversation persistence stopped after 2026-04-24 10:54:15.
+- Scheduler unit cycling on `cannot VACUUM - SQL statements in progress`.
+
+### Root causes
+12 distinct issues spanning agent prompts, MCP server signatures, CLM rules,
+data hygiene and scheduler concurrency. See plan §"Investigation Summary".
+
+### Fix
+- Conductor now writes every turn to `aria-memory/remember` with a stable
+  `ARIA_SESSION_ID` exported by `bin/aria`.
+- `ConductorBridge` calls the real `EpisodicStore.insert(EpisodicEntry)` API.
+- `recall_episodic` accepts `query` (FTS5) and excludes benchmark tags.
+- `CLM` produces concept chunks for assistant turns and topic-fallback
+  chunks for user turns, lifting the keyword-only restriction.
+- 1000 benchmark rows tombstoned via `scripts/memory/cleanup_benchmark_entries.py`.
+- `vacuum_wal()` skips gracefully when the DB is busy.
+
+### Quality gates
+- `ruff check .` ✓
+- `mypy src` ✓ (where applicable)
+- `pytest -q` ✓ (incl. new round-trip integration test)
+
+---
+
 ## 2026-04-26T19:36 — Research Routing Tier Policy Aligned + LLM Wiki Updated
 
 **Operation**: ALIGN + DOCUMENT
