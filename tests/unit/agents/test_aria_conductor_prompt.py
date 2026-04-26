@@ -34,8 +34,8 @@ def test_remember_assistant_output_is_mandatory(agent_text: str) -> None:
     assert "actor=agent_inference" in agent_text
 
 
-def test_session_id_env_is_documented(agent_text: str) -> None:
-    assert "ARIA_SESSION_ID" in agent_text
+def test_session_id_resolved_automatically(agent_text: str) -> None:
+    assert "NON passare session_id" in agent_text or "risolto automaticamente" in agent_text
 
 
 def test_mcp_dependency_declared(agent_text: str) -> None:

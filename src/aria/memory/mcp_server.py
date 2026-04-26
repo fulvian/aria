@@ -23,6 +23,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import uuid
@@ -115,8 +116,8 @@ async def remember(
     content: str,
     actor: str,
     role: str,
-    session_id: str,
-    tags: list[str] | None = None,
+    session_id: str | None = None,
+    tags: list[str] | str | None = None,
 ) -> dict:
     """Store a new episodic memory entry (Tier 0).
 
@@ -124,8 +125,8 @@ async def remember(
         content: Verbatim content to store
         actor: Actor type (user_input, tool_output, agent_inference, system_event)
         role: Message role (user, assistant, system, tool)
-        session_id: Session UUID
-        tags: Optional tags
+        session_id: Session UUID (optional — resolved from ARIA_SESSION_ID env if omitted)
+        tags: Optional tags (list of strings)
 
     Returns:
         {"status": "ok", "entry_id": "...", "session_id": "..."}
@@ -143,8 +144,22 @@ async def remember(
         except ValueError:
             actor_enum = derive_actor_from_role(role, is_tool_result=False)
 
-        # Parse session (use strict-mode-aware resolver)
-        sess_uuid = uuid.UUID(session_id) if session_id else _get_session_id()
+        # Parse session — always use env-aware resolver; ignore literal
+        # "${ARIA_SESSION_ID}" that agents may send when they cannot read env.
+        resolved_sid: str | None = None
+        if session_id and not session_id.startswith("$"):
+            resolved_sid = session_id
+        sess_uuid = uuid.UUID(resolved_sid) if resolved_sid else _get_session_id()
+
+        # Parse tags — agents may send a JSON string instead of a list.
+        parsed_tags: list[str] = []
+        if isinstance(tags, str):
+            try:
+                parsed_tags = json.loads(tags)
+            except (json.JSONDecodeError, TypeError):
+                parsed_tags = [tags]
+        elif isinstance(tags, list):
+            parsed_tags = tags
 
         # Create entry
         entry = EpisodicEntry(
@@ -154,7 +169,7 @@ async def remember(
             role=role,
             content=content,
             content_hash=content_hash(content),
-            tags=tags or [],
+            tags=parsed_tags,
         )
 
         await store.insert(entry)

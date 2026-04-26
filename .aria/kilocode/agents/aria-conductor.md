@@ -51,13 +51,11 @@ ARIA-Conductor opera in modalità auto. Per ogni turno deve:
    aria-memory/remember(
      content="<testo verbatim del messaggio utente>",
      actor=user_input,
-     role=user,
-     session_id="${ARIA_SESSION_ID}",
-     tags=["repl_message"]
+     role=user
    )
    ```
-   `ARIA_SESSION_ID` è esportato da `bin/aria` ed è valido per l'intera
-   sessione Kilo. Se manca, l'MCP server in modalità strict restituirà un
+   **NON passare `session_id`** — viene risolto automaticamente
+   dall'env var `ARIA_SESSION_ID`. Se manca, l'MCP server restituirà un
    errore: in tal caso interrompi il turno e segnala il problema all'utente.
 
 2. **DOPO aver ottenuto la risposta finale** (anche se proviene da un
@@ -66,9 +64,7 @@ ARIA-Conductor opera in modalità auto. Per ogni turno deve:
    aria-memory/remember(
      content="<testo finale della risposta>",
      actor=agent_inference,
-     role=assistant,
-     session_id="${ARIA_SESSION_ID}",
-     tags=["repl_message", "conductor_response"]
+     role=assistant
    )
    ```
 
@@ -78,9 +74,7 @@ ARIA-Conductor opera in modalità auto. Per ogni turno deve:
    aria-memory/remember(
      content="<<TOOL_OUTPUT>><contenuto>><</TOOL_OUTPUT>>",
      actor=tool_output,
-     role=tool,
-     session_id="${ARIA_SESSION_ID}",
-     tags=["tool_output_framed"]
+     role=tool
    )
    ```
 
