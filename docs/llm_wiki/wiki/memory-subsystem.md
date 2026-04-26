@@ -1,7 +1,7 @@
 # Memory Subsystem — Architecture, Gaps, and Tools
 
-**Last Updated**: 2026-04-26
-**Status**: REMEDIATED — see Memory Recovery Plan
+**Last Updated**: 2026-04-27
+**Status**: REMEDIATED — post-deploy fixes applied, awaiting live REPL verification
 **Source**: `src/aria/memory/`, `docs/plans/memory_recovery.md`
 
 ---
@@ -208,3 +208,13 @@ All memory subsystem code passes:
 |---------|-------------|-------|
 | fastmcp | /prefecthq/fastmcp | Adding optional kwargs to `@mcp.tool` is backward-compatible |
 | aiosqlite | /omnilib/aiosqlite | `VACUUM` requires no concurrent transaction; checkpoint is safe |
+
+### Post-deploy fixes (2026-04-27)
+
+| Issue | Fix |
+|-------|-----|
+| Agent sent literal `${ARIA_SESSION_ID}` string | `remember()` now ignores session_ids starting with `$`; auto-resolves via env |
+| Agent sent `tags` as JSON string instead of list | `remember()` accepts `str \| list \| None` and parses JSON strings |
+| Agent prompt told agent to pass `session_id` | Updated prompt: "NON passare session_id — risolto automaticamente" |
+| Scheduler systemd unit `Type=notify` without `sd_notify` | Changed to `Type=simple` + `TimeoutStartSec=180s` in user unit file |
+| 1000 benchmark rows still alive in DB | Ran cleanup script: 1000 tombstoned, 8 real entries surviving |

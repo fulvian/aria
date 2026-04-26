@@ -1,5 +1,35 @@
 # Implementation Log
 
+## 2026-04-27T00:10 — Memory Recovery Post-deploy Fixes
+
+**Operation**: FIX + VERIFY
+**Branch**: `fix/memory-recovery`
+
+### Live REPL smoke test findings
+Conductor agent (LLM) could not persist because:
+1. It passed `session_id="${ARIA_SESSION_ID}"` as a literal string — LLMs
+   cannot read shell env vars. The MCP server tried `uuid.UUID("${ARIA_SESSION_ID}")`
+   and raised "badly formed hexadecimal UUID string".
+2. It passed `tags='["repl_message"]'` as a JSON string instead of a Python list,
+   causing Pydantic validation to reject the input.
+
+### Fixes applied
+- `remember()` in `mcp_server.py`: `session_id` is now optional (default None);
+  any value starting with `$` is ignored and resolved server-side via
+  `_get_session_id()`. Tags parameter accepts `str | list | None` with automatic
+  JSON string parsing.
+- `aria-conductor.md` prompt updated: removed `session_id=` and `tags=` from all
+  code examples; added "NON passare session_id — risolto automaticamente".
+- Scheduler systemd unit changed from `Type=notify` (requires `sd_notify` which
+  was never implemented) to `Type=simple` with `TimeoutStartSec=180s`. Service
+  now starts and stays stable.
+- Benchmark cleanup executed on live DB: 1000 rows tombstoned, 8 surviving.
+
+### Commits
+- `5d8cb32` fix(memory): remember tool handles literal ${ARIA_SESSION_ID} and string tags
+
+---
+
 ## 2026-04-26T21:30 — Memory Recovery Plan Implemented
 
 **Operation**: INVESTIGATE + FIX + VERIFY

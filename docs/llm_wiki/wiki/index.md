@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-04-26
-**Status**: BOOTSTRAPPED — memory recovery applied
+**Last Updated**: 2026-04-27
+**Status**: BOOTSTRAPPED — memory recovery applied + post-deploy fixes
 
 ## Purpose
 
