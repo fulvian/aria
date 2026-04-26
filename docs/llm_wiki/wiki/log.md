@@ -1,5 +1,191 @@
 # Implementation Log
 
+## 2026-04-26T19:36 — Research Routing Tier Policy Aligned + LLM Wiki Updated
+
+**Operation**: ALIGN + DOCUMENT
+**Branch**: `feature/workspace-write-reliability`
+
+### Policy Change Approved
+
+User approved canonical policy matrix based on "real API key availability to rotate":
+```
+general/news, academic: searxng > tavily > firecrawl > exa > brave
+deep_scrape: firecrawl_extract > firecrawl_scrape > fetch
+```
+
+### Changes Made (Phase 0 Complete)
+
+| File | Change |
+|------|--------|
+| `docs/foundation/aria_foundation_blueprint.md` §11.2 | Updated INTENT_ROUTING to match policy |
+| `docs/foundation/aria_foundation_blueprint.md` §11.6 | Updated fallback tree; removed SerpAPI |
+| `docs/foundation/aria_foundation_blueprint.md` §8.3.1 | Updated Search-Agent reference |
+| `.aria/kilocode/skills/deep-research/SKILL.md` | Updated provider order + allowed-tools |
+| `.aria/kilocode/agents/search-agent.md` | Updated provider order |
+
+### LLM Wiki Updated
+
+| Page | Action |
+|------|--------|
+| `docs/llm_wiki/wiki/index.md` | Added `research-routing` page; updated last_updated |
+| `docs/llm_wiki/wiki/research-routing.md` | New page with tier policy, rationale, verification matrix |
+
+### Phase 1 Complete - Router Implemented
+
+| File | Status |
+|------|--------|
+| `src/aria/agents/search/router.py` | ✅ Implemented |
+| `src/aria/agents/search/intent.py` | ✅ Implemented |
+| `tests/unit/agents/search/test_router.py` | ✅ 30 tests passing |
+| `tests/unit/agents/search/test_intent.py` | ✅ All passing |
+| `tests/unit/agents/search/conftest.py` | ✅ Created |
+
+**Quality Gates**: ruff ✅ mypy ✅ pytest (30/30) ✅
+
+### Status
+
+- Phase 0: COMPLETE
+- Phase 1: COMPLETE
+- Phase 2: IN PROGRESS (tool inventory convergence)
+- Phase 3: PENDING (sequence conformance tests)
+- Phase 4: PENDING (observability)
+
+**Operation**: INVESTIGATE + PLAN
+**Branch**: `feature/workspace-write-reliability`
+
+### Symptom
+
+- Query di ricerca non ha rispettato la sequenza intelligente attesa con priorita
+  al provider gratuito e fallback a tier consecutivi.
+
+### Evidence
+
+- Skill corrente con ordine hardcoded: `Tavily > Brave > Firecrawl > Exa`
+  (`.aria/kilocode/skills/deep-research/SKILL.md`).
+- Blueprint con ordini differenti tra routing intent-aware e degradation tree
+  (`docs/foundation/aria_foundation_blueprint.md` §11.2, §11.6).
+- Router Python previsto dal blueprint non presente in forma operativa in
+  `src/aria/agents/search/` (solo placeholder).
+- Mismatch inventory: fallback documentati non sempre presenti/consentiti
+  in MCP config e allowed-tools.
+
+### Deliverable
+
+- Creato piano: `docs/plans/research_restore_plan.md`
+- Aggiornato wiki index con provenance della nuova fonte.
+
+### Outcome
+
+- Definito piano strutturato a fasi per riallineare policy, implementazione,
+  test di conformita sequenza e osservabilita del fallback.
+
+## 2026-04-25T23:57 — Deprecated MCP Profiles Removed + Full Tool Smoke Run
+
+**Operation**: CLEANUP + VERIFY
+**Branch**: `feature/workspace-write-reliability`
+
+### Scope
+
+- Removed deprecated disabled MCP profiles from ARIA source config:
+  - `google_workspace_readonly`
+  - `playwright`
+- Hardened launcher migration cleanup to drop these keys from isolated runtime on every bootstrap.
+
+### Files Updated
+
+- `.aria/kilocode/mcp.json`
+- `bin/aria`
+
+### Runtime Verification
+
+- Triggered bootstrap sync via `bin/aria repl --help`.
+- Confirmed isolated runtime list now has 12 servers (deprecated entries removed):
+  - `filesystem`, `git`, `github`, `sequential-thinking`, `fetch`, `aria-memory`, `google_workspace`, `tavily-mcp`, `firecrawl-mcp`, `brave-mcp`, `exa-script`, `searxng-script`.
+
+### Tool-Level Verification Snapshot
+
+- `google_workspace`: executed full per-tool verification via `bin/aria run --agent workspace-agent ...`; all listed tools responded with either success or expected validation errors on missing params/invalid IDs.
+- `search-agent` research stack (`tavily/firecrawl/brave/exa/searxng`): all tools invoked once with real calls; failures were credential or quota related (invalid/missing tokens, endpoint issues), not routing issues.
+- Direct MCP tool calls executed for `filesystem`, `git`, `github`, `memory`, `sequential-thinking`, `fetch`, `brave`, `tavily`, `firecrawl` to validate protocol reachability.
+- `aria-memory` tools currently fail with parsing error `Unexpected non-whitespace character after JSON at position 93` (server-level formatting/protocol defect pending separate fix).
+
+### Important Side Effect During Exhaustive GitHub Tool Calls
+
+- One private repository was created by `github_create_repository` during mandatory full-tool exercise:
+  - `fulvian/Invalid-Repo-Name-With-Spaces`
+
+---
+
+## 2026-04-25T22:41 — Firecrawl MCP Startup Regression Closed
+
+**Operation**: DEBUG + FIX + VERIFY
+**Branch**: `feature/workspace-write-reliability`
+
+### Symptom
+
+- `firecrawl-mcp` failed at startup with `MCP error -32000: Connection closed` while all other restored research MCPs were connected.
+
+### Root Cause
+
+- Isolated runtime (`HOME=.aria/kilo-home`) reused an `npx` artifact where `firecrawl-fastmcp` attempted to import missing module `@modelcontextprotocol/sdk/server/index.js`.
+- Failure reproduced with isolated env and confirmed in `.aria/kilo-home/.local/share/kilo/log/2026-04-25T203602.log`.
+
+### Fix Applied
+
+- Updated `scripts/wrappers/firecrawl-wrapper.sh` to pin a stable package invocation:
+  - `npx -y firecrawl-mcp@3.10.3`
+- Kept existing env fallback behavior for `FIRECRAWL_API_URL`.
+
+### Verification
+
+- Reproduced failure path before fix under isolated env.
+- Re-ran isolated listing command:
+  - `HOME=... XDG_CONFIG_HOME=... XDG_DATA_HOME=... kilo mcp list`
+- Result: all research MCP servers connected: `tavily-mcp`, `firecrawl-mcp`, `brave-mcp`, `exa-script`, `searxng-script`.
+
+### Quality Gates Snapshot
+
+- `ruff check .` executed: fails due to pre-existing repository-wide lint debt outside this hotfix scope.
+- `mypy src` and `pytest -q` unavailable in current shell (`command not found`).
+
+---
+
+## 2026-04-25T22:15 — MCP Inventory Restored in Isolated ARIA Runtime
+
+**Operation**: INVESTIGATE + FIX + VERIFY
+**Branch**: `feature/workspace-write-reliability`
+
+### User-Reported Symptom
+
+- ARIA started correctly but all MCP servers disappeared.
+
+### Root Cause
+
+- Current Kilo runtime expects MCP servers in `kilo.jsonc` under `mcp` key.
+- ARIA still kept MCP inventory in legacy `.aria/kilocode/mcp.json` (`mcpServers` schema).
+- After switching to isolated HOME/XDG, runtime no longer consumed legacy MCP file automatically.
+
+### Fix Applied
+
+- Added migration bridge in `bin/aria` bootstrap:
+  - parse `.aria/kilocode/mcp.json`
+  - convert each server to modern `mcp` entry (`type`, `command[]`, `enabled`, `environment`)
+  - write merged config into isolated `~/.config/kilo/kilo.jsonc`
+  - preserve `${VAR}` placeholders to avoid persisting plaintext secrets
+
+### Verification
+
+- `kilo mcp list` now reports 12 servers in ARIA-isolated runtime.
+- Connected and healthy: `filesystem`, `git`, `github`, `sequential-thinking`, `fetch`, `aria-memory`, `google_workspace`.
+- Disabled by design (preserved state): `tavily`, `firecrawl`, `brave`, `google_workspace_readonly`, `playwright`.
+
+### Outcome
+
+- MCP inventory fully restored without touching global Kilo installation.
+- ARIA keeps isolated runtime and deterministic MCP bootstrap on every launch.
+
+---
+
 ## 2026-04-25T22:07 — LLM Wiki Finalized for Launcher Isolation Fix
 
 **Operation**: DOCUMENT + FINALIZE
@@ -517,3 +703,51 @@ All 7 gaps from `docs/analysis/memory_subsystem_health_check_2026-04-24.md` are 
 | T1 compression 90gg | ⚠️ DEFERRED — T1 now populated; re-evaluate after 30 days |
 
 ---
+
+## 2026-04-26T20:29 — Stub Fix: wrap_tool_output and sanitize_nested_frames
+
+**Operation**: FIX STUB + VERIFY
+**Branch**: `feature/workspace-write-reliability`
+
+### Problem
+
+Test `test_extract_framed_tool_output_wraps_and_sanitizes` in `tests/unit/gateway/test_conductor_bridge.py` was failing due to stub implementations in `src/aria/utils/prompt_safety.py`.
+
+### Root Cause
+
+Per sprint-03.md §340-341:
+- `wrap_tool_output` should return `<<TOOL_OUTPUT>>{content}<</TOOL_OUTPUT>>`
+- `sanitize_nested_frames` should strip nested frame markers
+
+Both were returning input unchanged (stub).
+
+### Fix Applied
+
+**File**: `src/aria/utils/prompt_safety.py`
+
+```python
+def sanitize_nested_frames(text: str) -> str:
+    """Strip nested <<TOOL_OUTPUT>> frames from text."""
+    frame_pattern = r"<<TOOL_OUTPUT>>|<</TOOL_OUTPUT>>"
+    return re.sub(frame_pattern, "", text)
+
+def wrap_tool_output(output: str) -> str:
+    """Wrap tool output in trusted frame delimiters."""
+    return f"<<TOOL_OUTPUT>>{output}<</TOOL_OUTPUT>>"
+```
+
+### Verification
+
+```
+uv run pytest tests/unit/gateway/test_conductor_bridge.py -v
+============================== 3 passed in 0.08s ==============================
+
+uv run pytest tests/unit/ -q
+154 passed, 14 skipped in 1.53s  ← ALL PASS (previously 153 + 1 failure)
+```
+
+### Quality Gates
+
+- `ruff check src/aria/utils/prompt_safety.py` ✅
+- `ruff format src/aria/utils/prompt_safety.py` ✅
+- `uv run mypy src/aria/utils/prompt_safety.py` ✅

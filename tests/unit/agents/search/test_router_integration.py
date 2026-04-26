@@ -1,0 +1,321 @@
+# Router integration tests with mocked Rotator
+
+from __future__ import annotations
+
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from aria.agents.search.router import (
+    HealthState,
+    Intent,
+    Provider,
+    ResearchRouter,
+    SearchResult,
+)
+from aria.credentials.rotator import CircuitState, KeyInfo
+from pydantic import SecretStr
+
+
+class TestRouterRoute:
+    """Test router.route() with mocked Rotator."""
+
+    @pytest.fixture
+    def mock_rotator(self):
+        """Create a mock Rotator."""
+        rotator = MagicMock()
+        rotator.acquire = AsyncMock()
+        rotator.status = MagicMock(return_value={"keys": []})
+        return rotator
+
+    @pytest.fixture
+    def router(self, mock_rotator):
+        """Create router with mocked rotator."""
+        return ResearchRouter(mock_rotator, Path("/tmp/test_state.yaml"))
+
+    @pytest.mark.asyncio
+    async def test_route_general_news_tier1_healthy(self, router, mock_rotator):
+        """general/news: tier 1 healthy -> uses searxng, no fallback."""
+        # Set health to AVAILABLE for tier 1
+        router._health["searxng"] = HealthState.AVAILABLE
+
+        # Mock tier 1 (searxng) returning key
+        mock_key = MagicMock(spec=KeyInfo)
+        mock_key.key_id = "searxng-1"
+        mock_key.circuit_state = CircuitState.CLOSED
+        mock_key.credits_remaining = None  # searxng has no credits
+        mock_rotator.acquire.side_effect = [
+            mock_key,  # searxng returns key
+        ]
+
+        result = await router.route("latest news on AI", Intent.GENERAL_NEWS, "trace-1")
+
+        assert isinstance(result, tuple)
+        provider, key = result
+        assert provider == Provider.SEARXNG
+        assert key.key_id == "searxng-1"
+
+    @pytest.mark.asyncio
+    async def test_route_tier1_rate_limit_falls_to_tier2(self, router, mock_rotator):
+        """tier 1 rate_limit -> fallback to tier 2 (tavily)."""
+        # Set health to AVAILABLE for both providers
+        router._health["searxng"] = HealthState.AVAILABLE
+        router._health["tavily"] = HealthState.AVAILABLE
+
+        # tier 1 (searxng) returns no key (rate limited)
+        mock_key_tavily = MagicMock(spec=KeyInfo)
+        mock_key_tavily.key_id = "tvly-1"
+        mock_key_tavily.circuit_state = CircuitState.CLOSED
+        mock_key_tavily.credits_remaining = 500
+
+        mock_rotator.acquire.side_effect = [
+            None,  # searxng returns None (no key available)
+            mock_key_tavily,  # tavily returns key
+        ]
+
+        result = await router.route("latest news on AI", Intent.GENERAL_NEWS, "trace-2")
+
+        assert isinstance(result, tuple)
+        provider, key = result
+        assert provider == Provider.TAVILY
+        assert key.key_id == "tvly-1"
+
+    @pytest.mark.asyncio
+    async def test_route_all_tiers_fail_enters_degraded(self, router, mock_rotator):
+        """All tiers fail -> degraded mode."""
+        # Set all providers to AVAILABLE but return None for all
+        for provider in [Provider.SEARXNG, Provider.TAVILY, Provider.FIRECRAWL_EXTRACT, Provider.EXA, Provider.BRAVE]:
+            router._health[provider.value] = HealthState.AVAILABLE
+
+        mock_rotator.acquire.return_value = None  # All providers return None
+
+        result = await router.route("latest news on AI", Intent.GENERAL_NEWS, "trace-3")
+
+        assert isinstance(result, SearchResult)
+        assert result.degraded is True
+        assert "All research providers unavailable" in result.degraded_message
+
+    @pytest.mark.asyncio
+    async def test_route_deep_scrape_tier1(self, router, mock_rotator):
+        """deep_scrape: tier 1 is firecrawl_extract."""
+        # Set health to AVAILABLE for firecrawl_extract
+        router._health["firecrawl_extract"] = HealthState.AVAILABLE
+
+        mock_key = MagicMock(spec=KeyInfo)
+        mock_key.key_id = "fc-1"
+        mock_key.circuit_state = CircuitState.CLOSED
+        mock_key.credits_remaining = 100
+
+        mock_rotator.acquire.return_value = mock_key
+
+        result = await router.route("deep scrape this website", Intent.DEEP_SCRAPE, "trace-4")
+
+        assert isinstance(result, tuple)
+        provider, key = result
+        assert provider == Provider.FIRECRAWL_EXTRACT
+
+    @pytest.mark.asyncio
+    async def test_route_circuit_open_skips_provider(self, router, mock_rotator):
+        """circuit_state=OPEN -> skip provider."""
+        # Set health to AVAILABLE for all
+        router._health["searxng"] = HealthState.AVAILABLE
+        router._health["tavily"] = HealthState.AVAILABLE
+        router._health["exa"] = HealthState.AVAILABLE
+
+        mock_key_open = MagicMock(spec=KeyInfo)
+        mock_key_open.key_id = "tvly-1"
+        mock_key_open.circuit_state = CircuitState.OPEN  # circuit open
+        mock_key_open.credits_remaining = 500
+
+        mock_key_exa = MagicMock(spec=KeyInfo)
+        mock_key_exa.key_id = "exa-1"
+        mock_key_exa.circuit_state = CircuitState.CLOSED
+        mock_key_exa.credits_remaining = 800
+
+        mock_rotator.acquire.side_effect = [
+            None,  # searxng returns None
+            mock_key_open,  # tavily has circuit open
+            mock_key_exa,  # exa returns key
+        ]
+
+        result = await router.route("latest news on AI", Intent.GENERAL_NEWS, "trace-5")
+
+        assert isinstance(result, tuple)
+        provider, key = result
+        assert provider == Provider.EXA
+
+    @pytest.mark.asyncio
+    async def test_route_health_state_down_skips(self, router, mock_rotator):
+        """Provider with health=down skipped. DEGRADED still attempts."""
+        # Set searxng to DOWN (skipped), tavily to AVAILABLE
+        router._health["searxng"] = HealthState.DOWN
+        router._health["tavily"] = HealthState.AVAILABLE
+
+        mock_key = MagicMock(spec=KeyInfo)
+        mock_key.key_id = "tvly-1"
+        mock_key.circuit_state = CircuitState.CLOSED
+        mock_key.credits_remaining = 500
+
+        mock_rotator.acquire.return_value = mock_key
+
+        result = await router.route("latest news on AI", Intent.GENERAL_NEWS, "trace-6")
+
+        assert isinstance(result, tuple)
+        provider, key = result
+        assert provider == Provider.TAVILY
+
+
+class TestRouterFallback:
+    """Test router.fallback() method."""
+
+    @pytest.fixture
+    def mock_rotator(self):
+        rotator = MagicMock()
+        rotator.acquire = AsyncMock()
+        rotator.status = MagicMock(return_value={"keys": []})
+        return rotator
+
+    @pytest.fixture
+    def router(self, mock_rotator):
+        return ResearchRouter(mock_rotator, Path("/tmp/test_state.yaml"))
+
+    def test_fallback_searxng_returns_tavily(self, router):
+        """SEARXNG fallback -> TAVILY (for general_news)."""
+        next_provider = router.fallback(Provider.SEARXNG, Intent.GENERAL_NEWS, "rate_limit")
+        assert next_provider == Provider.TAVILY
+
+    def test_fallback_tavily_returns_firecrawl(self, router):
+        """TAVILY fallback -> FIRECRAWL_EXTRACT (for general_news)."""
+        next_provider = router.fallback(Provider.TAVILY, Intent.GENERAL_NEWS, "rate_limit")
+        assert next_provider == Provider.FIRECRAWL_EXTRACT
+
+    def test_fallback_firecrawl_returns_exa(self, router):
+        """FIRECRAWL_EXTRACT fallback -> EXA (for general_news)."""
+        next_provider = router.fallback(Provider.FIRECRAWL_EXTRACT, Intent.GENERAL_NEWS, "timeout")
+        assert next_provider == Provider.EXA
+
+    def test_fallback_exa_returns_brave(self, router):
+        """EXA fallback -> BRAVE (for general_news)."""
+        next_provider = router.fallback(Provider.EXA, Intent.GENERAL_NEWS, "credits_exhausted")
+        assert next_provider == Provider.BRAVE
+
+    def test_fallback_brave_returns_none(self, router):
+        """BRAVE (last tier) fallback -> None (for general_news)."""
+        next_provider = router.fallback(Provider.BRAVE, Intent.GENERAL_NEWS, "rate_limit")
+        assert next_provider is None
+
+    def test_fallback_deep_scrape_tier1_returns_tier2(self, router):
+        """DEEP_SCRAPE: FIRECRAWL_EXTRACT -> FIRECRAWL_SCRAPE."""
+        next_provider = router.fallback(Provider.FIRECRAWL_EXTRACT, Intent.DEEP_SCRAPE, "timeout")
+        assert next_provider == Provider.FIRECRAWL_SCRAPE
+
+    def test_fallback_deep_scrape_tier2_returns_fetch(self, router):
+        """DEEP_SCRAPE: FIRECRAWL_SCRAPE -> FETCH."""
+        next_provider = router.fallback(Provider.FIRECRAWL_SCRAPE, Intent.DEEP_SCRAPE, "timeout")
+        assert next_provider == Provider.FETCH
+
+    def test_fallback_deep_scrape_tier3_returns_none(self, router):
+        """DEEP_SCRAPE: FETCH (last tier) -> None."""
+        next_provider = router.fallback(Provider.FETCH, Intent.DEEP_SCRAPE, "network_error")
+        assert next_provider is None
+
+
+class TestRouterDegradedMode:
+    """Test degraded mode behavior."""
+
+    @pytest.fixture
+    def mock_rotator(self):
+        rotator = MagicMock()
+        rotator.acquire = AsyncMock()
+        rotator.status = MagicMock(return_value={"keys": []})
+        return rotator
+
+    @pytest.fixture
+    def router(self, mock_rotator):
+        return ResearchRouter(mock_rotator, Path("/tmp/test_state.yaml"))
+
+    @pytest.mark.asyncio
+    async def test_enter_degraded_mode(self, router):
+        """Enter degraded mode returns SearchResult with degraded=True."""
+        result = await router.enter_degraded_mode("test query", "trace-7")
+
+        assert isinstance(result, SearchResult)
+        assert result.degraded is True
+        assert result.trace_id == "trace-7"
+        assert "All research providers unavailable" in result.degraded_message
+
+    @pytest.mark.asyncio
+    async def test_degraded_mode_has_no_provider(self, router):
+        """Degraded result has provider=None."""
+        result = await router.enter_degraded_mode("test query", "trace-8")
+
+        assert result.provider is None
+        assert result.key_id is None
+
+
+class TestHealthStatus:
+    """Test health status methods."""
+
+    @pytest.fixture
+    def mock_rotator(self):
+        rotator = MagicMock()
+        rotator.acquire = AsyncMock()
+        return rotator
+
+    @pytest.fixture
+    def router(self, mock_rotator):
+        return ResearchRouter(mock_rotator, Path("/tmp/test_state.yaml"))
+
+    def test_get_provider_health_default_down(self, router):
+        """Unknown provider defaults to DOWN."""
+        health = router._get_provider_health(Provider.SEARXNG)
+        assert health == HealthState.DOWN
+
+    def test_get_provider_health_cached(self, router):
+        """Health is cached in _health dict."""
+        router._health["searxng"] = HealthState.AVAILABLE
+        health = router._get_provider_health(Provider.SEARXNG)
+        assert health == HealthState.AVAILABLE
+
+    @pytest.mark.asyncio
+    async def test_refresh_health_no_keys(self, router, mock_rotator):
+        """Provider with no keys -> DOWN."""
+        mock_rotator.status.return_value = {"keys": []}
+
+        await router._refresh_health("searxng")
+
+        assert router._health["searxng"] == HealthState.DOWN
+
+    @pytest.mark.asyncio
+    async def test_refresh_health_circuit_open(self, router, mock_rotator):
+        """Provider with circuit OPEN -> DEGRADED."""
+        mock_rotator.status.return_value = {
+            "keys": [{"key_id": "k1", "circuit_state": "open", "credits_remaining": 500}]
+        }
+
+        await router._refresh_health("tavily")
+
+        assert router._health["tavily"] == HealthState.DEGRADED
+
+    @pytest.mark.asyncio
+    async def test_refresh_health_credits_exhausted(self, router, mock_rotator):
+        """Provider with credits_remaining=0 -> CREDITS_EXHAUSTED."""
+        mock_rotator.status.return_value = {
+            "keys": [{"key_id": "k1", "circuit_state": "closed", "credits_remaining": 0}]
+        }
+
+        await router._refresh_health("tavily")
+
+        assert router._health["tavily"] == HealthState.CREDITS_EXHAUSTED
+
+    @pytest.mark.asyncio
+    async def test_refresh_health_available(self, router, mock_rotator):
+        """Provider with credits and closed circuit -> AVAILABLE."""
+        mock_rotator.status.return_value = {
+            "keys": [{"key_id": "k1", "circuit_state": "closed", "credits_remaining": 500}]
+        }
+
+        await router._refresh_health("tavily")
+
+        assert router._health["tavily"] == HealthState.AVAILABLE

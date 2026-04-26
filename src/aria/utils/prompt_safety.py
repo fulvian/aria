@@ -21,10 +21,7 @@ def validate_prompt(text: str) -> bool:
     Returns:
         True if prompt is safe
     """
-    if not text or len(text.strip()) == 0:
-        return False
-    # Add more validation as needed
-    return True
+    return bool(text and text.strip())
 
 
 def sanitize_output(text: str) -> str:
@@ -69,27 +66,41 @@ def redact_secrets(text: str) -> str:
     return text
 
 
-def sanitize_nested_frames(frames: list[dict]) -> list[dict]:
-    """Sanitize nested trace frames.
+def sanitize_nested_frames(text: str) -> str:
+    """Strip nested <<TOOL_OUTPUT>> frames from text.
+
+    Per blueprint §14.3 - prevents TOCTOU attacks by stripping
+    any nested frame delimiters from tool output content.
 
     Args:
-        frames: List of trace frames
+        text: The text containing potentially nested frames
 
     Returns:
-        Sanitized frames
+        Text with nested frames stripped
     """
-    # Stub implementation
-    return frames
+    if not isinstance(text, str):
+        return text
+
+    # Pattern matches <<TOOL_OUTPUT>>...<</TOOL_OUTPUT>> markers
+    # We strip the outer framing markers but preserve content
+    # First, find and remove all frame markers
+    frame_pattern = r"<<TOOL_OUTPUT>>|<</TOOL_OUTPUT>>"
+    return re.sub(frame_pattern, "", text)
 
 
 def wrap_tool_output(output: str) -> str:
-    """Wrap tool output for safe display.
+    """Wrap tool output in trusted frame delimiters.
+
+    Per blueprint §14.3 - tool output saved in episodic must be
+    wrapped as <<TOOL_OUTPUT>>{content}<</TOOL_OUTPUT>> when
+    injected into Conductor system prompt.
 
     Args:
         output: The tool output to wrap
 
     Returns:
-        Wrapped output
+        Wrapped output with frame delimiters
     """
-    # Stub implementation
-    return output
+    if not isinstance(output, str):
+        return output
+    return f"<<TOOL_OUTPUT>>{output}<</TOOL_OUTPUT>>"

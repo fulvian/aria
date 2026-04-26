@@ -5,11 +5,12 @@ description: Ricerca web approfondita multi-provider con deduplica e sintesi
 trigger-keywords: [ricerca, search, approfondisci, analizza tema, deep, research]
 user-invocable: true
 allowed-tools:
+  - searxng-script/search
   - tavily-mcp/search
   - firecrawl-mcp/scrape
   - firecrawl-mcp/extract
-  - brave-mcp/web_search
   - exa-script/search
+  - brave-mcp/web_search
   - aria-memory/remember
 max-tokens: 50000
 estimated-cost-eur: 0.10
@@ -23,7 +24,7 @@ contenuti, sintetizzare report strutturato.
 
 ## Procedura
 1. Pianifica 3-7 sub-query diverse che coprono il tema da angolazioni distinte
-2. Per ogni sub-query invoca il router: Tavily > Brave > Firecrawl > Exa
+2. Per ogni sub-query invoca il router: SearXNG > Tavily > Firecrawl > Exa > Brave
 3. Deduplica URL (Levenshtein title + URL canonicalization)
 4. Per top-N risultati, scrape full content via firecrawl
 5. Classifica per rilevanza e data

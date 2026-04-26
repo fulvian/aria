@@ -1045,11 +1045,11 @@ allowed-tools:
 required-skills:
   - deep-research
   - source-dedup
-mcp-dependencies: [tavily, firecrawl, brave, exa, searxng]
+mcp-dependencies: [tavily-mcp, firecrawl-mcp, brave-mcp, exa-script, searxng-script]
 ---
 
 # Search-Agent
-Orchestri provider multipli con rotation intelligente. Vedi §11.
+Orchestri provider multipli con rotation intelligente. Vedi §11 per la policy matrix (SearXNG > Tavily > Firecrawl > Exa > Brave).
 ```
 
 #### 8.3.2 Workspace-Agent
@@ -1357,18 +1357,22 @@ DuckDuckGo esplicitamente escluso (no API ufficiale, scraping fragile).
 
 ### 11.2 Logica di routing (intent-aware)
 
-Il router Python (`src/aria/agents/search/router.py`) classifica l'intent della query e seleziona provider:
+Il router Python (`src/aria/agents/search/router.py`) classifica l'intent della query e seleziona provider in ordine deterministico basato su "real API key availability to rotate".
 
+**Policy Matrix (Single Source of Truth)**:
 ```python
 INTENT_ROUTING = {
-    "news":             ["tavily", "brave_news"],
-    "academic":         ["exa", "tavily"],
-    "deep_scrape":      ["firecrawl_extract", "firecrawl_scrape"],
-    "general":          ["brave", "tavily"],
-    "privacy":          ["searxng", "brave"],
-    "fallback":         ["serpapi"],
+    "general/news":  ["searxng", "tavily", "firecrawl", "exa", "brave"],
+    "academic":      ["searxng", "tavily", "firecrawl", "exa", "brave"],
+    "deep_scrape":   ["firecrawl_extract", "firecrawl_scrape", "fetch"],
 }
 ```
+
+**Rationale**:
+- SearXNG è sempre tier 1 (self-hosted, illimitato, nessuna API key richiesta)
+- Provider commerciali in ordine: tavily → firecrawl → exa → brave
+- Tutti gli intent condividono lo stesso ordine di fallback commerciale
+- Deep scrape ha flow specializzato con firecrawl come prima scelta
 
 Il classifier è una mini-skill `intent-classifier` basata su keyword + (opzionale) zero-shot LLM call su Haiku 4.5.
 
@@ -1428,12 +1432,14 @@ Circuit breaker: dopo 3 failure consecutivi in 5min → `circuit_state=open` per
 Runbook deterministico quando quote/crediti sono esauriti:
 
 1. Health-check provider all'avvio e ogni 5 minuti (`available`, `degraded`, `down`, `credits_exhausted`).
-2. Fallback tree per intent:
-   - `news/general`: Tavily → Brave → SearXNG → cache stale (con banner `degraded`).
-   - `deep_scrape`: Firecrawl → fetch+readability locale → solo metadata+fonti.
-   - `academic`: Exa → Tavily → Brave web.
+2. Fallback tree per intent (follows INTENT_ROUTING order):
+   - `general/news`: SearXNG → Tavily → Firecrawl → Exa → Brave → degraded (cache stale + banner)
+   - `academic`: SearXNG → Tavily → Firecrawl → Exa → Brave → degraded
+   - `deep_scrape`: Firecrawl Extract → Firecrawl Scrape → fetch locale → degraded (solo metadata)
 3. Se tutti i provider esterni sono indisponibili: modalità `local-only` (cache + SearXNG self-hosted se presente), risposta esplicita all'utente con qualità ridotta.
 4. Notifica `system_event` + report giornaliero con tasso degradazione.
+
+**SerpAPI**: rimosso dal blueprint. Non è presente in `mcp.json` e non è necessario dato l'ordine di fallback definito.
 
 Runbook operativo: `docs/operations/provider_exhaustion.md`.
 

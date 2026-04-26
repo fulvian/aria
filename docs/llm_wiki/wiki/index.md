@@ -1,6 +1,6 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-04-25
+**Last Updated**: 2026-04-26
 **Status**: BOOTSTRAPPED
 
 ## Purpose
@@ -38,7 +38,11 @@ docs/llm_wiki/
 | `scripts/workspace_auth.py` | OAuth scope verification | 2026-04-24 |
 | `scripts/workspace-write-health.py` | Health check CLI | 2026-04-24 |
 | `scripts/wrappers/google-workspace-wrapper.sh` | MCP wrapper | 2026-04-24 |
+| `scripts/wrappers/firecrawl-wrapper.sh` | Firecrawl MCP compatibility wrapper | 2026-04-25 |
+| `scripts/wrappers/searxng-wrapper.sh` | SearXNG MCP wrapper with env fallback | 2026-04-25 |
 | `bin/aria` | ARIA launcher with hard runtime isolation + CLI compatibility | 2026-04-25 |
+| `docs/plans/research_restore_plan.md` | Piano di ripristino routing ricerca con tier consecutivi e policy free-first | 2026-04-26 |
+| `docs/plans/research_restore_plan.md` | Ricerca deterministica: searxng > tavily > firecrawl > exa > brave (approved 2026-04-26) | 2026-04-26 |
 
 ## Pages
 
@@ -46,7 +50,8 @@ docs/llm_wiki/
 |------|-------------|--------|
 | [[memory-subsystem]] | Memory subsystem architecture, gaps, tools (updated 2026-04-24) | Active |
 | [[google-workspace-mcp-write-reliability]] | Root causes and remediation for Docs/Sheets/Slides write path | Active |
-| [[aria-launcher-cli-compatibility]] | Root cause and robust fix for startup + isolation regressions | Active |
+| [[aria-launcher-cli-compatibility]] | Root cause and robust fix for startup, isolation, and MCP restoration | Active |
+| [[research-routing]] | Research routing tier policy: searxng > tavily > firecrawl > exa > brave | Active |
 | [[log]] | Implementation log with timestamps | Active |
 
 ## Bootstrap Log
@@ -58,7 +63,7 @@ docs/llm_wiki/
 ## Implementation Branch
 
 - **Branch**: `feature/workspace-write-reliability`
-- **Status**: Launcher isolation hotfix validated (2026-04-25)
+- **Status**: Launcher isolation + research MCP restoration validated (2026-04-25)
 - **Focus**: ARIA runtime isolation + CLI compatibility hardening
 
 ## Relevant Files
