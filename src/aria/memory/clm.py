@@ -184,13 +184,16 @@ class CLM:
     def _distill_entries(self, entries: list[EpisodicEntry]) -> list[SemanticChunk]:
         """Distill episodic entries into semantic chunks.
 
-        Extracts chunks using rule-based patterns per sprint plan.
-
-        Args:
-            entries: Episodic entries to process
-
-        Returns:
-            List of SemanticChunk
+        Rules (extractive, no LLM):
+            * USER_INPUT entries are scanned for action_item / preference /
+              decision / fact patterns. When no rule matches, a fallback
+              ``concept`` chunk is created from the most informative keywords
+              so generic topics (e.g. "barbecue") remain searchable.
+            * AGENT_INFERENCE entries (assistant responses) are persisted as
+              ``concept`` chunks so summaries/answers are recoverable. P5 is
+              respected because we do not infer new facts on the user's
+              behalf — we just index what the assistant wrote.
+            * TOOL_OUTPUT and SYSTEM_EVENT remain off-limits (P5).
         """
         chunks: list[SemanticChunk] = []
         now = datetime.now(UTC)
@@ -207,12 +210,36 @@ class CLM:
             session_entries.sort(key=lambda e: e.ts)
 
             for entry in session_entries:
-                # Only process USER_INPUT for preferences/decisions per P5
-                if entry.actor != Actor.USER_INPUT:
-                    continue
-
-                entry_chunks = self._extract_from_entry(entry, now)
-                chunks.extend(entry_chunks)
+                if entry.actor == Actor.USER_INPUT:
+                    rule_chunks = self._extract_from_entry(entry, now)
+                    if rule_chunks:
+                        chunks.extend(rule_chunks)
+                    else:
+                        # Fallback: create a concept chunk from keywords
+                        keywords = self._extract_keywords(entry.content)
+                        if keywords:
+                            chunks.append(
+                                self._make_chunk(
+                                    source_ids=[entry.id],
+                                    actor=entry.actor,
+                                    kind="concept",
+                                    text=entry.content,
+                                    now=now,
+                                )
+                            )
+                elif entry.actor == Actor.AGENT_INFERENCE:
+                    keywords = self._extract_keywords(entry.content)
+                    if keywords:
+                        chunks.append(
+                            self._make_chunk(
+                                source_ids=[entry.id],
+                                actor=entry.actor,
+                                kind="concept",
+                                text=entry.content,
+                                now=now,
+                            )
+                        )
+                # TOOL_OUTPUT / SYSTEM_EVENT intentionally not chunked
 
         # Deduplicate by source_episodic_ids + text
         seen: set[tuple[str, str]] = set()
