@@ -487,13 +487,29 @@ class EpisodicStore:
     # === Maintenance ===
 
     async def vacuum_wal(self) -> None:
-        """Checkpoint and vacuum WAL.
+        """Checkpoint the WAL and best-effort VACUUM.
 
-        Per blueprint §6.1.1: manual checkpoint recommended every 6h.
+        Per Context7-confirmed aiosqlite guidance, ``VACUUM`` requires that no
+        other connection holds an open transaction. In ARIA the long-lived MCP
+        server connection makes this race common, so VACUUM is wrapped in a
+        single try/except and logged as a skip on busy. WAL checkpointing is
+        always attempted because it is safe under contention.
         """
         conn = await self._ensure_connected()
-        await conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-        await conn.execute("VACUUM")
+        try:
+            await conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        except Exception as exc:  # noqa: BLE001 — checkpoint is best-effort
+            logging.warning("wal_checkpoint(TRUNCATE) failed: %s", exc)
+            return
+
+        try:
+            await conn.execute("VACUUM")
+        except Exception as exc:  # noqa: BLE001
+            msg = str(exc).lower()
+            if "sql statements in progress" in msg or "database is locked" in msg:
+                logging.info("VACUUM skipped (DB busy): %s", exc)
+                return
+            raise
 
     async def prune_old_entries(self, retention_days: int) -> int:
         """Tombstone T0 entries older than retention_days.

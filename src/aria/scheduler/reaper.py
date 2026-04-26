@@ -94,7 +94,7 @@ class Reaper:
                 await self._episodic_store.vacuum_wal()
                 logger.info("Episodic WAL checkpoint completed")
             except Exception as e:
-                logger.error("Error checkpointing episodic WAL: %s", e)
+                logger.warning("Reaper vacuum_wal raised unexpectedly: %s", e)
 
             try:
                 from aria.config import get_config
