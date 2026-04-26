@@ -26,10 +26,11 @@ import logging
 import os
 import platform
 import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from aria.memory.schema import Actor
+from aria.memory.schema import Actor, EpisodicEntry, content_hash
 from aria.utils.logging import new_trace_id
 from aria.utils.prompt_safety import redact_secrets, sanitize_nested_frames, wrap_tool_output
 
@@ -138,18 +139,21 @@ class ConductorBridge:
         aria_session_id = gateway_session_id or str(uuid.uuid4())
 
         # Step 1: Save user message to episodic (actor=USER_INPUT)
-
-        await self._store.add(
-            session_id=aria_session_id,
-            actor=Actor.USER_INPUT,
-            role="user",
-            content=text,
-            tags=["gateway_message"],
-            meta={
-                "telegram_user_id": telegram_user_id,
-                "gateway_session_id": gateway_session_id,
-                "trace_id": trace_id,
-            },
+        await self._store.insert(
+            EpisodicEntry(
+                session_id=uuid.UUID(aria_session_id),
+                ts=datetime.now(UTC),
+                actor=Actor.USER_INPUT,
+                role="user",
+                content=text,
+                content_hash=content_hash(text),
+                tags=["gateway_message"],
+                meta={
+                    "telegram_user_id": telegram_user_id,
+                    "gateway_session_id": gateway_session_id,
+                    "trace_id": trace_id,
+                },
+            )
         )
 
         # Step 2: Spawn KiloCode child session
@@ -176,29 +180,37 @@ class ConductorBridge:
 
         framed_tool_output = result.get("framed_tool_output")
         if isinstance(framed_tool_output, str) and framed_tool_output:
-            await self._store.add(
-                session_id=aria_session_id,
-                actor=Actor.TOOL_OUTPUT,
-                role="tool",
-                content=framed_tool_output,
-                tags=["tool_output_framed"],
+            await self._store.insert(
+                EpisodicEntry(
+                    session_id=uuid.UUID(aria_session_id),
+                    ts=datetime.now(UTC),
+                    actor=Actor.TOOL_OUTPUT,
+                    role="tool",
+                    content=framed_tool_output,
+                    content_hash=content_hash(framed_tool_output),
+                    tags=["tool_output_framed"],
+                    meta={
+                        "trace_id": trace_id,
+                        "child_session_id": result.get("child_session_id"),
+                    },
+                )
+            )
+
+        await self._store.insert(
+            EpisodicEntry(
+                session_id=uuid.UUID(aria_session_id),
+                ts=datetime.now(UTC),
+                actor=Actor.AGENT_INFERENCE,
+                role="assistant",
+                content=safe_result_text,
+                content_hash=content_hash(safe_result_text),
+                tags=["conductor_response"],
                 meta={
                     "trace_id": trace_id,
                     "child_session_id": result.get("child_session_id"),
+                    "tokens_used": result.get("tokens_used", 0),
                 },
             )
-
-        await self._store.add(
-            session_id=aria_session_id,
-            actor=Actor.AGENT_INFERENCE,
-            role="assistant",
-            content=safe_result_text,
-            tags=["conductor_response"],
-            meta={
-                "trace_id": trace_id,
-                "child_session_id": result.get("child_session_id"),
-                "tokens_used": result.get("tokens_used", 0),
-            },
         )
 
         # Step 4: Publish reply to Gateway
