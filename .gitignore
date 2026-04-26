@@ -100,6 +100,11 @@ tmp/
 *.age
 .age.pub
 
+# memory recovery backups
+.aria/runtime/memory/episodic.db.bak.*
+.aria/runtime/memory/episodic.db-wal.bak.*
+.aria/runtime/memory/episodic.db-shm.bak.*
+
 # Node (KiloCode manages this but we don't want node_modules in git)
 node_modules/
 
