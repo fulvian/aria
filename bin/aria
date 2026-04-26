@@ -23,6 +23,17 @@ export KILOCODE_STATE_DIR="$ARIA_HOME/.aria/kilocode/sessions"
 export KILOCODE_HOME="$KILOCODE_CONFIG_DIR"
 export KILO_DISABLE_EXTERNAL_SKILLS="${KILO_DISABLE_EXTERNAL_SKILLS:-true}"
 
+# === ARIA memory-recovery: deterministic per-process session id ===
+if [[ -z "${ARIA_SESSION_ID:-}" ]]; then
+    if command -v uuidgen >/dev/null 2>&1; then
+        ARIA_SESSION_ID="$(uuidgen)"
+    else
+        ARIA_SESSION_ID="$(python3 -c 'import uuid;print(uuid.uuid4())')"
+    fi
+fi
+export ARIA_SESSION_ID
+export ARIA_MEMORY_STRICT_SESSION=1
+
 # === ARIA runtime paths ===
 export ARIA_RUNTIME="$ARIA_HOME/.aria/runtime"
 export ARIA_CREDENTIALS="$ARIA_HOME/.aria/credentials"
@@ -77,10 +88,88 @@ check_prerequisites() {
 prepare_isolated_runtime() {
     mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME"
     mkdir -p "$HOME/.kilo/agents" "$HOME/.kilo/skills"
+    mkdir -p "$XDG_CONFIG_HOME/kilo"
 
     # Keep isolated HOME-level Kilo paths synchronized from ARIA source-of-truth.
     cp -a "$KILOCODE_CONFIG_DIR/agents/." "$HOME/.kilo/agents/"
     cp -a "$KILOCODE_CONFIG_DIR/skills/." "$HOME/.kilo/skills/"
+
+    # Migrate legacy ARIA MCP config into modern Kilo `mcp` schema.
+    python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+legacy_path = Path(os.environ["KILOCODE_CONFIG_DIR"]) / "mcp.json"
+modern_path = Path(os.environ["XDG_CONFIG_HOME"]) / "kilo" / "kilo.jsonc"
+
+legacy = {}
+if legacy_path.exists():
+    with legacy_path.open("r", encoding="utf-8") as fp:
+        legacy = json.load(fp)
+
+modern = {}
+if modern_path.exists():
+    try:
+        with modern_path.open("r", encoding="utf-8") as fp:
+            modern = json.load(fp)
+    except json.JSONDecodeError:
+        # Keep boot resilient even if user manually introduced JSONC comments.
+        modern = {}
+
+servers = legacy.get("mcpServers", {})
+existing_mcp = modern.get("mcp", {})
+mcp = {}
+if isinstance(existing_mcp, dict):
+    mcp.update(existing_mcp)
+
+# Drop deprecated alias keys when canonical servers are present.
+for deprecated_key in ("tavily", "firecrawl", "brave"):
+    mcp.pop(deprecated_key, None)
+
+# Drop deprecated/removed ARIA profiles from isolated runtime.
+for removed_key in ("google_workspace_readonly", "playwright"):
+    mcp.pop(removed_key, None)
+
+for name, cfg in servers.items():
+    command = []
+    base_cmd = cfg.get("command")
+    if isinstance(base_cmd, str) and base_cmd:
+        command.append(base_cmd)
+    args = cfg.get("args", [])
+    if isinstance(args, list):
+        command.extend(str(arg) for arg in args)
+
+    if not command:
+        continue
+
+    env = cfg.get("env", {})
+    migrated_env = {}
+    if isinstance(env, dict):
+        for key, value in env.items():
+            # Preserve placeholders (e.g. ${TOKEN}) to avoid writing secrets to disk.
+            migrated_env[str(key)] = str(value)
+
+    entry = {
+        "type": "local",
+        "command": command,
+        "enabled": not bool(cfg.get("disabled", False)),
+    }
+    timeout = cfg.get("timeout")
+    if isinstance(timeout, int) and timeout > 0:
+        entry["timeout"] = timeout
+    if migrated_env:
+        entry["environment"] = migrated_env
+
+    mcp[name] = entry
+
+modern["mcp"] = mcp
+modern.setdefault("$schema", "https://kilo.ai/schema/config.json")
+
+with modern_path.open("w", encoding="utf-8") as fp:
+    json.dump(modern, fp, indent=2)
+    fp.write("\n")
+PY
 }
 
 # === Kilo CLI compatibility ===

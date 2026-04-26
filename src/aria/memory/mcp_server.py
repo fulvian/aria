@@ -76,12 +76,35 @@ async def _ensure_store() -> tuple[EpisodicStore, SemanticStore, CLM]:
 
 
 def _get_session_id() -> uuid.UUID:
-    """Get or create current session ID."""
-    session_str = os.environ.get("ARIA_SESSION_ID", "")
-    try:
-        return uuid.UUID(session_str)
-    except (ValueError, TypeError):
-        return uuid.uuid4()
+    """Return the active ARIA session id.
+
+    Priority:
+      1. ``ARIA_SESSION_ID`` env var (UUID)
+      2. ``uuid.uuid4()`` fallback when ``ARIA_MEMORY_STRICT_SESSION`` is unset/false
+
+    Raises:
+        RuntimeError: when strict mode is requested but no env var is set.
+            Strict mode is enabled by setting ``ARIA_MEMORY_STRICT_SESSION=1``
+            and is required for interactive (REPL/Telegram) sessions so every
+            ``remember`` lands in the same session bucket.
+    """
+    session_str = os.environ.get("ARIA_SESSION_ID", "").strip()
+    if session_str:
+        try:
+            return uuid.UUID(session_str)
+        except ValueError as exc:
+            raise RuntimeError(
+                f"ARIA_SESSION_ID is set but not a valid UUID: {session_str!r}"
+            ) from exc
+    if os.environ.get("ARIA_MEMORY_STRICT_SESSION", "").lower() in {
+        "1",
+        "true",
+        "yes",
+    }:
+        raise RuntimeError(
+            "ARIA_SESSION_ID is required when ARIA_MEMORY_STRICT_SESSION=1"
+        )
+    return uuid.uuid4()
 
 
 # === MCP Tools ===
@@ -120,7 +143,7 @@ async def remember(
         except ValueError:
             actor_enum = derive_actor_from_role(role, is_tool_result=False)
 
-        # Parse session
+        # Parse session (use strict-mode-aware resolver)
         sess_uuid = uuid.UUID(session_id) if session_id else _get_session_id()
 
         # Create entry
