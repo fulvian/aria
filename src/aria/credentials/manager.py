@@ -120,7 +120,11 @@ class CredentialManager:
                                 "credits_total": (
                                     int(item["credits_total"])
                                     if item.get("credits_total") is not None
-                                    else None
+                                    else (
+                                        int(item["free_tier_credits"])
+                                        if item.get("free_tier_credits") is not None
+                                        else None
+                                    )
                                 ),
                             }
                         )

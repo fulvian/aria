@@ -81,7 +81,7 @@ class KeyState(BaseModel):
 class ProviderState(BaseModel):
     """Runtime state for a provider."""
 
-    rotation_strategy: Literal["least_used", "round_robin", "failover"] = "least_used"
+    rotation_strategy: Literal["least_used", "round_robin", "failover"] = "round_robin"
     keys: dict[str, KeyState] = Field(default_factory=dict)
 
 
@@ -231,7 +231,7 @@ class Rotator:
         self,
         provider: str,
         keys: list[dict[str, Any]],
-        strategy: Literal["least_used", "round_robin", "failover"] = "least_used",
+        strategy: Literal["least_used", "round_robin", "failover"] = "round_robin",
     ) -> None:
         """Sync provider keys from decrypted api-keys config.
 
@@ -247,8 +247,10 @@ class Rotator:
                 continue
             existing = prov.keys.get(key_id, KeyState(key_id=key_id))
             existing.key_id = key_id
-            if key_payload.get("credits_total") is not None:
-                existing.credits_total = int(key_payload["credits_total"])
+            # Accept both credits_total and free_tier_credits (backward compat)
+            credits_val = key_payload.get("credits_total") or key_payload.get("free_tier_credits")
+            if credits_val is not None:
+                existing.credits_total = int(credits_val)
             synced[key_id] = existing
 
         prov.keys = synced
@@ -316,8 +318,8 @@ class Rotator:
                 selected_key_id = candidates[0][0]
 
             elif strategy == "round_robin":
-                # Select key with oldest last_used_at
-                candidates.sort(key=lambda x: x[1].last_used_at or now)
+                # Select key with oldest last_used_at (never-used keys FIRST)
+                candidates.sort(key=lambda x: (x[1].last_used_at or datetime(1970, 1, 1, tzinfo=UTC)))
                 selected_key_id = candidates[0][0]
 
             elif strategy == "failover":
