@@ -56,6 +56,17 @@ def _resolve_agent_dir() -> Path:
     return aria_home / ".aria" / "kilo-home" / ".kilo" / "agents"
 
 
+def _resolve_source_agent_dir() -> Path:
+    """Resolve the source-of-truth agents directory (kilocode config).
+
+    This is where bin/aria bootstraps FROM. We sync generated content here
+    so that on next boot, Kilo loads the latest profile even before
+    MCP server starts.
+    """
+    aria_home = Path(os.environ.get("ARIA_HOME", "/home/fulvio/coding/aria"))
+    return aria_home / ".aria" / "kilocode" / "agents"
+
+
 async def build_memory_block(store: WikiStore) -> str:
     """Build the <memory> block for conductor prompt injection.
 
@@ -150,8 +161,10 @@ async def regenerate_conductor_template(
         True if template was regenerated, False on error.
     """
     agents_path = agent_dir or _resolve_agent_dir()
+    source_path = _resolve_source_agent_dir()
     template_path = agents_path / _TEMPLATE_FILENAME
     active_path = agents_path / _ACTIVE_FILENAME
+    source_active_path = source_path / _ACTIVE_FILENAME
 
     if not template_path.exists():  # noqa: ASYNC240
         logger.warning("Template source not found: %s", template_path)
@@ -175,10 +188,13 @@ async def regenerate_conductor_template(
         # Substitute
         active_content = template_content.replace(PLACEHOLDER, memory_block)
 
-        # Write active agent file
+        # Write active agent file (isolated runtime)
         active_path.write_text(active_content, encoding="utf-8")
 
-        logger.info("Regenerated conductor template: %s", active_path)
+        # ALSO write to source-of-truth so bin/aria bootstrap carries profile forward
+        source_active_path.write_text(active_content, encoding="utf-8")
+
+        logger.info("Regenerated conductor template: %s (and %s)", active_path, source_active_path)
         return True
 
     except Exception as exc:

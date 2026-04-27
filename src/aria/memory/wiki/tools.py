@@ -169,7 +169,11 @@ async def wiki_recall(
             min_score=min_score,
         )
 
-        return [
+        # Always include profile as guaranteed first result (per plan §6.1).
+        # This ensures the LLM always has user identity context regardless
+        # of FTS5 query match. Profile is prepended only if not already present.
+        profile = await engine.get_profile()
+        output: list[dict] = [
             {
                 "kind": r.kind.value,
                 "slug": r.slug,
@@ -179,6 +183,23 @@ async def wiki_recall(
             }
             for r in results
         ]
+        if profile is not None:
+            profile_dict = {
+                "kind": profile.kind.value,
+                "slug": profile.slug,
+                "title": profile.title,
+                "body_excerpt": (
+                    profile.body_md[:500] + ("..." if len(profile.body_md) > 500 else "")
+                ),
+                "score": 1.0,
+            }
+            if not any(
+                d["slug"] == profile.slug and d["kind"] == profile.kind.value
+                for d in output
+            ):
+                output.insert(0, profile_dict)
+
+        return output
 
     except Exception as exc:
         return [{"error": str(exc)}]
