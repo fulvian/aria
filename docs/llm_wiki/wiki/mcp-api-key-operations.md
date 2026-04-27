@@ -1,8 +1,9 @@
 # MCP API Key Operations (Research Stack)
+**Last Updated**: 2026-04-27T15:47  
 
-**Last Updated**: 2026-04-27T15:36  
-**Status**: ✅ FULLY RESTORED — multi-account rotation con 17 keys totali (8 Tavily, 6 Firecrawl, 1 Exa, 1 Brave) + SearXNG self-hosted  
-**Scope**: `tavily-mcp`, `firecrawl-mcp`, `exa-script`, `searxng-script`, `brave-mcp` — key loading, rotation-aware startup, circuit breaker
+**Status**: ✅ FULLY RESTORED — multi-account rotation con 11 keys totali (8 Tavily, 1 Exa, 1 Brave) + SearXNG self-hosted  
+**firecrawl**: ❌ **REMOVED** 2026-04-27 (all 6 accounts exhausted lifetime credits)  
+**Scope**: `tavily-mcp`, `exa-script`, `searxng-script`, `brave-mcp` — key loading, rotation-aware startup, circuit breaker
 
 ## 1) Objective
 
@@ -43,12 +44,6 @@ providers:
         api_key: "tvly-dev-..."
         free_tier_credits: 1000
       # ... 7 altre chiavi (grazia, pietro, fulvio-vr, federica, github-pro, microsoft, fulvian)
-  firecrawl:
-    keys:
-      - key_id: fc-fulviold
-        api_key: "fc-..."
-        free_tier_credits: 500
-      # ... 5 altre chiavi (grazia, pietro, fulvio-vr, federica, github-pro)
   exa:
     keys:
       - key_id: exa-primary
@@ -101,18 +96,7 @@ Tutti i wrapper seguono lo stesso pattern:
 | Rotator strategy | `least_used` |
 | Free tier | 1000 req/mo per chiave |
 
-### 3.2 Firecrawl (`firecrawl-mcp`)
-
-| Campo | Valore |
-|-------|--------|
-| Wrapper | `scripts/wrappers/firecrawl-wrapper.sh` |
-| Comando | `npx -y firecrawl-mcp@3.10.3` |
-| Env var | `FIRECRAWL_API_KEY`, `FIRECRAWL_API_URL` |
-| Keys (Rotator) | 6 (multi-account: fulviold, grazia, pietro, fulvio-vr, federica, github-pro) |
-| Rotator strategy | `least_used` |
-| Free tier | 500 credits lifetime |
-
-### 3.3 Exa (`exa-script`)
+### 3.2 Exa (`exa-script`)
 
 | Campo | Valore |
 |-------|--------|
@@ -123,7 +107,7 @@ Tutti i wrapper seguono lo stesso pattern:
 | Rotator strategy | `least_used` |
 | Free tier | 1000 req/mo |
 
-### 3.4 Brave (`brave-mcp`) — NEW 2026-04-27
+### 3.3 Brave (`brave-mcp`)
 
 | Campo | Valore |
 |-------|--------|
@@ -137,7 +121,7 @@ Tutti i wrapper seguono lo stesso pattern:
 
 **Context7 verification**: `/brave/brave-search-mcp-server` — env var name è `BRAVE_API_KEY`.
 
-### 3.5 SearXNG (`searxng-script`)
+### 3.4 SearXNG (`searxng-script`)
 
 | Campo | Valore |
 |-------|--------|
@@ -201,7 +185,7 @@ python -m aria.credentials audit --tail 20
 1. `./bin/aria repl`
 2. In TUI: `/mcps` → deve mostrare 12 MCP enabled:
    - filesystem, git, github, sequential-thinking, fetch, aria-memory
-   - tavily-mcp, firecrawl-mcp, exa-script, searxng-script, brave-mcp
+   - tavily-mcp, exa-script, searxng-script, brave-mcp
    - google_workspace
 
 ### 5.3 Log diagnostici
@@ -251,7 +235,7 @@ bash scripts/wrappers/brave-wrapper.sh  # deve partire senza WARN
 | Provider | Context7 ID | Env Var | Status |
 |----------|-------------|---------|--------|
 | Tavily MCP | `/tavily-ai/tavily-mcp` | `TAVILY_API_KEY` | ✅ |
-| Firecrawl MCP Server | `/firecrawl/firecrawl-mcp-server` | `FIRECRAWL_API_KEY`, `FIRECRAWL_API_URL` | ✅ |
+| Firecrawl MCP Server | `/firecrawl/firecrawl-mcp-server` | `FIRECRAWL_API_KEY` | ❌ **REMOVED** (all 6 accounts exhausted) |
 | Exa MCP Server | `/exa-labs/exa-mcp-server` | `EXA_API_KEY` | ✅ |
 | Brave Search MCP | `/brave/brave-search-mcp-server` | `BRAVE_API_KEY` (CLI: `--brave-api-key`) | ✅ — NOTA: richiede chiave **a startup** |
 | Google Workspace MCP | `/taylorwilsdon/google_workspace_mcp` | `GOOGLE_OAUTH_CLIENT_ID/SECRET` | ✅ |
@@ -261,7 +245,7 @@ bash scripts/wrappers/brave-wrapper.sh  # deve partire senza WARN
 
 - `.aria/kilocode/mcp.json` (canonical config, aggiornato 2026-04-27)
 - `.aria/credentials/secrets/api-keys.enc.yaml` (17 keys, SOPS+age, 2026-04-27)
-- `scripts/wrappers/{tavily,firecrawl,exa,searxng,brave,google-workspace}-wrapper.sh`
+- `scripts/wrappers/{tavily,exa,searxng,brave,google-workspace}-wrapper.sh`
 - `src/aria/credentials/manager.py` (CredentialManager, 2026-04-27)
 - `src/aria/credentials/rotator.py` (circuit-breaker policy, 2026-04-27)
 - `src/aria/credentials/sops.py` (SOPS adapter, 2026-04-27)

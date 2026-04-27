@@ -41,7 +41,7 @@ docs/llm_wiki/
 | `.aria/runtime/credentials/google_workspace_mcp/fulviold@gmail.com.json` | Google OAuth token (write scopes) | 2026-04-27 |
 | `bin/aria` | ARIA launcher (hard isolation, MCP migration) | 2026-04-27 |
 | `scripts/wrappers/tavily-wrapper.sh` | Tavily MCP wrapper | 2026-04-27 |
-| `scripts/wrappers/firecrawl-wrapper.sh` | Firecrawl MCP wrapper | 2026-04-27 |
+
 | `scripts/wrappers/exa-wrapper.sh` | Exa MCP wrapper | 2026-04-27 |
 | `scripts/wrappers/searxng-wrapper.sh` | SearXNG MCP wrapper (auto-detect Docker 8888) | 2026-04-27 |
 | `scripts/wrappers/brave-wrapper.sh` | Brave MCP wrapper (env normalize + auto-acquire) | 2026-04-27 |
@@ -71,7 +71,7 @@ docs/llm_wiki/
 |------|-------------|--------|
 | [[memory-subsystem]] | Memory subsystem: 5D model, 11 MCP tools, HITL flow, CLM, retention | Active |
 | [[memory-v3]] | Memory v3 Kilo+Wiki Fusion: wiki.db, 4 wiki MCP tools, profile auto-inject | Active |
-| [[research-routing]] | **Ricerca multi-tier**: searxng > tavily > firecrawl > exa > brave; router code, intent classifier | Active ✅ Restored |
+| [[research-routing]] | **Ricerca multi-tier**: searxng > tavily > exa > brave > fetch; router code, intent classifier | Active ✅ Restored |
 | [[google-workspace-mcp-write-reliability]] | GWS MCP: **write scopes concessi**, single-user, Gmail/Calendar, 10 scopes | Active ✅ Write-enabled |
 | [[mcp-api-key-operations]] | **Runbook**: 5 provider, 17 keys, multi-account rotation, circuit breaker | Active ✅ Restored |
 | [[aria-launcher-cli-compatibility]] | bin/aria launcher: CLI invocation, hard isolation, MCP migration | Active (Fixed v2) |
@@ -80,7 +80,8 @@ docs/llm_wiki/
 ## Implementation Branch
 
 - **Branch**: `fix/memory-recovery`
-- **Status**: TUTTI I SISTEMI RIPRISTINATI ✅
+- **Commit**: `b5b8cd9` (2026-04-27T14:06) — commit batch che elimina branch review 66s
+- **Status**: TUTTI I SISTEMI RIPRISTINATI E PERFORMANCE OTTIMIZZATA ✅
   - Memory v3: profile persists, wiki_recall, 4 wiki MCP tools, watchdog, Phase E pending
   - Ricerca multi-tier: 5 provider, 17 keys, tier router funzionante, fallback testato
   - Google Workspace: write scopes (10), single-user, Gmail/Calendar abilitato
@@ -88,7 +89,9 @@ docs/llm_wiki/
   - Brave MCP: wrapper + env fix (BRAVE_API_KEY, no _ACTIVE)
   - .env: OAuth creds, SearXNG URL
   - Wiki profile: google_email field
+  - **Performance**: 51 file committati → branch review 0s (era 66s)
 - **Phase E pending**: Hard delete frozen memory modules after 30 days
+- **Prossimo passo**: Riavviare `bin/aria repl` per caricare il commit e testare senza latenza
 
 ## Bootstrap Log
 
@@ -99,4 +102,4 @@ docs/llm_wiki/
 ## Relevant Files
 
 - `AGENTS.md` — coding standards and agent rules
-- `docs/llm_wiki/wiki/research-routing.md` — tier policy (searxng > tavily > firecrawl > exa > brave)
+- `docs/llm_wiki/wiki/research-routing.md` — tier policy (searxng > tavily > exa > brave > fetch)

@@ -1639,6 +1639,29 @@ Ogni sessione Kilo esegue `service=review fileCount=2070 baseBranch=origin/main 
 - Il branch review sessionale ora compara solo il nuovo commit vs origin/main → diff ~0 → latenza eliminata
 - `log.md`: da oggi si usa append-only (aggiungere nuove entry in fondo, non riscrivere l'intero file)
 
+---
+
+## 2026-04-27T15:47 — Rimozione completa Firecrawl
+
+**Operazione**: REMOVE — firecrawl eliminato da tutto il sistema.
+**Commit**: `c191ff8` + modifiche successive
+
+### Cosa è stato rimosso
+- `.aria/kilocode/mcp.json`: entry `firecrawl-mcp` eliminata (non solo `disabled: true`)
+- `scripts/wrappers/firecrawl-wrapper.sh`: file cancellato
+- `.aria/kilocode/agents/search-agent.md`: `firecrawl-mcp/scrape`, `firecrawl-mcp/extract` rimossi da `allowed-tools`
+- `src/aria/agents/search/router.py`: `Provider.FIRECRAWL_EXTRACT`, `FIRECRAWL_SCRAPE` rimossi; tier policy aggiornata a `searxng > tavily > exa > brave > fetch`
+- `.aria/credentials/secrets/api-keys.enc.yaml`: firecrawl keys rimosse dal SOPS YAML
+- `docs/llm_wiki/wiki/research-routing.md`: tier policy senza firecrawl
+- `docs/llm_wiki/wiki/mcp-api-key-operations.md`: sezione firecrawl rimossa
+- `docs/llm_wiki/wiki/index.md`: riferimenti a firecrawl aggiornati
+
+### Nuova tier policy
+```
+general/news, academic: searxng > tavily > exa > brave > fetch
+deep_scrape: fetch > webfetch
+```
+
 ### Impatto misurato
 - **Prima**: 66s di branch review + 87s di elaborazione = 153s totali per una ricerca semplice
 - **Dopo (commit 1)**: branch review non eliminato perché 1919 untracked file runtime rimanevano

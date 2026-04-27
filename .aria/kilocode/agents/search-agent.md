@@ -8,8 +8,6 @@ temperature: 0.1
 allowed-tools:
   - searxng-script/search
   - tavily-mcp/search
-  - firecrawl-mcp/scrape
-  - firecrawl-mcp/extract
   - exa-script/search
   - brave-mcp/web_search
   - brave-mcp/news_search
@@ -19,7 +17,7 @@ allowed-tools:
 required-skills:
   - deep-research
   - source-dedup
-mcp-dependencies: [tavily-mcp, firecrawl-mcp, brave-mcp, exa-script, searxng-script]
+mcp-dependencies: [tavily-mcp, brave-mcp, exa-script, searxng-script]
 ---
 
 # Search-Agent

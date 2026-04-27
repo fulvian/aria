@@ -21,7 +21,7 @@ This page documents the canonical provider routing policy for research operation
 |----------|------|--------------|------|-------|
 | `searxng` | Self-hosted meta-search | No | Zero (infra only) | Tier 1; privacy-first; Docker su 8888 |
 | `tavily` | Commercial LLM-ready API | Yes | 1000 req/mo free, poi $0.008/req | 8 chiavi multi-account rotazione `least_used` |
-| `firecrawl` | Commercial scraping API | Yes | 500 credits lifetime, poi ~$0.005-0.015/page | 6 chiavi multi-account; `extract`/`scrape` specializzati |
+| `firecrawl` | ~~Commercial scraping API~~ | ~~Yes~~ | **REMOVED** (all 6 accounts exhausted) | ~~6 chiavi~~ — vedi Removed Providers |
 | `exa` | Commercial semantic search | Yes | 1000 req/mo free, poi $0.007/req | 1 chiave |
 | `brave` | Commercial search API | Yes | $5/mo free credits | 1 chiave; env var = `BRAVE_API_KEY` (no `_ACTIVE`) |
 
@@ -52,7 +52,7 @@ Features:
 - Degraded mode (tutti i tier esauriti → `SearchResult(degraded=True)`)
 - Key acquisition via `Rotator.acquire()`
 - SearXNG special case: self-hosted, no Rotator needed
-- Firecrawl composite names (`firecrawl_extract`, `firecrawl_scrape`) mapped to base `firecrawl`
+- ~~Firecrawl composite names~~ (firecrawl **REMOVED**) — rotator_provider mappato direttamente; auth-free (SEARXNG, FETCH, WEBFETCH) bypassano il Rotator
 
 **File**: `src/aria/agents/search/intent.py` — Classificatore keyword-based
 - `classify_intent(query)` → `Intent.GENERAL_NEWS | ACADEMIC | DEEP_SCRAPE`
@@ -83,7 +83,7 @@ If all tiers fail, the router enters `local-only` mode:
 | Provider | Context7 ID | Key verified |
 |----------|-------------|-------------|
 | Tavily MCP | `/tavily-ai/tavily-mcp` | `TAVILY_API_KEY` env var, `npx -y tavily-mcp@latest` |
-| Firecrawl MCP Server | `/firecrawl/firecrawl-mcp-server` | `FIRECRAWL_API_KEY` env var, `npx -y firecrawl-mcp` |
+| Firecrawl MCP Server | `/firecrawl/firecrawl-mcp-server` | `FIRECRAWL_API_KEY` env var | ❌ **REMOVED** (all accounts exhausted) |
 | Exa MCP Server | `/exa-labs/exa-mcp-server` | `EXA_API_KEY` env var, `npx -y exa-mcp-server` |
 | Brave Search MCP | `/brave/brave-search-mcp-server` | `BRAVE_API_KEY` env var, `--brave-api-key` CLI, **richiede chiave a startup** |
 
@@ -94,8 +94,8 @@ If all tiers fail, the router enters `local-only` mode:
 ```
 searxng disponibile              → GENERAL_NEWS: searxng ✅ (tier 1, self-hosted)
 searxng DOWN                     → tavily ✅ (fallback tier 1→2)
-searxng + tavily DOWN            → firecrawl ✅ (fallback tier 1→2→3)
-DEEP_SCRAPE                      → firecrawl_extract ✅ (mappato a firecrawl)
+searxng + tavily DOWN            → exa ✅ (fallback tier 1→2→3)
+DEEP_SCRAPE                      → fetch ✅ (tier 1, HTTP fetch)
 Health check (5 provider)        → tutti available ✅
 ```
 
@@ -129,8 +129,8 @@ Health check (5 provider)        → tutti available ✅
 
 1. `general/news`: tier 1 healthy → uses searxng, no fallback
 2. `general/news`: tier 1 quota exhausted → fallback to tavily (tier 2)
-3. `general/news`: tier 1+2 down → fallback to firecrawl (tier 3)
-4. `deep_scrape`: firecrawl_extract failure → fallback to firecrawl_scrape (tier 2)
-5. `deep_scrape`: firecrawl_scrape failure → fallback to fetch (tier 3)
+3. `general/news`: tier 1+2 down → fallback to exa (tier 3)
+4. `deep_scrape`: fetch failure → fallback to webfetch (tier 2)
+5. `all`: all tiers unavailable → explicit `local-only/degraded` response
 6. All providers unavailable → explicit `local-only/degraded` response
 7. ALL 5 PROD: `python -m aria.credentials status` → tutti `closed` con chiavi ✅

@@ -4,8 +4,9 @@
 # with failure classification per blueprint §11.6.
 #
 # Policy Matrix:
-#   general/news, academic: searxng > tavily > firecrawl > exa > brave
-#   deep_scrape: firecrawl_extract > firecrawl_scrape > fetch
+#   general/news, academic: searxng > tavily > exa > brave > fetch
+#   deep_scrape: fetch > webfetch
+#   firecrawl REMOVED 2026-04-27: all 6 accounts exhausted lifetime credits.
 #
 # Usage:
 #   from aria.agents.search.router import ResearchRouter
@@ -35,8 +36,9 @@ class Provider(StrEnum):
     """Research providers with tier assignment.
 
     Tier assignments per canonical policy:
-    - general/news, academic: searxng > tavily > firecrawl > exa > brave
-    - deep_scrape: firecrawl_extract > firecrawl_scrape > fetch
+    - general/news, academic: searxng > tavily > exa > brave > fetch
+    - deep_scrape: fetch > webfetch
+    - firecrawl REMOVED 2026-04-27: all 6 accounts exhausted lifetime credits.
     """
 
     # --- Tier 1 ---
@@ -46,17 +48,14 @@ class Provider(StrEnum):
     TAVILY = "tavily"
 
     # --- Tier 3 ---
-    FIRECRAWL_EXTRACT = "firecrawl_extract"
-    FIRECRAWL_SCRAPE = "firecrawl_scrape"
-
-    # --- Tier 4 ---
     EXA = "exa"
 
-    # --- Tier 5 ---
+    # --- Tier 4 ---
     BRAVE = "brave"
 
-    # --- Deep Scrape Tier 3 fallback ---
+    # --- Tier 5 ---
     FETCH = "fetch"
+    WEBFETCH = "webfetch"
 
 
 class FailureReason(StrEnum):
@@ -106,23 +105,22 @@ class SearchResult(BaseModel):
 
 INTENT_TIERS: dict[Intent, tuple[Provider, ...]] = {
     Intent.GENERAL_NEWS: (
-        Provider.SEARXNG,  # tier 1
-        Provider.TAVILY,  # tier 2
-        Provider.FIRECRAWL_EXTRACT,  # tier 3 (uses firecrawl)
-        Provider.EXA,  # tier 4
-        Provider.BRAVE,  # tier 5
+        Provider.SEARXNG,  # tier 1 — self-hosted, privacy-first
+        Provider.TAVILY,  # tier 2 — commercial, LLM-ready synthesis
+        Provider.EXA,  # tier 3 — academic/semantic search
+        Provider.BRAVE,  # tier 4 — commercial, web+news
+        Provider.FETCH,  # tier 5 — HTTP fallback
     ),
     Intent.ACADEMIC: (
         Provider.SEARXNG,  # tier 1
         Provider.TAVILY,  # tier 2
-        Provider.FIRECRAWL_EXTRACT,  # tier 3
-        Provider.EXA,  # tier 4
-        Provider.BRAVE,  # tier 5
+        Provider.EXA,  # tier 3
+        Provider.BRAVE,  # tier 4
+        Provider.FETCH,  # tier 5
     ),
     Intent.DEEP_SCRAPE: (
-        Provider.FIRECRAWL_EXTRACT,  # tier 1
-        Provider.FIRECRAWL_SCRAPE,  # tier 2
-        Provider.FETCH,  # tier 3
+        Provider.FETCH,  # tier 1 — HTTP fetch (readabilipy)
+        Provider.WEBFETCH,  # tier 2 — web fetch fallback
     ),
 }
 
@@ -223,10 +221,9 @@ class ResearchRouter:
                 tier += 1
                 continue
 
-            # Acquire key from rotator (map composite names to base provider)
-            rotator_provider = provider.value.replace("_extract", "").replace("_scrape", "")
-            # searxng doesn't use the rotator (no API key)
-            if rotator_provider == "searxng":
+            # Acquire key from rotator. Skip providers without API key mechanism.
+            rotator_provider = provider.value
+            if rotator_provider in ("searxng", "fetch", "webfetch"):
                 return provider, None
 
             key_info = await self._rotator.acquire(rotator_provider)
@@ -321,13 +318,12 @@ class ResearchRouter:
 
     async def _refresh_health(self, provider: str) -> None:
         """Refresh health state for a single provider."""
-        # Special cases: searxng is self-hosted (no Rotator keys)
-        if provider == "searxng":
+        # Special cases: providers without Rotator keys (self-hosted or fetch-based)
+        if provider in ("searxng", "fetch", "webfetch"):
             self._health[provider] = HealthState.AVAILABLE
             return
 
-        # Map composite providers (firecrawl_extract, firecrawl_scrape) to base
-        rotator_provider = provider.replace("_extract", "").replace("_scrape", "")
+        rotator_provider = provider
 
         status = self._rotator.status(rotator_provider)
         if not status.get("keys"):
