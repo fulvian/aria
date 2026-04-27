@@ -6,6 +6,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 PYTHON_BIN="$PROJECT_ROOT/.venv/bin/python"
 
+# Ensure SOPS_AGE_KEY_FILE for credential auto-acquire
+if [[ -z "${SOPS_AGE_KEY_FILE:-}" ]]; then
+  if [[ -f "$HOME/.config/sops/age/keys.txt" ]]; then
+    export SOPS_AGE_KEY_FILE="$HOME/.config/sops/age/keys.txt"
+  elif [[ -f "/home/fulvio/.config/sops/age/keys.txt" ]]; then
+    export SOPS_AGE_KEY_FILE="/home/fulvio/.config/sops/age/keys.txt"
+  fi
+fi
+
 if [[ "${EXA_API_KEY:-}" =~ ^\$\{[A-Z0-9_]+\}$ ]]; then
   unset EXA_API_KEY
 fi
