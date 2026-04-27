@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-04-27T15:43 (VERIFICA COMPLETA — tutti i 12 MCP server testati e funzionanti, Context7 alignment verificato)
-**Status**: ✅ VERIFIED — Tutti i sistemi operativi e allineati con documentazione ufficiale Context7
+**Last Updated**: 2026-04-27T15:59 (RIPRISTINO COMPLETO ✅ — tutti i sistemi funzionanti, Tavily rotation con pre-verification automatica, firecrawl rimosso)
+**Status**: ✅ COMPLETE — Tutti i sistemi operativi, verificati e documentati
 
 ## Purpose
 
@@ -80,18 +80,21 @@ docs/llm_wiki/
 ## Implementation Branch
 
 - **Branch**: `fix/memory-recovery`
-- **Commit**: `b5b8cd9` (2026-04-27T14:06) — commit batch che elimina branch review 66s
-- **Status**: TUTTI I SISTEMI RIPRISTINATI E PERFORMANCE OTTIMIZZATA ✅
+- **Commit finale**: `e365b9e` (2026-04-27T15:48) — Tavily rotation con key pre-verification
+- **Status**: ✅ **RIPRISTINO COMPLETO** — tutti i sistemi funzionanti e verificati
   - Memory v3: profile persists, wiki_recall, 4 wiki MCP tools, watchdog, Phase E pending
-  - Ricerca multi-tier: 5 provider, 17 keys, tier router funzionante, fallback testato
+  - Ricerca multi-tier: 4 provider (searxng > tavily > exa > brave > fetch)
+    - Tavily: 3 chiavi attive con pre-verification e rotazione automatica
+    - SearXNG: Docker container port 8888
+    - Exa: 1 chiave, funzionante
+    - Brave: 1 chiave, funzionante
+    - ~~Firecrawl~~: **RIMOSSO** (6 account tutti esauriti)
   - Google Workspace: write scopes (10), single-user, Gmail/Calendar abilitato
-  - SearXNG: Docker container, port 8888, restart unless-stopped
   - Brave MCP: wrapper + env fix (BRAVE_API_KEY, no _ACTIVE)
   - .env: OAuth creds, SearXNG URL
   - Wiki profile: google_email field
-  - **Performance**: 51 file committati → branch review 0s (era 66s)
+  - **Performance**: review 66s→~5s (gitignore + resolve_kilo_cli fix)
 - **Phase E pending**: Hard delete frozen memory modules after 30 days
-- **Prossimo passo**: Riavviare `bin/aria repl` per caricare il commit e testare senza latenza
 
 ## Bootstrap Log
 

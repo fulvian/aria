@@ -85,16 +85,27 @@ Tutti i wrapper seguono lo stesso pattern:
 3. Auto-acquire via `CredentialManager.acquire(provider)` se env var mancante
 4. Avvio server anche senza chiave (warning su stderr — evita stato `disabled` in `/mcps`)
 
-### 3.1 Tavily (`tavily-mcp`)
+### 3.1 Tavily (`tavily-mcp`) — con key pre-verification
 
 | Campo | Valore |
 |-------|--------|
-| Wrapper | `scripts/wrappers/tavily-wrapper.sh` |
+| Wrapper | `scripts/wrappers/tavily-wrapper.sh` (v3 con pre-verification) |
 | Comando | `npx -y tavily-mcp@0.2.19` |
 | Env var | `TAVILY_API_KEY` |
-| Keys (Rotator) | 8 (multi-account: fulviold, grazia, pietro, fulvio-vr, federica, github-pro, microsoft, fulvian) |
-| Rotator strategy | `least_used` |
+| Keys (Rotator) | 3 attive (grazia, federica, github-pro) — 5 rimosse per esaurimento/disattivazione |
+| Rotator strategy | `round_robin` |
 | Free tier | 1000 req/mo per chiave |
+| Pre-verification | ✅ Test chiamata API prima di avviare il server |
+
+La pre-verification funziona così:
+1. Acquista chiave dal Rotator (`round_robin`)
+2. Invia `POST api.tavily.com/search` con `api_key`, query "ping", 1 risultato
+3. Se `200 OK` → avvia il server MCP con quella chiave
+4. Se `401/429/432` → `report_failure()` al Rotator, passa alla chiave successiva
+5. Max 8 tentativi (copre tutte le chiavi registrate)
+
+**Vantaggio**: Se una chiave viene disattivata da Tavily tra una sessione e l'altra,
+il wrapper la salta automaticamente e prova la successiva, senza bisogno di intervento manuale.
 
 ### 3.2 Exa (`exa-script`)
 

@@ -1705,8 +1705,43 @@ parte con una chiave diversa in automatico.
 - `b5b8cd9` — commit batch ripristino ricerca + GWS (51 file)
 - `2720005` — .gitignore + resolve_kilo_cli fix
 
-### Stato post-fix
-- 2 untracked file rimasti (package-lock.json + plans file)
-- Review scansiona ~160 file (vs 2075)
-- Startup session: ~30-40s totale (MCP 7s + review 5s + LLM inferenza 20s)
-- **Attenzione**: se si aggiungono nuovi file al working tree non tracciati, il review time aumenta proporzionalmente. Tenere il working tree pulito.
+---
+
+## 2026-04-27T15:48 — Tavily rotation finale: key pre-verification
+
+**Operazione**: FIX — Tavily rotation non funzionava nonostante round_robin.
+**Root cause**: Lo stato del Rotator (`providers_state.enc.yaml`) è **effimero**:
+viene ricreato dal YAML ad ogni init del CredentialManager, ripristinando
+tutte le chiavi con crediti "freschi" (1000). Le chiavi esaurite/disattivate
+non venivano mai persiste. Il MCP server partiva sempre con `tvly-fulviold`
+(prima in ordine round_robin), che è esausta da giorni.
+
+**Soluzione**: Pre-verifica delle chiavi nel wrapper `tavily-wrapper.sh`:
+
+```
+1. Acquire key dal Rotator (round_robin)
+2. Test rapido via POST api.tavily.com/search (query "ping", 1 risultato)
+3. Se 200 → avvia MCP server con quella chiave ✅
+4. Se 401/429/432 → report failure al Rotator, passa alla prossima chiave
+5. Max 8 tentativi (copre tutte le chiavi disponibili)
+```
+
+**YAML aggiornato**: rimosse 5 chiavi non funzionanti, mantenute 3 attive.
+- Rimosse: tvly-fulviold (exhausted), pietro (deactivated), fulvio-vr
+  (deactivated), microsoft (deactivated), fulvian (deactivated)
+- Mantenute: tvly-grazia ✅, tvly-federica ✅, tvly-github-pro ✅
+
+**Impatto**: Tavily finalmente funzionante in ARIA. Key verification
+aggiunge ~0.5s al startup del wrapper.
+
+## 2026-04-27T15:59 — RIPRISTINO COMPLETO ✅
+
+**Stato finale**: Tutti i sistemi funzionanti e verificati.
+
+| Sistema | Stato | Commit finale |
+|---------|-------|---------------|
+| Ricerca multi-tier (4 provider) | ✅ | `e365b9e` |
+| Google Workspace (Gmail/Drive/Calendar/Docs/Sheets/Slides) | ✅ | `b5b8cd9` |
+| Performance startup (review 66s→~5s) | ✅ | `2720005` |
+| Tavily rotation (key pre-verification) | ✅ | `e365b9e` |
+| Wiki aggiornata | ✅ | `e365b9e` |

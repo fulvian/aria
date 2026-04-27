@@ -1,7 +1,7 @@
 # Research Routing — Tier Policy
 
-**Last Updated**: 2026-04-27T15:36 (ripristino completato — tutti i 5 provider funzionanti con rotation multi-account, router testato con fallback)
-**Status**: ✅ FULLY RESTORED — tutti i provider operativi, router funzionante
+**Last Updated**: 2026-04-27T15:59 (ripristino COMPLETO ✅ — sistema di rotazione Tavily con pre-verification, 3 chiavi attive, firecrawl rimosso)
+**Status**: ✅ FULLY RESTORED AND VERIFIED — 4 provider operativi, Tavily rotation con pre-verification automatica
 
 ## Purpose
 
@@ -101,12 +101,13 @@ Health check (5 provider)        → tutti available ✅
 
 ### Provider Keys (Rotator)
 
-| Provider | Keys | Stato |
-|----------|------|-------|
-| Tavily | 8 (multi-account) | 8/8 available (closed) |
-| Firecrawl | 6 (multi-account) | 6/6 available (closed) |
-| Brave | 1 | 1/1 available (closed) |
-| Exa | 1 | 1/1 available (closed) |
+| Provider | Keys | Stato | Note |
+|----------|------|-------|------|
+| Tavily | 3 (multi-account) | 3/3 attive | 5 rimosse per esaurimento/disattivazione |
+| Brave | 1 | 1/1 attiva | — |
+| Exa | 1 | 1/1 attiva | — |
+| SearXNG | 0 (self-hosted) | Docker 8888 | Nessuna chiave necessaria |
+| ~~Firecrawl~~ | ~~6~~ | ~~RIMOSSO~~ | Tutti i crediti lifetime esauriti |
 
 ## Agent/Skill Prompts
 
