@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-04-27T17:30 (v2 implementation complete — code merged, wiki updated)
-**Status**: ✅ COMPLETE — Ricerca: 6 provider operativi + 3 MCP nuovi (PubMed, Scientific Papers, Reddit). v2 implementato.
+**Last Updated**: 2026-04-27T22:15 (ADR-0006 approvato, push su GitHub)
+**Status**: ✅ COMPLETE — Ricerca: 6 provider operativi + 3 MCP nuovi (PubMed, Scientific Papers, Reddit). ADR-0006 accepted. Feature branch su GitHub.
 
 ## Purpose
 
@@ -92,20 +92,18 @@ docs/llm_wiki/
 
 ## Implementation Branch
 
-- **Branch**: `fix/memory-recovery`
-- **Commit finale**: `e365b9e` (2026-04-27T15:48) — Tavily rotation con key pre-verification
-- **Status**: ✅ **RIPRISTINO COMPLETO** — tutti i sistemi funzionanti e verificati
+- **Branch**: `feature/research-academic-social-v2`
+- **Commit finale**: `1eeec32` (2026-04-27T17:28) — feat(search): add academic+social provider expansion
+- **ADR**: `ADR-0006-research-agent-academic-social-expansion.md` (status: Accepted)
+- **Status**: ✅ **ESPANSIONE V2 COMPLETA** — 6 provider ricerca + 3 MCP nuovi
   - Memory v3: profile persists, wiki_recall, 4 wiki MCP tools, watchdog, Phase E pending
-  - Ricerca multi-tier: 4 provider (searxng > tavily > exa > brave > fetch)
-    - Tavily: 3 chiavi attive con pre-verification e rotazione automatica
-    - SearXNG: Docker container port 8888
-    - Exa: 1 chiave, funzionante
-    - Brave: 1 chiave, funzionante
-    - ~~Firecrawl~~: **RIMOSSO** (6 account tutti esauriti)
+  - Ricerca multi-tier: 6 provider (searxng > tavily > exa > brave > pubmed > scientific_papers)
+  - `Intent.SOCIAL`: nuovo intent per social (reddit > searxng > tavily > brave)
+    - Reddit: **OAuth required** — HITL gate per setup (vedi research-routing.md)
+  - PubMed MCP: 9 tool, NCBI_API_KEY opzionale via CredentialManager
+  - Scientific Papers MCP: keyless, 6 sorgenti (arXiv, Europe PMC, OpenAlex, etc.)
+  - ADR-0006 accettato (P10 compliance: blueprint §11 divergence registrata)
   - Google Workspace: write scopes (10), single-user, Gmail/Calendar abilitato
-  - Brave MCP: wrapper + env fix (BRAVE_API_KEY, no _ACTIVE)
-  - .env: OAuth creds, SearXNG URL
-  - Wiki profile: google_email field
   - **Performance**: review 66s→~5s (gitignore + resolve_kilo_cli fix)
 - **Phase E pending**: Hard delete frozen memory modules after 30 days
 
