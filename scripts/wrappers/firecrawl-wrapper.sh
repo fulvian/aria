@@ -2,5 +2,9 @@
 
 set -euo pipefail
 
-echo "Firecrawl MCP wrapper is not enabled in Phase 0. Enable provider integration in Phase 1." >&2
-exit 1
+api_url="${FIRECRAWL_API_URL:-}"
+if [[ -z "$api_url" || "$api_url" == \$\{*\} ]]; then
+    export FIRECRAWL_API_URL="https://api.firecrawl.dev"
+fi
+
+exec npx -y firecrawl-mcp@3.10.3

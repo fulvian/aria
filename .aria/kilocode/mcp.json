@@ -31,24 +31,52 @@
         "ARIA_HOME": "/home/fulvio/coding/aria"
       }
     },
-    "tavily": {
+    "tavily-mcp": {
       "command": "/home/fulvio/coding/aria/scripts/wrappers/tavily-wrapper.sh",
-      "disabled": true,
-      "_comment": "@phase1 provider integration"
+      "disabled": false,
+      "timeout": 120000,
+      "env": {
+        "TAVILY_API_KEY": "${TAVILY_API_KEY}"
+      },
+      "_comment": "@phase1 provider integration - search agent dependency"
     },
-    "firecrawl": {
+    "firecrawl-mcp": {
       "command": "/home/fulvio/coding/aria/scripts/wrappers/firecrawl-wrapper.sh",
-      "disabled": true,
-      "_comment": "@phase1 provider integration"
+      "disabled": false,
+      "timeout": 120000,
+      "env": {
+        "FIRECRAWL_API_KEY": "${FIRECRAWL_API_KEY}"
+      },
+      "_comment": "@phase1 provider integration - search agent dependency"
     },
-    "brave": {
+    "brave-mcp": {
       "command": "npx",
       "args": ["-y", "@brave/brave-search-mcp-server"],
-      "disabled": true,
+      "disabled": false,
+      "timeout": 120000,
       "env": {
         "BRAVE_API_KEY": "${BRAVE_API_KEY_ACTIVE}"
       },
-      "_comment": "@phase1 provider integration"
+      "_comment": "@phase1 provider integration - search agent dependency"
+    },
+    "exa-script": {
+      "command": "/home/fulvio/coding/aria/scripts/wrappers/exa-wrapper.sh",
+      "disabled": false,
+      "timeout": 120000,
+      "env": {
+        "EXA_API_KEY": "${EXA_API_KEY}"
+      },
+      "_comment": "@phase1 provider integration - search agent dependency"
+    },
+    "searxng-script": {
+      "command": "/home/fulvio/coding/aria/scripts/wrappers/searxng-wrapper.sh",
+      "disabled": false,
+      "timeout": 120000,
+      "env": {
+        "SEARXNG_SERVER_URL": "${SEARXNG_SERVER_URL}",
+        "SEARXNG_URL": "${SEARXNG_URL}"
+      },
+      "_comment": "@phase1 self-hosted metasearch dependency"
     },
     "google_workspace": {
       "command": "uvx",
@@ -69,32 +97,6 @@
         "OAUTHLIB_INSECURE_TRANSPORT": "1"
       },
       "_comment": "@phase1 write-enabled profile - tools: docs/sheets/slides/drive"
-    },
-    "google_workspace_readonly": {
-      "command": "uvx",
-      "args": [
-        "workspace-mcp",
-        "--tools",
-        "docs",
-        "sheets",
-        "slides",
-        "drive"
-      ],
-      "disabled": true,
-      "env": {
-        "GOOGLE_OAUTH_CLIENT_ID": "${GOOGLE_OAUTH_CLIENT_ID}",
-        "GOOGLE_OAUTH_CLIENT_SECRET": "${GOOGLE_OAUTH_CLIENT_SECRET}",
-        "GOOGLE_OAUTH_REDIRECT_URI": "http://127.0.0.1:8081/callback",
-        "GOOGLE_OAUTH_USE_PKCE": "true",
-        "OAUTHLIB_INSECURE_TRANSPORT": "1"
-      },
-      "_comment": "@phase1 read-only fallback profile - same tools but RO auth when needed"
-    },
-    "playwright": {
-      "command": "npx",
-      "args": ["-y", "@executeautomation/playwright-mcp-server"],
-      "disabled": true,
-      "_comment": "@fase2"
     }
   }
 }

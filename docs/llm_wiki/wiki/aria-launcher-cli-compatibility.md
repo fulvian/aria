@@ -1,8 +1,8 @@
 # ARIA Launcher CLI Compatibility
 
 **Last Updated**: 2026-04-25
-**Status**: FIXED (v2)
-**Scope**: `bin/aria` launcher compatibility + hard isolation from global Kilo
+**Status**: FIXED (v4)
+**Scope**: `bin/aria` launcher compatibility + hard isolation + MCP restoration
 
 ## Problem
 
@@ -26,6 +26,11 @@ Two independent regressions were active:
    - current CLI resolved config/data from XDG/HOME (`~/.config/kilo`, `~/.local/share/kilo`)
    - result: ARIA session used global Kilo environment instead of ARIA-isolated runtime
 
+3. MCP schema drift after isolation move:
+   - ARIA MCP inventory lived in legacy `.aria/kilocode/mcp.json` (`mcpServers` format)
+   - current Kilo runtime reads MCP from modern config key `mcp` in `kilo.jsonc`
+   - result: after isolation fix, MCP list became empty (`No MCP servers configured`)
+
 ## Evidence
 
 - Reproduction A: `bin/aria repl` returned `Failed to change directory to /home/fulvio/coding/aria/chat`.
@@ -38,6 +43,7 @@ Two independent regressions were active:
   - no `chat` subcommand.
 - Context7 docs for `/kilo-org/kilocode` confirm modern syntax (`kilo`, `kilo run ...`).
 - `kilo debug paths` confirms isolation is controlled by HOME/XDG in current CLI.
+- `kilo mcp list` initially reported: `No MCP servers configured`.
 
 ## Fix Implemented
 
@@ -71,6 +77,11 @@ Two independent regressions were active:
       - modern: `<kilo_cmd> "$ARIA_HOME" --agent`
       - legacy: `<kilo_cmd> chat --mode`
 
+6. MCP migration bridge added in launcher bootstrap:
+   - on each `bin/aria` invocation, convert `.aria/kilocode/mcp.json` -> isolated `kilo.jsonc` `mcp` schema
+   - preserve enable/disable state, command vector, and environment mapping
+   - preserve `${ENV_VAR}` placeholders to avoid writing secrets in local config files
+
 ## Why This Is Robust
 
 - Prevents any read/write to global `~/.config/kilo` and `~/.local/share/kilo`.
@@ -84,6 +95,10 @@ Two independent regressions were active:
 - `bin/aria repl --print-logs` now loads only isolated paths under `.aria/kilo-home`.
 - TUI starts with `Aria-Conductor` selected by default.
 - `bin/aria run ... --print-logs` shows `> aria-conductor · ...` and isolated DB path.
+- `kilo mcp list` now shows 12 active ARIA-managed servers after cleanup of deprecated disabled profiles:
+  - connected: `filesystem`, `git`, `github`, `sequential-thinking`, `fetch`, `aria-memory`, `google_workspace`, `tavily-mcp`, `firecrawl-mcp`, `brave-mcp`, `exa-script`, `searxng-script`
+- removed (deprecated): `google_workspace_readonly`, `playwright`
+- `firecrawl-mcp` startup regression resolved by pinning wrapper package version in `scripts/wrappers/firecrawl-wrapper.sh` to `firecrawl-mcp@3.10.3` (avoids broken transient npx artifact observed under isolated HOME cache).
 
 ## Provenance
 
@@ -92,4 +107,8 @@ Two independent regressions were active:
 - Source: local command output `npx --yes kilocode debug paths` (queried: 2026-04-25)
 - Source: local command output `bin/aria repl` (queried: 2026-04-25)
 - Source: local command output `bin/aria repl --print-logs` (queried: 2026-04-25)
+- Source: local command output `npx --yes kilocode mcp list` (queried: 2026-04-25)
+- Source: local command output `HOME=... XDG_*=... kilo mcp list` (queried: 2026-04-25)
+- Source: local runtime log `.aria/kilo-home/.local/share/kilo/log/2026-04-25T203602.log` (queried: 2026-04-25)
+- Source: `scripts/wrappers/firecrawl-wrapper.sh` (updated: 2026-04-25)
 - Source: Context7 `/kilo-org/kilocode` (queried: 2026-04-25)

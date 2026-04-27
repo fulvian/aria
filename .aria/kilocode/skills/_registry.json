@@ -6,6 +6,7 @@
     {"name": "triage-email", "path": "triage-email/SKILL.md", "version": "0.9.0", "category": "workspace"},
     {"name": "memory-distillation", "path": "memory-distillation/SKILL.md", "version": "1.0.0", "category": "memory"},
     {"name": "hitl-queue", "path": "hitl-queue/SKILL.md", "version": "1.0.0", "category": "system"},
-    {"name": "blueprint-keeper", "path": "blueprint-keeper/SKILL.md", "version": "1.0.0", "category": "governance"}
+    {"name": "blueprint-keeper", "path": "blueprint-keeper/SKILL.md", "version": "1.0.0", "category": "governance"},
+    {"name": "source-dedup", "path": "source-dedup/SKILL.md", "version": "1.0.0", "category": "research"}
   ]
 }
