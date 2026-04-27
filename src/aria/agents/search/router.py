@@ -36,12 +36,14 @@ class Provider(StrEnum):
     """Research providers with tier assignment.
 
     Tier assignments per canonical policy:
-    - general/news, academic: searxng > tavily > exa > brave > fetch
-    - deep_scrape: fetch > webfetch
+    - general/news:  searxng > tavily > exa > brave > fetch
+    - academic:      searxng > pubmed > scientific_papers > tavily > exa > brave > fetch
+    - deep_scrape:   fetch > webfetch
+    - social:        reddit (cond. OAuth) > searxng > tavily > brave
     - firecrawl REMOVED 2026-04-27: all 6 accounts exhausted lifetime credits.
     """
 
-    # --- Tier 1 ---
+    # --- Tier 1 (self-hosted / keyless) ---
     SEARXNG = "searxng"
 
     # --- Tier 2 ---
@@ -56,6 +58,14 @@ class Provider(StrEnum):
     # --- Tier 5 ---
     FETCH = "fetch"
     WEBFETCH = "webfetch"
+
+    # --- Nuovi v2 (academic + social) ---
+    PUBMED = "pubmed"
+    SCIENTIFIC_PAPERS = (
+        "scientific_papers"  # copre arxiv + europepmc + openalex + biorxiv + pmc + core
+    )
+    REDDIT = "reddit"  # solo se OAuth attivo (HITL gate)
+    ARXIV = "arxiv"  # opzionale Phase 2 (blazickjp/arxiv-mcp-server[pdf])
 
 
 class FailureReason(StrEnum):
@@ -78,11 +88,15 @@ class HealthState(StrEnum):
 
 
 class Intent(StrEnum):
-    """Research intent classification (deterministic, keyword-based)."""
+    """Research intent classification (deterministic, keyword-based).
+
+    v2 expansion: added SOCIAL intent for Reddit + SearXNG social fallback.
+    """
 
     GENERAL_NEWS = "general/news"
     ACADEMIC = "academic"
     DEEP_SCRAPE = "deep_scrape"
+    SOCIAL = "social"  # NUOVO v2
     UNKNOWN = "unknown"
 
 
@@ -112,20 +126,40 @@ INTENT_TIERS: dict[Intent, tuple[Provider, ...]] = {
         Provider.FETCH,  # tier 5 — HTTP fallback
     ),
     Intent.ACADEMIC: (
-        Provider.SEARXNG,  # tier 1
-        Provider.TAVILY,  # tier 2
-        Provider.EXA,  # tier 3
-        Provider.BRAVE,  # tier 4
-        Provider.FETCH,  # tier 5
+        Provider.SEARXNG,  # tier 1 — self-hosted meta-search (privacy-first)
+        Provider.PUBMED,  # tier 2 — biomedico specialized (NCBI API key opt)
+        Provider.SCIENTIFIC_PAPERS,  # tier 3 — arXiv+Europe PMC+OpenAlex+altri (keyless)
+        Provider.TAVILY,  # tier 4 — fallback generale LLM-ready
+        Provider.EXA,  # tier 5 — semantic search
+        Provider.BRAVE,  # tier 6 — web fallback
+        Provider.FETCH,  # tier 7 — HTTP fallback
     ),
     Intent.DEEP_SCRAPE: (
         Provider.FETCH,  # tier 1 — HTTP fetch (readabilipy)
         Provider.WEBFETCH,  # tier 2 — web fetch fallback
     ),
+    Intent.SOCIAL: (
+        # Tier 1 condizionale a OAuth Reddit:
+        Provider.REDDIT,  # solo se REDDIT_CLIENT_ID presente (HITL gate)
+        Provider.SEARXNG,  # tier fallback (engine reddit nativo)
+        Provider.TAVILY,
+        Provider.BRAVE,
+    ),
 }
 
 # Failure action matrix: retryable?
 RETRYABLE_FAILURE: set[FailureReason] = {FailureReason.TIMEOUT, FailureReason.NETWORK_ERROR}
+
+# Providers that bypass the Rotator (no API key mechanism).
+# scientific_papers added v2: Europe PMC + arXiv are both keyless.
+KEYLESS_PROVIDERS: frozenset[str] = frozenset(
+    {
+        "searxng",
+        "fetch",
+        "webfetch",
+        "scientific_papers",
+    }
+)
 
 # === Router ===
 
@@ -223,7 +257,7 @@ class ResearchRouter:
 
             # Acquire key from rotator. Skip providers without API key mechanism.
             rotator_provider = provider.value
-            if rotator_provider in ("searxng", "fetch", "webfetch"):
+            if rotator_provider in KEYLESS_PROVIDERS:
                 return provider, None
 
             key_info = await self._rotator.acquire(rotator_provider)
@@ -318,8 +352,8 @@ class ResearchRouter:
 
     async def _refresh_health(self, provider: str) -> None:
         """Refresh health state for a single provider."""
-        # Special cases: providers without Rotator keys (self-hosted or fetch-based)
-        if provider in ("searxng", "fetch", "webfetch"):
+        # Special cases: providers without Rotator keys (self-hosted, fetch-based, or keyless MCP)
+        if provider in KEYLESS_PROVIDERS:
             self._health[provider] = HealthState.AVAILABLE
             return
 

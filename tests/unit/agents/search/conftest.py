@@ -27,21 +27,20 @@ def deep_scrape_intent():
 
 @pytest.fixture
 def all_providers():
-    """Fixture with all providers in tier order."""
+    """Fixture with all providers in tier order (post-FIRECRAWL)."""
     return [
         Provider.SEARXNG,
         Provider.TAVILY,
-        Provider.FIRECRAWL_EXTRACT,
         Provider.EXA,
         Provider.BRAVE,
+        Provider.FETCH,
     ]
 
 
 @pytest.fixture
 def deep_scrape_providers():
-    """Fixture for deep_scrape tier list."""
+    """Fixture for deep_scrape tier list (post-FIRECRAWL)."""
     return [
-        Provider.FIRECRAWL_EXTRACT,
-        Provider.FIRECRAWL_SCRAPE,
         Provider.FETCH,
+        Provider.WEBFETCH,
     ]

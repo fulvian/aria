@@ -1,19 +1,20 @@
 # Research Routing — Tier Policy
 
-**Last Updated**: 2026-04-27T15:59 (ripristino COMPLETO ✅ — sistema di rotazione Tavily con pre-verification, 3 chiavi attive, firecrawl rimosso)
-**Status**: ✅ FULLY RESTORED AND VERIFIED — 4 provider operativi, Tavily rotation con pre-verification automatica
+**Last Updated**: 2026-04-27T17:30 (v2 Implementata — PubMed + Scientific Papers + SOCIAL intent live)
+**Status**: ✅ 6 provider attivi (searxng, tavily, exa, brave, pubmed, scientific_papers) + reddit (OAuth gated). v2 Implementata.
 
 ## Purpose
 
 This page documents the canonical provider routing policy for research operations. All references (blueprint, skill, agent, code) must align with this policy.
 
-## Provider Tier Matrix
+## Provider Tier Matrix v2
 
-| Intent | Tier 1 | Tier 2 | Tier 3 | Tier 4 | Tier 5 |
-|--------|--------|--------|--------|--------|--------|
-| `general/news` | **searxng** | **tavily** | **exa** | **brave** | **fetch** |
-| `academic` | **searxng** | **tavily** | **exa** | **brave** | **fetch** |
-| `deep_scrape` | **fetch** | **webfetch** | — | — | — |
+| Intent | Tier 1 | Tier 2 | Tier 3 | Tier 4 | Tier 5 | Tier 6 | Tier 7 |
+|--------|--------|--------|--------|--------|--------|--------|--------|
+| `general/news` | **searxng** | **tavily** | **exa** | **brave** | **fetch** | — | — |
+| `academic` | **searxng** | **pubmed** | **scientific_papers** | **tavily** | **exa** | **brave** | **fetch** |
+| `deep_scrape` | **fetch** | **webfetch** | — | — | — | — | — |
+| `social` | **reddit** (OAuth) | **searxng** | **tavily** | **brave** | — | — | — |
 
 ### Tier Definitions
 
@@ -24,6 +25,9 @@ This page documents the canonical provider routing policy for research operation
 | `firecrawl` | ~~Commercial scraping API~~ | ~~Yes~~ | **REMOVED** (all 6 accounts exhausted) | ~~6 chiavi~~ — vedi Removed Providers |
 | `exa` | Commercial semantic search | Yes | 1000 req/mo free, poi $0.007/req | 1 chiave |
 | `brave` | Commercial search API | Yes | $5/mo free credits | 1 chiave; env var = `BRAVE_API_KEY` (no `_ACTIVE`) |
+| `pubmed` | Accademico biomedico (NCBI E-utilities) | Opt (10 req/s con chiave) | Free | 9 MCP tool; `NCBI_API_KEY` opzionale via SOPS+CredentialManager |
+| `scientific_papers` | Accademico multi-source (arXiv, Europe PMC, OpenAlex, etc.) | No | Gratuito (rate limit: 10 req/min Europe PMC) | 6 sorgenti; keyless; npm: `@futurelab-studio/latest-science-mcp` |
+| `reddit` | Social/Discussioni (OAuth) | Sì (OAuth) | Gratuito | Solo read (Phase 1); HITL gate per setup OAuth |
 
 ### Rationale
 
@@ -55,8 +59,8 @@ Features:
 - ~~Firecrawl composite names~~ (firecrawl **REMOVED**) — rotator_provider mappato direttamente; auth-free (SEARXNG, FETCH, WEBFETCH) bypassano il Rotator
 
 **File**: `src/aria/agents/search/intent.py` — Classificatore keyword-based
-- `classify_intent(query)` → `Intent.GENERAL_NEWS | ACADEMIC | DEEP_SCRAPE`
-- Keyword set: italiano + inglese
+- `classify_intent(query)` → `Intent.GENERAL_NEWS | ACADEMIC | DEEP_SCRAPE | SOCIAL`
+- Keyword set: italiano + inglese + nuovi v2 (pubmed, pmid, europe pmc, biorxiv, reddit, forum, subreddit, trending, ecc.)
 - Default: `GENERAL_NEWS`
 
 ### Fallback Behavior
@@ -135,3 +139,57 @@ Health check (5 provider)        → tutti available ✅
 5. `all`: all tiers unavailable → explicit `local-only/degraded` response
 6. All providers unavailable → explicit `local-only/degraded` response
 7. ALL 5 PROD: `python -m aria.credentials status` → tutti `closed` con chiavi ✅
+
+## v2 Implementation Complete (2026-04-27)
+
+Piano v2 audit-corrected implementato: `docs/plans/research_academic_reddit_2.md` (sostituisce v1).
+ADR: `docs/foundation/decisions/ADR-0006-research-agent-academic-social-expansion.md`.
+Tutti i test passano: 109/109 nei search tests.
+
+### New Providers v2 — State
+
+| Provider | Type | Intent/Tier | Auth | Status |
+|----------|------|-------------|------|--------|
+| **PubMed** (`@cyanheads/pubmed-mcp-server` v2.6.4) | Accademico biomedico | ACADEMIC tier 2 | `NCBI_API_KEY` (opt) via SOPS+CredentialManager | ✅ Implementato |
+| **Scientific Papers** (`@futurelab-studio/latest-science-mcp`) | Accademico multi-source (arXiv + Europe PMC + OpenAlex + biorxiv + CORE + PMC) | ACADEMIC tier 3 | Nessuna (keyless) | ✅ Implementato |
+| **Reddit** (`jordanburke/reddit-mcp-server`) | Social/Discussioni | SOCIAL tier 1 | **OAuth obbligatorio** | ⏸️ Disabled — attesa HITL OAuth |
+| **arXiv standalone** (`blazickjp/arxiv-mcp-server[pdf]`) | Accademico preprint (PDF read pipeline) | OPZIONALE Phase 2 | Nessuna | ⏸️ Conditional su necessità PDF |
+
+### Cambi chiave v2 implementati
+
+- Europe PMC: native Python provider RIMOSSO (violava P8). Sostituito da `scientific-papers-mcp` MCP.
+- Reddit: claim "anonymous mode" UNVERIFIED su Context7 → OAuth obbligatorio.
+- ADR-0006 creato (P10 compliance).
+- arXiv: `[pdf]` extra confermato via Context7 per paper pre-2007 PDF-only.
+- Pattern CredentialManager per NCBI key (non raw env var).
+- `scientific-papers-mcp` npm package è `@futurelab-studio/latest-science-mcp` (verified on npm).
+
+### New Intent: SOCIAL
+
+```python
+class Intent(StrEnum):
+    GENERAL_NEWS = "general/news"
+    ACADEMIC = "academic"
+    DEEP_SCRAPE = "deep_scrape"
+    SOCIAL = "social"        # NUOVO v2
+    UNKNOWN = "unknown"
+```
+
+### Accompanied by:
+
+- **`KEYLESS_PROVIDERS`** frozenset: searxng, fetch, webfetch, scientific_papers bypassano Rotator.
+- **`test_provider_pubmed.py`**: 7 test (enum, tier, health).
+- **`test_provider_scientific_papers.py`**: 8 test (enum, keyless, tier).
+- **`test_provider_reddit.py`**: 6 test (enum, SOCIAL tier, fallback).
+- **`test_intent_social.py`**: 13 test (SOCIAL keyword match, scoring).
+- **`test_router_academic_tiers.py`**: 10 test (7-tier ladder, fallback chain).
+- **`test_router_social_tiers.py`**: 12 test (REDDIT DOWN simulation, degraded mode).
+
+### Context7 Verified Sources v2
+
+| MCP Server | Context7 ID | Snippets | Benchmark | Verifica |
+|------------|-------------|----------|-----------|----------|
+| PubMed | `/cyanheads/pubmed-mcp-server` | 1053 | 83.7 | npx + `NCBI_API_KEY` + `UNPAYWALL_EMAIL` |
+| Scientific Papers | `/benedict2310/scientific-papers-mcp` | 5319 | 67.0 | `search_papers(source=europepmc)` confermato; npm: `@futurelab-studio/latest-science-mcp` |
+| arXiv standalone | `/blazickjp/arxiv-mcp-server` | 112 | 76.1 | `[pdf]` extra confermato |
+| Reddit | `/jordanburke/reddit-mcp-server` | 39 | — | OAuth env vars **obbligatori** (no anonymous mode docs) |

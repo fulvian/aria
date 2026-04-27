@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-04-27T15:59 (RIPRISTINO COMPLETO ✅ — tutti i sistemi funzionanti, Tavily rotation con pre-verification automatica, firecrawl rimosso)
-**Status**: ✅ COMPLETE — Tutti i sistemi operativi, verificati e documentati
+**Last Updated**: 2026-04-27T17:30 (v2 implementation complete — code merged, wiki updated)
+**Status**: ✅ COMPLETE — Ricerca: 6 provider operativi + 3 MCP nuovi (PubMed, Scientific Papers, Reddit). v2 implementato.
 
 ## Purpose
 
@@ -31,6 +31,19 @@ docs/llm_wiki/
 | Source | Description | Last Updated |
 |--------|-------------|--------------|
 | `docs/foundation/aria_foundation_blueprint.md` | Primary technical reference (blueprint §1-16) | 2026-04-20 |
+| `docs/analysis/research_agent_enhancement.md` | Analisi pre-implementazione 4 nuovi provider | 2026-04-27 |
+| `docs/plans/research_academic_reddit_1.md` | Piano espansione v1 (SUPERSEDED da v2) | 2026-04-27 |
+| `docs/plans/research_academic_reddit_2.md` | **Piano espansione v2 audit-corrected**: PubMed, scientific-papers (Europe PMC + arXiv), Reddit OAuth | 2026-04-27 |
+| `docs/foundation/decisions/ADR-0006-research-agent-academic-social-expansion.md` | ADR divergence blueprint §11 | 2026-04-27 |
+| `scripts/wrappers/pubmed-wrapper.sh` | PubMed MCP wrapper (CredentialManager + SOPS) | 2026-04-27 |
+| `scripts/wrappers/scientific-papers-wrapper.sh` | Scientific Papers MCP wrapper (keyless) | 2026-04-27 |
+| `scripts/wrappers/reddit-wrapper.sh` | Reddit MCP wrapper (OAuth via CredentialManager) | 2026-04-27 |
+| `tests/unit/agents/search/test_provider_pubmed.py` | Test: PubMed enum, tier, health | 2026-04-27 |
+| `tests/unit/agents/search/test_provider_scientific_papers.py` | Test: Scientific Papers enum, keyless | 2026-04-27 |
+| `tests/unit/agents/search/test_provider_reddit.py` | Test: Reddit enum, SOCIAL tier | 2026-04-27 |
+| `tests/unit/agents/search/test_intent_social.py` | Test: SOCIAL intent classification | 2026-04-27 |
+| `tests/unit/agents/search/test_router_academic_tiers.py` | Test: ACADEMIC tier ordering, fallback | 2026-04-27 |
+| `tests/unit/agents/search/test_router_social_tiers.py` | Test: SOCIAL tier ordering, Reddit DOWN | 2026-04-27 |
 | `docs/plans/rispristino_agenti_ricerca_google.md` | Piano ripristino multi-fase (RC-1..RC-9) | 2026-04-27 |
 | `docs/plans/auto_persistence_echo.md` | Memory v3: Kilo+Wiki Fusion | 2026-04-27 |
 | `docs/plans/research_restore_plan.md` | Research routing restore plan | 2026-04-26 |
@@ -71,7 +84,7 @@ docs/llm_wiki/
 |------|-------------|--------|
 | [[memory-subsystem]] | Memory subsystem: 5D model, 11 MCP tools, HITL flow, CLM, retention | Active |
 | [[memory-v3]] | Memory v3 Kilo+Wiki Fusion: wiki.db, 4 wiki MCP tools, profile auto-inject | Active |
-| [[research-routing]] | **Ricerca multi-tier**: searxng > tavily > exa > brave > fetch; router code, intent classifier | Active ✅ Restored |
+| [[research-routing]] | **Ricerca multi-tier**: 6 provider attivi (searxng, tavily, exa, brave, pubmed, scientific-papers) + reddit (OAuth gated) + SOCIAL intent | Active ✅ v2 Implemented |
 | [[google-workspace-mcp-write-reliability]] | GWS MCP: **write scopes concessi**, single-user, Gmail/Calendar, 10 scopes | Active ✅ Write-enabled |
 | [[mcp-api-key-operations]] | **Runbook**: 5 provider, 17 keys, multi-account rotation, circuit breaker | Active ✅ Restored |
 | [[aria-launcher-cli-compatibility]] | bin/aria launcher: CLI invocation, hard isolation, MCP migration | Active (Fixed v2) |

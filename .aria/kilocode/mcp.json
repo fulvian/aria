@@ -87,6 +87,33 @@
       "args": ["-y", "@executeautomation/playwright-mcp-server"],
       "disabled": true,
       "_comment": "@fase2"
+    },
+    "pubmed-mcp": {
+      "command": "/home/fulvio/coding/aria/scripts/wrappers/pubmed-wrapper.sh",
+      "disabled": false,
+      "env": {
+        "NCBI_API_KEY": "${NCBI_API_KEY}",
+        "NCBI_ADMIN_EMAIL": "${NCBI_ADMIN_EMAIL}",
+        "UNPAYWALL_EMAIL": "${UNPAYWALL_EMAIL}",
+        "SOPS_AGE_KEY_FILE": "/home/fulvio/.config/sops/age/keys.txt",
+        "ARIA_HOME": "/home/fulvio/coding/aria",
+        "MCP_TRANSPORT_TYPE": "stdio"
+      },
+      "_comment": "@v2 PubMed MCP (cyanheads/pubmed-mcp-server v2.6.4) — 9 tools, NCBI_API_KEY optional"
+    },
+    "scientific-papers-mcp": {
+      "command": "/home/fulvio/coding/aria/scripts/wrappers/scientific-papers-wrapper.sh",
+      "disabled": false,
+      "_comment": "@v2 Scientific Papers MCP (benedict2310/scientific-papers-mcp) — Europe PMC, arXiv, OpenAlex, keyless"
+    },
+    "reddit-mcp": {
+      "command": "/home/fulvio/coding/aria/scripts/wrappers/reddit-wrapper.sh",
+      "disabled": true,
+      "env": {
+        "SOPS_AGE_KEY_FILE": "/home/fulvio/.config/sops/age/keys.txt",
+        "ARIA_HOME": "/home/fulvio/coding/aria"
+      },
+      "_comment": "@v2 Reddit MCP (jordanburke/reddit-mcp-server) — OAuth required, disabled until HITL setup"
     }
   }
 }
