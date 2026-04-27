@@ -42,13 +42,14 @@
     },
     "firecrawl-mcp": {
       "command": "/home/fulvio/coding/aria/scripts/wrappers/firecrawl-wrapper.sh",
-      "disabled": false,
+      "disabled": true,
       "env": {
         "FIRECRAWL_API_KEY": "${FIRECRAWL_API_KEY}",
         "FIRECRAWL_API_URL": "${FIRECRAWL_API_URL}",
         "SOPS_AGE_KEY_FILE": "/home/fulvio/.config/sops/age/keys.txt",
         "ARIA_HOME": "/home/fulvio/coding/aria"
-      }
+      },
+      "_comment": "DISABLED 2026-04-27: all 6 accounts exhausted (free tier lifetime 500 credits each)"
     },
     "brave-mcp": {
       "command": "/home/fulvio/coding/aria/scripts/wrappers/brave-wrapper.sh",

@@ -1558,6 +1558,17 @@ Aggiornato anche `.aria/kilocode/agents/search-agent.md` con tier ladder esplici
 3. `.aria/kilocode/mcp.json`: brave-mcp env + SOPS_AGE_KEY_FILE
 4. `.aria/kilo-home/.config/kilo/kilo.jsonc`: runtime allineato con il fix
 
+### Verifica live: due sessioni utente (2026-04-27T14:09)
+
+**Google Workspace** (`ses_231281915ffegYexazCYfHoBm1`, 216.0s): ✅ 10/10 operazioni riuscite
+- Gmail search + bozza, Drive search, Calendar eventi, Docs create/read, Sheets create, Slides create
+
+**Multi-tier research** (`ses_230e6f582ffe890CUbc4ZDQHyp`): ⚠️ 2/5 provider funzionanti (pre-fix)
+- SearXNG ✅ (33 risultati), Brave ✅ (10 risultati)
+- Tavily ❌, Firecrawl ❌, Exa ❌ — tutti per API key non trovata nell'ambiente MCP subprocess
+- **Causa**: HOME → isolated Kilo home, `~/.config/sops/age/keys.txt` irraggiungibile
+- **Fix commit 42c2b79**: SOPS_AGE_KEY_FILE aggiunto a tutti e 4 i wrapper (env mcp.json + fallback nello script)
+
 ### Verifica finale
 Tutti i 12 MCP server risultano `enabled` nel runtime Kilo. Nessun WARN/ERROR nei log di startup per i provider di ricerca.
 
@@ -1630,4 +1641,49 @@ Ogni sessione Kilo esegue `service=review fileCount=2070 baseBranch=origin/main 
 
 ### Impatto misurato
 - **Prima**: 66s di branch review + 87s di elaborazione = 153s totali per una ricerca semplice
-- **Dopo**: ~0s di branch review + ~50-80s di elaborazione = risparmio ~1 minuto per sessione
+- **Dopo (commit 1)**: branch review non eliminato perché 1919 untracked file runtime rimanevano
+- **Dopo (commit 2 — .gitignore + resolve_kilo_cli)**: untracked 1919→2, review ~5-10s
+
+---
+
+## 2026-04-27T15:28 — Multi-account rotation fix (commit c858fd2)
+
+**Bug**: Tavily (8 keys) e Firecrawl (6 keys) usavano sempre il primo account
+perché `free_tier_credits` dal YAML non veniva parsato correttamente.
+
+**Root cause tripla**:
+1. `manager.py`: `free_tier_credits` ignorato durante la normalizzazione
+2. `rotator.py`: `round_robin` metteva le chiavi mai usate per ULTIME
+3. `rotator.py`: default `least_used` sempre sceglieva la prima chiave
+
+**Fix**: Tutti e 3 i bug risolti. Ora Tavily ruota 8x1000=8000 crediti,
+Firecrawl 6x500=3000 crediti. E ogni nuova sessione `bin/aria repl`
+parte con una chiave diversa in automatico.
+
+---
+
+## 2026-04-27T14:10 — Performance fix v2: Kilo branch review root cause eliminato
+
+**Root cause finale**: Kilo CLI esegue `building branch review prompt` confrontando il working tree con `origin/main`. Scansiona TUTTI i file, inclusi quelli gitignorati. Con 1919 file runtime non tracciati (`.aria/kilo-home/.npm/`, `.local/`, `.workspace-mcp/`, etc.), la review impiegava **66s+** bloccando l'avvio della sessione.
+
+**Causa 2**: `resolve_kilo_cli` in `bin/aria` chiamava `kilo --help` che avviava tutti i 12 server MCP durante la mode detection — 2-3s sprecati a ogni `aria repl`.
+
+### Fix applicati
+
+1. **`.gitignore`**: aggiunto `.aria/kilo-home/` e `*.google_workspace_mcp/` (runtime + OAuth creds)
+   - Untracked files: **1919 → 2** (riduzione del 99.9%)
+   - Tempo review stimato: **66s → ~5-10s**
+
+2. **`bin/aria`**: `resolve_kilo_cli` salta `kilo --help` quando `kilo` è in PATH
+   - Kilo 7.2.24 usa sintassi modern → mode detection non serve
+   - Risparmio: **~2s** a sessione
+
+### Commit
+- `b5b8cd9` — commit batch ripristino ricerca + GWS (51 file)
+- `2720005` — .gitignore + resolve_kilo_cli fix
+
+### Stato post-fix
+- 2 untracked file rimasti (package-lock.json + plans file)
+- Review scansiona ~160 file (vs 2075)
+- Startup session: ~30-40s totale (MCP 7s + review 5s + LLM inferenza 20s)
+- **Attenzione**: se si aggiungono nuovi file al working tree non tracciati, il review time aumenta proporzionalmente. Tenere il working tree pulito.

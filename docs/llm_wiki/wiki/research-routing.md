@@ -11,9 +11,9 @@ This page documents the canonical provider routing policy for research operation
 
 | Intent | Tier 1 | Tier 2 | Tier 3 | Tier 4 | Tier 5 |
 |--------|--------|--------|--------|--------|--------|
-| `general/news` | **searxng** | **tavily** | **firecrawl** | **exa** | **brave** |
-| `academic` | **searxng** | **tavily** | **firecrawl** | **exa** | **brave** |
-| `deep_scrape` | **firecrawl_extract** | **firecrawl_scrape** | **fetch** | — | — |
+| `general/news` | **searxng** | **tavily** | **exa** | **brave** | **fetch** |
+| `academic` | **searxng** | **tavily** | **exa** | **brave** | **fetch** |
+| `deep_scrape` | **fetch** | **webfetch** | — | — | — |
 
 ### Tier Definitions
 
@@ -123,6 +123,7 @@ Health check (5 provider)        → tutti available ✅
 | Provider | Reason |
 |----------|--------|
 | `serpapi` | Not in `mcp.json`; redundant with defined 5-tier fallback chain |
+| `firecrawl` | **REMOVED 2026-04-27**: all 6 accounts exhausted lifetime free credits (500 each). Credits are one-time allocation, not monthly. `disabled: true` in `mcp.json` pending credit reload. Tier 3 role replaced by `exa` (for academic) and `fetch`/`webfetch` (for deep scrape). |
 
 ## Verification Matrix
 

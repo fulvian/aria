@@ -29,9 +29,9 @@ Ricerca web multi-tier con fallback automatico. Vedi §11 e `docs/llm_wiki/wiki/
 
 | Intent | Tier 1 | Tier 2 | Tier 3 | Tier 4 | Tier 5 |
 |--------|--------|--------|--------|--------|--------|
-| `general/news` | **searxng** | **tavily** | **firecrawl** | **exa** | **brave** |
-| `academic` | **searxng** | **tavily** | **firecrawl** | **exa** | **brave** |
-| `deep_scrape` | **firecrawl_extract** | **firecrawl_scrape** | **fetch** | — | — |
+| `general/news` | **searxng** | **tavily** | **exa** | **brave** | **fetch** |
+| `academic` | **searxng** | **tavily** | **exa** | **brave** | **fetch** |
+| `deep_scrape` | **fetch** | **webfetch** | — | — | — |
 
 ## Regole
 1. Prova SEMPRE il tier 1 per primo. Se fallisce (rate_limit/credits/circuit_open), scala al tier successivo.
