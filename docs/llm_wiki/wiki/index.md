@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-04-27 (Phase D complete)
-**Status**: Phase A ✅ | Phase B ✅ | Phase C ✅ | Phase D ✅ — Memory v3 complete; Phase E pending (hard delete frozen modules after 30 days)
+**Last Updated**: 2026-04-27 (live REPL test done)
+**Status**: Phase A ✅ | Phase B ✅ | Phase C ✅ | Phase D ✅ | LIVE TEST ✅ — Memory v3 FUNCTIONAL; Phase E pending (hard delete frozen modules after 30 days)
 
 ## Purpose
 
@@ -67,8 +67,8 @@ docs/llm_wiki/
 ## Implementation Branch
 
 - **Branch**: `fix/memory-recovery`
-- **Status**: Memory v3 Phase C complete (2026-04-27)
-- **Focus**: Memory v3 Kilo+Wiki Fusion — profile auto-inject substitution
+- **Status**: Memory v3 LIVE TESTED (2026-04-27) — profile persists across sessions, wiki_recall returns guaranteed profile, bidirectional template sync active
+- **Focus**: Memory v3 Kilo+Wiki Fusion — Phase E pending (hard delete frozen modules after 30 days)
 
 ## Relevant Files
 

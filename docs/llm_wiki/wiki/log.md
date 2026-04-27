@@ -1143,3 +1143,84 @@ uv run pytest tests/unit/ -q
 - `ruff check src/aria/utils/prompt_safety.py` ✅
 - `ruff format src/aria/utils/prompt_safety.py` ✅
 - `uv run mypy src/aria/utils/prompt_safety.py` ✅
+
+---
+
+## 2026-04-27T11:50 — Memory v3 Live REPL Test + Critical Fixes
+
+**Operation**: TEST + FIX
+**Branch**: `fix/memory-recovery`
+**Scope**: Agent file sync, bidirectional template write, always-on profile recall, live REPL test
+
+### Live REPL Test Results (2026-04-27 11:46-11:48)
+
+**Test 1 — Profile injection + wiki_recall**
+- Session: `ses_231aa4d42ffe4OizNqMLyJxOFe`
+- User: "Ciao, mi chiamo Fulvio Luca Daniele Ventura, chiamami Fulvio."
+- Expected: LLM calls wiki_recall at start, wiki_update at end
+- Actual:
+  - ✅ LLM called `wiki_recall_tool` with query → returned profile with score=1.0
+  - ✅ Profile was in system prompt (auto-injected)
+  - ⚠️ LLM did NOT call `wiki_update_tool` at end of turn (model behavior)
+- Note: Profile created with correct slug `profile/profile`
+
+**Test 2 — Profile persistence across sessions**
+- Session: `ses_231a8d435ffek00kUIG2gEbQbA` (new session after restart)
+- User: "Ricordi come mi chiami?"
+- Expected: LLM recalls profile from memory
+- Actual:
+  - ✅ LLM correctly answered "Fulvio Luca Daniele Ventura, preferisci essere chiamato Fulvio"
+  - ⚠️ LLM answered directly without calling wiki_recall (used injected profile)
+  - ⚠️ Model started response with "Certamente" (violates instruction constraint)
+
+### Root Causes Identified and Fixed
+
+| Bug | Root Cause | Fix |
+|-----|-----------|-----|
+| LLM used old `remember/complete_turn` tools | `.aria/kilocode/agents/aria-conductor.md` was source file synced by bin/aria bootstrap, contained Phase A/B instructions | Rewrote all agent files with Phase C/D instructions |
+| Profile lost on restart | `regenerate_conductor_template()` wrote only to isolated runtime, not to source-of-truth | Now writes to BOTH `.aria/kilo-home/...` AND `.aria/kilocode/agents/` |
+| FTS5 query "come mi chiami?" didn't match profile | FTS5 searches body_md; "Fulvio" not in body text | `wiki_recall()` now prepends profile as guaranteed result (score=1.0) |
+| `aria-memory/remember` still in skill files | Skills under `.aria/kilocode/skills/` not updated | Updated 5 SKILL.md files: deep-research, triage-email, pdf-extract, planning-with-files, blueprint-keeper |
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `.aria/kilocode/agents/aria-conductor.md` | Full rewrite with Phase C/D memory contract |
+| `.aria/kilocode/agents/_aria-conductor.template.md` | Created with `{{ARIA_MEMORY_BLOCK}}` placeholder |
+| `.aria/kilocode/agents/workspace-agent.md` | `aria-memory/remember` → `wiki_update_tool` |
+| `.aria/kilocode/agents/search-agent.md` | `aria-memory/remember` → `wiki_update_tool` |
+| `.aria/kilocode/agents/_system/summary-agent.md` | `aria-memory/remember` → `wiki_update_tool` |
+| `.aria/kilocode/skills/deep-research/SKILL.md` | `aria-memory/remember` → `wiki_update_tool` |
+| `.aria/kilocode/skills/triage-email/SKILL.md` | `aria-memory/remember` → `wiki_update_tool` |
+| `.aria/kilocode/skills/pdf-extract/SKILL.md` | `aria-memory/remember` → `wiki_update_tool` |
+| `.aria/kilocode/skills/planning-with-files/SKILL.md` | `aria-memory/remember` → `wiki_update_tool` |
+| `.aria/kilocode/skills/blueprint-keeper/SKILL.md` | `aria-memory/remember` → `wiki_update_tool` |
+| `src/aria/memory/wiki/prompt_inject.py` | Added `_resolve_source_agent_dir()` + writes to both dirs |
+| `src/aria/memory/wiki/tools.py` | `wiki_recall()` prepends profile as guaranteed result |
+| `src/aria/memory/mcp_server.py` | Fixed asyncio.new_event_loop() deprecation warning |
+
+### Key Design Decisions
+
+1. **Source-of-truth sync**: `regenerate_conductor_template()` now writes to BOTH isolated runtime AND source-of-truth so bin/aria bootstrap carries profile forward
+2. **Always-on profile recall**: `wiki_recall()` guarantees profile is always returned (score=1.0) regardless of FTS5 query
+3. **Profile slug enforcement**: Profile page MUST use `slug=profile` (not arbitrary slug like "fulvio")
+
+### Quality Gates
+
+| Check | Result |
+|-------|--------|
+| ruff check | ✅ Pass |
+| ruff format | ✅ Pass |
+| mypy | ✅ 0 errors in 10 source files |
+| pytest tests/unit/memory/wiki/ | ✅ 146 passed |
+
+### Remaining Observations (Model Behavior, Not Code)
+
+- "Kilo Auto Free" model sometimes answers directly from injected profile without calling wiki_recall
+- Model occasionally starts with "Certamente" despite instruction constraint
+- Model does NOT always call wiki_update_tool at end of turn (likely model prioritization of speed over tool use)
+
+### Status
+
+Memory v3 is FUNCTIONAL. Remaining issues are model instruction-following behavior, not code bugs. Recommend testing with a higher-tier model for better tool adherence.

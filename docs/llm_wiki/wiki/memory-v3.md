@@ -95,3 +95,44 @@ Added wiki memory contract per plan §5.2:
 - P7 HITL: forget() → tombstone via HITL approval
 - P8 Tool ladder: MCP-first (4 wiki tools)
 - P9 ≤ 20 tools: after Phase D = 10 memory tools (4 wiki + 2 bridge + 4 HITL)
+
+## Live REPL Test Results (2026-04-27)
+
+Tested via `bin/aria repl` with "Kilo Auto Free" model.
+
+### Test 1 — Profile injection + recall
+
+**Session**: `ses_231aa4d42ffe4OizNqMLyJxOFe`
+**Input**: "Ciao, mi chiamo Fulvio Luca Daniele Ventura, chiamami Fulvio."
+
+| Check | Result |
+|-------|--------|
+| `wiki_recall_tool` called at start | ✅ Returns profile with score=1.0 |
+| Profile auto-injected in system prompt | ✅ `<profile>` block present |
+| Profile created with correct slug `profile/profile` | ✅ |
+| `wiki_update_tool` called at end | ⚠️ NOT called (model behavior) |
+
+### Test 2 — Profile persistence across restart
+
+**Session**: `ses_231a8d435ffek00kUIG2gEbQbA` (fresh session after restart)
+**Input**: "Ricordi come mi chiami?"
+
+| Check | Result |
+|-------|--------|
+| LLM recalled name correctly | ✅ "Fulvio Luca Daniele Ventura, preferisci essere chiamato Fulvio" |
+| Profile survived restart | ✅ |
+| Response from injected profile | ✅ |
+
+### Critical Bugs Fixed During Testing
+
+1. **Source-of-truth sync**: `regenerate_conductor_template()` now writes to BOTH `.aria/kilo-home/.kilo/agents/` (isolated runtime) AND `.aria/kilocode/agents/` (source-of-truth). Previously profile was lost on restart because bin/aria bootstrap overwrote isolated runtime from source.
+
+2. **Always-on profile recall**: `wiki_recall()` now prepends profile as guaranteed result (score=1.0). FTS5 query "come mi chiami?" doesn't match "Fulvio" in body_md, so without this fix the recall would return empty.
+
+3. **Agent file cleanup**: All agent files and skill files now reference Phase C/D tool names (`wiki_update_tool`, `wiki_recall_tool`) instead of deprecated Phase A/B tools (`remember`, `complete_turn`).
+
+### Known Model Behavior (Not Code Bugs)
+
+- "Kilo Auto Free" sometimes answers directly from injected profile without calling wiki_recall
+- Model occasionally starts responses with "Certamente" despite instruction constraint
+- Model does NOT always call wiki_update_tool at end of turn (likely model prioritizing speed over tool use)
