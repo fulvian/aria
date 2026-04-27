@@ -45,6 +45,24 @@ INTENT_KEYWORDS: dict[Intent, frozenset[str]] = {
             "doi",
             "arxiv",
             "publication",
+            "preprint",
+            "conference",
+            "proceedings",
+            # Nuovi v2:
+            "pubmed",
+            "pmid",
+            "europe pmc",
+            "europepmc",
+            "openalex",
+            "biorxiv",
+            "scientific",
+            "experiment",
+            "clinical trial",
+            "abstract",
+            "peer review",
+            "literature review",
+            "mesh",
+            # IT esistenti:
             "ricerca",
             "pubblicazione",
             "studio",
@@ -67,6 +85,22 @@ INTENT_KEYWORDS: dict[Intent, frozenset[str]] = {
             "novità",
         }
     ),
+    Intent.SOCIAL: frozenset(
+        {
+            "reddit",
+            "social media",
+            "forum",
+            "discussion",
+            "community",
+            "subreddit",
+            "trending",
+            "viral",
+            "what people are saying",
+            "public opinion",
+            "reddit discussion",
+            "hacker news",
+        }
+    ),
 }
 
 # Default intent when no keywords match
@@ -83,7 +117,12 @@ def classify_intent(query: str) -> Intent:
         Classified Intent (default: GENERAL_NEWS if no keywords match)
     """
     query_lower = query.lower()
-    scores: dict[Intent, int] = {Intent.GENERAL_NEWS: 0, Intent.ACADEMIC: 0, Intent.DEEP_SCRAPE: 0}
+    scores: dict[Intent, int] = {
+        Intent.GENERAL_NEWS: 0,
+        Intent.ACADEMIC: 0,
+        Intent.DEEP_SCRAPE: 0,
+        Intent.SOCIAL: 0,  # NUOVO v2
+    }
 
     for intent, keywords in INTENT_KEYWORDS.items():
         for keyword in keywords:

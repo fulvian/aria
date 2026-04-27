@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -15,7 +15,6 @@ from aria.agents.search.router import (
     SearchResult,
 )
 from aria.credentials.rotator import CircuitState, KeyInfo
-from pydantic import SecretStr
 
 
 class TestRouterRoute:
@@ -40,39 +39,27 @@ class TestRouterRoute:
         # Set health to AVAILABLE for tier 1
         router._health["searxng"] = HealthState.AVAILABLE
 
-        # Mock tier 1 (searxng) returning key
-        mock_key = MagicMock(spec=KeyInfo)
-        mock_key.key_id = "searxng-1"
-        mock_key.circuit_state = CircuitState.CLOSED
-        mock_key.credits_remaining = None  # searxng has no credits
-        mock_rotator.acquire.side_effect = [
-            mock_key,  # searxng returns key
-        ]
-
+        # Mock tier 1 (searxng) — keyless provider
         result = await router.route("latest news on AI", Intent.GENERAL_NEWS, "trace-1")
 
         assert isinstance(result, tuple)
         provider, key = result
         assert provider == Provider.SEARXNG
-        assert key.key_id == "searxng-1"
+        assert key is None  # keyless provider
 
     @pytest.mark.asyncio
     async def test_route_tier1_rate_limit_falls_to_tier2(self, router, mock_rotator):
         """tier 1 rate_limit -> fallback to tier 2 (tavily)."""
-        # Set health to AVAILABLE for both providers
-        router._health["searxng"] = HealthState.AVAILABLE
+        # Set searxng to DOWN (keyless, returns immediately — must mark DOWN to skip)
+        router._health["searxng"] = HealthState.DOWN
         router._health["tavily"] = HealthState.AVAILABLE
 
-        # tier 1 (searxng) returns no key (rate limited)
         mock_key_tavily = MagicMock(spec=KeyInfo)
         mock_key_tavily.key_id = "tvly-1"
         mock_key_tavily.circuit_state = CircuitState.CLOSED
         mock_key_tavily.credits_remaining = 500
 
-        mock_rotator.acquire.side_effect = [
-            None,  # searxng returns None (no key available)
-            mock_key_tavily,  # tavily returns key
-        ]
+        mock_rotator.acquire.return_value = mock_key_tavily
 
         result = await router.route("latest news on AI", Intent.GENERAL_NEWS, "trace-2")
 
@@ -84,11 +71,13 @@ class TestRouterRoute:
     @pytest.mark.asyncio
     async def test_route_all_tiers_fail_enters_degraded(self, router, mock_rotator):
         """All tiers fail -> degraded mode."""
-        # Set all providers to AVAILABLE but return None for all
-        for provider in [Provider.SEARXNG, Provider.TAVILY, Provider.FIRECRAWL_EXTRACT, Provider.EXA, Provider.BRAVE]:
+        # searxng and fetch are keyless — must mark them DOWN to skip
+        for skip in ("searxng", "fetch"):
+            router._health[skip] = HealthState.DOWN
+        for provider in [Provider.TAVILY, Provider.EXA, Provider.BRAVE]:
             router._health[provider.value] = HealthState.AVAILABLE
 
-        mock_rotator.acquire.return_value = None  # All providers return None
+        mock_rotator.acquire.return_value = None  # All key-based providers return None
 
         result = await router.route("latest news on AI", Intent.GENERAL_NEWS, "trace-3")
 
@@ -98,28 +87,23 @@ class TestRouterRoute:
 
     @pytest.mark.asyncio
     async def test_route_deep_scrape_tier1(self, router, mock_rotator):
-        """deep_scrape: tier 1 is firecrawl_extract."""
-        # Set health to AVAILABLE for firecrawl_extract
-        router._health["firecrawl_extract"] = HealthState.AVAILABLE
+        """deep_scrape: tier 1 is fetch (post-FIRECRAWL)."""
+        # Set health to AVAILABLE for fetch
+        router._health["fetch"] = HealthState.AVAILABLE
 
-        mock_key = MagicMock(spec=KeyInfo)
-        mock_key.key_id = "fc-1"
-        mock_key.circuit_state = CircuitState.CLOSED
-        mock_key.credits_remaining = 100
-
-        mock_rotator.acquire.return_value = mock_key
-
+        # Mock tier 1 (fetch) - keyless provider
         result = await router.route("deep scrape this website", Intent.DEEP_SCRAPE, "trace-4")
 
         assert isinstance(result, tuple)
         provider, key = result
-        assert provider == Provider.FIRECRAWL_EXTRACT
+        assert provider == Provider.FETCH
+        assert key is None  # keyless provider
 
     @pytest.mark.asyncio
     async def test_route_circuit_open_skips_provider(self, router, mock_rotator):
         """circuit_state=OPEN -> skip provider."""
-        # Set health to AVAILABLE for all
-        router._health["searxng"] = HealthState.AVAILABLE
+        # searxng is keyless — mark DOWN to skip to key-based providers
+        router._health["searxng"] = HealthState.DOWN
         router._health["tavily"] = HealthState.AVAILABLE
         router._health["exa"] = HealthState.AVAILABLE
 
@@ -134,7 +118,6 @@ class TestRouterRoute:
         mock_key_exa.credits_remaining = 800
 
         mock_rotator.acquire.side_effect = [
-            None,  # searxng returns None
             mock_key_open,  # tavily has circuit open
             mock_key_exa,  # exa returns key
         ]
@@ -185,39 +168,34 @@ class TestRouterFallback:
         next_provider = router.fallback(Provider.SEARXNG, Intent.GENERAL_NEWS, "rate_limit")
         assert next_provider == Provider.TAVILY
 
-    def test_fallback_tavily_returns_firecrawl(self, router):
-        """TAVILY fallback -> FIRECRAWL_EXTRACT (for general_news)."""
+    def test_fallback_tavily_returns_exa(self, router):
+        """TAVILY fallback -> EXA (for general_news, post-FIRECRAWL)."""
         next_provider = router.fallback(Provider.TAVILY, Intent.GENERAL_NEWS, "rate_limit")
-        assert next_provider == Provider.FIRECRAWL_EXTRACT
-
-    def test_fallback_firecrawl_returns_exa(self, router):
-        """FIRECRAWL_EXTRACT fallback -> EXA (for general_news)."""
-        next_provider = router.fallback(Provider.FIRECRAWL_EXTRACT, Intent.GENERAL_NEWS, "timeout")
         assert next_provider == Provider.EXA
 
     def test_fallback_exa_returns_brave(self, router):
         """EXA fallback -> BRAVE (for general_news)."""
-        next_provider = router.fallback(Provider.EXA, Intent.GENERAL_NEWS, "credits_exhausted")
+        next_provider = router.fallback(Provider.EXA, Intent.GENERAL_NEWS, "timeout")
         assert next_provider == Provider.BRAVE
 
-    def test_fallback_brave_returns_none(self, router):
-        """BRAVE (last tier) fallback -> None (for general_news)."""
+    def test_fallback_brave_returns_fetch(self, router):
+        """BRAVE fallback -> FETCH (for general_news)."""
         next_provider = router.fallback(Provider.BRAVE, Intent.GENERAL_NEWS, "rate_limit")
+        assert next_provider == Provider.FETCH
+
+    def test_fallback_fetch_returns_none(self, router):
+        """FETCH (last tier) fallback -> None (for general_news)."""
+        next_provider = router.fallback(Provider.FETCH, Intent.GENERAL_NEWS, "rate_limit")
         assert next_provider is None
 
     def test_fallback_deep_scrape_tier1_returns_tier2(self, router):
-        """DEEP_SCRAPE: FIRECRAWL_EXTRACT -> FIRECRAWL_SCRAPE."""
-        next_provider = router.fallback(Provider.FIRECRAWL_EXTRACT, Intent.DEEP_SCRAPE, "timeout")
-        assert next_provider == Provider.FIRECRAWL_SCRAPE
+        """DEEP_SCRAPE: FETCH -> WEBFETCH."""
+        next_provider = router.fallback(Provider.FETCH, Intent.DEEP_SCRAPE, "timeout")
+        assert next_provider == Provider.WEBFETCH
 
-    def test_fallback_deep_scrape_tier2_returns_fetch(self, router):
-        """DEEP_SCRAPE: FIRECRAWL_SCRAPE -> FETCH."""
-        next_provider = router.fallback(Provider.FIRECRAWL_SCRAPE, Intent.DEEP_SCRAPE, "timeout")
-        assert next_provider == Provider.FETCH
-
-    def test_fallback_deep_scrape_tier3_returns_none(self, router):
-        """DEEP_SCRAPE: FETCH (last tier) -> None."""
-        next_provider = router.fallback(Provider.FETCH, Intent.DEEP_SCRAPE, "network_error")
+    def test_fallback_deep_scrape_tier2_returns_none(self, router):
+        """DEEP_SCRAPE: WEBFETCH (last tier) -> None."""
+        next_provider = router.fallback(Provider.WEBFETCH, Intent.DEEP_SCRAPE, "timeout")
         assert next_provider is None
 
 
@@ -267,10 +245,10 @@ class TestHealthStatus:
     def router(self, mock_rotator):
         return ResearchRouter(mock_rotator, Path("/tmp/test_state.yaml"))
 
-    def test_get_provider_health_default_down(self, router):
-        """Unknown provider defaults to DOWN."""
+    def test_get_provider_health_default_available(self, router):
+        """Unknown provider defaults to AVAILABLE."""
         health = router._get_provider_health(Provider.SEARXNG)
-        assert health == HealthState.DOWN
+        assert health == HealthState.AVAILABLE
 
     def test_get_provider_health_cached(self, router):
         """Health is cached in _health dict."""
@@ -280,12 +258,12 @@ class TestHealthStatus:
 
     @pytest.mark.asyncio
     async def test_refresh_health_no_keys(self, router, mock_rotator):
-        """Provider with no keys -> DOWN."""
+        """Key-based provider with no keys -> DOWN."""
         mock_rotator.status.return_value = {"keys": []}
 
-        await router._refresh_health("searxng")
+        await router._refresh_health("tavily")
 
-        assert router._health["searxng"] == HealthState.DOWN
+        assert router._health["tavily"] == HealthState.DOWN
 
     @pytest.mark.asyncio
     async def test_refresh_health_circuit_open(self, router, mock_rotator):

@@ -1,5 +1,156 @@
 # Implementation Log
 
+## 2026-04-27T17:30 — v2 Implementation Complete (PubMed, Scientific Papers, SOCIAL intent)
+
+**Operation**: IMPLEMENT
+**Branch**: `main` (feature branch: `feature/research-academic-social-v2`)
+**Piano**: `docs/plans/research_academic_reddit_2.md` (v2 audit-corrected)
+**ADR**: `ADR-0006-research-agent-academic-social-expansion.md`
+
+### Deliverables
+
+| Phase | Descrizione | Stato |
+|-------|-------------|-------|
+| Fase 0 | ADR-0006 creato (P10 compliance) | ✅ |
+| Fase 1 | FIRECRAWL refs bonificate da 3 file test | ✅ 18 occorrenze |
+| Fase 2 | PubMed + Scientific Papers MCP wrappers + mcp.json | ✅ |
+| Fase 3 | Router: Provider enum (+PUBMED, SCIENTIFIC_PAPERS, REDDIT, ARXIV), Intent (+SOCIAL), INTENT_TIERS redesign, KEYLESS_PROVIDERS | ✅ |
+| Fase 4 | Intent classifier: SOCIAL + ACADEMIC keywords | ✅ |
+| Fase 5 | Reddit MCP wrapper creato (disabled: true, attesa HITL OAuth) | ✅ |
+| Fase 6 | 6 nuovi test file (109 search tests totali) | ✅ |
+| Fase 7 | arXiv standalone PDF (opzionale) | ⏸️ Skip (non necessario) |
+| Fase 8 | Wiki maintenance + ADR final commit | ✅ |
+
+### Context7 re-verification
+
+| Provider | Library ID | Snippets | Note |
+|----------|-----------|----------|------|
+| PubMed | `/cyanheads/pubmed-mcp-server` | 1053 | npx, 9 tool, UNPAYWALL_EMAIL confermato |
+| Scientific Papers | `/benedict2310/scientific-papers-mcp` | 5319 | npm package: `@futurelab-studio/latest-science-mcp` (non `scientific-papers-mcp`) |
+| arXiv standalone | `/blazickjp/arxiv-mcp-server` | 112 | `[pdf]` extra |
+| Reddit | `/jordanburke/reddit-mcp-server` | 39 | OAuth obbligatorio, no anonymous |
+
+### Files creati/modificati
+
+- `docs/foundation/decisions/ADR-0006-research-agent-academic-social-expansion.md` (NEW)
+- `scripts/wrappers/pubmed-wrapper.sh` (NEW)
+- `scripts/wrappers/scientific-papers-wrapper.sh` (NEW)
+- `scripts/wrappers/reddit-wrapper.sh` (NEW)
+- `.aria/kilocode/mcp.json` (MOD: +pubmed-mcp, +scientific-papers-mcp, +reddit-mcp disabled)
+- `.env.example` (MOD: +PubMed/Reddit env vars)
+- `src/aria/agents/search/router.py` (MOD: Provider, Intent, INTENT_TIERS, KEYLESS_PROVIDERS)
+- `src/aria/agents/search/intent.py` (MOD: SOCIAL scores + keywords)
+- `tests/unit/agents/search/conftest.py` (MOD: FIRECRAWL rimosso)
+- `tests/unit/agents/search/test_router.py` (MOD: FIRECRAWL rimosso)
+- `tests/unit/agents/search/test_router_integration.py` (MOD: FIRECRAWL rimosso + fix test)
+- `tests/unit/agents/search/test_provider_pubmed.py` (NEW)
+- `tests/unit/agents/search/test_provider_scientific_papers.py` (NEW)
+- `tests/unit/agents/search/test_provider_reddit.py` (NEW)
+- `tests/unit/agents/search/test_intent_social.py` (NEW)
+- `tests/unit/agents/search/test_router_academic_tiers.py` (NEW)
+- `tests/unit/agents/search/test_router_social_tiers.py` (NEW)
+
+### Quality gates
+
+| Check | Result |
+|-------|--------|
+| `pytest tests/unit/agents/search/ -q` | ✅ 109/109 PASS |
+| `ruff format` | ✅ 6 file reformatted |
+| `ruff check --fix` | ✅ 8 errors fixed (imports, unused imports) |
+
+### Wiki maintenance
+
+- `index.md`: timestamp, raw sources table, pages table updated
+- `research-routing.md`: tier matrix v2, implementation complete status, new test info
+- `log.md`: this entry
+
+---
+
+## 2026-04-27T18:30 — Plan v2 audit-corrected drafted
+
+**Operation**: AUDIT + REPLAN
+**Branch**: `main` (no code changes — plan + wiki only)
+**Artifact**: `docs/plans/research_academic_reddit_2.md` (supersedes v1)
+**Trigger**: Richiesta utente audit severo del plan v1 contro blueprint + policy ARIA
+
+### Findings critici (v1 → v2)
+
+- **F1 ALTA**: Reddit "anonymous mode" claim NON verificato Context7 → OAuth obbligatorio in v2
+- **F2 ALTA**: Europe PMC native Python provider violava P8 (Tool Ladder MCP > Python) → switch a `benedict2310/scientific-papers-mcp` (verified Context7, 5319 snippet)
+- **F3 ALTA**: ADR-0006 mancante (P10 violato) → BLOCKING gate prima di Fase 3 in v2
+- **F4 MED**: Consolidamento mancato — `scientific-papers-mcp` copre arXiv+Europe PMC+OpenAlex+biorxiv+CORE+PMC; riduce 2 MCP a 1
+- **F5 MED**: arXiv `[pdf]` extra omesso → fail su paper PDF-only
+- **F6 MED**: Credential pattern bypassato (raw env var) → switch a SOPS+CredentialManager
+- **F7 MED**: PubMed `UNPAYWALL_EMAIL` env omesso (full-text fallback)
+- **F8 BASSA**: Wiki maintenance specs deboli → checklist esplicita in v2 §14
+- **F9 BASSA**: Test FIRECRAWL refs (18 occorrenze in 3 file) enumerate in v2 §12
+
+### Context7 verifications eseguite (2026-04-27)
+
+| Provider | Library ID | Risultato |
+|----------|-----------|-----------|
+| PubMed | `/cyanheads/pubmed-mcp-server` | npx + 9 tool + UNPAYWALL_EMAIL confermato |
+| Scientific Papers | `/benedict2310/scientific-papers-mcp` | `search_papers(source=europepmc)` confermato |
+| arXiv standalone | `/blazickjp/arxiv-mcp-server` | `[pdf]` extra confermato |
+| Reddit | `/jordanburke/reddit-mcp-server` | OAuth env vars **obbligatori**; no anonymous in docs |
+
+### Wiki maintenance eseguita
+
+- `index.md`: ts updated, raw sources table aggiunto v2 plan + ADR-0006 ref, page table updated
+- `research-routing.md`: sezione "Planned Expansion" → "Active Expansion v2", tier matrix v2, Context7 sources v2
+
+## 2026-04-27T16:50 — Research Agent Enhancement Plan Created
+
+**Operation**: RESEARCH + PLAN
+**Branch**: `main` (no changes — plan only)
+**Artifact**: `docs/plans/research_academic_reddit_1.md`
+**Trigger**: Richiesta utente di potenziare ricerche accademiche e generalistiche basata su `docs/analysis/research_agent_enhancement.md`
+
+### Research performed
+
+- Context7 verification of 4 MCP servers:
+  - PubMed: `/cyanheads/pubmed-mcp-server` (1053 snippets, 83.7 benchmark, 9 tools, Apache 2.0)
+  - arXiv: `/blazickjp/arxiv-mcp-server` (112 snippets, 76.1 benchmark, 4 tools, Apache 2.0)
+  - Reddit: `/jordanburke/reddit-mcp-server` (39 snippets, 11 tools, MIT)
+  - Scientific Papers MCP evaluated but excluded (YAGNI: 6 sources when only Europe PMC needed)
+- Brave search verified npm packages exist and are maintained
+- Codebase assessment: identified 6 pre-existing issues (FIRECRAWL references in tests, ACADEMIC routing same as GENERAL, missing SOCIAL intent)
+
+### Key finding: PubMed MCP correction
+
+Analysis recommended `@iflow-mcp/pubmed-mcp-server` but Context7 shows `@cyanheads/pubmed-mcp-server` is superior:
+- 1053 code snippets vs 0 for iflow-mcp
+- 83.7 benchmark score
+- 9 comprehensive tools
+- Apache 2.0 license
+- Public hosted instance available
+- Active maintenance (v2.6.4)
+
+### Plan structure
+
+7 fasi:
+- **Fase 1**: Fix pre-existing Firecrawl test references (30 min)
+- **Fase 2**: PubMed + arXiv MCP servers (1h)
+- **Fase 3**: Europe PMC provider nativo Python (1h)
+- **Fase 4**: Router + Intent update: 4 nuovi Provider, SOCIAL intent, INTENT_TIERS redesign (1h)
+- **Fase 5**: Reddit MCP (30 min)
+- **Fase 6**: Test completi + quality gates (1.5h)
+- **Fase 7**: Documentazione wiki (30 min)
+
+Total effort: ~6h. Costo aggiuntivo: €0/mese.
+
+### Wiki updates
+
+- `index.md`: Added plan to raw sources, updated status
+- `research-routing.md`: Added planned expansion section with future tier matrix
+- `log.md`: This entry
+
+### Status
+
+Piano DRAFT — pending user approval (HITL Milestone 2 — Technical Design).
+
+---
+
 ## 2026-04-27T12:50 — Recovery plan ricerca + google-workspace (DRAFT)
 
 **Operation**: INVESTIGATE + PLAN
@@ -1733,6 +1884,17 @@ non venivano mai persiste. Il MCP server partiva sempre con `tvly-fulviold`
 
 **Impatto**: Tavily finalmente funzionante in ARIA. Key verification
 aggiunge ~0.5s al startup del wrapper.
+
+## 2026-04-27T16:20 — Push su GitHub + pulizia storia
+
+**Operazione**: PUSH — repository locale replicato su GitHub con storia pulita.
+**Commit**: `3905736` (singolo commit pulito, senza segreti)
+**Branch**: `fix/memory-recovery`
+
+Push riuscito dopo rimozione di:
+- OAuth Client ID/Secret dai file documentazione
+- `.aria/kilo-home/` dal commit (gitignorato via .gitignore)
+- File lock ridondanti
 
 ## 2026-04-27T15:59 — RIPRISTINO COMPLETO ✅
 

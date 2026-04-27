@@ -20,11 +20,10 @@ class TestProviderEnum:
     def test_provider_values(self):
         assert Provider.SEARXNG.value == "searxng"
         assert Provider.TAVILY.value == "tavily"
-        assert Provider.FIRECRAWL_EXTRACT.value == "firecrawl_extract"
-        assert Provider.FIRECRAWL_SCRAPE.value == "firecrawl_scrape"
         assert Provider.EXA.value == "exa"
         assert Provider.BRAVE.value == "brave"
         assert Provider.FETCH.value == "fetch"
+        assert Provider.WEBFETCH.value == "webfetch"
 
     def test_all_providers_unique(self):
         providers = list(Provider)
