@@ -382,9 +382,9 @@ def main() -> int:
             import asyncio
 
             try:
-                asyncio.get_event_loop().run_until_complete(
-                    _regenerate_conductor_template_on_boot()
-                )
+                loop = asyncio.new_event_loop()
+                loop.run_until_complete(_regenerate_conductor_template_on_boot())
+                loop.close()
             except Exception as boot_exc:
                 logging.warning("Template regeneration on boot failed: %s", boot_exc)
 
