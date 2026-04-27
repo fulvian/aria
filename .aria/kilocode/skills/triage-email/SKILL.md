@@ -7,7 +7,7 @@ user-invocable: true
 allowed-tools:
   - google_workspace/gmail.search
   - google_workspace/gmail.read
-  - aria-memory/remember
+  - aria-memory/wiki_update_tool
 max-tokens: 8000
 estimated-cost-eur: 0.05
 ---

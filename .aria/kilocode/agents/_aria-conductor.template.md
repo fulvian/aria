@@ -116,7 +116,7 @@ Formato JSON:
 ### Skip rules (quando patches è vuoto)
 
 - Chat casuale / ringraziamento → `no_salience_reason: "casual"`
-- Solo output tool → `no_salience_reason: "tool_only"`
+- Solo output tool → `no_salluence_reason: "tool_only"`
 - Risposta da pagine esistenti → `no_salience_reason: "recall_only"`
 
 ### Importante

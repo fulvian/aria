@@ -6,7 +6,8 @@ color: "#9CA3AF"
 category: memory
 temperature: 0.1
 allowed-tools:
-  - aria-memory/remember
+  - aria-memory/wiki_update_tool
+  - aria-memory/wiki_list_tool
 required-skills: []
 mcp-dependencies: []
 ---
@@ -21,3 +22,6 @@ Genera un title + summary strutturato della conversazione.
 - Title: breve (5-10 parole) che identifica l'argomento
 - Summary: 2-3 frasi che riassumono il contenuto principale
 - Tags: keyword estratte per facilitare recall futuro
+
+## Memoria
+Per salvare il summary a fine sessione, usa `aria-memory/wiki_update_tool` con kind=topic.

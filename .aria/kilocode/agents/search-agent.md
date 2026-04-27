@@ -13,8 +13,8 @@ allowed-tools:
   - exa-script/search
   - brave-mcp/web_search
   - brave-mcp/news_search
-  - aria-memory/remember
-  - aria-memory/recall
+  - aria-memory/wiki_update_tool
+  - aria-memory/wiki_recall_tool
   - fetch/fetch
 required-skills:
   - deep-research

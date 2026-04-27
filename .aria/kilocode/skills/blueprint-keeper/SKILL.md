@@ -6,7 +6,7 @@ trigger-keywords: [blueprint, audit, divergenza, ADR]
 user-invocable: false
 allowed-tools:
   - filesystem/read
-  - aria-memory/remember
+  - aria-memory/wiki_update_tool
   - github/search
 max-tokens: 20000
 estimated-cost-eur: 0.05

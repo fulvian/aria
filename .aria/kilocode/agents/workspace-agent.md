@@ -11,8 +11,8 @@ allowed-tools:
   - google_workspace/drive.*
   - google_workspace/docs.*
   - google_workspace/sheets.*
-  - aria-memory/remember
-  - aria-memory/recall
+  - aria-memory/wiki_update_tool
+  - aria-memory/wiki_recall_tool
   - hitl-queue/ask
 required-skills:
   - triage-email

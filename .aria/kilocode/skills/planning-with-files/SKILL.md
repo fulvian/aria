@@ -6,8 +6,8 @@ trigger-keywords: [pianifica, piano, task, todo,工作计划]
 user-invocable: true
 allowed-tools:
   - filesystem/*
-  - aria-memory/remember
-  - aria-memory/recall
+  - aria-memory/wiki_update_tool
+  - aria-memory/wiki_recall_tool
 max-tokens: 10000
 estimated-cost-eur: 0.02
 ---

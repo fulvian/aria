@@ -11,7 +11,7 @@ allowed-tools:
   - firecrawl-mcp/extract
   - exa-script/search
   - brave-mcp/web_search
-  - aria-memory/remember
+  - aria-memory/wiki_update_tool
 max-tokens: 50000
 estimated-cost-eur: 0.10
 ---

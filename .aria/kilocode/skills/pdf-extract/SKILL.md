@@ -6,7 +6,7 @@ trigger-keywords: [pdf, documento, leggi, estrai, extract]
 user-invocable: true
 allowed-tools:
   - filesystem/read
-  - aria-memory/remember
+  - aria-memory/wiki_update_tool
 max-tokens: 5000
 estimated-cost-eur: 0.01
 ---
