@@ -1,5 +1,29 @@
 # Implementation Log
 
+## 2026-04-27T22:15 — ADR-0006 approvato, wiki aggiornato, push su GitHub
+
+**Operation**: WIKI_UPDATE + COMMIT + PUSH
+**Branch**: `feature/research-academic-social-v2`
+**ADR-0006**: Proposed → **Accepted** (approvato HITL)
+
+### Wiki updates
+
+- `index.md`: ADR status → Accepted, branch info updated, Reddit OAuth instructions referenced
+- `research-routing.md`: aggiunta sezione "Reddit OAuth Setup" con passaggi registrazione app + salvataggio credenziali + abilitazione MCP
+- `log.md`: this entry
+
+### Commits su feature branch
+
+```
+1eeec32 feat(search): add academic+social provider expansion (PubMed, Scientific Papers, Reddit, SOCIAL intent)
+```
+
+### Pending
+
+- Abilitare Reddit MCP dopo setup OAuth (vedi research-routing.md § Reddit OAuth Setup)
+
+---
+
 ## 2026-04-27T17:30 — v2 Implementation Complete (PubMed, Scientific Papers, SOCIAL intent)
 
 **Operation**: IMPLEMENT

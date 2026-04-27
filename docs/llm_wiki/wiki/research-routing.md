@@ -152,7 +152,7 @@ Tutti i test passano: 109/109 nei search tests.
 |----------|------|-------------|------|--------|
 | **PubMed** (`@cyanheads/pubmed-mcp-server` v2.6.4) | Accademico biomedico | ACADEMIC tier 2 | `NCBI_API_KEY` (opt) via SOPS+CredentialManager | ✅ Implementato |
 | **Scientific Papers** (`@futurelab-studio/latest-science-mcp`) | Accademico multi-source (arXiv + Europe PMC + OpenAlex + biorxiv + CORE + PMC) | ACADEMIC tier 3 | Nessuna (keyless) | ✅ Implementato |
-| **Reddit** (`jordanburke/reddit-mcp-server`) | Social/Discussioni | SOCIAL tier 1 | **OAuth obbligatorio** | ⏸️ Disabled — attesa HITL OAuth |
+| **Reddit** (`jordanburke/reddit-mcp-server`) | Social/Discussioni | SOCIAL tier 1 | **OAuth obbligatorio** | ⏸️ Disabled — attesa HITL OAuth — vedi Reddit OAuth Setup sotto |
 | **arXiv standalone** (`blazickjp/arxiv-mcp-server[pdf]`) | Accademico preprint (PDF read pipeline) | OPZIONALE Phase 2 | Nessuna | ⏸️ Conditional su necessità PDF |
 
 ### Cambi chiave v2 implementati
@@ -193,3 +193,44 @@ class Intent(StrEnum):
 | Scientific Papers | `/benedict2310/scientific-papers-mcp` | 5319 | 67.0 | `search_papers(source=europepmc)` confermato; npm: `@futurelab-studio/latest-science-mcp` |
 | arXiv standalone | `/blazickjp/arxiv-mcp-server` | 112 | 76.1 | `[pdf]` extra confermato |
 | Reddit | `/jordanburke/reddit-mcp-server` | 39 | — | OAuth env vars **obbligatori** (no anonymous mode docs) |
+
+## Reddit OAuth Setup
+
+### 1. Registrare app Reddit
+
+1. Vai su https://www.reddit.com/prefs/apps
+2. Clicca **"are you a developer? create an app..."**
+3. Compila:
+   - **name**: `aria-reddit-reader` (o nome a piacere)
+   - **type**: `script`
+   - **description**: (opzionale)
+   - **about url**: `http://localhost`
+   - **redirect uri**: `http://localhost`
+4. Clicca **"create app"**
+
+### 2. Salvare credenziali
+
+Dopo la creazione trovi:
+- **Client ID**: la stringa sotto il nome dell'app
+- **Client Secret**: segnato come "secret"
+
+```bash
+python -m aria.credentials add --provider reddit_client_id --id reddit-app --key <CLIENT_ID>
+python -m aria.credentials add --provider reddit_client_secret --id reddit-app --key <CLIENT_SECRET>
+```
+
+### 3. Abilitare il MCP
+
+In `.aria/kilocode/mcp.json`, impostare `"disabled": false` per `reddit-mcp`.
+
+### 4. Verificare
+
+```bash
+kilo mcp list | grep reddit
+# → reddit-mcp should show connected
+```
+
+### Fallback senza Reddit
+
+Se Reddit non è configurato, il router scala automaticamente:
+`SOCIAL`: REDDIT (DOWN) → SEARXNG → TAVILY → BRAVE
