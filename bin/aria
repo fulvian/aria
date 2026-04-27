@@ -186,7 +186,13 @@ KILO_CLI_MODE=""
 resolve_kilo_cli() {
     if command -v kilo >/dev/null 2>&1; then
         KILO_CLI_CMD=("kilo")
-    elif command -v npx >/dev/null 2>&1; then
+        # Kilo 7.x uses modern syntax (kilo [project] [--agent name]).
+        # Skip --help to avoid triggering MCP server startup on every session.
+        KILO_CLI_MODE="modern"
+        return
+    fi
+
+    if command -v npx >/dev/null 2>&1; then
         KILO_CLI_CMD=("npx" "--yes" "kilocode")
     else
         echo "ERR: Neither 'kilo' nor 'npx' is available in PATH" >&2
