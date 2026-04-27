@@ -1,11 +1,11 @@
 # Research Routing — Tier Policy
 
-**Last Updated**: 2026-04-26
-**Status**: APPROVED — Single Source of Truth
+**Last Updated**: 2026-04-27T15:36 (ripristino completato — tutti i 5 provider funzionanti con rotation multi-account, router testato con fallback)
+**Status**: ✅ FULLY RESTORED — tutti i provider operativi, router funzionante
 
 ## Purpose
 
-This page documents the canonical provider routing policy for research operations. All references (blueprint, skill, agent, code) must align with this policy. Per `docs/plans/research_restore_plan.md`, policy drift is the root cause of routing inconsistencies.
+This page documents the canonical provider routing policy for research operations. All references (blueprint, skill, agent, code) must align with this policy.
 
 ## Provider Tier Matrix
 
@@ -19,24 +19,45 @@ This page documents the canonical provider routing policy for research operation
 
 | Provider | Type | Key Required | Cost | Notes |
 |----------|------|--------------|------|-------|
-| `searxng` | Self-hosted meta-search | No | Zero (infra only) | Always tier 1; privacy-first |
-| `tavily` | Commercial LLM-ready API | Yes | 1000 req/mo free, then $0.008/req | Tier 2 commercial |
-| `firecrawl` | Commercial scraping API | Yes | 500 credits lifetime, then ~$0.005-0.015/page | Tier 3; `extract`/`scrape` specialized |
-| `exa` | Commercial semantic search | Yes | 1000 req/mo free, then $0.007/req | Tier 4 academic |
-| `brave` | Commercial search API | Yes | $5/mo free credits | Tier 5 fallback |
+| `searxng` | Self-hosted meta-search | No | Zero (infra only) | Tier 1; privacy-first; Docker su 8888 |
+| `tavily` | Commercial LLM-ready API | Yes | 1000 req/mo free, poi $0.008/req | 8 chiavi multi-account rotazione `least_used` |
+| `firecrawl` | Commercial scraping API | Yes | 500 credits lifetime, poi ~$0.005-0.015/page | 6 chiavi multi-account; `extract`/`scrape` specializzati |
+| `exa` | Commercial semantic search | Yes | 1000 req/mo free, poi $0.007/req | 1 chiave |
+| `brave` | Commercial search API | Yes | $5/mo free credits | 1 chiave; env var = `BRAVE_API_KEY` (no `_ACTIVE`) |
 
 ### Rationale
 
 Order follows "real API key availability to rotate" principle:
 1. **SearXNG** — self-hosted, unlimited, no API key required; always attempted first
-2. **Tavily** — has free tier, LLM-ready synthesis
-3. **Firecrawl** — credits exhausted quickly (500 lifetime); specialized for deep scrape
+2. **Tavily** — has free tier, LLM-ready synthesis; 8 keys per multi-account
+3. **Firecrawl** — credits limited; specialized for deep scrape; 6 keys
 4. **Exa** — good for academic/semantic search
 5. **Brave** — last fallback (has $5/mo free but lower priority for rotation)
 
 ## Implementation
 
-**File**: `src/aria/agents/search/router.py` (planned, not yet implemented as of 2026-04-26)
+### Router Code
+
+**File**: `src/aria/agents/search/router.py` — IMPLEMENTATO E TESTATO
+
+```
+ResearchRouter.route(query, intent) → (Provider, KeyInfo) | SearchResult(degraded=True)
+ResearchRouter.fallback(provider, intent, reason) → Provider | None
+```
+
+Features:
+- Per-intent tier list (`INTENT_TIERS` dict)
+- Health check (ciclo 5 min)
+- Circuit breaker check (salta provider `OPEN`)
+- Degraded mode (tutti i tier esauriti → `SearchResult(degraded=True)`)
+- Key acquisition via `Rotator.acquire()`
+- SearXNG special case: self-hosted, no Rotator needed
+- Firecrawl composite names (`firecrawl_extract`, `firecrawl_scrape`) mapped to base `firecrawl`
+
+**File**: `src/aria/agents/search/intent.py` — Classificatore keyword-based
+- `classify_intent(query)` → `Intent.GENERAL_NEWS | ACADEMIC | DEEP_SCRAPE`
+- Keyword set: italiano + inglese
+- Default: `GENERAL_NEWS`
 
 ### Fallback Behavior
 
@@ -57,21 +78,51 @@ If all tiers fail, the router enters `local-only` mode:
 - Log `degraded_mode_entered` event
 - Notify via system_event
 
-## Alignment Sources
+## Context7 Verification (2026-04-27)
+
+| Provider | Context7 ID | Key verified |
+|----------|-------------|-------------|
+| Tavily MCP | `/tavily-ai/tavily-mcp` | `TAVILY_API_KEY` env var, `npx -y tavily-mcp@latest` |
+| Firecrawl MCP Server | `/firecrawl/firecrawl-mcp-server` | `FIRECRAWL_API_KEY` env var, `npx -y firecrawl-mcp` |
+| Exa MCP Server | `/exa-labs/exa-mcp-server` | `EXA_API_KEY` env var, `npx -y exa-mcp-server` |
+| Brave Search MCP | `/brave/brave-search-mcp-server` | `BRAVE_API_KEY` env var, `--brave-api-key` CLI, **richiede chiave a startup** |
+
+## Test Results (2026-04-27)
+
+### Scenari verificati
+
+```
+searxng disponibile              → GENERAL_NEWS: searxng ✅ (tier 1, self-hosted)
+searxng DOWN                     → tavily ✅ (fallback tier 1→2)
+searxng + tavily DOWN            → firecrawl ✅ (fallback tier 1→2→3)
+DEEP_SCRAPE                      → firecrawl_extract ✅ (mappato a firecrawl)
+Health check (5 provider)        → tutti available ✅
+```
+
+### Provider Keys (Rotator)
+
+| Provider | Keys | Stato |
+|----------|------|-------|
+| Tavily | 8 (multi-account) | 8/8 available (closed) |
+| Firecrawl | 6 (multi-account) | 6/6 available (closed) |
+| Brave | 1 | 1/1 available (closed) |
+| Exa | 1 | 1/1 available (closed) |
+
+## Agent/Skill Prompts
 
 | Source | Location | Alignment Status |
 |--------|----------|------------------|
-| Blueprint routing | `docs/foundation/aria_foundation_blueprint.md` §11.2 | ✅ Aligned (2026-04-26) |
-| Blueprint fallback | `docs/foundation/aria_foundation_blueprint.md` §11.6 | ✅ Aligned (2026-04-26) |
-| Search-Agent | `.aria/kilocode/agents/search-agent.md` | ✅ Aligned (2026-04-26) |
-| Deep-Research Skill | `.aria/kilocode/skills/deep-research/SKILL.md` | ✅ Aligned (2026-04-26) |
-| MCP config | `.aria/kilocode/mcp.json` | ✅ Aligned (SearXNG present) |
+| Blueprint routing | `docs/foundation/aria_foundation_blueprint.md` §11.2 | ✅ Aligned |
+| Blueprint fallback | `docs/foundation/aria_foundation_blueprint.md` §11.6 | ✅ Aligned |
+| Search-Agent | `.aria/kilocode/agents/search-agent.md` | ✅ Tier ladder esplicito |
+| Deep-Research Skill | `.aria/kilocode/skills/deep-research/SKILL.md` | ✅ Tier ladder già presente |
+| MCP config | `.aria/kilocode/mcp.json` | ✅ All 5 provider enabled |
 
 ## Removed Providers
 
 | Provider | Reason |
 |----------|--------|
-| `serpapi` | Not in `mcp.json`; redundant with defined fallback chain |
+| `serpapi` | Not in `mcp.json`; redundant with defined 5-tier fallback chain |
 
 ## Verification Matrix
 
@@ -81,10 +132,4 @@ If all tiers fail, the router enters `local-only` mode:
 4. `deep_scrape`: firecrawl_extract failure → fallback to firecrawl_scrape (tier 2)
 5. `deep_scrape`: firecrawl_scrape failure → fallback to fetch (tier 3)
 6. All providers unavailable → explicit `local-only/degraded` response
-
-## SerpAPI Decision
-
-**SerpAPI removed from blueprint** (2026-04-26). Rationale:
-- Not present in `mcp.json` (not configured as MCP server)
-- Redundant with the defined 5-tier fallback chain
-- If all 5 tiers fail, degraded mode is more appropriate than adding another commercial provider
+7. ALL 5 PROD: `python -m aria.credentials status` → tutti `closed` con chiavi ✅

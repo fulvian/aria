@@ -223,8 +223,13 @@ class ResearchRouter:
                 tier += 1
                 continue
 
-            # Acquire key from rotator
-            key_info = await self._rotator.acquire(provider.value)
+            # Acquire key from rotator (map composite names to base provider)
+            rotator_provider = provider.value.replace("_extract", "").replace("_scrape", "")
+            # searxng doesn't use the rotator (no API key)
+            if rotator_provider == "searxng":
+                return provider, None
+
+            key_info = await self._rotator.acquire(rotator_provider)
             if key_info is None:
                 log_event(
                     self._logger,
@@ -302,8 +307,12 @@ class ResearchRouter:
         return tier_list[next_index]
 
     def _get_provider_health(self, provider: Provider) -> HealthState:
-        """Get cached health state for provider."""
-        return self._health.get(provider.value, HealthState.DOWN)
+        """Get cached health state for provider.
+
+        Default to AVAILABLE so providers work immediately on first call.
+        Health check loop (every 5 min) marks providers as DOWN when circuit breakers open.
+        """
+        return self._health.get(provider.value, HealthState.AVAILABLE)
 
     async def get_health_status(self, provider: str) -> HealthState:
         """Get current health state for provider (with refresh)."""
@@ -312,7 +321,15 @@ class ResearchRouter:
 
     async def _refresh_health(self, provider: str) -> None:
         """Refresh health state for a single provider."""
-        status = self._rotator.status(provider)
+        # Special cases: searxng is self-hosted (no Rotator keys)
+        if provider == "searxng":
+            self._health[provider] = HealthState.AVAILABLE
+            return
+
+        # Map composite providers (firecrawl_extract, firecrawl_scrape) to base
+        rotator_provider = provider.replace("_extract", "").replace("_scrape", "")
+
+        status = self._rotator.status(rotator_provider)
         if not status.get("keys"):
             self._health[provider] = HealthState.DOWN
             return

@@ -1,6 +1,6 @@
 # ARIA Launcher CLI Compatibility
 
-**Last Updated**: 2026-04-25
+**Last Updated**: 2026-04-27
 **Status**: FIXED (v2)
 **Scope**: `bin/aria` launcher compatibility + hard isolation from global Kilo
 
@@ -84,6 +84,39 @@ Two independent regressions were active:
 - `bin/aria repl --print-logs` now loads only isolated paths under `.aria/kilo-home`.
 - TUI starts with `Aria-Conductor` selected by default.
 - `bin/aria run ... --print-logs` shows `> aria-conductor · ...` and isolated DB path.
+
+## 2026-04-27 — MCP duplicate/disabled registry fix
+
+### Problem observed
+
+Running `bin/aria repl` and `/mcps` showed duplicate MCP entries with mixed naming
+(`tavily`/`tavily-mcp`, `firecrawl`/`firecrawl-mcp`, `brave`/`brave-mcp`) and
+several disabled entries reappearing at each launcher boot.
+
+### Root cause
+
+In `bin/aria` migration block (`legacy mcp.json` -> `kilo.jsonc`):
+
+1. Deprecated keys were removed from in-memory `mcp`, but
+2. The subsequent loop re-imported all legacy server names without filtering,
+   reintroducing deprecated aliases and removed profiles.
+
+### Fix
+
+- Added explicit key sets:
+  - `DEPRECATED_ALIAS_KEYS = {"tavily", "firecrawl", "brave"}`
+  - `REMOVED_PROFILE_KEYS = {"google_workspace_readonly", "playwright"}`
+- Kept pre-cleanup `mcp.pop(...)` for those keys.
+- Added guard in migration loop to `continue` on those keys, preventing
+  reintroduction from legacy config.
+
+### Result
+
+Generated isolated config now contains only canonical entries:
+
+- `tavily-mcp`, `firecrawl-mcp`, `brave-mcp` (enabled)
+- no `tavily` / `firecrawl` / `brave` aliases
+- no `google_workspace_readonly` / `playwright` zombie profiles
 
 ## Provenance
 

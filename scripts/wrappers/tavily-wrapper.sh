@@ -2,5 +2,51 @@
 
 set -euo pipefail
 
-echo "Tavily MCP wrapper is not enabled in Phase 0. Enable provider integration in Phase 1." >&2
-exit 1
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+PYTHON_BIN="$PROJECT_ROOT/.venv/bin/python"
+
+# Ensure SOPS_AGE_KEY_FILE for credential auto-acquire
+if [[ -z "${SOPS_AGE_KEY_FILE:-}" ]]; then
+  if [[ -f "$HOME/.config/sops/age/keys.txt" ]]; then
+    export SOPS_AGE_KEY_FILE="$HOME/.config/sops/age/keys.txt"
+  elif [[ -f "/home/fulvio/.config/sops/age/keys.txt" ]]; then
+    export SOPS_AGE_KEY_FILE="/home/fulvio/.config/sops/age/keys.txt"
+  fi
+fi
+
+if [[ "${TAVILY_API_KEY:-}" =~ ^\$\{[A-Z0-9_]+\}$ ]]; then
+  unset TAVILY_API_KEY
+fi
+
+# Optional key auto-acquire via ARIA credential rotation.
+if [[ -z "${TAVILY_API_KEY:-}" ]] && [[ -x "$PYTHON_BIN" ]]; then
+  ACQUIRED_KEY="$($PYTHON_BIN - <<'PY' || true
+import asyncio
+
+from aria.config import get_config
+from aria.credentials.manager import CredentialManager
+
+
+async def main() -> str:
+    cm = CredentialManager(get_config())
+    key = await cm.acquire("tavily")
+    if key is None:
+        return ""
+    return key.key.get_secret_value()
+
+
+print(asyncio.run(main()), end="")
+PY
+)"
+
+  if [[ -n "$ACQUIRED_KEY" ]]; then
+    export TAVILY_API_KEY="$ACQUIRED_KEY"
+  fi
+fi
+
+if [[ -z "${TAVILY_API_KEY:-}" ]]; then
+  echo "WARN: TAVILY_API_KEY missing; tavily-mcp will start but tool calls may fail." >&2
+fi
+
+exec npx -y tavily-mcp@0.2.19

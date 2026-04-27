@@ -18,6 +18,8 @@
 | 2026-04-27T05:10:00+02:00 | General Manager | Phase B: quality gates ruff ✅ mypy ✅ pytest 304/304 ✅ | Done |
 | 2026-04-27T08:47:00+02:00 | General Manager | Phase D: deprecate old tools, ADR-0005, conductor prompt, scheduler, tests | Done |
 | 2026-04-27T08:50:00+02:00 | General Manager | Phase D: quality gates ruff ✅ mypy ✅ pytest 310/310 ✅ | Done |
+| 2026-04-27T12:12:00+02:00 | General Manager | Fixed launcher MCP migration reintroducing deprecated aliases/profiles (`bin/aria`) | Done |
+| 2026-04-27T12:20:00+02:00 | General Manager | Enabled research MCP wrappers (tavily/firecrawl/exa/searxng) + added key operations runbook | Done |
 
 ## Skills Invoked
 | Phase | Skill | Outcome |

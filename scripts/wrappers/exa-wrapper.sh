@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+PYTHON_BIN="$PROJECT_ROOT/.venv/bin/python"
+
+if [[ "${EXA_API_KEY:-}" =~ ^\$\{[A-Z0-9_]+\}$ ]]; then
+  unset EXA_API_KEY
+fi
+
+# Optional key auto-acquire via ARIA credential rotation.
+if [[ -z "${EXA_API_KEY:-}" ]] && [[ -x "$PYTHON_BIN" ]]; then
+  ACQUIRED_KEY="$($PYTHON_BIN - <<'PY' || true
+import asyncio
+
+from aria.config import get_config
+from aria.credentials.manager import CredentialManager
+
+
+async def main() -> str:
+    cm = CredentialManager(get_config())
+    key = await cm.acquire("exa")
+    if key is None:
+        return ""
+    return key.key.get_secret_value()
+
+
+print(asyncio.run(main()), end="")
+PY
+)"
+
+  if [[ -n "$ACQUIRED_KEY" ]]; then
+    export EXA_API_KEY="$ACQUIRED_KEY"
+  fi
+fi
+
+if [[ -z "${EXA_API_KEY:-}" ]]; then
+  echo "WARN: EXA_API_KEY missing; exa-mcp-server may fail on tool calls." >&2
+fi
+
+exec npx -y exa-mcp-server@3.2.1

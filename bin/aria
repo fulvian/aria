@@ -123,15 +123,22 @@ mcp = {}
 if isinstance(existing_mcp, dict):
     mcp.update(existing_mcp)
 
+DEPRECATED_ALIAS_KEYS = {"tavily", "firecrawl", "brave"}
+REMOVED_PROFILE_KEYS = {"google_workspace_readonly", "playwright"}
+
 # Drop deprecated alias keys when canonical servers are present.
-for deprecated_key in ("tavily", "firecrawl", "brave"):
+for deprecated_key in DEPRECATED_ALIAS_KEYS:
     mcp.pop(deprecated_key, None)
 
 # Drop deprecated/removed ARIA profiles from isolated runtime.
-for removed_key in ("google_workspace_readonly", "playwright"):
+for removed_key in REMOVED_PROFILE_KEYS:
     mcp.pop(removed_key, None)
 
 for name, cfg in servers.items():
+    # Do not re-introduce deprecated aliases / removed profiles from legacy mcp.json.
+    if name in DEPRECATED_ALIAS_KEYS or name in REMOVED_PROFILE_KEYS:
+        continue
+
     command = []
     base_cmd = cfg.get("command")
     if isinstance(base_cmd, str) and base_cmd:

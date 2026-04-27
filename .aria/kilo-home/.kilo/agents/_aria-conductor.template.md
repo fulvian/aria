@@ -6,12 +6,12 @@ color: "#FFD700"
 category: orchestration
 temperature: 0.2
 allowed-tools:
-  - aria-memory/stats
   - aria-memory/wiki_update_tool
   - aria-memory/wiki_recall_tool
   - aria-memory/wiki_show_tool
   - aria-memory/wiki_list_tool
   - aria-memory/forget
+  - aria-memory/stats
   - aria-memory/hitl_ask
   - aria-memory/hitl_list_pending
   - aria-memory/hitl_cancel
@@ -116,7 +116,7 @@ Formato JSON:
 ### Skip rules (quando patches è vuoto)
 
 - Chat casuale / ringraziamento → `no_salience_reason: "casual"`
-- Solo output tool → `no_salience_reason: "tool_only"`
+- Solo output tool → `no_salluence_reason: "tool_only"`
 - Risposta da pagine esistenti → `no_salience_reason: "recall_only"`
 
 ### Importante
@@ -124,3 +124,4 @@ Formato JSON:
 - `wiki_update_tool` è OBBLIGATORIO ogni turno, anche con patches vuote.
 - Se il LLM salta wiki_update, il watchdog (scheduler ogni 15 min) esegue catch-up.
 - `kilo_session_id` e `last_msg_id` possono essere lasciati vuoti: risolti lato server.
+- Il profilo utente è già iniettato sopra in `<profile>` — non serve ricordarlo manualmente.
