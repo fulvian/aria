@@ -210,6 +210,9 @@ class TaskRunner:
                     result_summary="episodic.db WAL checkpointed",
                 )
 
+            if action == "wiki_watchdog":
+                return await self._exec_wiki_watchdog(run_id, task)
+
             # distill_range
             from aria.memory.clm import CLM
             from aria.memory.semantic import SemanticStore
@@ -246,6 +249,53 @@ class TaskRunner:
 
         except Exception as exc:
             logger.error("Memory task %s failed: %s", task.id, exc)
+            return RunResult(
+                run_id=run_id,
+                outcome="failed",
+                result_summary=str(exc),
+                error=str(exc),
+            )
+
+    async def _exec_wiki_watchdog(self, run_id: str, task: Task) -> RunResult:
+        """Execute wiki watchdog catch-up cycle.
+
+        Per plan §5.3: detects skipped wiki_update calls and triggers
+        catch-up curation from kilo.db.
+        """
+        try:
+            from aria.config import get_config
+            from aria.memory.wiki.db import WikiStore
+            from aria.memory.wiki.watchdog import run_watchdog_cycle
+
+            config = get_config()
+            wiki_db_path = config.paths.runtime / "memory" / "wiki.db"
+            wiki_store = WikiStore(wiki_db_path)
+            await wiki_store.connect()
+
+            try:
+                result = await run_watchdog_cycle(wiki_store)
+                logger.info(
+                    "Wiki watchdog completed: status=%s checked=%d gaps=%d catchups=%d",
+                    result.status,
+                    result.sessions_checked,
+                    result.gaps_found,
+                    result.catchups_triggered,
+                )
+                return RunResult(
+                    run_id=run_id,
+                    outcome="success",
+                    result_summary=(
+                        f"Watchdog: {result.status}, "
+                        f"checked={result.sessions_checked}, "
+                        f"gaps={result.gaps_found}, "
+                        f"catchups={result.catchups_triggered}"
+                    ),
+                )
+            finally:
+                await wiki_store.close()
+
+        except Exception as exc:
+            logger.error("Wiki watchdog task %s failed: %s", task.id, exc)
             return RunResult(
                 run_id=run_id,
                 outcome="failed",
