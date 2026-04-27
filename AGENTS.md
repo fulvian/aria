@@ -242,6 +242,51 @@ Format: `<type>(<scope>): <description>`
 - Agents MUST NOT delete remote branches without explicit instruction
 - Agents MUST fetch and rebase on latest `main` before finalizing work
 
+### Secrets & Sensitive Data in Git
+- NEVER commit plaintext API keys, OAuth credentials, tokens, or passwords. Use `.env` (gitignored) + SOPS-encrypted files under `.aria/credentials/secrets/`.
+- If secrets are detected by GitHub push protection, FIRST evaluate: are they real credentials or false positives?
+  - **Real credentials** in documentation/handoff files (e.g., OAuth client ID/secret in `docs/handoff/`): the user MUST visit the GitHub-provided bypass URL to allow the push. Agents MUST NOT strip secrets from files without explicit user instruction.
+  - **Real credentials** in code: remove immediately, replace with `os.getenv(...)` or SOPS decryption, and rotate the compromised credential.
+  - **False positives**: bypass via GitHub's push protection URL.
+- Agents MUST NOT use `git filter-branch`, `git filter-repo`, or any history-rewriting tool without explicit user approval and a backup of the original branch.
+- OAuth client IDs and secrets documented in internal handoff files are considered **intentional documentation**, not leaks. Handle them via push protection bypass, not by removing them from the files.
+
+### Working Tree Hygiene
+- Keep the working tree clean: resolve uncommitted changes before starting a new task.
+- Untracked runtime/cache directories (`.aria/kilo-home/`, `.npm/`, `.cache/`, `node_modules/`) MUST remain gitignored and NEVER be committed.
+- Before creating a feature branch, verify `git status --short` shows minimal changes. If there are more than 10 untracked files, identify and gitignore them first.
+- A clean working tree prevents Kilo's branch review from slowing down session startup (see `docs/llm_wiki/wiki/log.md` entry 2026-04-27).
+
+### Push Protocol
+- Always use `git push origin <branch>` (simple push). Use `--force-with-lease` ONLY when:
+  1. The user explicitly authorizes it (HITL gate).
+  2. The remote branch has no upstream history that needs preserving (e.g., it's a personal feature branch, not `main` or a shared branch).
+  3. A backup of the original branch exists locally (`git branch <branch>-backup` before force push).
+- `git push --force` (without `--with-lease`) is FORBIDDEN. Use `--force-with-lease` which checks that your local ref matches the remote ref before overwriting.
+- If GitHub push protection blocks the push due to secrets, follow the "Secrets & Sensitive Data in Git" rules above. Do NOT use `--force` to bypass push protection.
+
+### Branch Lifecycle
+- Feature/bugfix branches MUST be deleted locally after they are merged or superseded:
+  ```bash
+  git branch -d <branch-name>          # safe delete (only if merged)
+  git branch -D <branch-name>          # force delete (only with HITL)
+  ```
+- Remote branches should be cleaned up periodically: `git remote prune origin`.
+- Stale local branches (no commits in >30 days) should be listed for review: `git branch -v | grep '\[gone\]'`.
+- Keep the total number of local branches under 10. Use `git worktree` for parallel tasks instead of multiple branches.
+
+### Recovery Protocol (when things go wrong)
+- If `git filter-branch` or `filter-repo` is used, the original refs are saved under `refs/original/`. Restore with:
+  ```bash
+  git checkout -b <recovered-branch> refs/original/refs/heads/<lost-branch>
+  ```
+- If a branch is accidentally deleted, recover from reflog:
+  ```bash
+  git checkout -b <recovered-branch> <commit-hash>   # find hash via git reflog
+  ```
+- If the working tree is in a dirty state after a failed rebase/merge, use `git rebase --abort` or `git merge --abort` to return to the pre-operation state.
+- When in doubt, STASH before attempting destructive operations: `git stash --include-untracked` creates a safe restore point.
+
 ## Agent Working Rules
 - Prefer minimal, reviewable diffs.
 - Do not perform destructive git actions without explicit user instruction.

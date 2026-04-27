@@ -102,6 +102,16 @@ docs/llm_wiki/
 - 2026-04-24: Added Google Workspace MCP write reliability page
 - 2026-04-27: Comprehensive update after ripristino ricerca + Google Workspace
 
+## Git & GitHub Rules
+
+Definite in `AGENTS.md` § "Git & GitHub Workflow Rules". Regole chiave:
+- **MAI** forzare push su `main` senza HITL
+- **MAI** usare `git filter-branch` / `filter-repo` senza backup e approvazione
+- **MAI** committare segreti in chiaro; bypassare push protection per credenziali documentate tramite URL GitHub dedicati
+- **SEMPRE** tenere il working tree pulito: meno di 10 untracked files prima di iniziare un task
+- **SEMPRE** fare backup del branch (`git branch <branch>-backup`) prima di operazioni distruttive
+- **Stash** come strumento di recovery primario: `git stash --include-untracked` prima di rebase/merge/filter
+
 ## Relevant Files
 
 - `AGENTS.md` — coding standards and agent rules
