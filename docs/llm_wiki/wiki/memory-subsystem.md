@@ -1,8 +1,25 @@
 # Memory Subsystem — Architecture, Gaps, and Tools
 
 **Last Updated**: 2026-04-27
-**Status**: REMEDIATED — post-deploy fixes applied, awaiting live REPL verification
-**Source**: `src/aria/memory/`, `docs/plans/memory_recovery.md`
+**Status**: REMEDIATED v1 + v2 PLAN DRAFTED (Echo capture + Salience curator + profile + lessons)
+**Source**: `src/aria/memory/`, `docs/plans/memory_recovery.md`, `docs/plans/auto_persistence_echo.md` (v2)
+
+---
+
+## Memory v2 — Auto Salience (planned, 2026-04-27)
+
+The current system reliably persists T0 only when the LLM agent calls `remember`/`complete_turn`, and the regex `CLM` extracts T1 chunks but cannot identify autonomous salience (user profile facts, behavior-tuning lessons, cross-session preferences). Plan `docs/plans/auto_persistence_echo.md` v2 introduces two orthogonal layers:
+
+| Layer | Component | Mechanism | Output |
+|-------|-----------|-----------|--------|
+| Capture | Echo sidecar | watchdog inotify on `kilo.db-wal`, SQL extract, dedup by content_hash | `episodic.db` (T0 verbatim, no LLM) |
+| Salience | Curator | Single-pass LLM extraction (Ollama default, tier-1 opt-in), structured Pydantic output | `semantic.db` chunks + `profile.md` + `lessons.md` |
+
+Recall layer changes: drop `complete_turn`, add `recall_profile`, add `recall_lessons`. Conductor prompt loads profile + top lessons every turn instead of policing writes.
+
+Source: `docs/plans/auto_persistence_echo.md`, last_updated: 2026-04-27.
+
+---
 
 ---
 

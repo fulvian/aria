@@ -1,5 +1,335 @@
 # Implementation Log
 
+## 2026-04-27T08:47 — Memory v3 Phase D Implementation COMPLETE
+
+**Operation**: IMPLEMENT
+**Branch**: `fix/memory-recovery`
+**Plan**: `.kilo/plans/1777246267449-glowing-tiger.md` §9 Phase D
+**Scope**: Deprecate old tools, ADR-0005, conductor prompt, scheduler, tests
+
+### Phase D Deliverables (ALL COMPLETE)
+
+| Module | Purpose | Status |
+|--------|---------|--------|
+| `docs/foundation/decisions/ADR-0005-memory-v3-cutover.md` | Deprecation document | ✅ Created |
+| `src/aria/memory/mcp_server.py` | Removed 6 legacy tools + cleanup | ✅ Modified |
+| `src/aria/memory/episodic.py` | Frozen marker in docstring | ✅ Modified |
+| `src/aria/memory/semantic.py` | Frozen marker in docstring | ✅ Modified |
+| `src/aria/memory/clm.py` | Frozen marker in docstring | ✅ Modified |
+| `.aria/kilo-home/.kilo/agents/_aria-conductor.template.md` | Removed old tool references | ✅ Modified |
+| `src/aria/scheduler/daemon.py` | Removed memory-distill seed | ✅ Modified |
+| `tests/unit/memory/test_mcp_server.py` | Marked orphan tests skip | ✅ Modified |
+| `tests/unit/memory/test_complete_turn.py` | Marked skip (DEPRECATED) | ✅ Modified |
+| `tests/unit/memory/test_session_id_resolver.py` | Marked skip (DEPRECATED) | ✅ Modified |
+
+### Tools Removed (6)
+
+- `remember` — replaced by wiki_update
+- `complete_turn` — replaced by wiki_update end-of-turn
+- `recall` — replaced by wiki_recall
+- `recall_episodic` — replaced by wiki_recall
+- `distill` — replaced by conductor end-of-turn reflection
+- `curate` — replaced by wiki_update + HITL tools
+
+### Tools Retained (10)
+
+Wiki (4): wiki_update, wiki_recall, wiki_show, wiki_list
+Legacy bridge (2): forget, stats
+HITL (4): hitl_ask, hitl_list_pending, hitl_cancel, hitl_approve
+
+### Key Design Decisions (Phase D)
+
+1. **Tools removed**: 6 legacy MCP tools now removed from mcp_server.py
+2. **Imports cleaned**: Removed CLM, SemanticStore, Actor, content_hash, derive_actor_from_role
+3. **`_ensure_store()` signature**: Now returns `EpisodicStore` directly (not tuple)
+4. **`hitl_approve`**: SemanticStore instantiated lazily only for `forget_semantic` action
+5. **Scheduler**: `memory-distill` seed removed (CLM frozen); WAL checkpoint + watchdog retained
+6. **Tests**: 6 deprecated tests marked skip; wiki tests still pass (146)
+
+### Quality Gates
+
+| Check | Result |
+|-------|--------|
+| ruff check src/aria/memory/mcp_server.py | ✅ PASS |
+| ruff format --check | ✅ PASS |
+| mypy src/aria/memory/mcp_server.py | ✅ SUCCESS (0 errors) |
+| pytest tests/unit/memory/ | ✅ 182 PASSED, 7 SKIPPED |
+| pytest tests/unit/ (full) | ✅ 310 PASSED, 21 SKIPPED |
+| pytest tests/unit/memory/wiki/ | ✅ 146 PASSED |
+
+### Status
+
+Phase D COMPLETE. Net MCP tools: 10 (4 wiki + 2 legacy bridge + 4 HITL).
+Ready for Phase E (hard delete frozen modules after 30 days stable).
+
+---
+
+**Operation**: IMPLEMENT
+**Branch**: `fix/memory-recovery`
+**Plan**: `docs/plans/auto_persistence_echo.md` §6 + §9 Phase C
+**Scope**: Profile auto-inject substitution in conductor agent template
+
+### Phase C Deliverables (ALL COMPLETE)
+
+| Module | Purpose | Status |
+|--------|---------|--------|
+| `.aria/kilo-home/.kilo/agents/_aria-conductor.template.md` | Template source with `{{ARIA_MEMORY_BLOCK}}` placeholder | ✅ Created |
+| `src/aria/memory/wiki/prompt_inject.py` | `regenerate_conductor_template()` + `build_memory_block()` | ✅ Enhanced |
+| `src/aria/memory/wiki/tools.py` | Profile update triggers template regeneration | ✅ Modified |
+| `src/aria/memory/mcp_server.py` | Boot-time template regeneration hook | ✅ Modified |
+| `tests/unit/memory/wiki/test_prompt_inject.py` | 11 unit tests | ✅ Done |
+
+### Key Design Decisions (Phase C)
+
+1. **Template source pattern**: `_aria-conductor.template.md` holds `{{ARIA_MEMORY_BLOCK}}` placeholder; active `aria-conductor.md` is generated from it
+2. **Boot regeneration**: MCP server `main()` runs `_regenerate_conductor_template_on_boot()` before `mcp.run()`
+3. **Profile update hook**: When `wiki_update` applies a profile patch, it calls `regenerate_conductor_template()` immediately
+4. **Profile truncation**: Body truncated to 1200 chars (~300 tokens) to prevent prompt bloat
+5. **Non-blocking**: Template regeneration failure logs warning but does not block tool calls
+
+### Quality Gates
+
+| Check | Result |
+|-------|--------|
+| ruff check src/aria/memory/wiki/ src/aria/memory/mcp_server.py | ✅ PASS |
+| ruff format | ✅ PASS |
+| mypy src/aria/memory/wiki/ | ✅ SUCCESS (0 errors, 9 files) |
+| pytest tests/unit/memory/wiki/ | ✅ 146 PASSED |
+| pytest tests/unit/ (full) | ✅ 315 PASSED, 14 SKIPPED |
+
+### Status
+
+Phase C COMPLETE. Profile auto-inject active — conductor prompt includes wiki profile at boot and on update.
+Ready for Phase D (deprecate old tools + ADR).
+
+---
+
+## 2026-04-27T07:17 — Memory v3 Phase C Started
+
+**Operation**: IMPLEMENT
+**Branch**: `fix/memory-recovery`
+**Plan**: `docs/plans/auto_persistence_echo.md` §6 + §9 Phase C
+**Scope**: Profile auto-inject substitution in conductor agent template
+
+### Phase C Deliverables
+
+| Module | Purpose |
+|--------|---------|
+| `src/aria/memory/wiki/prompt_inject.py` | Profile substitution into agent template at session start |
+| `src/aria/memory/mcp_server.py` | Template regeneration hook on profile update |
+| `.aria/kilo-home/.kilo/agents/aria-conductor.md` | `{{ARIA_MEMORY_BLOCK}}` substitution marker |
+
+### Key Mechanisms
+
+1. Conductor agent template has `{{ARIA_MEMORY_BLOCK}}` placeholder
+2. On MCP server boot, read profile from wiki.db → build memory block → write into template
+3. On profile update via wiki_update, regenerate template with new profile
+4. Profile body truncated to ~300 tokens (1200 chars)
+5. Recall threshold tuning: min_score=0.3 default, configurable
+
+---
+
+## 2026-04-27T05:05 — Memory v3 Phase B Implementation COMPLETE
+
+**Operation**: IMPLEMENT
+**Branch**: `fix/memory-recovery`
+**Plan**: `docs/plans/auto_persistence_echo.md` §5.3 + §6 + §9 Phase B
+**Scope**: Watchdog task, kilo.db reader, conductor prompt update, integration tests
+
+### Phase B Deliverables (ALL COMPLETE)
+
+| Module | Purpose | Status |
+|--------|---------|--------|
+| `src/aria/memory/wiki/kilo_reader.py` | kilo.db read-only reader + schema fingerprint | ✅ Done |
+| `src/aria/memory/wiki/watchdog.py` | Gap detection + catch-up trigger | ✅ Done |
+| `src/aria/memory/wiki/prompt_inject.py` | Memory contract + profile + recall block | ✅ Enhanced |
+| `src/aria/scheduler/daemon.py` | memory-watchdog cron seed (*/15 * * * *) | ✅ Done |
+| `src/aria/scheduler/runner.py` | wiki_watchdog action handler | ✅ Done |
+| `.aria/kilo-home/.kilo/agents/aria-conductor.md` | Wiki memory contract (§5.2) | ✅ Done |
+| `tests/unit/memory/wiki/test_kilo_reader.py` | 13 unit tests | ✅ Done |
+| `tests/unit/memory/wiki/test_watchdog.py` | 13 unit tests | ✅ Done |
+
+### Key Design Decisions (Phase B)
+
+1. **KiloReader immutable mode**: Opens kilo.db with `immutable=1` flag — P2 compliance (read-only)
+2. **Schema fingerprint**: SHA256 of PRAGMA table_info output — catches Kilo upgrade drift
+3. **Watchdog gap detection**: Queries kilo.db sessions, compares against wiki_watermark, triggers catch-up when gap > 5 min + ≥ 3 unprocessed messages
+4. **Catch-up context**: Prepares message summaries for curator-only conductor spawn (actual subprocess spawn deferred to runner)
+5. **Conductor prompt**: Added full wiki memory contract (§5.2) with mandatory wiki_update + wiki_recall rules, salience triggers, skip rules
+6. **prompt_inject.py**: Now builds memory contract header + profile block + recall block
+
+### Quality Gates
+
+| Check | Result |
+|-------|--------|
+| ruff check src/aria/memory/wiki/ | ✅ PASS |
+| ruff format src/aria/memory/wiki/ | ✅ PASS |
+| mypy src/aria/memory/wiki/ | ✅ SUCCESS (0 errors in 9 files) |
+| pytest tests/unit/memory/wiki/ | ✅ 135 PASSED |
+| pytest tests/unit/ (full) | ✅ 304 PASSED, 14 SKIPPED |
+
+### Status
+
+Phase B COMPLETE. Old persistence (remember etc.) runs in parallel (belt+suspenders).
+Ready for Phase C (profile auto-inject substitution).
+
+---
+
+## 2026-04-27T02:00 — Memory v3 Phase B Implementation Started
+
+**Operation**: IMPLEMENT
+**Branch**: `fix/memory-recovery`
+**Plan**: `docs/plans/auto_persistence_echo.md` §5.3 + §6 + §9 Phase B
+**Scope**: Watchdog task, kilo.db reader, conductor prompt update, integration tests
+
+### Phase B Deliverables
+
+| Module | Purpose |
+|--------|---------|
+| `src/aria/memory/wiki/watchdog.py` | Scheduler task: gap detection + curator-only catch-up |
+| `src/aria/memory/wiki/kilo_reader.py` | kilo.db schema fingerprint + message range reader |
+| `src/aria/memory/wiki/prompt_inject.py` | Enhanced: profile block + memory contract injection |
+| `.aria/kilo-home/.kilo/agents/aria-conductor.md` | Conductor prompt update with wiki contract |
+| `src/aria/memory/mcp_server.py` | health tool extended with wiki.db status |
+
+### Key Mechanisms
+
+1. **Watchdog** runs every 15 min (configurable)
+2. Queries kilo.db for sessions with unprocessed messages
+3. Gap > 5 min and ≥ 3 messages → spawn catch-up
+4. **Catch-up**: spawn conductor in `ARIA_MODE=curator-only` with narrow toolset
+5. **kilo.db reader**: schema fingerprint check on boot, message range queries
+6. **Conductor prompt**: mandatory wiki_update end-of-turn + wiki_recall start-of-turn
+
+---
+
+## 2026-04-27T01:31 — Memory v3 Phase A Implementation Started
+
+**Operation**: IMPLEMENT
+**Branch**: `fix/memory-recovery`
+**Plan**: `docs/plans/auto_persistence_echo.md` (v3 — supersedes v2 Echo+Salience plan)
+**Scope**: Phase A — wiki.db schema, migrations, 4 MCP tools, unit tests
+
+### Architecture (v3 — simplified from v1/v2)
+
+Two-store model:
+1. **kilo.db** (read-only for ARIA) — raw T0 conversations
+2. **wiki.db** (new, gitignored) — distilled knowledge pages with FTS5
+
+Drops: Echo sidecar, episodic.db, semantic.db, regex CLM, Ollama/separate model.
+Net: 1 new SQLite store + 4 MCP tools + 1 scheduler task (Phase B).
+
+### Context7 Verification (2026-04-27)
+
+| Library | Context7 ID | Verified |
+|---------|-------------|----------|
+| aiosqlite | `/omnilib/aiosqlite` | ✅ async SQLite, executescript, FTS5 |
+| FastMCP | `/prefecthq/fastmcp` | ✅ @mcp.tool, dict returns, async |
+| Pydantic v2 | `/pydantic/pydantic` | ✅ Literal, field_validator, model_config |
+
+### Phase A Deliverables
+
+| Module | Purpose |
+|--------|---------|
+| `src/aria/memory/wiki/__init__.py` | Module exports |
+| `src/aria/memory/wiki/schema.py` | Pydantic: PagePatch, WikiUpdatePayload, Page |
+| `src/aria/memory/wiki/migrations.py` | wiki.db DDL (FTS5, page_revision, watermark, tombstone) |
+| `src/aria/memory/wiki/db.py` | WikiStore CRUD + schema fingerprint check |
+| `src/aria/memory/wiki/recall.py` | FTS5 search + score thresholding |
+| `src/aria/memory/wiki/tools.py` | 4 MCP tools |
+
+### Wiki Updates
+
+- `index.md`: Added memory-v3 page to page list
+- `log.md`: This entry
+- `memory-v3.md`: New page with architecture, kinds, constraints
+
+### Phase A Deliverables
+
+| Module | Purpose | Status |
+|--------|---------|--------|
+| `src/aria/memory/wiki/__init__.py` | Module exports | ✅ Done |
+| `src/aria/memory/wiki/schema.py` | Pydantic: PagePatch, WikiUpdatePayload, Page, PageRevision, PageKind | ✅ Done |
+| `src/aria/memory/wiki/migrations.py` | wiki.db DDL (FTS5, page_revision, watermark, tombstone) | ✅ Done |
+| `src/aria/memory/wiki/db.py` | WikiStore CRUD + schema fingerprint + watermark | ✅ Done |
+| `src/aria/memory/wiki/recall.py` | WikiRecallEngine (FTS5 + bm25 scoring + token budget) | ✅ Done |
+| `src/aria/memory/wiki/tools.py` | 4 MCP tools (wiki_update, wiki_recall, wiki_show, wiki_list) | ✅ Done |
+| `src/aria/memory/wiki/prompt_inject.py` | Profile block builder (Phase C stub) | ✅ Stub |
+| `src/aria/memory/wiki/watchdog.py` | Watchdog task (Phase B stub) | ✅ Stub |
+| `src/aria/memory/mcp_server.py` | Wiki tools registered alongside existing 11 tools | ✅ Done |
+| `tests/unit/memory/wiki/` | 109 unit tests across 5 test files | ✅ Done |
+
+### Quality Gates
+
+| Check | Result |
+|-------|--------|
+| ruff check src/aria/memory/wiki/ | ✅ PASS |
+| ruff format src/aria/memory/wiki/ | ✅ PASS |
+| mypy src/aria/memory/wiki/ | ✅ SUCCESS (0 errors, 8 files) |
+| pytest tests/unit/memory/wiki/ | ✅ 109 PASSED |
+| pytest tests/unit/ (full suite) | ✅ 278 PASSED, 14 SKIPPED |
+
+### Key Design Decisions
+
+1. **FTS5 standalone content** (not content-sync) — avoids "database disk image is malformed" errors with UPDATE triggers
+2. **FTS5 join on (slug, kind)** — UNIQUE(kind, slug) guarantees match
+3. **bm25 score normalization** — inverted negative bm25 to 0-1 range
+4. **Decision immutability enforced at WikiStore level** — ValueError on update/append
+5. **Tombstone deletes revisions first** — FK constraint on page_revision → page
+
+### Status
+
+Phase A COMPLETE. Non-breaking pure addition. Ready for Phase B (watchdog + conductor prompt).
+
+---
+
+## 2026-04-27T13:00 — Memory v2 Plan: Echo Capture + Salience Curator (SUPERSEDED by v3)
+
+**Operation**: ARCHITECT + PLAN
+**Branch**: `fix/memory-recovery`
+**Plan**: `docs/plans/auto_persistence_echo.md` (v2 — supersedes prior Echo-only draft)
+**Trigger**: Handoff `docs/handoff/auto_memory_handoff.md` (GLM-5.1 → Opus 4.7).
+
+### Problem reframe
+v1 plan solved capture (Echo sidecar tapping `kilo.db`) but stopped at persistence. The user's actual ask is autonomous salience: profile facts, cross-session memory, behavior learning. Regex `CLM` cannot extract these.
+
+### v2 architecture
+Two orthogonal layers:
+1. **Echo (Capture)** — deterministic kilo.db→episodic.db, no LLM, watchdog inotify + 30s polling fallback, content-hash dedup against existing `remember()` calls. Tags Echo entries with `["echo"]`.
+2. **Curator (Salience)** — async LLM extractor over closed turns. Single-pass structured output (Pydantic) → semantic chunks + `profile.md` patches + `lessons.md` appends. Default local Ollama (`qwen2.5:3b` recommended); tier-1 opt-in only.
+
+### Recall layer flip
+Drop `complete_turn` (LLM unreliable). Add `recall_profile` + `recall_lessons` (cheap, loaded into conductor prompt every turn). Inverts policy: agent stops policing writes, reads ambient context. Closes feedback loop: user correction → curator distills → next turn reloads.
+
+### Inderogable rules respected
+P1 isolation, P2 read-only kilo.db, P3 local-first (default Ollama), P5 actor preserved per chunk, P6 profile/lessons are derived (T0 reconstructible), P7 HITL on profile delete, P8 MCP-first tool surface, P10 ADR will accompany Phase C deprecation of regex CLM.
+
+### Library strategy
+No heavy framework deps (no mem0/letta/langmem). Patterns stolen — Mem0 single-pass extraction, Letta persona/human blocks → profile.md, LangMem importance tagging.
+
+### Phasing
+- **Phase A** (~10h): Echo only, regex CLM still default
+- **Phase B** (~12h): Curator skeleton + Ollama provider, opt-in
+- **Phase C** (~6h): Flip default LLM curator, drop `complete_turn`, conductor prompt rewrite
+- **Phase D** (~12h): Tests + docs + observability
+- Total ~40h.
+
+### Context7 verification
+| Lib | ID |
+|-----|----|
+| Mem0 | `/mem0ai/mem0` (v3 single-pass `add()`, infer flag) |
+| LangMem | `/langchain-ai/langmem` (memory_manager + importance tags) |
+| Letta | `/letta-ai/letta` (memory blocks API) |
+
+### Wiki updates
+- `index.md`: added v2 plan + handoff to raw sources, status note
+- `memory-subsystem.md`: appended Memory v2 section with capture/salience split
+
+### Status
+Plan drafted, awaiting user approval. No code changes yet.
+
+---
+
 ## 2026-04-27T00:10 — Memory Recovery Post-deploy Fixes
 
 **Operation**: FIX + VERIFY

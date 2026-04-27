@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-04-27
-**Status**: BOOTSTRAPPED — memory recovery applied + post-deploy fixes
+**Last Updated**: 2026-04-27 (Phase D complete)
+**Status**: Phase A ✅ | Phase B ✅ | Phase C ✅ | Phase D ✅ — Memory v3 complete; Phase E pending (hard delete frozen modules after 30 days)
 
 ## Purpose
 
@@ -44,12 +44,15 @@ docs/llm_wiki/
 | `docs/plans/research_restore_plan.md` | Piano di ripristino routing ricerca con tier consecutivi e policy free-first | 2026-04-26 |
 | `docs/plans/research_restore_plan.md` | Ricerca deterministica: searxng > tavily > firecrawl > exa > brave (approved 2026-04-26) | 2026-04-26 |
 | `docs/plans/memory_recovery.md` | Piano di recupero memoria (auto-persistence, VACUUM safety, CLM inclusivo) | 2026-04-26 |
+| `docs/plans/auto_persistence_echo.md` | Memory v3 plan (Kilo+Wiki Fusion — supersedes v2) | 2026-04-27 |
+| `docs/handoff/auto_memory_handoff.md` | Handoff GLM-5.1→Opus 4.7 con analisi auto-persistence | 2026-04-27 |
 
 ## Pages
 
 | Page | Description | Status |
 |------|-------------|--------|
-| [[memory-subsystem]] | Memory subsystem architecture, gaps, tools (updated 2026-04-24) | Active |
+| [[memory-subsystem]] | Memory subsystem architecture, gaps, tools (updated 2026-04-27 — v2 plan) | Active |
+| [[memory-v3]] | Memory v3 Kilo+Wiki Fusion: wiki.db, FTS5, 4 MCP tools, watchdog, profile auto-inject, Phase D deprecation (10 tools total) | Active |
 | [[google-workspace-mcp-write-reliability]] | Root causes and remediation for Docs/Sheets/Slides write path | Active |
 | [[aria-launcher-cli-compatibility]] | Root cause and robust fix for startup, isolation, and MCP restoration | Active |
 | [[research-routing]] | Research routing tier policy: searxng > tavily > firecrawl > exa > brave | Active |
@@ -63,9 +66,9 @@ docs/llm_wiki/
 
 ## Implementation Branch
 
-- **Branch**: `feature/workspace-write-reliability`
-- **Status**: Launcher isolation + research MCP restoration validated (2026-04-25)
-- **Focus**: ARIA runtime isolation + CLI compatibility hardening
+- **Branch**: `fix/memory-recovery`
+- **Status**: Memory v3 Phase C complete (2026-04-27)
+- **Focus**: Memory v3 Kilo+Wiki Fusion — profile auto-inject substitution
 
 ## Relevant Files
 
