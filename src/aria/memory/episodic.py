@@ -1,3 +1,7 @@
+# DEPRECATED: Frozen since Phase D (2026-04-27). Kept for forensic read only.
+# Phase E will hard-delete this module after 30 days of stable wiki-only operation.
+# See ADR-0005-memory-v3-cutover.
+#
 # Episodic Store - SQLite WAL + FTS5
 #
 # Tier 0 episodic memory store with FTS5 full-text search.

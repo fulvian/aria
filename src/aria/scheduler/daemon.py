@@ -43,22 +43,6 @@ async def _seed_memory_tasks(store: TaskStore, config: ARIAConfig) -> None:
 
     now_ms = int(_time.time() * 1000)
 
-    if "memory-distill" not in existing_names:
-        task = Task(
-            name="memory-distill",
-            category="memory",
-            trigger_type="cron",
-            schedule_cron="0 */6 * * *",
-            timezone="Europe/Rome",
-            next_run_at=now_ms + 6 * 3600 * 1000,  # first run in 6h
-            policy="allow",
-            payload={"action": "distill_range", "hours": 6},
-            created_at=now_ms,
-            updated_at=now_ms,
-        )
-        await store.create_task(task)
-        logger.info("Seeded memory-distill cron task")
-
     if "memory-wal-checkpoint" not in existing_names:
         task = Task(
             name="memory-wal-checkpoint",
@@ -74,6 +58,23 @@ async def _seed_memory_tasks(store: TaskStore, config: ARIAConfig) -> None:
         )
         await store.create_task(task)
         logger.info("Seeded memory-wal-checkpoint cron task")
+
+    # Wiki watchdog: detects skipped wiki_update calls (plan §5.3 Phase B)
+    if "memory-watchdog" not in existing_names:
+        task = Task(
+            name="memory-watchdog",
+            category="memory",
+            trigger_type="cron",
+            schedule_cron="*/15 * * * *",
+            timezone="Europe/Rome",
+            next_run_at=now_ms + 15 * 60 * 1000,  # first run in 15 min
+            policy="allow",
+            payload={"action": "wiki_watchdog"},
+            created_at=now_ms,
+            updated_at=now_ms,
+        )
+        await store.create_task(task)
+        logger.info("Seeded memory-watchdog cron task")
 
 
 async def _async_main() -> int:  # noqa: PLR0915

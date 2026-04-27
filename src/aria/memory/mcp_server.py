@@ -1,20 +1,21 @@
 # ARIA Memory MCP Server
 #
-# FastMCP 3.x server exposing 11 memory tools.
-# Per blueprint §5.6 and sprint plan W1.1.L / Sprint 1.2.
+# FastMCP 3.x server exposing 10 memory tools (Phase D — legacy tools removed).
+# Per blueprint §5.6, plan §9 Phase D, ADR-0005.
 #
-# Tools:
-# 1. remember - Write T0 episodic entry
-# 2. recall - Semantic/T0 search
-# 3. recall_episodic - Session chronological recall
-# 4. distill - Trigger CLM distillation
-# 5. curate - HITL-gated promote/demote/forget
-# 6. forget - HITL-gated soft delete
-# 7. stats - Memory telemetry
-# 8. hitl_ask - Queue a human-in-the-loop approval request
-# 9. hitl_list_pending - List all pending HITL approval requests
-# 10. hitl_cancel - Cancel a pending HITL request before approval
-# 11. hitl_approve - Approve a pending HITL request and execute the action
+# Wiki tools (4):
+#   wiki_update, wiki_recall, wiki_show, wiki_list
+#   (registered via wiki/tools.py)
+#
+# Legacy bridge tools (2):
+#   forget — HITL-gated soft delete (bridge, Phase E will migrate)
+#   stats — memory telemetry (includes wiki.db stats)
+#
+# HITL tools (4):
+#   hitl_ask, hitl_list_pending, hitl_cancel, hitl_approve
+#
+# Removed in Phase D (2026-04-27): remember, complete_turn, recall,
+# recall_episodic, distill, curate. See ADR-0005.
 #
 # Transport: stdio (configurable via ARIA_MEMORY_MCP_TRANSPORT)
 #
@@ -23,22 +24,16 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal
 
 from fastmcp import FastMCP
 
 from aria.config import get_config
-from aria.memory.actor_tagging import derive_actor_from_role
-from aria.memory.clm import CLM
 from aria.memory.episodic import EpisodicStore, create_episodic_store
-from aria.memory.schema import Actor, EpisodicEntry, content_hash
-from aria.memory.semantic import SemanticStore
 from aria.utils.logging import new_trace_id, set_trace_id
 
 # === FastMCP Setup ===
@@ -47,437 +42,21 @@ mcp = FastMCP("aria-memory")
 
 # Global state (initialized on first tool call)
 _store: EpisodicStore | None = None
-_semantic: SemanticStore | None = None
-_clm: CLM | None = None
 _config = None
 
 
-async def _ensure_store() -> tuple[EpisodicStore, SemanticStore, CLM]:
-    """Ensure stores are initialized (lazy init)."""
-    global _store, _semantic, _clm, _config  # noqa: PLW0603
+async def _ensure_store() -> EpisodicStore:
+    """Ensure episodic store is initialized (lazy init)."""
+    global _store, _config  # noqa: PLW0603
 
     if _store is None:
         _config = get_config()
         _store = await create_episodic_store(_config)
 
-        # Initialize semantic store with same connection
-        _semantic = SemanticStore(_store._db_path, _config)
-        conn = _store._conn
-        if conn is None:
-            raise RuntimeError("EpisodicStore connection is None")
-        await _semantic.connect(conn)
-
-        # Initialize CLM
-        _clm = CLM(_store, _semantic)
-
-    if _semantic is None or _clm is None:
-        raise RuntimeError("Stores not fully initialized")
-
-    return _store, _semantic, _clm
-
-
-def _get_session_id() -> uuid.UUID:
-    """Return the active ARIA session id.
-
-    Priority:
-      1. ``ARIA_SESSION_ID`` env var (UUID)
-      2. ``uuid.uuid4()`` fallback when ``ARIA_MEMORY_STRICT_SESSION`` is unset/false
-
-    Raises:
-        RuntimeError: when strict mode is requested but no env var is set.
-            Strict mode is enabled by setting ``ARIA_MEMORY_STRICT_SESSION=1``
-            and is required for interactive (REPL/Telegram) sessions so every
-            ``remember`` lands in the same session bucket.
-    """
-    session_str = os.environ.get("ARIA_SESSION_ID", "").strip()
-    if session_str:
-        try:
-            return uuid.UUID(session_str)
-        except ValueError as exc:
-            raise RuntimeError(
-                f"ARIA_SESSION_ID is set but not a valid UUID: {session_str!r}"
-            ) from exc
-    if os.environ.get("ARIA_MEMORY_STRICT_SESSION", "").lower() in {
-        "1",
-        "true",
-        "yes",
-    }:
-        raise RuntimeError(
-            "ARIA_SESSION_ID is required when ARIA_MEMORY_STRICT_SESSION=1"
-        )
-    return uuid.uuid4()
+    return _store
 
 
 # === MCP Tools ===
-
-
-@mcp.tool
-async def remember(
-    content: str,
-    actor: str,
-    role: str,
-    session_id: str | None = None,
-    tags: list[str] | str | None = None,
-) -> dict:
-    """Store a new episodic memory entry (Tier 0).
-
-    Args:
-        content: Verbatim content to store
-        actor: Actor type (user_input, tool_output, agent_inference, system_event)
-        role: Message role (user, assistant, system, tool)
-        session_id: Session UUID (optional — resolved from ARIA_SESSION_ID env if omitted)
-        tags: Optional tags (list of strings)
-
-    Returns:
-        {"status": "ok", "entry_id": "...", "session_id": "..."}
-    """
-    # Ensure trace_id
-    trace_id = os.environ.get("ARIA_TRACE_ID") or new_trace_id()
-    set_trace_id(trace_id)
-
-    try:
-        store, _, _ = await _ensure_store()
-
-        # Parse actor
-        try:
-            actor_enum = Actor(actor)
-        except ValueError:
-            actor_enum = derive_actor_from_role(role, is_tool_result=False)
-
-        # Parse session — always use env-aware resolver; ignore literal
-        # "${ARIA_SESSION_ID}" that agents may send when they cannot read env.
-        resolved_sid: str | None = None
-        if session_id and not session_id.startswith("$"):
-            resolved_sid = session_id
-        sess_uuid = uuid.UUID(resolved_sid) if resolved_sid else _get_session_id()
-
-        # Parse tags — agents may send a JSON string instead of a list.
-        parsed_tags: list[str] = []
-        if isinstance(tags, str):
-            try:
-                parsed_tags = json.loads(tags)
-            except (json.JSONDecodeError, TypeError):
-                parsed_tags = [tags]
-        elif isinstance(tags, list):
-            parsed_tags = tags
-
-        # Create entry
-        entry = EpisodicEntry(
-            session_id=sess_uuid,
-            ts=datetime.now(UTC),
-            actor=actor_enum,
-            role=role,
-            content=content,
-            content_hash=content_hash(content),
-            tags=parsed_tags,
-        )
-
-        await store.insert(entry)
-
-        return {
-            "status": "ok",
-            "entry_id": str(entry.id),
-            "session_id": str(entry.session_id),
-            "content_hash": entry.content_hash,
-        }
-
-    except Exception as e:
-        return {"status": "error", "error": str(e)}
-
-
-@mcp.tool
-async def complete_turn(
-    response_text: str,
-    tool_output: str | None = None,
-) -> dict:
-    """Persist the conductor's final response for the current turn.
-
-    Call this ONCE at the end of every turn with your final answer.
-    The session is resolved automatically from the environment.
-
-    Args:
-        response_text: The final answer text shown to the user.
-        tool_output: Optional relevant tool output (e.g. web search result).
-
-    Returns:
-        {"status": "ok", "entries": N}
-    """
-    trace_id = os.environ.get("ARIA_TRACE_ID") or new_trace_id()
-    set_trace_id(trace_id)
-
-    try:
-        store, _, _ = await _ensure_store()
-        sess_uuid = _get_session_id()
-        now = datetime.now(UTC)
-        count = 0
-
-        if tool_output:
-            entry_tool = EpisodicEntry(
-                session_id=sess_uuid,
-                ts=now,
-                actor=Actor.TOOL_OUTPUT,
-                role="tool",
-                content=tool_output,
-                content_hash=content_hash(tool_output),
-                tags=["tool_output_framed"],
-            )
-            await store.insert(entry_tool)
-            count += 1
-
-        entry_resp = EpisodicEntry(
-            session_id=sess_uuid,
-            ts=now,
-            actor=Actor.AGENT_INFERENCE,
-            role="assistant",
-            content=response_text,
-            content_hash=content_hash(response_text),
-            tags=["conductor_response"],
-        )
-        await store.insert(entry_resp)
-        count += 1
-
-        return {
-            "status": "ok",
-            "entries": count,
-            "session_id": str(sess_uuid),
-        }
-
-    except Exception as e:
-        return {"status": "error", "error": str(e)}
-
-
-@mcp.tool
-async def recall(
-    query: str,
-    top_k: int = 10,
-    kinds: list[str] | None = None,
-    since: str | None = None,
-    until: str | None = None,
-) -> list[dict]:
-    """Recall semantic chunks matching query (Tier 1 first, then T0 fallback).
-
-    Args:
-        query: Search query
-        top_k: Number of results (default 10)
-        kinds: Optional filter by chunk kinds
-        since: Optional start time (ISO8601)
-        until: Optional end time (ISO8601)
-
-    Returns:
-        List of matching entries/chunks
-    """
-    trace_id = os.environ.get("ARIA_TRACE_ID") or new_trace_id()
-    set_trace_id(trace_id)
-
-    try:
-        _, semantic, _ = await _ensure_store()
-
-        # Search semantic first
-        chunks = await semantic.search(query, top_k=top_k, kinds=kinds)
-
-        results = []
-        for chunk in chunks:
-            results.append(
-                {
-                    "id": str(chunk.id),
-                    "kind": chunk.kind,
-                    "text": chunk.text,
-                    "actor": chunk.actor.value if isinstance(chunk.actor, Actor) else chunk.actor,
-                    "confidence": chunk.confidence,
-                    "keywords": chunk.keywords,
-                    "source_episodic_ids": [str(id) for id in chunk.source_episodic_ids],
-                    "first_seen": chunk.first_seen.isoformat(),
-                    "last_seen": chunk.last_seen.isoformat(),
-                }
-            )
-
-        # If no semantic results, search episodic (T0 fallback)
-        if not results and top_k > 0:
-            store, _, _ = await _ensure_store()
-            episodic_results = await store.search_text(query, top_k=top_k)
-
-            for entry in episodic_results:
-                results.append(
-                    {
-                        "id": str(entry.id),
-                        "kind": "episodic",
-                        "text": entry.content,
-                        "actor": entry.actor.value
-                        if isinstance(entry.actor, Actor)
-                        else entry.actor,
-                        "role": entry.role,
-                        "content_hash": entry.content_hash,
-                        "session_id": str(entry.session_id),
-                        "ts": entry.ts.isoformat(),
-                        "tags": entry.tags,
-                    }
-                )
-
-        return results
-
-    except Exception as e:
-        return [{"error": str(e)}]
-
-
-@mcp.tool
-async def recall_episodic(
-    session_id: str | None = None,
-    since: str | None = None,
-    limit: int = 50,
-    query: str | None = None,
-    include_benchmark: bool = False,
-) -> list[dict]:
-    """Recall episodic entries chronologically, optionally filtered by topic.
-
-    Args:
-        session_id: Optional session filter (UUID).
-        since: Optional ISO8601 lower bound. Defaults to 7 days ago.
-        limit: Max results (default 50).
-        query: Optional FTS5 query. When provided, performs a full-text
-            search over the episodic content within the chosen window.
-        include_benchmark: When False (default) drops entries tagged with
-            "benchmark" or "test_seed".
-
-    Returns:
-        List of EpisodicEntry serialized to dict.
-    """
-    trace_id = os.environ.get("ARIA_TRACE_ID") or new_trace_id()
-    set_trace_id(trace_id)
-
-    excluded = None if include_benchmark else ["benchmark", "test_seed"]
-
-    try:
-        store, _, _ = await _ensure_store()
-
-        if query:
-            # Topic search: FTS5 on content; tag filter applied client-side
-            entries = await store.search_text(query, top_k=max(limit, 1))
-            if excluded:
-                blocked = set(excluded)
-                entries = [e for e in entries if not blocked.intersection(e.tags)]
-            entries = entries[:limit]
-        elif session_id:
-            sess_uuid = uuid.UUID(session_id)
-            entries = await store.list_by_session(sess_uuid, limit=limit)
-            if excluded:
-                blocked = set(excluded)
-                entries = [e for e in entries if not blocked.intersection(e.tags)]
-        else:
-            now = datetime.now(UTC)
-            since_dt = (
-                datetime.fromisoformat(since.replace("Z", "+00:00"))
-                if since
-                else datetime.fromtimestamp(now.timestamp() - 7 * 86400, tz=UTC)
-            )
-            entries = await store.list_by_time_range(
-                since_dt, now, limit=limit, exclude_tags=excluded
-            )
-
-        return [
-            {
-                "id": str(entry.id),
-                "session_id": str(entry.session_id),
-                "ts": entry.ts.isoformat(),
-                "actor": entry.actor.value if isinstance(entry.actor, Actor) else entry.actor,
-                "role": entry.role,
-                "content": entry.content,
-                "content_hash": entry.content_hash,
-                "tags": entry.tags,
-            }
-            for entry in entries
-        ]
-
-    except Exception as e:
-        return [{"error": str(e)}]
-
-
-@mcp.tool
-async def distill(session_id: str) -> list[dict]:
-    """Trigger CLM distillation for a session.
-
-    Args:
-        session_id: Session to distill
-
-    Returns:
-        List of distilled SemanticChunk
-    """
-    trace_id = os.environ.get("ARIA_TRACE_ID") or new_trace_id()
-    set_trace_id(trace_id)
-
-    try:
-        _, _, clm = await _ensure_store()
-
-        sess_uuid = uuid.UUID(session_id)
-        chunks = await clm.distill_session(sess_uuid)
-
-        return [
-            {
-                "id": str(chunk.id),
-                "kind": chunk.kind,
-                "text": chunk.text,
-                "actor": chunk.actor.value if isinstance(chunk.actor, Actor) else chunk.actor,
-                "confidence": chunk.confidence,
-                "keywords": chunk.keywords,
-                "source_episodic_ids": [str(id) for id in chunk.source_episodic_ids],
-            }
-            for chunk in chunks
-        ]
-
-    except Exception as e:
-        return [{"error": str(e)}]
-
-
-@mcp.tool
-async def curate(
-    id: str,
-    action: Literal["promote", "demote", "forget"],
-) -> dict:
-    """Curate a semantic chunk (HITL-gated in Sprint 1.1, stubbed).
-
-    In Sprint 1.1, curate with forget creates hitl_pending entry.
-    Full HITL wiring in Sprint 1.2.
-
-    Args:
-        id: Chunk ID
-        action: Action (promote, demote, forget)
-
-    Returns:
-        {"status": "pending_hitl", "hitl_id": "..."} or error
-    """
-    trace_id = os.environ.get("ARIA_TRACE_ID") or new_trace_id()
-    set_trace_id(trace_id)
-
-    try:
-        store, semantic, clm = await _ensure_store()
-
-        chunk_uuid = uuid.UUID(id)
-
-        if action == "promote":
-            await clm.promote(chunk_uuid)
-            return {"status": "ok", "action": "promoted"}
-
-        elif action == "demote":
-            await clm.demote(chunk_uuid)
-            return {"status": "ok", "action": "demoted"}
-
-        elif action == "forget":
-            hitl_id = await store.enqueue_hitl(
-                target_id=chunk_uuid,
-                action="forget_semantic",
-                reason="queued via curate(forget)",
-                trace_id=trace_id,
-                channel="cli",
-            )
-            return {
-                "status": "pending_hitl",
-                "hitl_id": hitl_id,
-                "message": "forget request queued for HITL approval (Sprint 1.2)",
-            }
-
-        return {"status": "error", "error": f"Unknown action: {action}"}
-
-    except Exception as e:
-        return {"status": "error", "error": str(e)}
 
 
 @mcp.tool
@@ -497,7 +76,7 @@ async def forget(id: str) -> dict:
     set_trace_id(trace_id)
 
     try:
-        store, _, _ = await _ensure_store()
+        store = await _ensure_store()
         entry_uuid = uuid.UUID(id)
         hitl_id = await store.enqueue_hitl(
             target_id=entry_uuid,
@@ -528,7 +107,7 @@ async def stats() -> dict:
     set_trace_id(trace_id)
 
     try:
-        store, _, _ = await _ensure_store()
+        store = await _ensure_store()
 
         stats = await store.stats()
 
@@ -568,7 +147,7 @@ async def hitl_ask(
     set_trace_id(trace_id)
 
     try:
-        store, _, _ = await _ensure_store()
+        store = await _ensure_store()
         target_uuid = uuid.UUID(target_id)
         channel = os.environ.get("ARIA_HITL_CHANNEL", "mcp")
         hitl_id = await store.enqueue_hitl(
@@ -602,7 +181,7 @@ async def hitl_list_pending(limit: int = 100) -> list[dict]:
     set_trace_id(trace_id)
 
     try:
-        store, _, _ = await _ensure_store()
+        store = await _ensure_store()
         return await store.list_hitl_pending(limit=limit)
 
     except Exception as e:
@@ -623,7 +202,7 @@ async def hitl_cancel(hitl_id: str) -> dict:
     set_trace_id(trace_id)
 
     try:
-        store, _, _ = await _ensure_store()
+        store = await _ensure_store()
         conn = await store._ensure_connected()
         cursor = await conn.execute(
             "UPDATE memory_hitl_pending SET status = 'cancelled', resolved_at = ? "
@@ -657,7 +236,10 @@ async def hitl_approve(hitl_id: str) -> dict:  # noqa: PLR0911
     set_trace_id(trace_id)
 
     try:
-        store, semantic, _ = await _ensure_store()
+        store = await _ensure_store()
+        # Import semantic store only for forget_semantic action
+        from aria.memory.semantic import SemanticStore
+
         conn = await store._ensure_connected()
 
         # Fetch the pending record
@@ -696,6 +278,8 @@ async def hitl_approve(hitl_id: str) -> dict:  # noqa: PLR0911
         elif action == "forget_semantic":
             import uuid as _uuid
 
+            semantic = SemanticStore(store._db_path, get_config())
+            await semantic.connect(conn)
             deleted = await semantic.delete(_uuid.UUID(target_id))
             if not deleted:
                 return {
@@ -727,6 +311,47 @@ async def hitl_approve(hitl_id: str) -> dict:  # noqa: PLR0911
         return {"status": "error", "error": str(e)}
 
 
+# === Wiki v3 Tools Registration ===
+#
+# Per docs/plans/auto_persistence_echo.md §7:
+# Register 4 new wiki tools alongside existing 11 memory tools.
+# Phase A: pure addition, old tools still active.
+
+
+def _register_wiki_tools() -> None:
+    """Register wiki MCP tools on the existing server."""
+    from aria.memory.wiki.tools import register_wiki_tools
+
+    register_wiki_tools(mcp)
+
+
+# Register wiki tools at import time (non-breaking addition)
+_register_wiki_tools()
+
+
+async def _regenerate_conductor_template_on_boot() -> None:
+    """Regenerate conductor template with profile on MCP server boot.
+
+    Per plan §6.1: on boot, read profile from wiki.db and write
+    the memory block into the active conductor agent template.
+    Runs as background task — does not block tool registration.
+    """
+    try:
+        from aria.memory.wiki.db import WikiStore
+        from aria.memory.wiki.prompt_inject import regenerate_conductor_template
+
+        aria_home = Path(os.environ.get("ARIA_HOME", "/home/fulvio/coding/aria"))
+        db_path = aria_home / ".aria" / "runtime" / "memory" / "wiki.db"
+        store = WikiStore(db_path)
+        await store.connect()
+        try:
+            await regenerate_conductor_template(store)
+        finally:
+            await store.close()
+    except Exception as exc:
+        logging.getLogger(__name__).warning("Boot-time template regeneration skipped: %s", exc)
+
+
 # === Main ===
 
 
@@ -753,6 +378,16 @@ def main() -> int:
 
     try:
         if transport == "stdio":
+            # Regenerate conductor template with profile on boot
+            import asyncio
+
+            try:
+                asyncio.get_event_loop().run_until_complete(
+                    _regenerate_conductor_template_on_boot()
+                )
+            except Exception as boot_exc:
+                logging.warning("Template regeneration on boot failed: %s", boot_exc)
+
             mcp.run()
         else:
             return 1

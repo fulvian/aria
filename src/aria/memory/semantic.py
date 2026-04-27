@@ -1,3 +1,7 @@
+# DEPRECATED: Frozen since Phase D (2026-04-27). Kept for forensic read only.
+# Phase E will hard-delete this module after 30 days of stable wiki-only operation.
+# See ADR-0005-memory-v3-cutover.
+#
 # Semantic Store - FTS5 wrapper for Tier 1
 #
 # Thin wrapper around semantic_chunks table and FTS5 virtual table.
