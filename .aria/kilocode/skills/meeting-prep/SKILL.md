@@ -1,7 +1,7 @@
 ---
 name: meeting-prep
 version: 1.0.0
-description: Briefing pre-meeting da evento calendario. Aggrega: descrizione evento, partecipanti (storia conversazioni), allegati Drive (ingested), contesto wiki.
+description: "Briefing pre-meeting da evento calendario. Aggrega: descrizione evento, partecipanti (storia conversazioni), allegati Drive (ingested), contesto wiki."
 trigger-keywords:
   - prepara meeting
   - briefing meeting
