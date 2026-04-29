@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-04-29T21:05 (v4.2 — P2 benchmark + gateway evaluation complete)
-**Status**: ✅ **v4.2** — Tutte le fasi del piano MCP productivity coordination sono complete (A+B+C+D+P2). Metriche startup/latency raccolte per 9/9 server MCP. Gateway search: NON giustificato. Branch `feature/productivity-agent-mvp`.
+**Last Updated**: 2026-04-29T23:55 (v4.3 — Piano completo: B-2 capability probe, B-3 query preprocessor, D-2 smoke test, D-3 rollback drill)
+**Status**: ✅ **v4.3** — **PIANO COMPLETO AL 100%**. Tutte le fasi (A+B+C+D+P2) + 4 item rimanenti implementati. 203 test, mypy 0 errori. Capability probe framework, query preprocessor centralizzato, smoke E2E, rollback drill. Branch `feature/productivity-agent-mvp`.
 
 ## Purpose
 
@@ -68,6 +68,12 @@ docs/llm_wiki/
 | `docs/foundation/agent-capability-matrix.md` | **Capability Matrix canonica**: tool per agente, MCP deps, handoff protocol, routing policy unificata | 2026-04-29 |
 | `tests/unit/agents/search/test_config_consistency.py` | **22 test**: verifica allineamento YAML search-agent ↔ router Python | 2026-04-29 |
 | `tests/unit/agents/test_conductor_dispatch.py` | **12 test**: conductor sub-agent registry, handoff protocol, YAML config | 2026-04-29 |
+| `src/aria/agents/search/capability_probe.py` | **Capability probe framework**: initialize + tools/list MCP probe, snapshot, quarantine | 2026-04-29 |
+| `tests/unit/agents/search/test_capability_probe.py` | **12 test**: snapshot integrity, quarantine logic, ProbeResult | 2026-04-29 |
+| `src/aria/agents/search/query_preprocessor.py` | **Query preprocessor centralizzato**: regole formatting per 7 sorgenti accademiche, BUG 1/2/3 fix | 2026-04-29 |
+| `tests/unit/agents/search/test_query_preprocessor.py` | **26 test**: arXiv Boolean AND, EuropePMC sort fix, tutte le sorgenti | 2026-04-29 |
+| `tests/integration/agents/search/test_academic_smoke.py` | **Smoke E2E**: 16 test su fallback chain, intent classification, preprocessor, snapshot | 2026-04-29 |
+| `scripts/rollback_baseline.sh` | **Rollback drill**: restore baseline profile da git in <5 min, backup + verify | 2026-04-29 |
 | `docs/plans/agents/productivity_agent_foundation_plan.md` | **Piano implementazione approvato**: productivity-agent MVP, 13 Q&A utente, architecture 2-hop, markitdown-mcp | 2026-04-29 |
 | `docs/foundation/decisions/ADR-0008-productivity-agent-introduction.md` | **ADR-0008**: productivity-agent austere MVP, Context7 verified: /microsoft/markitdown Bench 90.05 | 2026-04-29 |
 | `.aria/kilocode/agents/productivity-agent.md` | **Agent definition**: 11 tool, 4 skill, boundary delega workspace-agent | 2026-04-29 |
@@ -157,6 +163,7 @@ docs/llm_wiki/
 - 2026-04-29: **v4.0** — Implementazione Fase A+B del piano: search-agent exposure fix, conductor+productivity-agent, wrapper hardening con checksum/version pin, MANIFEST.md
 - 2026-04-29: **v4.1** — Fase C+D: capability matrix canonica, handoff protocol, routing policy, 34 nuovi test di coerenza configurativa e dispatch
 - 2026-04-29: **v4.2** — Fase P2: benchmark startup/latency per 9 MCP server (6.5s cold, 6.1s warm, 49 tools totali). Gateway search: NON giustificato. Alternativa: lazy loading per intent.
+- 2026-04-29: **v4.3** — PIANO COMPLETO: B-2 capability probe framework, B-3 query preprocessor centralizzato (7 sorgenti), D-2 smoke E2E academic (16 test), D-3 rollback drill script. 203 test totali.
 
 ## Git & GitHub Rules
 

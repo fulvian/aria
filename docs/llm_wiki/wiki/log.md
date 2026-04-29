@@ -1,5 +1,61 @@
 # Implementation Log
 
+## 2026-04-29T23:55+02:00 — IMPLEMENT: 4 item rimanenti (B-2, B-3, D-2, D-3)
+
+**Operation**: IMPLEMENT  
+**Branch**: `feature/productivity-agent-mvp`  
+**Piano**: `docs/plans/mcp_productivity_coordination_optimization_plan_2026-04-29.md`
+
+### B-2: Capability probe framework — COMPLETE
+
+| Item | File | Descrizione |
+|------|------|-------------|
+| Probe module | `src/aria/agents/search/capability_probe.py` | **Nuovo**: framework completo per probe MCP server via JSON-RPC stdio. `probe_mcp_server()` esegue initialize + tools/list. Confronto con snapshot atteso. Quarantena automatica su mismatch tool. Salvataggio/caricamento snapshot persistente in `.aria/runtime/mcp_snapshots/`. |
+| Expected snapshots | `capability_probe.py` | `EXPECTED_TOOL_SNAPSHOTS` con 9 tool pubmed-mcp e 5 tool scientific-papers-mcp (verificati Context7). |
+| Probe tests | `tests/unit/agents/search/test_capability_probe.py` | **12 test**: snapshot integrity, quarantine logic, ProbeResult property, get_expected_tools. |
+
+### B-3: Query preprocessor centralizzato — COMPLETE
+
+| Item | File | Descrizione |
+|------|------|-------------|
+| Preprocessor module | `src/aria/agents/search/query_preprocessor.py` | **Nuovo**: `preprocess_query(query, source)` centralizza le regole di formatting per tutte le 7 sorgenti accademiche. Fix BUG 1 (arXiv Boolean AND), BUG 2 (EuropePMC senza sort=relevance), BUG 3 (preprocess centralizzato). Architecture: `SOURCE_FORMATTERS` dict + formatters specifici per source. |
+| Preprocessor tests | `tests/unit/agents/search/test_query_preprocessor.py` | **26 test**: whitespace normalization, arXiv formatter, EuropePMC formatter, PubMed, OpenAlex, generic, source registry, BUG 3 verification cross-source. |
+
+### D-2: Smoke E2E test academic — COMPLETE
+
+| Item | File | Descrizione |
+|------|------|-------------|
+| Smoke test | `tests/integration/agents/search/test_academic_smoke.py` | **16 test**: tier ordering, provider enum integrity, fallback chain completa (8 tier), intent classification, query preprocessor integration, capability snapshot verification. |
+
+### D-3: Rollback drill script — COMPLETE
+
+| Item | File | Descrizione |
+|------|------|-------------|
+| Rollback script | `scripts/rollback_baseline.sh` | **Nuovo**: script bash per rollback baseline profile in <5 min. Backup stato corrente, restore da git branch, verifica integrità (JSON/YAML), report. Opzioni: `--dry-run`, `--list-backups`, `--restore TIMESTAMP`. NON tocca `.aria/runtime/`. |
+
+### Quality Gates
+
+```
+mypy src/aria/agents/search/       → Success: no issues found  ✅
+pytest search tests                → 203/203 PASS  ✅
+pytest capability_probe.py         → 12/12 PASS
+pytest query_preprocessor.py       → 26/26 PASS
+pytest academic_smoke.py           → 16/16 PASS
+bash -n rollback_baseline.sh       → syntax OK
+```
+
+### Delta test count
+- Search tests: 137 → **203** (+54 net new)
+- Nuovi file Python: 2 (capability_probe.py, query_preprocessor.py)
+- Nuovi test file: 3
+- Nuovo script: 1 (rollback_baseline.sh)
+
+### Stato finale piano
+- **Fasi A, B, C, D, P2**: ✅ COMPLETE
+- **Tutti i 4 item rimanenti**: ✅ COMPLETE
+
+---
+
 ## 2026-04-29T21:05+02:00 — IMPLEMENT: Fase P2 — metriche startup/latency + gateway evaluation
 
 **Operation**: BENCHMARK + ANALYSIS  
