@@ -1,5 +1,79 @@
 # Implementation Log
 
+## 2026-04-29T18:50 — Analisi Sostenibilità MCP: 10 pattern di scaling, architettura ibrida 4 livelli
+
+**Operation**: RESEARCH + REPORT
+**Trigger**: Richiesta utente di analizzare e risolvere il problema di scaling MCP in sistemi multi-agente con decine di agenti
+**Artifact**: `docs/analysis/analisi_sostenibilità_mcp_report.md`
+
+### Ricerca eseguita
+
+- **Brave Search**: 6 ricerche web (MCP scaling, lazy loading, gateways, connection pooling, multi-agent orchestration, cold start optimization)
+- **GitHub Discovery**: 6 pool di candidati, ~180 candidati totali, 7 quick assessments (Gate 1+2, Context7)
+- **Context7**: 6 verifiche su framework MCP (mcp-agent, MetaMCP, MCP Agent Mail, Agent-MCP, LangGraph MCP agents, OpenAI Agents MCP)
+- **Perplexity**: ricerca scientific papers su MCP e multi-agent systems
+- **Web fetch**: tentativo di fetching di 8 articoli tecnici (CDATA, ByteBridge, Cloudflare, Anthropic, GetKnit, Claude Fast, ClaudeWorld, Hey It Works)
+- **ArXiv**: paper "Dive into Claude Code: The Design Space of Today's and Future AI Agent Systems"
+
+### Risultati principali
+
+| Categoria | Pattern identificati |
+|-----------|---------------------|
+| **Lazy Loading** | Claude Code Tool Search (95% context reduction), MCP Tool Search threshold |
+| **Aggregazione** | MetaMCP, Docker MCP Gateway, Cloudflare Enterprise MCP |
+| **Pooling** | Connection reuse, pre-warming, keep-alive |
+| **Orchestrazione** | mcp-agent (Orchestrator, Parallel, Evaluator-Optimizer) |
+| **Code Execution** | Anthropic engineering: write code to call tools |
+| **Dynamic Spawn** | Lazy-MCP, mcp-cli lazy-spawn, OpenAI Agents SDK defer_loading |
+
+### I 10 Pattern di Scaling MCP
+
+1. **Lazy Loading / Tool Search** — 95% riduzione contesto (Claude Code 2.1.7+)
+2. **MCP Gateway / Aggregator** — Unifica N server in 1 endpoint (MetaMCP)
+3. **Scoped Toolset per Sub-Agente** — Isolamento per dominio (ARIA P9)
+4. **Connection Pooling & Keep-Alive** — Riuso connessioni
+5. **Code Execution Pattern** — Codice invece di tool definitions (Anthropic)
+6. **Multi-Agent Orchestration** — Orchestrator/workers pattern (mcp-agent)
+7. **Tiered/Nested Aggregation** — Albero di aggregazione MCP
+8. **MCP Caching & Schema Registry** — Cache tools/list
+9. **Dynamic On-Demand MCP Server Spawn** — Processi lazy
+10. **MCP Middleware Pipeline** — Auth, rate limiting, credential injection
+
+### Progetti GitHub Verificati
+
+| Progetto | Context7 ID | Benchmark | Snippets | Status |
+|----------|-------------|:---------:|:--------:|:------:|
+| **lastmile-ai/mcp-agent** | `/lastmile-ai/mcp-agent` | **81.3** | **2506** | ✅ Gate 1+2 PASS |
+| **metatool-ai/metamcp** | `/metatool-ai/metamcp` | 24.7 | 533 | ✅ Verified |
+| **mcp_agent_mail** | `/dicklesworthstone/mcp_agent_mail` | **90.9** | 1823 | ✅ Verified |
+| **Agent-MCP** | `/rinadelph/agent-mcp` | — | 196 | ✅ Verified |
+| **voicetreelab/lazy-mcp** | (no Context7 ID) | — | — | ⚠️ Gate 1 fail |
+| **agentic-community/mcp-gateway-registry** | (no Context7 ID) | — | — | ⚠️ Gate 1 fail |
+
+### Architettura Raccomandata per ARIA
+
+**Architettura ibrida a 4 livelli**:
+1. **Lazy Loading** (Tool Search) — ~2K token startup invece di ~40K
+2. **MCP Gateway** (MetaMCP o custom) — 12 server → 1 endpoint
+3. **Scoped Toolset** (domain isolation) — cataloghi dichiarativi per agente
+4. **Connection Pooling** (reuse) — pool pre-warmed con keep-alive
+
+Impatto stimato: -95% token startup, -80% startup time, -50% processi simultanei
+
+### Raccomandazione per Blueprint
+
+Nuovo principio **P11 — MCP Sustainability** proposto:
+- Ogni server MCP DEVE essere classificato per dominio e tier
+- Ogni sub-agente DEVE dichiarare un tool-catalog esplicito
+- Il caricamento lazy DEVE essere il default per server non-core
+
+### Wiki updates
+
+- `index.md`: v3.2 — raw sources table updated, status updated
+- `log.md`: this entry
+
+---
+
 ## 2026-04-29T17:58 — Ricerca MCP Produttività: 40+ server identificati per Word/Calendar/Task/Knowledge
 
 **Operation**: RESEARCH + REPORT
@@ -2204,4 +2278,23 @@ unicità capability, footprint runtime.
 
 **Open questions estese a 13** (era 10): aggiunte Q11 (Obsidian/Notion), Q12 (M365),
 Q13 (tracked-changes contratti).
+
+## 2026-04-29T18:40 — Productivity-Agent Foundation Plan: Step 0 Pre-flight
+
+**Operation**: IMPLEMENTATION — Step 0 of productivity-agent foundation plan
+**Branch**: `feature/productivity-agent-mvp`
+**Status**: ADR-0008 redatto (Proposed), branch creato, planning files created
+
+### Step 0 completato
+- [x] Branch `feature/productivity-agent-mvp` creato da `main`
+- [x] ADR-0008 redatto in `docs/foundation/decisions/ADR-0008-productivity-agent-introduction.md`
+- [x] Context7 verification: `/microsoft/markitdown` Bench 90.05, 119 snippets, High rep, MIT license
+- [x] This wiki log entry appended
+
+### Prossimi step (cronologia implementazione)
+1. markitdown-mcp wiring (mcp.json)
+2. Skeleton agent + 3 skill (SKILL.md)
+3. Python helper modules (TDD)
+4. Blueprint update (§8.3.3, §8.5, §9.5, §15)
+5. Wiki maintenance
 
