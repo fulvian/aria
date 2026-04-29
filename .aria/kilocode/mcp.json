@@ -111,6 +111,12 @@
       "args": ["reddit-no-auth-mcp-server"],
       "disabled": false,
       "_comment": "@v3 Reddit MCP keyless (eliasbiondo/reddit-mcp-server) — 6 tools: search, search_subreddit, get_post, get_subreddit_posts, get_user, get_user_posts. Zero config, no auth."
+    },
+    "markitdown-mcp": {
+      "command": "uvx",
+      "args": ["markitdown-mcp"],
+      "disabled": false,
+      "_comment": "@productivity-mvp Microsoft markitdown — convert office files (PDF/DOCX/XLSX/PPTX/TXT/HTML) to markdown LLM-ready. MIT license, keyless, Context7 Bench 90.05."
     }
   }
 }
