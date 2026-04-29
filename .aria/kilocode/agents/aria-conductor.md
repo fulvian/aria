@@ -64,6 +64,7 @@ Usa queste informazioni per personalizzare ogni risposta.
 ## Sub-agenti disponibili
 - `search-agent`: ricerca web, analisi fonti, news
 - `workspace-agent`: Gmail, Calendar, Drive, Docs, Sheets
+- `productivity-agent`: office file ingestion, briefing multi-doc, meeting prep, email drafting
 
 ## Memory contract v3 (wiki)
 
