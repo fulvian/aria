@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-
 import pytest
 
 from aria.agents.productivity.meeting_prep import (
@@ -11,8 +9,8 @@ from aria.agents.productivity.meeting_prep import (
     MeetingEvent,
     Participant,
     build_meeting_brief,
-    render_meeting_brief,
     parse_event_input,
+    render_meeting_brief,
     truncate_participants,
 )
 
@@ -60,9 +58,7 @@ class TestParseEventInput:
     """Tests for parse_event_input()."""
 
     def test_parse_with_all_fields(self) -> None:
-        result = parse_event_input(
-            "prepara meeting Acme del 5 maggio 2026 sul progetto ARIA"
-        )
+        result = parse_event_input("prepara meeting Acme del 5 maggio 2026 sul progetto ARIA")
         assert result is not None
         assert "acme" in result["keywords"].lower() or "Acme" in result.get("raw", "")
         assert result["raw"] == "prepara meeting Acme del 5 maggio 2026 sul progetto ARIA"
@@ -82,8 +78,7 @@ class TestTruncateParticipants:
 
     def test_no_truncation_needed(self) -> None:
         participants = [
-            Participant(email=f"user{i}@example.com", name=f"User {i}")
-            for i in range(3)
+            Participant(email=f"user{i}@example.com", name=f"User {i}") for i in range(3)
         ]
         result = truncate_participants(participants, max_count=5)
         assert len(result) == 3
@@ -96,7 +91,7 @@ class TestTruncateParticipants:
         result = truncate_participants(participants, max_count=5)
         assert len(result) == 5
         # Highest email_count should be kept
-        result_counts = [p.email_count for p in result]
+        [p.email_count for p in result]
 
     def test_truncation_empty(self) -> None:
         assert truncate_participants([], max_count=5) == []

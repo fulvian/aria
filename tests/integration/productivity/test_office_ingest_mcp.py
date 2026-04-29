@@ -3,6 +3,8 @@
 Requires markitdown-mcp to be available via uvx.
 """
 
+# ruff: noqa: SIM117, SIM108, ANN202
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -12,8 +14,8 @@ import pytest
 from aria.agents.productivity.ingest import (
     detect_format,
     hash_file,
-    parse_markitdown_output,
     ingest_file_local,
+    parse_markitdown_output,
 )
 
 FIXTURES_DIR = Path("tests/fixtures/office_files")
@@ -33,7 +35,7 @@ class TestOfficeIngestMCP:
 
     @pytest.mark.parametrize(
         ("fmt", "filename"),
-        [(fmt, fn) for fmt, fn in FIXTURE_FILES.items()],
+        list(FIXTURE_FILES.items()),
     )
     def test_format_detection(self, fmt: str, filename: str) -> None:
         """Verify detect_format matches expected format for each fixture."""
@@ -44,7 +46,7 @@ class TestOfficeIngestMCP:
 
     @pytest.mark.parametrize(
         ("fmt", "filename"),
-        [(fmt, fn) for fmt, fn in FIXTURE_FILES.items()],
+        list(FIXTURE_FILES.items()),
     )
     def test_hash_consistency(self, fmt: str, filename: str) -> None:
         """Verify hash_file is deterministic for each fixture."""
@@ -75,13 +77,14 @@ class TestOfficeIngestMCP:
         convert_to_markdown with a file:// URI.
         """
         import asyncio
+
         from mcp import ClientSession, StdioServerParameters
         from mcp.client.stdio import stdio_client
 
         path = FIXTURES_DIR / "sample_notes.txt"
         uri = f"file://{path.resolve()}"
 
-        async def _run():
+        async def _run() -> None:
             server_params = StdioServerParameters(
                 command="uvx",
                 args=["markitdown-mcp"],
@@ -93,10 +96,7 @@ class TestOfficeIngestMCP:
                         "convert_to_markdown",
                         {"uri": uri},
                     )
-                    if result.content:
-                        text = result.content[0].text
-                    else:
-                        text = ""
+                    text = result.content[0].text if result.content else ""
                     parsed = parse_markitdown_output(text)
                     assert len(parsed["markdown"]) > 0
                     assert "Project Alpha" in parsed["markdown"]
@@ -107,13 +107,14 @@ class TestOfficeIngestMCP:
     def test_markitdown_convert_docx(self) -> None:
         """E2E: convert a docx fixture via real markitdown-mcp subprocess."""
         import asyncio
+
         from mcp import ClientSession, StdioServerParameters
         from mcp.client.stdio import stdio_client
 
         path = FIXTURES_DIR / "sample_proposal.docx"
         uri = f"file://{path.resolve()}"
 
-        async def _run():
+        async def _run() -> None:
             server_params = StdioServerParameters(
                 command="uvx",
                 args=["markitdown-mcp"],
@@ -125,10 +126,7 @@ class TestOfficeIngestMCP:
                         "convert_to_markdown",
                         {"uri": uri},
                     )
-                    if result.content:
-                        text = result.content[0].text
-                    else:
-                        text = ""
+                    text = result.content[0].text if result.content else ""
                     parsed = parse_markitdown_output(text)
                     assert len(parsed["markdown"]) > 0
                     # Should extract meaningful content

@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import datetime
 import logging
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
 
-from aria.agents.productivity.ingest import IngestResult
+if TYPE_CHECKING:
+    from aria.agents.productivity.ingest import IngestResult
 
 logger = logging.getLogger(__name__)
 
@@ -78,25 +79,21 @@ def compose_brief(
         all_bullets.extend(doc_bullets)
 
         # Extract decisions and questions from markdown content
-        decisions.extend(
-            _extract_lines_marked(f.markdown, ["decision", "pending", "approv"])
-        )
-        questions.extend(
-            _extract_lines_marked(f.markdown, ["question", "?", "open"])
-        )
+        decisions.extend(_extract_lines_marked(f.markdown, ["decision", "pending", "approv"]))
+        questions.extend(_extract_lines_marked(f.markdown, ["question", "?", "open"]))
 
     # Detect contradictions in numeric data
     contradictions = _detect_contradictions(findings)
     if contradictions:
         for c in contradictions:
-            questions.append(
-                f"Contradictory data detected: {c}"
-            )
+            questions.append(f"Contradictory data detected: {c}")
 
     # Build TL;DR from key facts (top 5 bullets max)
-    tldr = all_bullets[:5] if all_bullets else [
-        f"{len(files)} document(s) analyzed. See findings for details."
-    ]
+    tldr = (
+        all_bullets[:5]
+        if all_bullets
+        else [f"{len(files)} document(s) analyzed. See findings for details."]
+    )
 
     # Build context string
     context = _build_context_string(context_parts, files, objective)
@@ -130,16 +127,16 @@ def render_markdown(outline: BriefOutline) -> str:
         A markdown string with sections: Executive Brief, TL;DR, Context,
         Findings, Decisions Pending, Open Questions, Sources.
     """
-    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    now = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M UTC")
     lines: list[str] = [
-        f"# Executive Brief",
-        f"",
+        "# Executive Brief",
+        "",
         f"*Generated: {now}*",
-        f"",
-        f"---",
-        f"",
-        f"## TL;DR",
-        f"",
+        "",
+        "---",
+        "",
+        "## TL;DR",
+        "",
     ]
     for bullet in outline.tldr:
         lines.append(f"- {bullet}")
@@ -229,24 +226,28 @@ def _extract_facts_from_markdown(
             current_heading = stripped[2:].strip()
 
         # Extract list items
-        if stripped.startswith("- ") or stripped.startswith("* "):
+        if stripped.startswith(("- ", "* ")):
             item = stripped[2:].strip()
             if item and len(item) > 10:  # Skip very short items
                 bullets.append(f"{item} ({Path(file_path).name})")
-                findings.append({
-                    "fact": item,
-                    "source_file": file_path,
-                    "context": current_heading or "",
-                })
+                findings.append(
+                    {
+                        "fact": item,
+                        "source_file": file_path,
+                        "context": current_heading or "",
+                    }
+                )
 
         # Extract sentences with numbers (potential key facts)
         elif any(c.isdigit() for c in stripped) and len(stripped) > 20:
             if not stripped.startswith("#") and not stripped.startswith("|"):
-                findings.append({
-                    "fact": stripped,
-                    "source_file": file_path,
-                    "context": current_heading or "",
-                })
+                findings.append(
+                    {
+                        "fact": stripped,
+                        "source_file": file_path,
+                        "context": current_heading or "",
+                    }
+                )
 
     return findings, bullets
 
@@ -256,7 +257,7 @@ def _extract_lines_marked(markdown: str, keywords: list[str]) -> list[str]:
     results: list[str] = []
     for line in markdown.split("\n"):
         stripped = line.strip()
-        if not stripped or stripped.startswith("#") or stripped.startswith("|"):
+        if not stripped or stripped.startswith(("#", "|")):
             continue
         if any(kw.lower() in stripped.lower() for kw in keywords):
             results.append(stripped)
@@ -288,9 +289,7 @@ def _detect_contradictions(findings: list[dict[str, str]]) -> list[str]:
         if len(facts) >= 2:
             # Check if they reference different numbers for what seems same metric
             # Just flag it; full analysis done by LLM
-            contradictions.append(
-                f"Multiple values in '{context}' — see findings for details."
-            )
+            contradictions.append(f"Multiple values in '{context}' — see findings for details.")
 
     # Deduplicate
     return list(set(contradictions))

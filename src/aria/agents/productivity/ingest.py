@@ -6,6 +6,7 @@ to structured markdown via the markitdown-mcp MCP server.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import logging
 import re
@@ -33,9 +34,7 @@ EXTENSION_MAP: dict[str, FileFormat] = {
 }
 
 # YAML frontmatter pattern for metadata extraction
-YAML_FRONTMATTER_RE = re.compile(
-    r"^---\s*\n(.*?)\n---\s*\n(.*)", re.DOTALL
-)
+YAML_FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n(.*)", re.DOTALL)
 
 # Keys to extract from frontmatter, in order of preference
 METADATA_KEYS = {
@@ -154,10 +153,8 @@ def parse_markitdown_output(raw: str) -> dict:
     # page_count — try integer parsing
     for k in ("page_count", "pages", "slide_count"):
         if k in metadata:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 result["page_count"] = int(metadata[k])
-            except (ValueError, TypeError):
-                pass
             break
 
     # Remove empty frontmatter
@@ -193,14 +190,14 @@ async def ingest_file(
     # Parse file path from URI
     if uri.startswith("file://"):
         path = Path(uri[7:])
-    elif uri.startswith("https://") or uri.startswith("http://"):
+    elif uri.startswith(("https://", "http://")):
         path = Path(uri.split("/")[-1]) if "/" in uri else Path("remote_file")
     else:
         path = Path(uri)
 
-    fmt = detect_format(path)
-    byte_size = path.stat().st_size if path.exists() else 0
-    sha256 = hash_file(path) if path.exists() else ""
+    detect_format(path)
+    path.stat().st_size if path.exists() else 0
+    hash_file(path) if path.exists() else ""
 
     # NOTE: Actual MCP call (convert_to_markdown) is invoked by the agent.
     # This function is called with the raw result for parsing.

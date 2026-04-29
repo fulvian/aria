@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import datetime
-from pathlib import Path
 
 import pytest
 
@@ -96,9 +95,9 @@ class TestComposeBrief:
         )
         # Findings should reference revenue and budget
         finding_texts = [f["fact"] for f in outline.findings]
-        assert any(
-            "1.2M" in fact for fact in finding_texts
-        ), "Findings should reference revenue figure"
+        assert any("1.2M" in fact for fact in finding_texts), (
+            "Findings should reference revenue figure"
+        )
 
     def test_compose_with_wiki_context(
         self,
@@ -155,10 +154,7 @@ class TestComposeBrief:
             assert isinstance(finding["source_file"], str)
             assert isinstance(finding["fact"], str)
             # Check source paths contain expected filenames
-            assert any(
-                name in finding["source_file"]
-                for name in ["report.pdf", "proposal.docx"]
-            )
+            assert any(name in finding["source_file"] for name in ["report.pdf", "proposal.docx"])
 
     def test_confidence_with_contradictory_sources(self) -> None:
         """Verify contradictory info is flagged in open questions."""
@@ -166,20 +162,14 @@ class TestComposeBrief:
             IngestResult(
                 file_path="source_a.txt",
                 format="txt",
-                markdown=(
-                    "## Revenue\n"
-                    "Revenue was EUR 1.0M this quarter.\n"
-                ),
+                markdown=("## Revenue\nRevenue was EUR 1.0M this quarter.\n"),
                 byte_size=50,
                 sha256="aaa",
             ),
             IngestResult(
                 file_path="source_b.txt",
                 format="txt",
-                markdown=(
-                    "## Revenue\n"
-                    "Revenue was EUR 1.5M this quarter.\n"
-                ),
+                markdown=("## Revenue\nRevenue was EUR 1.5M this quarter.\n"),
                 byte_size=50,
                 sha256="bbb",
             ),
@@ -276,10 +266,14 @@ class TestRenderMarkdown:
 
     def test_render_timestamp(self) -> None:
         outline = BriefOutline(
-            tldr=["Test"], context="", findings=[], decisions_pending=[],
-            open_questions=[], sources=[]
+            tldr=["Test"],
+            context="",
+            findings=[],
+            decisions_pending=[],
+            open_questions=[],
+            sources=[],
         )
         md = render_markdown(outline)
         # Should contain today's date
-        today = datetime.date.today().strftime("%Y-%m-%d")
+        today = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d")
         assert today in md or "Generated" in md

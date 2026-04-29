@@ -12,8 +12,9 @@ from __future__ import annotations
 
 import datetime
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -200,12 +201,14 @@ async def build_meeting_brief(
             event_id=event_id,
         )
         for f in drive_result.get("files", []):
-            attachments.append({
-                "file_name": f.get("name", "Unknown"),
-                "summary": f"Drive file: {f.get('name', 'Unknown')}",
-                "mime_type": f.get("mimeType", ""),
-                "url": f.get("webViewLink", ""),
-            })
+            attachments.append(
+                {
+                    "file_name": f.get("name", "Unknown"),
+                    "summary": f"Drive file: {f.get('name', 'Unknown')}",
+                    "mime_type": f.get("mimeType", ""),
+                    "url": f.get("webViewLink", ""),
+                }
+            )
     except Exception as e:
         logger.warning("Failed to fetch Drive attachments: %s", e)
 
@@ -248,7 +251,18 @@ def render_meeting_brief(brief: MeetingBrief) -> str:
     Returns:
         Markdown string (max ~800 words).
     """
-    lines: list[str] = [
+    lines: list[str] = _init_brief_lines(brief)
+    _add_event_info(lines, brief)
+    _add_participants(lines, brief.participants)
+    _add_attachments(lines, brief.attachments)
+    _add_pending_decisions(lines, brief.pending_decisions)
+    _add_wiki_context(lines, brief.wiki_context)
+    return "\n".join(lines)
+
+
+def _init_brief_lines(brief: MeetingBrief) -> list[str]:
+    """Initialize the brief with header lines."""
+    return [
         "# Meeting Brief",
         "",
         f"**{brief.event_summary}**",
@@ -259,67 +273,83 @@ def render_meeting_brief(brief: MeetingBrief) -> str:
         "",
     ]
 
-    # Event info
+
+def _add_event_info(lines: list[str], brief: MeetingBrief) -> None:
+    """Add event info section."""
     lines.append("## Event")
     lines.append("")
     lines.append(f"- **ID**: {brief.event_id}" if brief.event_id else "")
     lines.append(f"- **Summary**: {brief.event_summary}")
     if brief.start_time:
-        try:
-            dt = datetime.datetime.fromisoformat(brief.start_time)
-            lines.append(f"- **Date**: {dt.strftime('%Y-%m-%d %H:%M')}")
-        except (ValueError, TypeError):
-            lines.append(f"- **Start**: {brief.start_time}")
+        _add_formatted_time(lines, brief.start_time)
+
+
+def _add_formatted_time(lines: list[str], start_time: str) -> None:
+    """Add formatted start time."""
+    try:
+        dt = datetime.datetime.fromisoformat(start_time)
+        lines.append(f"- **Date**: {dt.strftime('%Y-%m-%d %H:%M')}")
+    except (ValueError, TypeError):
+        lines.append(f"- **Start**: {start_time}")
     lines.append("")
 
-    # Participants
+
+def _add_participants(lines: list[str], participants: list[Participant]) -> None:
+    """Add participants section."""
     lines.append("## Participants")
     lines.append("")
-    if not brief.participants:
+    if not participants:
         lines.append("No external participants found.")
-    else:
-        for p in brief.participants:
-            name_str = f" ({p.name})" if p.name else ""
-            lines.append(f"### {p.email}{name_str}")
-            if p.history_summary:
-                lines.append("")
-                lines.append(f"_{p.history_summary}_")
-            if p.email_count > 0:
-                lines.append(f"*{p.email_count} email(s) in last 90 days*")
+        lines.append("")
+        return
+    for p in participants:
+        name_str = f" ({p.name})" if p.name else ""
+        lines.append(f"### {p.email}{name_str}")
+        if p.history_summary:
             lines.append("")
+            lines.append(f"_{p.history_summary}_")
+        if p.email_count > 0:
+            lines.append(f"*{p.email_count} email(s) in last 90 days*")
+        lines.append("")
     lines.append("")
 
-    # Attachments
-    if brief.attachments:
-        lines.append("## Key Attachments")
-        lines.append("")
-        for att in brief.attachments:
-            lines.append(f"- **{att.get('file_name', 'Unknown')}**: {att.get('summary', '')}")
-        lines.append("")
 
-    # Pending decisions
-    if brief.pending_decisions:
-        lines.append("## Pending Decisions")
-        lines.append("")
-        for d in brief.pending_decisions:
-            lines.append(f"- {d}")
-        lines.append("")
+def _add_attachments(lines: list[str], attachments: list[dict[str, str]]) -> None:
+    """Add attachments section."""
+    if not attachments:
+        return
+    lines.append("## Key Attachments")
+    lines.append("")
+    for att in attachments:
+        lines.append(f"- **{att.get('file_name', 'Unknown')}**: {att.get('summary', '')}")
+    lines.append("")
 
-    # Wiki context
-    wiki_pages = brief.wiki_context.get("pages", [])
-    if wiki_pages:
-        lines.append("## Wiki Context")
-        lines.append("")
-        for page in wiki_pages:
-            slug = page.get("slug", "unknown")
-            body = page.get("body_md", "")
-            # Only include first 3 lines
-            preview = "\n".join(body.split("\n")[:3])
-            lines.append(f"**{slug}**:")
-            lines.append(f"> {preview}")
-        lines.append("")
 
-    return "\n".join(lines)
+def _add_pending_decisions(lines: list[str], decisions: list[str]) -> None:
+    """Add pending decisions section."""
+    if not decisions:
+        return
+    lines.append("## Pending Decisions")
+    lines.append("")
+    for d in decisions:
+        lines.append(f"- {d}")
+    lines.append("")
+
+
+def _add_wiki_context(lines: list[str], wiki_context: dict[str, Any]) -> None:
+    """Add wiki context section."""
+    wiki_pages = wiki_context.get("pages", [])
+    if not wiki_pages:
+        return
+    lines.append("## Wiki Context")
+    lines.append("")
+    for page in wiki_pages:
+        slug = page.get("slug", "unknown")
+        body = page.get("body_md", "")
+        preview = "\n".join(body.split("\n")[:3])
+        lines.append(f"**{slug}**:")
+        lines.append(f"> {preview}")
+    lines.append("")
 
 
 def _synthesize_email_history(messages: list[dict]) -> str:
@@ -335,7 +365,6 @@ def _synthesize_email_history(messages: list[dict]) -> str:
         return "No recent email history."
 
     subjects = [m.get("subject", "") for m in messages if m.get("subject")]
-    snippets = [m.get("snippet", "") for m in messages if m.get("snippet")]
 
     # Extract key topics from subjects (deduplicate)
     unique_subjects = list(dict.fromkeys(subjects))
