@@ -21,6 +21,7 @@ required-skills:
   - office-ingest
   - consultancy-brief
   - meeting-prep
+  - email-draft
   - planning-with-files
 mcp-dependencies:
   - markitdown-mcp
