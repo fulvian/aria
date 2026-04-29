@@ -1,5 +1,46 @@
 # Implementation Log
 
+## 2026-04-29T19:12 — MCP Refoundation Plan: audit architettura reale, drift e roadmap progressiva
+
+**Operation**: ANALYSIS + PLAN + WIKI_UPDATE
+**Trigger**: Richiesta utente di partire da `docs/analysis/analisi_sostenibilita_mcp_report.md`, analizzare l'architettura MCP attuale e produrre un piano di revisione/ottimizzazione.
+**Artifact**: `docs/plans/gestione_mcp_refoundation_plan.md`
+
+### Audit corrente
+
+- Letti wiki `index.md` e `log.md` prima delle raw sources, come richiesto da `AGENTS.md`
+- Letti `AGENTS.md`, blueprint §10/§14, `.aria/kilocode/mcp.json`, `search-agent.md`, `workspace-agent.md`, `productivity-agent.md`
+- Verificato inventario runtime reale: **16 server configurati / 15 abilitati**
+- Identificato drift rispetto al report di sostenibilità: il report parla di 12 server e include `firecrawl-mcp`, il runtime attuale no
+- Identificato drift tra server configurati e exposure agentica (`pubmed-mcp` / `scientific-papers-mcp` non allineati nel `search-agent`)
+
+### Verifiche esterne
+
+- **Context7**:
+  - `/modelcontextprotocol/modelcontextprotocol` — lifecycle, capability negotiation, security/session binding
+  - `/lastmile-ai/mcp-agent` — orchestrator/workers, scoped server sets, connection manager
+  - `/metatool-ai/metamcp` — aggregation, namespaces, middleware, multi-transport gateway model
+- **Web**:
+  - Anthropic Engineering — code execution with MCP
+  - Cloudflare — enterprise MCP reference architecture
+  - Claude Tool Search article — usato come fonte secondaria/non normativa
+
+### Direzione raccomandata
+
+1. **Inventory authority** prima di ogni refactor
+2. **Eliminazione drift** tra config, prompt, dependencies e wiki
+3. **Catalogo MCP canonico** con dominio/tier/lifecycle/owner
+4. **Ottimizzazione misurata** (tool search/lazy loading solo dopo capability probe)
+5. **Gateway selettivo** solo per il dominio search se le metriche lo giustificano
+
+### Wiki updates
+
+- `index.md`: v3.3, raw source table aggiornata con il piano, page list aggiornata con `mcp-architecture`
+- `mcp-architecture.md`: nuova pagina con inventario reale, criticità e working direction
+- `log.md`: this entry
+
+---
+
 ## 2026-04-29T18:50 — Analisi Sostenibilità MCP: 10 pattern di scaling, architettura ibrida 4 livelli
 
 **Operation**: RESEARCH + REPORT
@@ -2340,4 +2381,42 @@ Integration: 13 passed (format detection=5, hash=5, fallback=1, MCP E2E=2)
 ### Prossimo Sprint
 Sprint 2 (Fase 1b): email-draft skill con dynamic style (Q7).
 Branch separato o continuation: `feature/productivity-agent-email-draft` (da decidere).
+
+## 2026-04-29T19:04 — Productivity-Agent MVP Sprint 2 Complete
+
+**Operation**: IMPLEMENTATION — Sprint 2 of productivity-agent foundation plan
+**Branch**: `feature/productivity-agent-mvp` (continuation, continuation on same branch)
+**Status**: Sprint 2 completato. 100 test totali (82 unit + 18 integration), tutti passanti.
+
+### Deliverables Sprint 2
+
+| Categoria | File | Stato |
+|-----------|------|-------|
+| Skill: email-draft@1.0.0 | `.aria/kilocode/skills/email-draft/SKILL.md` | ✅ |
+| Python: email_style.py | `src/aria/agents/productivity/email_style.py` | ✅ |
+| Tests: unit (33 tests) | `tests/unit/agents/productivity/test_email_style.py` | ✅ |
+| Tests: integration (5 tests) | `tests/integration/productivity/test_email_draft_e2e.py` | ✅ |
+| Agent definition update | `.aria/kilocode/agents/productivity-agent.md` (email-draft added) | ✅ |
+| Registry update | `.aria/kilocode/skills/_registry.json` (email-draft added) | ✅ |
+| Wiki update | `docs/llm_wiki/wiki/productivity-agent.md` (Sprint 2 section) | ✅ |
+
+### Test Results Finali
+```
+Totale: 100 passed
+Unit: 82 (ingest=25, synthesizer=10, meeting_prep=14, email_style=33)
+Integration: 18 (office_ingest_mcp=13, email_draft_e2e=5)
+```
+
+### Quality Gate
+- `ruff check` — All checks passed
+- `ruff format --check` — 12 files already formatted
+- `mypy src/aria/agents/productivity/` — Success: no issues found
+- `pytest` — 100/100 passed
+
+### Note
+- Sprint 2 eseguito sullo stesso branch `feature/productivity-agent-mvp` (no branch separato)
+- email-draft implementato con dynamic style discovery runtime (Q7): nessuna lesson statica, nessun bootstrap utente
+- StyleProfile è transitorio in-memory, mai persistito in wiki
+- HITL flow: REPL locale → preview → conferma → gmail.draft_create
+- Pushato su GitHub: commit `aad0686`
 

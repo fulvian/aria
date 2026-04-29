@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-04-29T18:50 (v3.3 — Productivity-Agent MVP Sprint 1)
-**Status**: ✅ **v3.3** — Productivity-Agent implementato (ADR-0008): markitdown-mcp, 3 skill (office-ingest@2.0.0, consultancy-brief@1.0.0, meeting-prep@1.0.0), Python helper modules, blueprint update.
+**Last Updated**: 2026-04-29T19:12 (v3.4 — MCP refoundation plan aggiunto)
+**Status**: ✅ **v3.5** — Productivity-Agent MVP completo (Sprint 1 + Sprint 2): 4 skill, 4 moduli Python, 100 test. Branch `feature/productivity-agent-mvp`.
 
 ## Purpose
 
@@ -23,6 +23,7 @@ docs/llm_wiki/
 │   ├── mcp-api-key-operations.md
 │   ├── aria-launcher-cli-compatibility.md
 │   ├── productivity-agent.md
+│   ├── mcp-architecture.md
 │   └── <future pages>
 └── SKILL.md              # Reserved for future skill system
 ```
@@ -49,7 +50,7 @@ docs/llm_wiki/
 | `docs/plans/auto_persistence_echo.md` | Memory v3: Kilo+Wiki Fusion | 2026-04-27 |
 | `docs/plans/research_restore_plan.md` | Research routing restore plan | 2026-04-26 |
 | `docs/plans/memory_recovery.md` | Memory recovery plan | 2026-04-26 |
-| `.aria/kilocode/mcp.json` | MCP server runtime config (12 server) | 2026-04-27 |
+| `.aria/kilocode/mcp.json` | MCP server runtime config (**16 server dichiarati / 15 abilitati** osservati durante l'audit refoundation) | 2026-04-29 |
 | `.aria/credentials/secrets/api-keys.enc.yaml` | SOPS+age YAML credential store | 2026-04-27 |
 | `.aria/runtime/credentials/providers_state.enc.yaml` | Rotator runtime state (SOPS) | 2026-04-27 |
 | `.aria/runtime/credentials/google_workspace_mcp/fulviold@gmail.com.json` | Google OAuth token (write scopes) | 2026-04-27 |
@@ -59,6 +60,7 @@ docs/llm_wiki/
 | `docs/plans/agents/productivity_agent_plan_draf_1.md` | **Draft 2** (revisione austera): `productivity-agent` MVP, gate no-bloat MCP, 13 open questions | 2026-04-29 |
 | `docs/analysis/ricerca_mcp_produttività.md` | **Report github-discovery**: 40+ MCP server per produttività AI (Word, Calendar, Task, Knowledge, M365, Email) — hidden gems classificate | 2026-04-29 |
 | `docs/analysis/analisi_sostenibilita_mcp_report.md` | **Report sostenibilità MCP**: 10 pattern di scaling, architettura ibrida 4 livelli, GitHub ecosystem, roadmap implementativa per sistemi con 50+ MCP server e decine di agenti | 2026-04-29 |
+| `docs/plans/gestione_mcp_refoundation_plan.md` | **Piano di refoundation MCP**: inventory authority, eliminazione drift, catalogo canonico, ottimizzazione misurata e gateway selettivo | 2026-04-29 |
 | `docs/plans/agents/productivity_agent_foundation_plan.md` | **Piano implementazione approvato**: productivity-agent MVP, 13 Q&A utente, architecture 2-hop, markitdown-mcp | 2026-04-29 |
 | `docs/foundation/decisions/ADR-0008-productivity-agent-introduction.md` | **ADR-0008**: productivity-agent austere MVP, Context7 verified: /microsoft/markitdown Bench 90.05 | 2026-04-29 |
 | `.aria/kilocode/agents/productivity-agent.md` | **Agent definition**: 11 tool, 4 skill, boundary delega workspace-agent | 2026-04-29 |
@@ -73,6 +75,10 @@ docs/llm_wiki/
 | `tests/unit/agents/productivity/test_meeting_prep.py` | **14 unit tests**: event parsing, participant truncation, build/render flow | 2026-04-29 |
 | `tests/integration/productivity/test_office_ingest_mcp.py` | **13 integration tests**: E2E with real markitdown-mcp subprocess | 2026-04-29 |
 | `tests/fixtures/office_files/` | **5 fixture files**: PDF, DOCX, XLSX, PPTX, TXT | 2026-04-29 |
+| `.aria/kilocode/skills/email-draft/SKILL.md` | **Skill email-draft@1.0.0** (Sprint 2): bozze email con stile dinamico (Q7), nessuna lesson statica | 2026-04-29 |
+| `src/aria/agents/productivity/email_style.py` | **Email style module** (Sprint 2): derive_style, draft_email, StyleProfile, style extraction helpers | 2026-04-29 |
+| `tests/unit/agents/productivity/test_email_style.py` | **33 unit tests** (Sprint 2): style extraction, profile building, drafting | 2026-04-29 |
+| `tests/integration/productivity/test_email_draft_e2e.py` | **5 E2E tests** (Sprint 2): mock workspace-agent, formal/cordial style, draft creation flow | 2026-04-29 |
 
 | `scripts/wrappers/exa-wrapper.sh` | Exa MCP wrapper | 2026-04-27 |
 | `scripts/wrappers/searxng-wrapper.sh` | SearXNG MCP wrapper (auto-detect Docker 8888) | 2026-04-27 |
@@ -107,6 +113,7 @@ docs/llm_wiki/
 | [[google-workspace-mcp-write-reliability]] | GWS MCP: **write scopes concessi**, single-user, Gmail/Calendar, 10 scopes | Active ✅ Write-enabled |
 | [[mcp-api-key-operations]] | **Runbook**: 5 provider, 17 keys, multi-account rotation, circuit breaker | Active ✅ Restored |
 | [[aria-launcher-cli-compatibility]] | bin/aria launcher: CLI invocation, hard isolation, MCP migration | Active (Fixed v2) |
+| [[mcp-architecture]] | Inventario MCP reale, drift strutturali e direzione di refoundation | Active ✅ v1 |
 | [[log]] | Implementation log with timestamps | Active |
 
 ## Implementation Branch
@@ -132,6 +139,7 @@ docs/llm_wiki/
 - 2026-04-24: Added Google Workspace MCP write reliability page
 - 2026-04-27: Comprehensive update after ripristino ricerca + Google Workspace
 - 2026-04-29: v3.1 — Scientific Papers MCP query formulation fix (3 npm bugs: arXiv quote-wrapping, EuropePMC sort + hasFullText, centralized preprocessor)
+- 2026-04-29: v3.4 — MCP refoundation plan + mcp-architecture wiki page added after current-state audit and external verification
 
 ## Git & GitHub Rules
 
