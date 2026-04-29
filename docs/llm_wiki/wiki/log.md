@@ -1,5 +1,52 @@
 # Implementation Log
 
+## 2026-04-29T17:58 — Ricerca MCP Produttività: 40+ server identificati per Word/Calendar/Task/Knowledge
+
+**Operation**: RESEARCH + REPORT
+**Trigger**: Richiesta utente di cercare MCP server per produttività con agenti AI
+**Artifact**: `docs/analysis/ricerca_mcp_produttività.md`
+
+### Ricerca eseguita
+
+- **github-discovery**: 12 pool, ~300 candidati totali, screening Gate 1+2 su candidati principali
+- **Brave Search**: 5 ricerche web mirate per gemme nascoste e categorie specifiche
+- **Context7**: 15 verifiche su librerie candidate (codice snippets, benchmark, reputation)
+- **Web fetch**: README di 12 repository analizzati in dettaglio
+
+### Risultati principali
+
+| Categoria | Gemme trovate | Top Hidden Gem |
+|-----------|---------------|----------------|
+| **Document Analysis** | 4 MCP server | GongRzhe/Office-Word-MCP-Server (95 snippets, 68.1 benchmark) + UseJunior/safe-docx (Gate 1+2) |
+| **Calendar/Agenda** | 12 MCP server | nspady/google-calendar-mcp (multi-account) + MarimerLLC/calendar-mcp (unificato M365+Google) |
+| **Task Management** | 10 MCP server | cjo4m06/mcp-shrimp-task-manager (488 snippets, 73.7) + oortonaut/task-graph-mcp (896 snippets, 84.4!) |
+| **Knowledge Mgmt** | 8 MCP server | aaronsb/obsidian-mcp-plugin (382 snippets, 87.65) + grey-iris/easy-notion-mcp (132 snippets, **97.1!**) |
+| **Microsoft 365** | 6 MCP server | softeria/ms-365-mcp-server (200+ tool) |
+| **Email** | 4 MCP server | shinzo-labs/gmail-mcp (83 snippets, High rep) |
+
+### Top 5 Hidden Gems assolute
+
+1. **grey-iris/easy-notion-mcp** — Benchmark **97.1**, 92% risparmio token su Notion
+2. **aaronsb/obsidian-mcp-plugin** — Benchmark **87.65**, 8 tool groups per Obsidian vault
+3. **oortonaut/task-graph-mcp** — Benchmark **84.4**, 896 snippets, multi-agent workflow
+4. **markuspfundstein/mcp-obsidian** — Benchmark **84.2**, Obsidian via REST API
+5. **usejunior/safe-docx** — Gate 1+2 passati, editing DOCX chirurgico
+
+### Raccomandazioni per ARIA
+
+- **Priorità 1**: GongRzhe/Office-Word-MCP-Server per lettura DOCX (MVP §1.4 item 4)
+- **Priorità 2**: nspady/google-calendar-mcp per calendario avanzato (MVP §1.4 item 3)
+- **Priorità 3**: shrimp-task-manager o task-graph-mcp per task management
+- **Priorità 4**: obsidian-mcp-plugin o easy-notion-mcp per knowledge management
+- Tutti gli MCP sono **open source MIT**, costo zero API keys
+
+### Wiki updates
+
+- `index.md`: raw sources table aggiornata con report
+- `log.md`: this entry
+
+---
+
 ## 2026-04-29T17:25 — v3 Finale: Dual Tier 1 policy implementata in tutto l'ecosistema
 
 **Operation**: IMPLEMENT v3 FINALE — Dual Tier 1 (searxng + reddit-search)
@@ -2047,3 +2094,114 @@ Push riuscito dopo rimozione di:
 | Performance startup (review 66s→~5s) | ✅ | `2720005` |
 | Tavily rotation (key pre-verification) | ✅ | `e365b9e` |
 | Wiki aggiornata | ✅ | `e365b9e` |
+
+---
+
+## 2026-04-29T16:02 — Productivity-Agent draft 1 (discussion)
+
+**Operazione**: DRAFT — proposta architetturale nuovo sub-agente `productivity-agent`.
+**Output**: `docs/plans/agents/productivity_agent_plan_draf_1.md`
+**Status**: discussion-only, nessuna modifica al codice. In attesa risposta utente
+su 10 open questions.
+
+### Sintesi proposta
+- Nuovo sub-agente operativo per workflow consulente: ingestion office files,
+  email drafting, meeting prep, multi-doc briefing.
+- Coesistenza con `workspace-agent` (Opzione B): productivity-agent delega a
+  workspace-agent per Gmail/Calendar via spawn-subagent (rispetto P9).
+- Stack MCP nuovo: **markitdown-mcp** (Microsoft, Context7 verified `/microsoft/markitdown`)
+  tier 1; **docling** (`/docling-project/docling`) tier 2 opzionale per PDF complessi.
+- 5 skills nuove proposte: `office-ingest` (deprecates pdf-extract@1.0.0 → v2.0.0),
+  `email-draft`, `meeting-prep`, `consultancy-brief`, `deliverable-draft` (Fase 2).
+- Richiede ADR-0008 (template ADR-0006) + update blueprint §8.3.3, §8.5, §15.
+- Toolset budget Opzione B: ~11–12 tool (margine ampio vs limite P9=20).
+
+### Riferimenti aggiunti a wiki
+Pagina `productivity-agent.md` da creare in fase di approvazione spec finale
+(post-discussione). Per ora draft vive in `docs/plans/agents/`.
+
+
+## 2026-04-29T18:15 — v3.1: Scientific Papers MCP query formulation fix (3 bug npm driver)
+
+**Operation**: DEBUG + PATCH
+**Trigger**: Ricerca scientific papers restituiva 0 risultati su arXiv/EuropePMC per query multi-termine
+
+### Root Cause
+3 bug nel npm package `@futurelab-studio/latest-science-mcp` v0.1.40:
+
+1. **arXiv driver**: `searchQuery = all:"${query}"` — frase ESATTA, niente match per varianti
+2. **EuropePMC driver**: stesso quote-wrapping + `sort=relevance` NON supportato dall'API REST (restituiva solo `{"version":"6.9"}` senza risultati) + filtro `hasFullText === "Y"` troppo aggressivo (campo spesso `null`)
+3. **search-papers tool**: nessuna pre-elaborazione query prima del dispatch ai driver
+
+### Fix (patches JavaScript applicate su cache npx + seed patches)
+
+| File | Fix |
+|------|-----|
+| `arxiv-driver.js` | `_parseArxivQuery()`: estrae frasi quotate + termini singoli, join con AND booleano |
+| `europepmc-driver.js` | `_parseQuery()` stessa strategia + sort omesso per default + `hasFullText !== "N"` |
+| `search-papers.js` | `preprocessQuery()`: strip outer quotes, normalizza spazi |
+| `scientific-papers-wrapper.sh` | Auto-patching npx cache entries a ogni avvio |
+| `docs/patches/scientific-papers-mcp/*` | Seed patches per auto-restore permanente |
+
+### Esiti Test (ARIA-isolated env)
+
+| Sorgente | Query | Risultato |
+|----------|-------|-----------|
+| arXiv | `Mamba state space model` | ✅ 5 paper (SSM, Mamba, efficient transformers) |
+| EuropePMC | `machine learning protein folding` | ✅ 5 paper (machine learning, protein folding) |
+| OpenAlex | `Mamba state space model` | ✅ 3 paper (regression check — invariato) |
+
+### Isolamento ARIA
+- Patches nella cache npx isolata `.aria/kilo-home/.npm/_npx/`
+- Sistema di cache `~/.npm/_npx/` non toccato
+- Wrapper `scientific-papers-wrapper.sh` usa auto-patching per robustezza
+- Search agent prompt `.aria/kilocode/agents/search-agent.md` aggiornato con guida query formulation
+
+### Quality Gate
+```
+ruff check src/aria/agents/search/   → da fare (solo patch JS, no Python)
+pytest tests/unit/agents/search/ -q  → 110 PASS (nessuna modifica al codice Python)
+```
+
+---
+
+## 2026-04-29T16:18 — Productivity-Agent Draft 2 (revisione austera)
+
+**Operazione**: UPDATE — `docs/plans/agents/productivity_agent_plan_draf_1.md` da
+DRAFT-1 a DRAFT-2 dopo confronto con `docs/analysis/ricerca_mcp_produttività.md`.
+**Status**: discussion-only, in attesa risposta su 13 open questions.
+
+### Cambi principali v1 → v2
+
+**Drop scope (no over-engineering)**:
+- GongRzhe Office-Word-MCP-Server (25+ tool sfora P9 → riassegnato Fase 2 `deliverable-agent`)
+- shrimp-task-manager + task-graph-mcp (duplica planning-with-files + wiki memory)
+- Pimzino agentic-tools (duplica wiki memory)
+- Calendar MCP terzi (duplica google_workspace su workspace-agent)
+- Gmail MCP terzi (duplica google_workspace)
+
+**Opt-in condizionali (Fase 1b)**:
+- safe-docx solo se Q13=sì (tracked-changes contratti)
+- obsidian-mcp-plugin solo se Q11a=Obsidian
+- easy-notion-mcp solo se Q11b=Notion (XOR Obsidian)
+- ms-365-mcp solo se Q12=sì + ADR-0009
+
+**Correzioni fattuali Draft 1**:
+- Anthropic skills `pptx/docx/xlsx/pdf` ufficiali sono cloud-only (Claude API +
+  code-execution container) — NON eseguibili in KiloCode locale. Resta solo
+  reference pattern SKILL.md.
+- `spawn-subagent` non è MCP tool ma meccanismo KiloCode child session §8.6.
+- `triage-email` skill rimane saldamente su workspace-agent.
+
+**MVP austero**:
+- Fase 1a (1 settimana): 1 solo MCP nuovo (markitdown-mcp) + 3 skill
+  (office-ingest, consultancy-brief, meeting-prep). Tool count 11/20.
+- Fase 1b condizionale: email-draft / contract-review solo se opt-in Q.
+
+**Gate "no-bloat" introdotto** (§5.5): criteri quantitativi per accettazione
+nuovi MCP — license, manutentore, Context7 bench, tool count, keyless preferred,
+unicità capability, footprint runtime.
+
+**Open questions estese a 13** (era 10): aggiunte Q11 (Obsidian/Notion), Q12 (M365),
+Q13 (tracked-changes contratti).
+

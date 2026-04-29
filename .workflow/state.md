@@ -20,14 +20,18 @@
 | 2026-04-27T08:50:00+02:00 | General Manager | Phase D: quality gates ruff ✅ mypy ✅ pytest 310/310 ✅ | Done |
 | 2026-04-27T12:12:00+02:00 | General Manager | Fixed launcher MCP migration reintroducing deprecated aliases/profiles (`bin/aria`) | Done |
 | 2026-04-27T12:20:00+02:00 | General Manager | Enabled research MCP wrappers (tavily/firecrawl/exa/searxng) + added key operations runbook | Done |
+| 2026-04-29T17:58+02:00 | General Manager | Ricerca MCP Produttività: 40+ server, hidden gems, report in docs/analysis/ | Done |
 
 ## Skills Invoked
 | Phase | Skill | Outcome |
 |-------|-------|---------|
-| Step 0 | planning-with-files | task_plan.md, findings.md, progress.md created |
+| Step 0 | planning-with-files | task_plan.md, findings.md, progress.md created/updated |
 | Step 0 | context7 (aiosqlite) | `/omnilib/aiosqlite` — async SQLite API confirmed |
 | Step 0 | context7 (fastmcp) | `/prefecthq/fastmcp` — @mcp.tool, dict returns confirmed |
 | Step 0 | context7 (pydantic) | `/pydantic/pydantic` — Literal, field_validator confirmed |
+| Research | github-discovery | 12 pool, ~300 candidates, screening Gate 1+2 |
+| Research | brave-search | 5 web searches per hidden gems complementari |
+| Research | context7 | 15 library verifications per MCP produttività |
 
 ## Implementation Progress
 

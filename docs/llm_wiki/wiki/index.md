@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-04-29T10:41 (v3 Implementata — Reddit keyless live)
-**Status**: ✅ **v3 IMPLEMENTATA** — 7 provider operativi (searxng, tavily, exa, brave, pubmed, scientific_papers, **reddit-keyless**). Reddit da OAuth-gated a keyless attivo. `docs/analysis/report_gemme_reddit_mcp.md`.
+**Last Updated**: 2026-04-29T18:15 (v3.1 — Scientific Papers query fixes applied)
+**Status**: ✅ **v3.1** — Scientific Papers MCP query formulation fixed (3 npm driver bugs patched). arXiv, EuropePMC e OpenAlex ora restituiscono risultati pertinenti. Auto-patching wrapper in `scripts/wrappers/scientific-papers-wrapper.sh`. `docs/patches/scientific-papers-mcp/`.
 
 ## Purpose
 
@@ -36,7 +36,7 @@ docs/llm_wiki/
 | `docs/plans/research_academic_reddit_2.md` | **Piano espansione v2 audit-corrected**: PubMed, scientific-papers (Europe PMC + arXiv), Reddit OAuth | 2026-04-27 |
 | `docs/foundation/decisions/ADR-0006-research-agent-academic-social-expansion.md` | ADR divergence blueprint §11 | 2026-04-27 |
 | `scripts/wrappers/pubmed-wrapper.sh` | PubMed MCP wrapper (CredentialManager + SOPS) | 2026-04-27 |
-| `scripts/wrappers/scientific-papers-wrapper.sh` | Scientific Papers MCP wrapper (keyless) | 2026-04-27 |
+| `scripts/wrappers/scientific-papers-wrapper.sh` | Scientific Papers MCP wrapper (keyless, auto-patching) | 2026-04-29 |
 | `scripts/wrappers/reddit-wrapper.sh` | Reddit MCP wrapper (OAuth via CredentialManager) | 2026-04-27 |
 | `tests/unit/agents/search/test_provider_pubmed.py` | Test: PubMed enum, tier, health | 2026-04-27 |
 | `tests/unit/agents/search/test_provider_scientific_papers.py` | Test: Scientific Papers enum, keyless | 2026-04-27 |
@@ -55,6 +55,8 @@ docs/llm_wiki/
 | `bin/aria` | ARIA launcher (hard isolation, MCP migration) | 2026-04-27 |
 | `scripts/wrappers/tavily-wrapper.sh` | Tavily MCP wrapper | 2026-04-27 |
 | `docs/analysis/report_gemme_reddit_mcp.md` | **Report github-discovery**: Reddit MCP keyless alternatives (eliasbiondo, adhikasp, cmpxchg16) | 2026-04-29 |
+| `docs/plans/agents/productivity_agent_plan_draf_1.md` | **Draft 2** (revisione austera): `productivity-agent` MVP, gate no-bloat MCP, 13 open questions | 2026-04-29 |
+| `docs/analysis/ricerca_mcp_produttività.md` | **Report github-discovery**: 40+ MCP server per produttività AI (Word, Calendar, Task, Knowledge, M365, Email) — hidden gems classificate | 2026-04-29 |
 
 | `scripts/wrappers/exa-wrapper.sh` | Exa MCP wrapper | 2026-04-27 |
 | `scripts/wrappers/searxng-wrapper.sh` | SearXNG MCP wrapper (auto-detect Docker 8888) | 2026-04-27 |
@@ -85,7 +87,7 @@ docs/llm_wiki/
 |------|-------------|--------|
 | [[memory-subsystem]] | Memory subsystem: 5D model, 11 MCP tools, HITL flow, CLM, retention | Active |
 | [[memory-v3]] | Memory v3 Kilo+Wiki Fusion: wiki.db, 4 wiki MCP tools, profile auto-inject | Active |
-| [[research-routing]] | **Ricerca multi-tier**: 6 provider attivi (searxng, tavily, exa, brave, pubmed, scientific-papers) + reddit (OAuth gated) + SOCIAL intent | Active ✅ v2 Implemented |
+| [[research-routing]] | **Ricerca multi-tier**: 7 provider attivi (searxng, reddit, tavily, exa, brave, pubmed, scientific_papers) + Scientific Papers query fix v3.1 | Active ✅ v3.1 |
 | [[google-workspace-mcp-write-reliability]] | GWS MCP: **write scopes concessi**, single-user, Gmail/Calendar, 10 scopes | Active ✅ Write-enabled |
 | [[mcp-api-key-operations]] | **Runbook**: 5 provider, 17 keys, multi-account rotation, circuit breaker | Active ✅ Restored |
 | [[aria-launcher-cli-compatibility]] | bin/aria launcher: CLI invocation, hard isolation, MCP migration | Active (Fixed v2) |
@@ -113,6 +115,7 @@ docs/llm_wiki/
 - 2026-04-24: Wiki bootstrapped during memory gap remediation Sprint 1.2
 - 2026-04-24: Added Google Workspace MCP write reliability page
 - 2026-04-27: Comprehensive update after ripristino ricerca + Google Workspace
+- 2026-04-29: v3.1 — Scientific Papers MCP query formulation fix (3 npm bugs: arXiv quote-wrapping, EuropePMC sort + hasFullText, centralized preprocessor)
 
 ## Git & GitHub Rules
 

@@ -65,4 +65,7 @@ export UNPAYWALL_EMAIL="${UNPAYWALL_EMAIL:-$NCBI_ADMIN_EMAIL}"
 export MCP_TRANSPORT_TYPE="${MCP_TRANSPORT_TYPE:-stdio}"
 export MCP_LOG_LEVEL="${MCP_LOG_LEVEL:-info}"
 
-exec npx -y @cyanheads/pubmed-mcp-server@latest
+# Use bunx instead of npx for ~50x faster startup (BL-20260429-02)
+# Engine requires bun >=1.3.2 (current: "$(bun --version 2>/dev/null)")
+# npx on node v20 takes ~15s due to engine checks + ESM module compilation
+exec bunx @cyanheads/pubmed-mcp-server

@@ -234,6 +234,80 @@ class Intent(StrEnum):
 Reddit e ora un provider sempre disponibile, bypassando il Rotator (nessuna chiave da gestire).
 Il vecchio wrapper OAuth e i file `reddit-wrapper.sh` sono stati eliminati definitivamente.
 
+## Scientific Papers — Bug Fixes (2026-04-29)
+
+### Problema
+
+Il MCP server `@futurelab-studio/latest-science-mcp` v0.1.40 (`scientific-papers-mcp`)
+restituiva 0 risultati su arXiv ed EuropePMC per query multi-termine.
+
+### Root Cause: 3 Bug nel Driver npm
+
+**BUG 1 — arXiv driver** (`arxiv-driver.js` searchPapers, field=all):
+```javascript
+// OLD: searchQuery = `all:"${query}"`;
+// Trasformava: "state space model Mamba" → all:"state space model Mamba"
+// Problema: frase ESATTA, non trova varianti
+```
+
+**BUG 2 — EuropePMC driver** (`europepmc-driver.js` searchPapers):
+```javascript
+// OLD: searchQuery = `"${query}"`;
+// Stesso problema: query wrappata in doppi apici
+// OLD: sort="relevance" — API EuropePMC REST NON accetta sort=relevance,
+// restituisce solo {"version":"6.9"} senza risultati
+// OLD: hasFullText==="Y" — il campo haFullText spesso è null/'?'
+// filtrando tutti i risultati validi
+```
+
+**BUG 3 — Centralizzato** (`search-papers.js`):
+Nessuna pre-elaborazione query prima di dispatch ai driver.
+
+### Fix Applicati
+
+Patch applicate al codice JS nella cache npx e salvate in `docs/patches/scientific-papers-mcp/`
+per auto-restore. Il wrapper `scripts/wrappers/scientific-papers-wrapper.sh` applica
+le patch automaticamente a ogni cache entry npx.
+
+**Fix 1** (`arxiv-driver.js`):
+```javascript
+// NEW: parse query in termini + frasi quotate, join con AND
+// Input: "state space model" Mamba efficient
+// Output: all:"state space model" AND all:Mamba AND all:efficient
+```
+
+**Fix 2** (`europepmc-driver.js`):
+```javascript
+// NEW: stessi parse strategy
+// NEW: sort=rimosso per default relevance (API non lo supporta)
+// NEW: hasFullText !== "N" invece di === "Y"
+```
+
+**Fix 3** (`search-papers.js`):
+```javascript
+// NEW: preprocessQuery() strips outer quotes, normalizza whitespace
+// Tutti i driver ricevono processedQuery invece di raw query
+```
+
+### Esiti Test (ARIA-isolated env, 2026-04-29)
+
+| Sorgente | Query | Prima | Dopo |
+|----------|-------|-------|------|
+| arXiv | `Mamba state space model` | 0-2 risultati irrilevanti (fisica) | ✅ 5 paper pertinenti su SSM/Mamba |
+| EuropePMC | `machine learning protein folding` | 0 risultati | ✅ 5 paper pertinenti |
+| OpenAlex | `Mamba state space model` | ✅ funzionava già (API search param) | ✅ invariato (3 paper) |
+
+### File Modificati
+
+| File | Modifica |
+|------|----------|
+| `.aria/kilo-home/.npm/_npx/*/node_modules/@futurelab-studio/latest-science-mcp/dist/drivers/arxiv-driver.js` | `_parseArxivQuery()` + Boolean AND search |
+| `.aria/kilo-home/.npm/_npx/*/node_modules/@futurelab-studio/latest-science-mcp/dist/drivers/europepmc-driver.js` | `_parseQuery()` + sort fix + hasFullText fix |
+| `.aria/kilo-home/.npm/_npx/*/node_modules/@futurelab-studio/latest-science-mcp/dist/tools/search-papers.js` | `preprocessQuery()` + processedQuery dispatch |
+| `scripts/wrappers/scientific-papers-wrapper.sh` | Auto-patching npx cache entries a startup |
+| `docs/patches/scientific-papers-mcp/*.{js,original.js}` | Seed patches per auto-restore |
+| `.aria/kilocode/agents/search-agent.md` | Sezione "Query Formulation per Scientific Papers" |
+
 ### Quality Gate
 
 ```

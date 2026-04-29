@@ -4,7 +4,6 @@
   "agents_dir": "./agents",
   "skills_dir": "./skills",
   "modes_dir": "./modes",
-  "mcp_config": "./mcp.json",
   "sessions_dir": "./sessions",
   "locale": "it-IT",
   "model": {

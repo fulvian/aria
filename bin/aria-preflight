@@ -1,0 +1,157 @@
+#!/usr/bin/env bash
+# ARIA preflight — runs before every kilo session start to avoid freeze.
+#
+# Root causes addressed (incident 2026-04-29):
+#   1. Zombie aria-conductor sessions retain DB locks + MCP children
+#   2. WAL bloat (>100MB) on kilo.db slows startup queries
+#   3. Snapshot dirs grow unbounded (4.5GB observed) — git bare repos per session
+#   4. service=review hangs at startup when branch diff is huge (>200KB)
+#
+# Behavior is non-destructive by default:
+#   - Only kills processes whose ppid=1 (orphaned by previous TUI freeze) and
+#     whose CWD is $ARIA_HOME, never the current shell's parent
+#   - Only deletes snapshot dirs older than ARIA_SNAPSHOT_TTL_DAYS (default 2)
+#   - Warns but never auto-stashes uncommitted changes
+#
+# Override via env:
+#   ARIA_SKIP_PREFLIGHT=1            disable entirely
+#   ARIA_SNAPSHOT_TTL_DAYS=N         retention for snapshot dirs (default 2)
+#   ARIA_BRANCH_DIFF_WARN_BYTES=N    branch diff warn threshold (default 200000)
+#   ARIA_PREFLIGHT_VERBOSE=1         print every step
+
+set -euo pipefail
+
+if [[ "${ARIA_SKIP_PREFLIGHT:-0}" == "1" ]]; then
+    exit 0
+fi
+
+ARIA_HOME="${ARIA_HOME:-/home/fulvio/coding/aria}"
+ARIA_KILO_HOME="${ARIA_KILO_HOME:-$ARIA_HOME/.aria/kilo-home}"
+KILO_DATA_DIR="$ARIA_KILO_HOME/.local/share/kilo"
+KILO_DB="$KILO_DATA_DIR/kilo.db"
+KILO_DB_WAL="$KILO_DATA_DIR/kilo.db-wal"
+KILO_SNAPSHOT_DIR="$KILO_DATA_DIR/snapshot"
+SNAPSHOT_TTL_DAYS="${ARIA_SNAPSHOT_TTL_DAYS:-2}"
+BRANCH_DIFF_WARN_BYTES="${ARIA_BRANCH_DIFF_WARN_BYTES:-200000}"
+VERBOSE="${ARIA_PREFLIGHT_VERBOSE:-0}"
+
+log() {
+    if [[ "$VERBOSE" == "1" ]]; then
+        echo "[aria-preflight] $*" >&2
+    fi
+}
+
+warn() {
+    echo "[aria-preflight] WARN: $*" >&2
+}
+
+# 1. Kill orphaned aria-conductor procs (ppid=1, cwd=$ARIA_HOME) ----------------
+kill_zombie_sessions() {
+    local killed=0
+    local pid ppid cwd cmdline
+    while read -r pid; do
+        [[ -z "$pid" || ! -d "/proc/$pid" ]] && continue
+        ppid=$(awk '{print $4}' "/proc/$pid/stat" 2>/dev/null || echo "")
+        [[ "$ppid" != "1" ]] && continue
+        cwd=$(readlink "/proc/$pid/cwd" 2>/dev/null || echo "")
+        [[ "$cwd" != "$ARIA_HOME" ]] && continue
+        cmdline=$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null || echo "")
+        if [[ "$cmdline" == *"aria-conductor"* || "$cmdline" == *"kilo $ARIA_HOME"* ]]; then
+            log "killing orphan kilo PID=$pid cwd=$cwd"
+            kill -TERM "$pid" 2>/dev/null || true
+            killed=$((killed + 1))
+        fi
+    done < <(pgrep -f "kilo.*aria" 2>/dev/null || true)
+
+    if [[ $killed -gt 0 ]]; then
+        sleep 1
+        # Reap MCP children whose parent kilo just died (now ppid=1, cwd under aria)
+        while read -r pid; do
+            [[ -z "$pid" || ! -d "/proc/$pid" ]] && continue
+            ppid=$(awk '{print $4}' "/proc/$pid/stat" 2>/dev/null || echo "")
+            [[ "$ppid" != "1" ]] && continue
+            cmdline=$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null || echo "")
+            if [[ "$cmdline" == *"$ARIA_KILO_HOME"* ]]; then
+                log "killing orphan MCP child PID=$pid"
+                kill -TERM "$pid" 2>/dev/null || true
+            fi
+        done < <(pgrep -f "$ARIA_KILO_HOME" 2>/dev/null || true)
+    fi
+    log "zombie kill: $killed kilo procs"
+}
+
+# 2. Checkpoint kilo.db WAL if it exceeds 50MB ---------------------------------
+checkpoint_wal() {
+    [[ ! -f "$KILO_DB_WAL" ]] && { log "no WAL file"; return; }
+    local wal_bytes
+    wal_bytes=$(stat -c '%s' "$KILO_DB_WAL" 2>/dev/null || echo 0)
+    if [[ "$wal_bytes" -lt 52428800 ]]; then
+        log "WAL ok ($((wal_bytes / 1024 / 1024))MB)"
+        return
+    fi
+    if ! command -v sqlite3 >/dev/null 2>&1; then
+        warn "sqlite3 missing; skipping WAL checkpoint (WAL=${wal_bytes} bytes)"
+        return
+    fi
+    if fuser "$KILO_DB" >/dev/null 2>&1; then
+        warn "kilo.db has live readers; cannot checkpoint safely"
+        return
+    fi
+    log "checkpointing WAL ($((wal_bytes / 1024 / 1024))MB)"
+    sqlite3 "$KILO_DB" "PRAGMA wal_checkpoint(TRUNCATE);" >/dev/null 2>&1 || \
+        warn "WAL checkpoint failed"
+}
+
+# 3. Prune snapshot dirs older than TTL ----------------------------------------
+prune_snapshots() {
+    [[ ! -d "$KILO_SNAPSHOT_DIR" ]] && return
+    local before_mb after_mb removed
+    before_mb=$(du -sm "$KILO_SNAPSHOT_DIR" 2>/dev/null | awk '{print $1}')
+    removed=$(find "$KILO_SNAPSHOT_DIR" -mindepth 1 -maxdepth 1 -type d \
+        -mtime "+${SNAPSHOT_TTL_DAYS}" -print -exec rm -rf {} + 2>/dev/null | wc -l)
+    if [[ "$removed" -gt 0 ]]; then
+        after_mb=$(du -sm "$KILO_SNAPSHOT_DIR" 2>/dev/null | awk '{print $1}')
+        log "pruned $removed snapshot dirs (${before_mb}MB → ${after_mb}MB)"
+    else
+        log "no stale snapshots (TTL=${SNAPSHOT_TTL_DAYS}d, ${before_mb}MB)"
+    fi
+}
+
+# 4. Warn if branch diff vs origin/main is huge --------------------------------
+warn_branch_diff() {
+    [[ ! -d "$ARIA_HOME/.git" ]] && return
+    command -v git >/dev/null 2>&1 || return
+    local diff_bytes
+    diff_bytes=$(git -C "$ARIA_HOME" diff origin/main 2>/dev/null | wc -c || echo 0)
+    if [[ "$diff_bytes" -gt "$BRANCH_DIFF_WARN_BYTES" ]]; then
+        warn "branch diff vs origin/main = ${diff_bytes} bytes (>${BRANCH_DIFF_WARN_BYTES})."
+        warn "kilo service=review may be slow on startup. Consider: git push, rebase, or split branch."
+    else
+        log "branch diff ok (${diff_bytes} bytes)"
+    fi
+}
+
+# 5. Warn if uncommitted diff is huge -----------------------------------------
+warn_uncommitted_diff() {
+    [[ ! -d "$ARIA_HOME/.git" ]] && return
+    command -v git >/dev/null 2>&1 || return
+    local diff_bytes file_count
+    diff_bytes=$(git -C "$ARIA_HOME" diff HEAD 2>/dev/null | wc -c || echo 0)
+    file_count=$(git -C "$ARIA_HOME" status --porcelain 2>/dev/null | wc -l || echo 0)
+    if [[ "$diff_bytes" -gt "$BRANCH_DIFF_WARN_BYTES" ]]; then
+        warn "uncommitted diff = ${diff_bytes} bytes across ${file_count} files."
+        warn "Consider: git stash, or commit before starting kilo."
+    fi
+}
+
+main() {
+    log "start ARIA_HOME=$ARIA_HOME"
+    kill_zombie_sessions
+    checkpoint_wal
+    prune_snapshots
+    warn_branch_diff
+    warn_uncommitted_diff
+    log "done"
+}
+
+main "$@"

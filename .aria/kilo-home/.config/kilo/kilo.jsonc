@@ -1,24 +1,26 @@
 {
   "$schema": "https://app.kilo.ai/config.json",
-  "permission": {
-    "bash": {
-      "find *": "allow",
-      "grep *": "allow",
-      "head *": "allow",
-      "python -c *": "allow",
-      "uv *": "allow",
-      "git status *": "allow",
-      "git log *": "allow",
-      "python3 *": "allow",
-      "echo *": "allow",
-      "which *": "allow",
-      "pdftotext *": "allow",
-      "pip install *": "allow",
-      "pip list *": "allow"
-    },
-    "external_directory": {
-      "/home/fulvio/*": "allow"
-    }
+  "logLevel": "WARN",
+  "snapshot": false,
+  "watcher": {
+    "ignore": [
+      ".aria",
+      ".venv",
+      "node_modules",
+      ".git",
+      "__pycache__",
+      "*.db",
+      "*.db-wal",
+      "*.db-shm",
+      ".mypy_cache",
+      ".ruff_cache",
+      ".pytest_cache",
+      "dist",
+      "build",
+      "medical_knowledge",
+      ".cache",
+      ".coverage"
+    ]
   },
   "mcp": {
     "filesystem": {
@@ -105,18 +107,9 @@
       ],
       "enabled": true,
       "environment": {
-        "TAVILY_API_KEY": "${TAVILY_API_KEY}"
-      }
-    },
-    "firecrawl-mcp": {
-      "type": "local",
-      "command": [
-        "/home/fulvio/coding/aria/scripts/wrappers/firecrawl-wrapper.sh"
-      ],
-      "enabled": true,
-      "environment": {
-        "FIRECRAWL_API_KEY": "${FIRECRAWL_API_KEY}",
-        "FIRECRAWL_API_URL": "${FIRECRAWL_API_URL}"
+        "TAVILY_API_KEY": "${TAVILY_API_KEY}",
+        "SOPS_AGE_KEY_FILE": "/home/fulvio/.config/sops/age/keys.txt",
+        "ARIA_HOME": "/home/fulvio/coding/aria"
       }
     },
     "brave-mcp": {
@@ -139,7 +132,9 @@
       ],
       "enabled": true,
       "environment": {
-        "EXA_API_KEY": "${EXA_API_KEY}"
+        "EXA_API_KEY": "${EXA_API_KEY}",
+        "SOPS_AGE_KEY_FILE": "/home/fulvio/.config/sops/age/keys.txt",
+        "ARIA_HOME": "/home/fulvio/coding/aria"
       }
     },
     "searxng-script": {
@@ -152,6 +147,39 @@
         "SEARXNG_SERVER_URL": "${SEARXNG_SERVER_URL}",
         "SEARXNG_URL": "${SEARXNG_URL}"
       }
+    },
+    "pubmed-mcp": {
+      "type": "local",
+      "command": [
+        "/home/fulvio/coding/aria/scripts/wrappers/pubmed-wrapper.sh"
+      ],
+      "enabled": true,
+      "environment": {
+        "NCBI_API_KEY": "${NCBI_API_KEY}",
+        "NCBI_ADMIN_EMAIL": "${NCBI_ADMIN_EMAIL}",
+        "UNPAYWALL_EMAIL": "${UNPAYWALL_EMAIL}",
+        "SOPS_AGE_KEY_FILE": "/home/fulvio/.config/sops/age/keys.txt",
+        "ARIA_HOME": "/home/fulvio/coding/aria",
+        "MCP_TRANSPORT_TYPE": "stdio"
+      }
+    },
+    "scientific-papers-mcp": {
+      "type": "local",
+      "command": [
+        "/home/fulvio/coding/aria/scripts/wrappers/scientific-papers-wrapper.sh"
+      ],
+      "enabled": true
+    },
+    "reddit-search": {
+      "type": "local",
+      "command": [
+        "uvx",
+        "reddit-no-auth-mcp-server"
+      ],
+      "enabled": true
     }
+  },
+  "permission": {
+    "bash": "allow"
   }
 }

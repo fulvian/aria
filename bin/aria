@@ -173,6 +173,39 @@ for name, cfg in servers.items():
 modern["mcp"] = mcp
 modern.setdefault("$schema", "https://kilo.ai/schema/config.json")
 
+# Performance defaults to avoid kilo TUI freeze on large repos (incident 2026-04-29):
+#   - snapshot=False: disable per-session git bare-repo snapshots (4.5GB observed)
+#   - watcher.ignore: skip heavy dirs that overwhelm the file watcher (.aria=11GB)
+modern.setdefault("snapshot", False)
+modern.setdefault("logLevel", "WARN")
+existing_watcher = modern.get("watcher", {})
+if not isinstance(existing_watcher, dict):
+    existing_watcher = {}
+default_ignore = [
+    ".aria",
+    ".venv",
+    "node_modules",
+    ".git",
+    "__pycache__",
+    "*.db",
+    "*.db-wal",
+    "*.db-shm",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".pytest_cache",
+    "dist",
+    "build",
+    "medical_knowledge",
+    ".cache",
+    ".coverage",
+]
+existing_ignore = existing_watcher.get("ignore", [])
+if not isinstance(existing_ignore, list):
+    existing_ignore = []
+merged_ignore = list(dict.fromkeys([*default_ignore, *existing_ignore]))
+existing_watcher["ignore"] = merged_ignore
+modern["watcher"] = existing_watcher
+
 with modern_path.open("w", encoding="utf-8") as fp:
     json.dump(modern, fp, indent=2)
     fp.write("\n")
@@ -265,11 +298,25 @@ For documentation, see: docs/foundation/aria_foundation_blueprint.md
 EOF
 }
 
+# === Pre-flight cleanup (kill zombies, checkpoint WAL, prune snapshots) ===
+run_preflight() {
+    local preflight_script="$ARIA_HOME/bin/aria-preflight"
+    if [[ -x "$preflight_script" ]]; then
+        # Only run before kilo TUI subcommands; skip for daemons/utilities
+        case "${1:-repl}" in
+            repl|run|mode)
+                "$preflight_script" || true
+                ;;
+        esac
+    fi
+}
+
 # === Main dispatch ===
 main() {
     check_prerequisites
     prepare_isolated_runtime
     resolve_kilo_cli
+    run_preflight "$@"
 
     local subcommand="${1:-repl}"
     shift || true

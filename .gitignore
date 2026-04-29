@@ -115,3 +115,6 @@ node_modules/
 *.google_workspace_mcp/
 .kilo/node_modules/
 
+
+# Gitleaks SARIF report (accidental dump in project root)
+/-
