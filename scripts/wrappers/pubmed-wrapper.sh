@@ -68,4 +68,10 @@ export MCP_LOG_LEVEL="${MCP_LOG_LEVEL:-info}"
 # Use bunx instead of npx for ~50x faster startup (BL-20260429-02)
 # Engine requires bun >=1.3.2 (current: "$(bun --version 2>/dev/null)")
 # npx on node v20 takes ~15s due to engine checks + ESM module compilation
-exec bunx @cyanheads/pubmed-mcp-server
+# Fallback automatico bunx → npx (FIX 2026-04-29): se bun non disponibile, usa npx
+if command -v bun &>/dev/null; then
+  exec bunx @cyanheads/pubmed-mcp-server
+else
+  echo "WARN: bun not found, falling back to npx (startup will be ~15s slower)" >&2
+  exec npx -y @cyanheads/pubmed-mcp-server
+fi

@@ -117,13 +117,6 @@ export class EuropePMCDriver extends BaseDriver {
                     "User-Agent": "SciHarvester-MCP/0.1.27 (mailto:contact@sciharvestermcp.org); Europe-PMC-client",
                 },
             });
-            console.error("EPMC_DEBUG searchQuery:", JSON.stringify(response.config.params.query));
-            console.error("EPMC_DEBUG status:", response.status);
-            console.error("EPMC_DEBUG data keys:", Object.keys(response.data || {}));
-            console.error("EPMC_DEBUG has resultList:", !!(response.data && response.data.resultList));
-            console.error("EPMC_DEBUG has resultList.result:", !!(response.data && response.data.resultList && response.data.resultList.result));
-            console.error("EPMC_DEBUG result count:", response.data && response.data.resultList && response.data.resultList.result ? response.data.resultList.result.length : 0);
-            console.error("EPMC_DEBUG first result:", JSON.stringify(response.data && response.data.resultList && response.data.resultList.result ? response.data.resultList.result[0] : null).substring(0, 500));
             if (!response.data ||
                 !response.data.resultList ||
                 !response.data.resultList.result) {
@@ -143,9 +136,7 @@ export class EuropePMCDriver extends BaseDriver {
                 return [];
             }
             // Convert results to PaperMetadata format (metadata only)
-            // FIXED v2: hasFullText is often '?' (unknown), not just 'Y'
-            // Filtering only 'Y' was too aggressive and discarded valid results
-            const validResults = results.filter((result) => result.title && result.hasFullText !== "N" && result.hasFullText !== "n");
+            const validResults = results.filter((result) => result.title && result.hasFullText === "Y");
             const papers = await Promise.all(validResults.map((result) => this.convertResultToPaper(result, false)));
             logInfo("Successfully fetched Europe PMC latest papers", {
                 count: papers.length,
@@ -325,41 +316,7 @@ export class EuropePMCDriver extends BaseDriver {
         return paper;
     }
     /**
-     * Parse query into quoted phrases and individual terms.
-     * Handles queries like: "state space model" Mamba efficient transformer
-     */
-    _parseQuery(q) {
-        const phrases = [];
-        const terms = [];
-        let i = 0;
-        while (i < q.length) {
-            if (q[i] === '"') {
-                const end = q.indexOf('"', i + 1);
-                if (end > i + 1) {
-                    const phrase = q.substring(i + 1, end).trim();
-                    if (phrase) phrases.push(phrase);
-                    i = end + 1;
-                } else {
-                    i++;
-                }
-            } else if (q[i] !== ' ') {
-                const end = q.indexOf(' ', i);
-                const term = (end > i ? q.substring(i, end) : q.substring(i)).trim();
-                if (term) terms.push(term);
-                i = end > i ? end + 1 : q.length;
-            } else {
-                i++;
-            }
-        }
-        return { phrases, terms };
-    }
-
-    /**
      * Search for papers with query and field-specific options
-     *
-     * FIXED v2: Properly handles multi-term queries with Boolean AND.
-     * Previously wrapped entire query in quotes causing phrase-only search.
-     * Now extracts quoted phrases + individual terms and joins with AND.
      */
     async searchPapers(query, field, count, sortBy) {
         if (!this.checkRateLimit()) {
@@ -374,28 +331,14 @@ export class EuropePMCDriver extends BaseDriver {
         try {
             logInfo("Searching Europe PMC papers", { query, field, count, sortBy });
             // Build search query based on field
-            // FIXED v2: Use Boolean AND for multi-term searches
-            // Old: "query" — wrapped entire query in quotes causing phrase-only match
             let searchQuery;
             switch (field) {
-                case "title": {
-                    const parsed = this._parseQuery(query);
-                    const parts = [
-                        ...parsed.phrases.map((p) => `TITLE:"${p}"`),
-                        ...parsed.terms.map((t) => `TITLE:"${t}"`),
-                    ];
-                    searchQuery = parts.length > 0 ? parts.join(" AND ") : `TITLE:"${query}"`;
+                case "title":
+                    searchQuery = `TITLE:"${query}"`;
                     break;
-                }
-                case "abstract": {
-                    const parsed = this._parseQuery(query);
-                    const parts = [
-                        ...parsed.phrases.map((p) => `ABSTRACT:"${p}"`),
-                        ...parsed.terms.map((t) => `ABSTRACT:"${t}"`),
-                    ];
-                    searchQuery = parts.length > 0 ? parts.join(" AND ") : `ABSTRACT:"${query}"`;
+                case "abstract":
+                    searchQuery = `ABSTRACT:"${query}"`;
                     break;
-                }
                 case "author":
                     searchQuery = `AUTH:"${query}"`;
                     break;
@@ -403,56 +346,39 @@ export class EuropePMCDriver extends BaseDriver {
                     searchQuery = `FULL_TEXT:"${query}"`;
                     break;
                 case "all":
-                default: {
-                    // EuropePMC searches all fields by default
-                    // Use parsed query with AND boolean for best results
-                    const parsed = this._parseQuery(query);
-                    const parts = [
-                        ...parsed.phrases.map((p) => `"${p}"`),
-                        ...parsed.terms.map((t) => t),
-                    ];
-                    searchQuery = parts.length > 0 ? parts.join(" AND ") : query;
+                default:
+                    searchQuery = `"${query}"`;
                     break;
-                }
             }
             // Add full-text filter for better results
             searchQuery += " AND has_fulltext:y";
             // Map sortBy to Europe PMC API parameters
-            // FIXED v2: EuropePMC's sort parameter uses different values.
-            // 'relevance' (lowercase) breaks the API - returns 0 hits.
-            // Omitting sort param defaults to relevance ordering.
-            let responseParams = {
-                query: searchQuery,
-                format: "json",
-                pageSize: Math.min(count, 100),
-                resultType: "core",
-            };
+            let sortParam = "relevance";
             switch (sortBy) {
                 case "date":
-                    responseParams.sort = "date desc";
+                    sortParam = "date desc";
                     break;
                 case "citations":
-                    responseParams.sort = "citedby desc";
+                    sortParam = "citedby desc";
                     break;
                 case "relevance":
                 default:
-                    // Do not send sort param — EuropePMC defaults to relevance
+                    sortParam = "relevance";
                     break;
             }
             const response = await axios.get(`${this.apiBase}/search`, {
-                params: responseParams,
+                params: {
+                    query: searchQuery,
+                    format: "json",
+                    pageSize: Math.min(count, 100), // Europe PMC allows up to 100 results per page
+                    sort: sortParam,
+                    resultType: "core",
+                },
                 timeout: 15000,
                 headers: {
                     "User-Agent": "SciHarvester-MCP/0.1.27 (mailto:contact@sciharvestermcp.org); Europe-PMC-client",
                 },
             });
-            console.error("EPMC_DEBUG searchQuery:", JSON.stringify(response.config.params.query));
-            console.error("EPMC_DEBUG status:", response.status);
-            console.error("EPMC_DEBUG data keys:", Object.keys(response.data || {}));
-            console.error("EPMC_DEBUG has resultList:", !!(response.data && response.data.resultList));
-            console.error("EPMC_DEBUG has resultList.result:", !!(response.data && response.data.resultList && response.data.resultList.result));
-            console.error("EPMC_DEBUG result count:", response.data && response.data.resultList && response.data.resultList.result ? response.data.resultList.result.length : 0);
-            console.error("EPMC_DEBUG first result:", JSON.stringify(response.data && response.data.resultList && response.data.resultList.result ? response.data.resultList.result[0] : null).substring(0, 500));
             if (!response.data ||
                 !response.data.resultList ||
                 !response.data.resultList.result) {
@@ -474,9 +400,7 @@ export class EuropePMCDriver extends BaseDriver {
                 return [];
             }
             // Convert results to PaperMetadata format (metadata only)
-            // FIXED v2: hasFullText is often '?' (unknown), not just 'Y'
-            // Filtering only 'Y' was too aggressive and discarded valid results
-            const validResults = results.filter((result) => result.title && result.hasFullText !== "N" && result.hasFullText !== "n");
+            const validResults = results.filter((result) => result.title && result.hasFullText === "Y");
             const papers = await Promise.all(validResults.map((result) => this.convertResultToPaper(result, false)));
             logInfo("Successfully searched Europe PMC papers", {
                 query,

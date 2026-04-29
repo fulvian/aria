@@ -1,5 +1,212 @@
 # Implementation Log
 
+## 2026-04-29T21:05+02:00 — IMPLEMENT: Fase P2 — metriche startup/latency + gateway evaluation
+
+**Operation**: BENCHMARK + ANALYSIS  
+**Branch**: `feature/productivity-agent-mvp`  
+**Piano**: `docs/plans/mcp_productivity_coordination_optimization_plan_2026-04-29.md` §P2
+
+### P2-1: Metriche startup/latency — COMPLETE
+
+| Item | File | Descrizione |
+|------|------|-------------|
+| Benchmark script | `scripts/benchmarks/mcp_startup_latency.py` | **Nuovo**: misura cold/warm start, tools/list latency, tool count. Output markdown e JSON. Gestisce output misti (log + JSON-RPC). |
+| Benchmark README | `scripts/benchmarks/README.md` | **Nuovo**: documentazione d'uso. |
+| Run 2026-04-29 | Benchmark su 9/9 server | **100% success** |
+
+### P2-2: Gateway evaluation — COMPLETE
+
+| Item | File | Descrizione |
+|------|------|-------------|
+| Gateway report | `docs/analysis/mcp_gateway_evaluation.md` | **Nuovo**: analisi basata su metriche reali. Conclusione: gateway NON giustificato. Alternativa: lazy loading per intent. |
+
+### Benchmark key findings
+
+| Server | Cold (ms) | Warm (ms) | Tools |
+|--------|-----------|-----------|-------|
+| filesystem | 633 | 626 | 14 |
+| sequential-thinking | 608 | 613 | 1 |
+| aria-memory | 546 | 572 | 10 |
+| fetch | 342 | 329 | 1 |
+| searxng-script | 1453 | 1452 | 1 |
+| reddit-search | 510 | 526 | 6 |
+| pubmed-mcp | 635 | 652 | 9 |
+| scientific-papers-mcp | 1137 | 670 | 6 |
+| markitdown-mcp | 632 | 676 | 1 |
+| **Total** | **6.5s** | **6.1s** | **49** |
+
+### Gateway recommendation: ❌ NON implementare
+
+Motivazioni:
+1. Overhead startup accettabile (~700ms medio per server)
+2. Warm start gia' veloce (~680ms medio)
+3. tools/list < 11ms per server (non e' il bottleneck)
+4. Gateway aggiunge latenza, complessita', single point of failure
+5. Alternativa migliore: **lazy loading per intent** nel launcher
+
+### Wiki updates
+- `docs/llm_wiki/wiki/log.md`: this entry
+- `docs/llm_wiki/wiki/index.md`: v4.2 status, raw sources
+- `docs/analysis/mcp_gateway_evaluation.md`: new gateway evaluation report
+
+---
+
+## 2026-04-29T20:45+02:00 — IMPLEMENT: Fase C + D del piano — capability matrix, handoff protocol, test suite
+
+**Operation**: IMPLEMENT  
+**Branch**: `feature/productivity-agent-mvp`  
+**Piano**: `docs/plans/mcp_productivity_coordination_optimization_plan_2026-04-29.md`
+
+### Phase C (P1) — Coordinamento formale tra i 3 agenti — COMPLETE
+
+| Item | File | Modifica |
+|------|------|----------|
+| C-1: Capability Matrix canonica | `docs/foundation/agent-capability-matrix.md` | **Nuovo**: matrice completa con Agent, Allowed Tools, MCP Dependencies, Delegation Targets, HITL Required per tutti e 4 gli agenti. Include dettaglio tool per agente. |
+| C-1: Wiki mirror | `docs/llm_wiki/wiki/agent-capability-matrix.md` | **Nuovo**: mirror wiki della capability matrix con riferimenti al canonical source. |
+| C-2: Handoff protocol standardizzato | `docs/foundation/agent-capability-matrix.md` §2 | **Nuovo**: payload JSON minimo `{goal, constraints, required_output, timeout, trace_id}` per `spawn-subagent` con esempi per ogni tipo di handoff (conductor→search, conductor→productivity, productivity→workspace). |
+| C-3: Routing policy unificata | `docs/foundation/agent-capability-matrix.md` §3 | **Nuovo**: tabella 12 condizioni con agente primario e note; catene di dispatch consentite (max 2 hop); limiti operativi (timeout 120-300s, profondità max 2). |
+| C-*: Conductor prompt update | `.aria/kilocode/agents/aria-conductor.md` | Sezioni Capability Matrix & Handoff Protocol aggiunte; sub-agenti aggiornati con productivity-agent e dispatch rules. |
+| C-*: Template update | `.aria/kilo-home/.kilo/agents/_aria-conductor.template.md` | Idem, per template regeneration. |
+| C-*: Wiki index | `docs/llm_wiki/wiki/index.md` | Aggiunta pagina `agent-capability-matrix` al page table. |
+
+### Phase D (P0/P1) — Test suite — COMPLETE
+
+| Item | File | Modifica |
+|------|------|----------|
+| D-1: Config consistency tests | `tests/unit/agents/search/test_config_consistency.py` | **Nuovo**: 22 test che verificano allineamento tra YAML allowed-tools/mcp-dependencies e router INTENT_TIERS/Provider enum. Copre tutti i 7 provider MCP. |
+| D-1: Conductor dispatch tests | `tests/unit/agents/test_conductor_dispatch.py` | **Nuovo**: 12 test che verificano conductor YAML config, produttivity-agent listing, handoff protocol, capability matrix reference. |
+| Quality gates | Tutti | 137/137 search tests pass (+22 nuovi); 12/12 conductor dispatch pass; mypy OK. |
+
+### Delta test count
+- Search tests: 115 → 137 (+22 config consistency)
+- Conductor tests: 6 (stale) → 6 stale + 12 new = 18 (+12 new)
+- **Net new tests: 34**
+
+### Wiki updates
+- `docs/llm_wiki/wiki/index.md`: page table + raw sources
+- `docs/llm_wiki/wiki/log.md`: this entry
+- `docs/llm_wiki/wiki/agent-capability-matrix.md`: new page
+
+---
+
+## 2026-04-29T20:25+02:00 — IMPLEMENT: Fase A + B del piano ottimizzazione MCP + coordinamento agenti
+
+**Operation**: IMPLEMENT  
+**Branch**: `feature/productivity-agent-mvp`  
+**Piano**: `docs/plans/mcp_productivity_coordination_optimization_plan_2026-04-29.md`
+
+### Phase A (P0) — Stabilizzazione immediata — COMPLETE
+
+| Item | File | Modifica |
+|------|------|----------|
+| A-1: Search-Agent exposure fix | `.aria/kilocode/agents/search-agent.md` | Aggiunti 9 tool `pubmed-mcp/*` e 5 tool `scientific-papers-mcp/*` in `allowed-tools`; aggiunti `pubmed-mcp` e `scientific-papers-mcp` in `mcp-dependencies` |
+| A-2: Conductor agent registry fix | `.aria/kilocode/agents/aria-conductor.md` | Aggiunto `productivity-agent` ai sub-agenti disponibili con regole di dispatch: file office, briefing, meeting prep, bozze email |
+| A-3: PubMed wrapper hardening | `scripts/wrappers/pubmed-wrapper.sh` | Fallback automatico `bunx → npx` con log evento WARN se bun non disponibile |
+| A-4: Scientific papers diagnostic | `scripts/wrappers/scientific-papers-wrapper.sh` | Hard fail diagnostico con exit 1 se patch seed mancante/invalido; skip con `SCIENTIFIC_PAPERS_SKIP_PATCH=1` |
+
+### Phase B (P1) — Refactor affidabilità MCP accademici — COMPLETE
+
+| Item | File | Modifica |
+|------|------|----------|
+| B-1: Version pin + checksum guard | `scripts/wrappers/scientific-papers-wrapper.sh` | Versione npm pinata a `0.1.40`; checksum SHA256 per originali e patched; verifica checksum pre/post patching con 3 file critici |
+| B-1: Manifest | `docs/patches/scientific-papers-mcp/MANIFEST.md` | Nuovo: documenta versione pin, checksum originali/patched, bug fix e procedura di update |
+| B-1: Originali npm reali | `docs/patches/scientific-papers-mcp/*.original.js` | Sostituiti con veri originali da `npm pack @futurelab-studio/latest-science-mcp@0.1.40` (prima erano duplicati dei patched) |
+| B-1: `@latest` → `@0.1.40` | `scripts/wrappers/scientific-papers-wrapper.sh` | Comando npx pinato a versione manifest invece di `@latest` |
+
+### Verifiche Context7
+
+- `/cyanheads/pubmed-mcp-server` — confermati 9 tool names: `pubmed_search_articles`, `pubmed_fetch_articles`, `pubmed_fetch_fulltext`, `pubmed_format_citations`, `pubmed_find_related`, `pubmed_spell_check`, `pubmed_lookup_mesh`, `pubmed_lookup_citation`, `pubmed_convert_ids`
+- `/benedict2310/scientific-papers-mcp` — confermati 5 tool names: `search_papers`, `fetch_content`, `fetch_latest`, `list_categories`, `fetch_top_cited`
+
+### Metriche Fase A gate (verifica a runtime)
+
+- `search-agent` ora espone tool per `pubmed-mcp/*` e `scientific-papers-mcp/*` (policy fully alignata)
+- `conductor` ora include `productivity-agent` come dispatch target esplicito
+- PubMed wrapper: `bunx` → fallback `npx` se bun assente
+- Scientific wrapper: fail-fast con diagnostica se patch seed invalido
+
+### Wiki updates
+
+- `index.md`: aggiornato status, raw sources, bootstrap log
+- `research-routing.md`: aggiornata sezione Allineamento Agent definitions
+- `log.md`: this entry
+
+---
+
+## 2026-04-29T20:25 — Piano ottimizzazione MCP accademici + coordinamento 3 agenti
+
+**Operation**: ANALYSIS + PLAN + WIKI_UPDATE  
+**Trigger**: Segnalazione utente: `scientific-papers-mcp` e `pubmed-mcp` non affidabili, regole productivity-agent non ben integrate, coordinamento debole tra search/workspace/productivity.  
+**Artifact**: `docs/plans/mcp_productivity_coordination_optimization_plan_2026-04-29.md`
+
+### Analisi svolta
+
+- Eseguito workflow wiki-first: letti `index.md`, `log.md`, `mcp-architecture.md`, `productivity-agent.md`, `research-routing.md`
+- Verificati raw sources chiave:
+  - `.aria/kilocode/mcp.json`
+  - `.aria/kilocode/agents/search-agent.md`
+  - `.aria/kilocode/agents/aria-conductor.md`
+  - `.aria/kilocode/agents/productivity-agent.md`
+  - `scripts/wrappers/pubmed-wrapper.sh`
+  - `scripts/wrappers/scientific-papers-wrapper.sh`
+  - `src/aria/agents/search/router.py`
+
+### Findings principali
+
+1. Drift esposizione: `search-agent` dichiara policy academic con pubmed/scientific ma non espone tool/dependencies coerenti.
+2. Gap orchestrazione: `aria-conductor` non include `productivity-agent` nella sezione sub-agenti disponibili.
+3. Fragilità runtime: wrapper scientific papers basato su patch di cache `npx` (non deterministico); wrapper PubMed dipendente da `bunx` senza fallback robusto esplicito.
+
+### Verifiche Context7
+
+- `/cyanheads/pubmed-mcp-server` — env vars operative, configurazione, startup/troubleshooting.
+- `/benedict2310/scientific-papers-mcp` — usage `search_papers`, vincoli query/source, pitfalls.
+- `/modelcontextprotocol/modelcontextprotocol` — `initialize`, capability negotiation, `tools.listChanged`.
+
+### Piano prodotto
+
+- Fase A (P0): allineamento exposure search-agent, integrazione conductor→productivity, quick hardening wrapper.
+- Fase B (P1): refactor affidabilità MCP accademici (capability probes + patching deterministico).
+- Fase C (P1): capability matrix e protocollo handoff cross-agent.
+- Fase D (P0/P1): test consistency, smoke E2E academic, rollback drill.
+
+---
+
+## 2026-04-29T19:58 — MCP Refoundation Plan v2: rollback-first hardening della roadmap
+
+**Operation**: ANALYSIS + PLAN_REVISION + WIKI_UPDATE
+**Trigger**: Richiesta utente di rivedere `docs/plans/gestione_mcp_refoundation_plan.md` prevedendo meccanismi di rollback sicuri e modulari, nel rispetto di `AGENTS.md` e del blueprint.
+**Artifact**: `docs/plans/gestione_mcp_refoundation_plan_v2.md`
+
+### Analisi svolta
+
+- Rieseguito workflow wiki-first: letti `index.md`, `log.md`, `mcp-architecture.md` prima delle raw sources
+- Riletti `AGENTS.md`, blueprint, piano v1, `mcp.json`, `search-agent.md`, `.workflow/state.md`
+- Confermato che il piano v1 copre governance/scaling ma non formalizza rollback invariants e cutover discipline
+
+### Verifiche Context7
+
+- `/modelcontextprotocol/modelcontextprotocol` — `initialize`, capability negotiation, `tools.listChanged`
+- `/lastmile-ai/mcp-agent` — scoped server sets, connection persistence, connection manager
+- `/metatool-ai/metamcp` — namespaces, middleware, selective proxying
+
+### Delta principale introdotto dal v2
+
+1. architettura corrente trattata come **last-known-good baseline**
+2. refoundation confinata inizialmente al **config plane**
+3. profili logici **baseline / candidate / shadow**
+4. **direct path preservation** per qualsiasi gateway o lazy layer
+5. **rollback matrix** e **rollback drill** come gate obbligatori
+6. nessuna migrazione distruttiva di `.aria/runtime` o `.aria/credentials`
+
+### Wiki updates
+
+- `mcp-architecture.md`: aggiornato con baseline/candidate/fallback path
+- `index.md`: raw source table e bootstrap log aggiornati con il piano v2
+- `log.md`: this entry
+
+---
+
 ## 2026-04-29T19:12 — MCP Refoundation Plan: audit architettura reale, drift e roadmap progressiva
 
 **Operation**: ANALYSIS + PLAN + WIKI_UPDATE
@@ -2419,4 +2626,3 @@ Integration: 18 (office_ingest_mcp=13, email_draft_e2e=5)
 - StyleProfile è transitorio in-memory, mai persistito in wiki
 - HITL flow: REPL locale → preview → conferma → gmail.draft_create
 - Pushato su GitHub: commit `aad0686`
-

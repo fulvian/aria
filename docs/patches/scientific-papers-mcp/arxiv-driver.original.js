@@ -287,41 +287,7 @@ export class ArxivDriver extends BaseDriver {
             .replace(/&#39;/g, "'");
     }
     /**
-     * Parse arXiv query into quoted phrases and individual terms.
-     * Handles queries like: "state space model" Mamba efficient transformer
-     */
-    _parseArxivQuery(q) {
-        const phrases = [];
-        const terms = [];
-        let i = 0;
-        while (i < q.length) {
-            if (q[i] === '"') {
-                const end = q.indexOf('"', i + 1);
-                if (end > i + 1) {
-                    const phrase = q.substring(i + 1, end).trim();
-                    if (phrase) phrases.push(phrase);
-                    i = end + 1;
-                } else {
-                    i++;
-                }
-            } else if (q[i] !== ' ') {
-                const end = q.indexOf(' ', i);
-                const term = (end > i ? q.substring(i, end) : q.substring(i)).trim();
-                if (term) terms.push(term);
-                i = end > i ? end + 1 : q.length;
-            } else {
-                i++;
-            }
-        }
-        return { phrases, terms };
-    }
-
-    /**
      * Search for papers with query and field-specific options
-     *
-     * FIXED v2: Properly handles multi-term queries with Boolean AND.
-     * Previously wrapped entire query in quotes causing phrase-only search.
-     * Now extracts quoted phrases + individual terms and joins with AND.
      */
     async searchPapers(query, field, count, sortBy) {
         if (!this.checkRateLimit()) {
@@ -336,41 +302,21 @@ export class ArxivDriver extends BaseDriver {
         try {
             logInfo("Searching arXiv papers", { query, field, count, sortBy });
             // Build search query based on field
-            // FIXED v2: Use Boolean AND for multi-term all: searches
-            // Old: all:"query" — exact phrase match, zero results for complex queries
             let searchQuery;
             switch (field) {
-                case "title": {
-                    const parsed = this._parseArxivQuery(query);
-                    const parts = [
-                        ...parsed.phrases.map((p) => `ti:"${p}"`),
-                        ...parsed.terms.map((t) => `ti:${t}`),
-                    ];
-                    searchQuery = parts.length > 0 ? parts.join(" AND ") : `ti:"${query}"`;
+                case "title":
+                    searchQuery = `ti:"${query}"`;
                     break;
-                }
-                case "abstract": {
-                    const parsed = this._parseArxivQuery(query);
-                    const parts = [
-                        ...parsed.phrases.map((p) => `abs:"${p}"`),
-                        ...parsed.terms.map((t) => `abs:${t}`),
-                    ];
-                    searchQuery = parts.length > 0 ? parts.join(" AND ") : `abs:"${query}"`;
+                case "abstract":
+                    searchQuery = `abs:"${query}"`;
                     break;
-                }
                 case "author":
                     searchQuery = `au:"${query}"`;
                     break;
                 case "all":
-                default: {
-                    const parsed = this._parseArxivQuery(query);
-                    const parts = [
-                        ...parsed.phrases.map((p) => `all:"${p}"`),
-                        ...parsed.terms.map((t) => `all:${t}`),
-                    ];
-                    searchQuery = parts.length > 0 ? parts.join(" AND ") : `all:"${query}"`;
+                default:
+                    searchQuery = `all:"${query}"`;
                     break;
-                }
             }
             // Map sortBy to arXiv API parameters
             let sortByParam = "relevance";

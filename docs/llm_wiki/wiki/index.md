@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-04-29T19:12 (v3.4 — MCP refoundation plan aggiunto)
-**Status**: ✅ **v3.5** — Productivity-Agent MVP completo (Sprint 1 + Sprint 2): 4 skill, 4 moduli Python, 100 test. Branch `feature/productivity-agent-mvp`.
+**Last Updated**: 2026-04-29T21:05 (v4.2 — P2 benchmark + gateway evaluation complete)
+**Status**: ✅ **v4.2** — Tutte le fasi del piano MCP productivity coordination sono complete (A+B+C+D+P2). Metriche startup/latency raccolte per 9/9 server MCP. Gateway search: NON giustificato. Branch `feature/productivity-agent-mvp`.
 
 ## Purpose
 
@@ -60,7 +60,14 @@ docs/llm_wiki/
 | `docs/plans/agents/productivity_agent_plan_draf_1.md` | **Draft 2** (revisione austera): `productivity-agent` MVP, gate no-bloat MCP, 13 open questions | 2026-04-29 |
 | `docs/analysis/ricerca_mcp_produttività.md` | **Report github-discovery**: 40+ MCP server per produttività AI (Word, Calendar, Task, Knowledge, M365, Email) — hidden gems classificate | 2026-04-29 |
 | `docs/analysis/analisi_sostenibilita_mcp_report.md` | **Report sostenibilità MCP**: 10 pattern di scaling, architettura ibrida 4 livelli, GitHub ecosystem, roadmap implementativa per sistemi con 50+ MCP server e decine di agenti | 2026-04-29 |
+| `docs/analysis/mcp_gateway_evaluation.md` | **Gateway evaluation**: metriche startup/latency reali (9 server), conclusione gateway NON giustificato, raccomandazione lazy loading per intent | 2026-04-29 |
+| `scripts/benchmarks/mcp_startup_latency.py` | **Benchmark tool**: misura cold/warm start + tools/list per MCP server. Output markdown/JSON. | 2026-04-29 |
 | `docs/plans/gestione_mcp_refoundation_plan.md` | **Piano di refoundation MCP**: inventory authority, eliminazione drift, catalogo canonico, ottimizzazione misurata e gateway selettivo | 2026-04-29 |
+| `docs/plans/gestione_mcp_refoundation_plan_v2.md` | **Piano di refoundation MCP v2**: rollback-first, baseline LKG, profili baseline/candidate/shadow, cutover gates e rollback matrix | 2026-04-29 |
+| `docs/plans/mcp_productivity_coordination_optimization_plan_2026-04-29.md` | **Piano ottimizzazione coordinamento agenti + MCP accademici**: fix esposizione pubmed/scientific, integrazione productivity-agent nel conductor, hardening wrapper, capability matrix cross-agent | 2026-04-29 |
+| `docs/foundation/agent-capability-matrix.md` | **Capability Matrix canonica**: tool per agente, MCP deps, handoff protocol, routing policy unificata | 2026-04-29 |
+| `tests/unit/agents/search/test_config_consistency.py` | **22 test**: verifica allineamento YAML search-agent ↔ router Python | 2026-04-29 |
+| `tests/unit/agents/test_conductor_dispatch.py` | **12 test**: conductor sub-agent registry, handoff protocol, YAML config | 2026-04-29 |
 | `docs/plans/agents/productivity_agent_foundation_plan.md` | **Piano implementazione approvato**: productivity-agent MVP, 13 Q&A utente, architecture 2-hop, markitdown-mcp | 2026-04-29 |
 | `docs/foundation/decisions/ADR-0008-productivity-agent-introduction.md` | **ADR-0008**: productivity-agent austere MVP, Context7 verified: /microsoft/markitdown Bench 90.05 | 2026-04-29 |
 | `.aria/kilocode/agents/productivity-agent.md` | **Agent definition**: 11 tool, 4 skill, boundary delega workspace-agent | 2026-04-29 |
@@ -99,7 +106,11 @@ docs/llm_wiki/
 | `src/aria/memory/wiki/kilo_reader.py` | Kilo.db read-only reader | 2026-04-27 |
 | `src/aria/memory/wiki/watchdog.py` | Gap detection + catch-up | 2026-04-27 |
 | `src/aria/gateway/conductor_bridge.py` | Gateway: post-session CLM hook, HITL | 2026-04-24 |
-| `.aria/kilocode/agents/search-agent.md` | Search agent prompt (tier ladder esplicito) | 2026-04-27 |
+| `.aria/kilocode/agents/search-agent.md` | **v4.0**: tool pubmed-mcp/* e scientific-papers-mcp/* aggiunti a allowed-tools e mcp-dependencies | 2026-04-29 |
+| `.aria/kilocode/agents/aria-conductor.md` | **v4.0**: productivity-agent aggiunto ai sub-agenti con regole dispatch | 2026-04-29 |
+| `scripts/wrappers/pubmed-wrapper.sh` | **v4.0**: fallback bunx→npx automatico | 2026-04-29 |
+| `scripts/wrappers/scientific-papers-wrapper.sh` | **v4.0**: checksum guard, version pin 0.1.40, hard fail diagnostico | 2026-04-29 |
+| `docs/patches/scientific-papers-mcp/MANIFEST.md` | **v4.0**: checksum manifest + update procedure | 2026-04-29 |
 | `.aria/kilocode/skills/deep-research/SKILL.md` | Deep research skill (tier ladder) | 2026-04-27 |
 | `.sops.yaml` | SOPS config (age key, encrypted_regex) | 2026-04-20 |
 
@@ -109,11 +120,12 @@ docs/llm_wiki/
 |------|-------------|--------|
 | [[memory-subsystem]] | Memory subsystem: 5D model, 11 MCP tools, HITL flow, CLM, retention | Active |
 | [[memory-v3]] | Memory v3 Kilo+Wiki Fusion: wiki.db, 4 wiki MCP tools, profile auto-inject | Active |
-| [[research-routing]] | **Ricerca multi-tier**: 7 provider attivi (searxng, reddit, tavily, exa, brave, pubmed, scientific_papers) + Scientific Papers query fix v3.1 | Active ✅ v3.1 |
+| [[research-routing]] | **Ricerca multi-tier**: 9 tool pubmed-mcp + 5 tool scientific-papers-mcp esposti in search-agent; policy fully alignata v4.0 | Active ✅ v4.0 |
 | [[google-workspace-mcp-write-reliability]] | GWS MCP: **write scopes concessi**, single-user, Gmail/Calendar, 10 scopes | Active ✅ Write-enabled |
 | [[mcp-api-key-operations]] | **Runbook**: 5 provider, 17 keys, multi-account rotation, circuit breaker | Active ✅ Restored |
 | [[aria-launcher-cli-compatibility]] | bin/aria launcher: CLI invocation, hard isolation, MCP migration | Active (Fixed v2) |
-| [[mcp-architecture]] | Inventario MCP reale, drift strutturali e direzione di refoundation | Active ✅ v1 |
+| [[mcp-architecture]] | Inventario MCP reale, drift strutturali e direzione di refoundation con baseline/candidate/fallback path | Active ✅ v2 |
+| [[agent-capability-matrix]] | Capability matrix, handoff protocol e routing policy unificata per i 3 agenti | Active ✅ v1.0 |
 | [[log]] | Implementation log with timestamps | Active |
 
 ## Implementation Branch
@@ -140,6 +152,11 @@ docs/llm_wiki/
 - 2026-04-27: Comprehensive update after ripristino ricerca + Google Workspace
 - 2026-04-29: v3.1 — Scientific Papers MCP query formulation fix (3 npm bugs: arXiv quote-wrapping, EuropePMC sort + hasFullText, centralized preprocessor)
 - 2026-04-29: v3.4 — MCP refoundation plan + mcp-architecture wiki page added after current-state audit and external verification
+- 2026-04-29: v3.6 — MCP refoundation plan v2 adds rollback-first discipline, LKG baseline, and cutover/fallback model
+- 2026-04-29: piano dedicato su failure `pubmed/scientific` + coordinamento search/workspace/productivity con remediation roadmap e gate operativi
+- 2026-04-29: **v4.0** — Implementazione Fase A+B del piano: search-agent exposure fix, conductor+productivity-agent, wrapper hardening con checksum/version pin, MANIFEST.md
+- 2026-04-29: **v4.1** — Fase C+D: capability matrix canonica, handoff protocol, routing policy, 34 nuovi test di coerenza configurativa e dispatch
+- 2026-04-29: **v4.2** — Fase P2: benchmark startup/latency per 9 MCP server (6.5s cold, 6.1s warm, 49 tools totali). Gateway search: NON giustificato. Alternativa: lazy loading per intent.
 
 ## Git & GitHub Rules
 

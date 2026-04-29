@@ -1,41 +1,52 @@
-# Ripristino Agenti Ricerca + Google Workspace — Progress
+# MCP Productivity Coordination + Academic MCP Hardening — Progress
 
-## 2026-04-27T14:10 — Ripristino completato
+## 2026-04-29T20:17+02:00 — Session start
+- Richiesta utente: implementare `docs/plans/mcp_productivity_coordination_optimization_plan_2026-04-29.md`
+- Vincoli: AGENTS.md, wiki-first, Context7-first
 
-**Plan**: `docs/plans/rispristino_agenti_ricerca_google.md`
-**Branch**: `fix/memory-recovery`
+## 2026-04-29T20:18+02:00 — Context recovery complete
+- Current branch: `feature/productivity-agent-mvp` (14 uncommitted changes)
+- Eseguito session catchup: planning files existono da task precedente
+- Letti wiki index.md, log.md, research-routing.md, mcp-architecture.md, productivity-agent.md
 
-## Phase Status
+## 2026-04-29T20:20+02:00 — Source audit complete
+- Letti: search-agent.md, aria-conductor.md, productivity-agent.md, workspace-agent.md
+- Letti: pubmed-wrapper.sh, scientific-papers-wrapper.sh, mcp.json, router.py
+- Identificati tutti i gap: exposure, conductor, wrapper hardening
 
-| Phase | Status | Key Deliverables |
-|-------|--------|-----------------|
-| Phase 0: Diagnostic Lockdown | ✅ COMPLETE | Backup files, baseline log, RC confirmed |
-| Phase 1: Credential Store | ✅ COMPLETE | SOPS YAML, 8+6+1+1 keys, acquire() OK |
-| Phase 2: Env Configuration | ✅ COMPLETE | .env vars, .env.example, wiki profile google_email |
-| Phase 3: Brave MCP Wrapper | ✅ COMPLETE | wrapper.sh, mcp.json patch |
-| Phase 4: Google Workspace MCP | ⚠️ PARTIAL | wrapper+mcp.json OK, OAuth re-auth PENDING (HITL) |
-| Phase 5: SearXNG | ✅ COMPLETE | Docker già attivo (8888), URL fix |
-| Phase 6: Quality Gates | ✅ COMPLETE | ruff ✅, mypy ✅, pytest 36+52 ✅ |
+## 2026-04-29T20:23+02:00 — Context7 verification complete
+- `/cyanheads/pubmed-mcp-server` — 9 tool names confermati (prefix `pubmed_`)
+- `/benedict2310/scientific-papers-mcp` — 5 tool names confermati (no prefix)
 
-## Credential Store — Multi-Account Rotation
+## 2026-04-29T20:25+02:00 — Phase A implementation complete
+- A-1: search-agent.md — allowed-tools + mcp-dependencies aggiunti
+- A-2: aria-conductor.md — productivity-agent + dispatch rules
+- A-3: pubmed-wrapper.sh — bunx→npx fallback
+- A-4: scientific-papers-wrapper.sh — hard fail su patch seed invalido
 
-| Provider | Keys | Strategy |
-|----------|------|----------|
-| Tavily | 8 (multi-account) | least_used |
-| Firecrawl | 6 (multi-account) | least_used |
-| Exa | 1 | least_used |
-| Brave | 1 | least_used |
+## 2026-04-29T20:30+02:00 — Phase B implementation complete
+- B-1: scientific-papers-wrapper — version pin 0.1.40, checksum guard, verifica pre/post patch
+- B-1: MANIFEST.md creato con checksum originali/patched
+- B-1: .original.js sostituiti con veri originali npm (prima erano duplicati)
+- B-1: npx pinato a @0.1.40 invece di @latest
 
-## Pending
-- **OAuth re-auth** (Phase 4.3): richiede browser flow per write scopes
-- **Test MCP REPL live**: verificare che `/mcps` mostra tutti i server enabled
+## 2026-04-29T20:35+02:00 — Wiki maintenance
+- docs/llm_wiki/wiki/log.md: aggiornato
+- docs/llm_wiki/wiki/index.md: v4.0 status, raw sources, bootstrap log
+- docs/llm_wiki/wiki/research-routing.md: agent alignment table updated
+- task_plan.md, findings.md, progress.md: aggiornati
 
-## Quality Gates
-| Check | Status |
-|-------|--------|
-| ruff check src/aria/credentials/ | ✅ PASS |
-| mypy src/aria/credentials/ | ✅ SUCCESS |
-| pytest tests/unit/credentials/ | ✅ 36 PASSED |
-| pytest tests/unit/agents/search/ | ✅ 52 PASSED |
-| SearXNG HTTP test | ✅ 200 OK |
-| Credential acquire (4/4) | ✅ ALL OK |
+## Errors / Adaptations
+| Time | Issue | Resolution |
+|------|-------|------------|
+| 20:28 | `.original.js` files in docs/patches erano duplicati dei patched | Scaricati veri originali da npm pack @0.1.40 |
+| 20:29 | npm pack fallisce in /tmp con path lunghi | Usato /tmp/npmextract dedicato |
+
+## Final Outputs
+- `.aria/kilocode/agents/search-agent.md` — fully aligned exposure
+- `.aria/kilocode/agents/aria-conductor.md` — productivity-agent dispatchable
+- `scripts/wrappers/pubmed-wrapper.sh` — bunx→npx fallback
+- `scripts/wrappers/scientific-papers-wrapper.sh` — version pin + checksum guard
+- `docs/patches/scientific-papers-mcp/MANIFEST.md` — version manifest
+- `docs/patches/scientific-papers-mcp/*.original.js` — true npm originals
+- Wiki pages aggiornate

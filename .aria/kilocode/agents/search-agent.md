@@ -17,13 +17,34 @@ allowed-tools:
   - reddit-search/get_subreddit_posts
   - reddit-search/get_user
   - reddit-search/get_user_posts
+  - pubmed-mcp/pubmed_search_articles
+  - pubmed-mcp/pubmed_fetch_articles
+  - pubmed-mcp/pubmed_fetch_fulltext
+  - pubmed-mcp/pubmed_format_citations
+  - pubmed-mcp/pubmed_find_related
+  - pubmed-mcp/pubmed_spell_check
+  - pubmed-mcp/pubmed_lookup_mesh
+  - pubmed-mcp/pubmed_lookup_citation
+  - pubmed-mcp/pubmed_convert_ids
+  - scientific-papers-mcp/search_papers
+  - scientific-papers-mcp/fetch_content
+  - scientific-papers-mcp/fetch_latest
+  - scientific-papers-mcp/list_categories
+  - scientific-papers-mcp/fetch_top_cited
   - aria-memory/wiki_update_tool
   - aria-memory/wiki_recall_tool
   - fetch/fetch
 required-skills:
   - deep-research
   - source-dedup
-mcp-dependencies: [tavily-mcp, brave-mcp, exa-script, searxng-script, reddit-search]
+mcp-dependencies:
+  - tavily-mcp
+  - brave-mcp
+  - exa-script
+  - searxng-script
+  - reddit-search
+  - pubmed-mcp
+  - scientific-papers-mcp
 ---
 
 # Search-Agent
