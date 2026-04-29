@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-04-29T18:15 (v3.1 — Scientific Papers query fixes applied)
-**Status**: ✅ **v3.1** — Scientific Papers MCP query formulation fixed (3 npm driver bugs patched). arXiv, EuropePMC e OpenAlex ora restituiscono risultati pertinenti. Auto-patching wrapper in `scripts/wrappers/scientific-papers-wrapper.sh`. `docs/patches/scientific-papers-mcp/`.
+**Last Updated**: 2026-04-29T18:50 (v3.3 — Productivity-Agent MVP Sprint 1)
+**Status**: ✅ **v3.3** — Productivity-Agent implementato (ADR-0008): markitdown-mcp, 3 skill (office-ingest@2.0.0, consultancy-brief@1.0.0, meeting-prep@1.0.0), Python helper modules, blueprint update.
 
 ## Purpose
 
@@ -22,6 +22,7 @@ docs/llm_wiki/
 │   ├── google-workspace-mcp-write-reliability.md
 │   ├── mcp-api-key-operations.md
 │   ├── aria-launcher-cli-compatibility.md
+│   ├── productivity-agent.md
 │   └── <future pages>
 └── SKILL.md              # Reserved for future skill system
 ```
@@ -57,6 +58,21 @@ docs/llm_wiki/
 | `docs/analysis/report_gemme_reddit_mcp.md` | **Report github-discovery**: Reddit MCP keyless alternatives (eliasbiondo, adhikasp, cmpxchg16) | 2026-04-29 |
 | `docs/plans/agents/productivity_agent_plan_draf_1.md` | **Draft 2** (revisione austera): `productivity-agent` MVP, gate no-bloat MCP, 13 open questions | 2026-04-29 |
 | `docs/analysis/ricerca_mcp_produttività.md` | **Report github-discovery**: 40+ MCP server per produttività AI (Word, Calendar, Task, Knowledge, M365, Email) — hidden gems classificate | 2026-04-29 |
+| `docs/analysis/analisi_sostenibilita_mcp_report.md` | **Report sostenibilità MCP**: 10 pattern di scaling, architettura ibrida 4 livelli, GitHub ecosystem, roadmap implementativa per sistemi con 50+ MCP server e decine di agenti | 2026-04-29 |
+| `docs/plans/agents/productivity_agent_foundation_plan.md` | **Piano implementazione approvato**: productivity-agent MVP, 13 Q&A utente, architecture 2-hop, markitdown-mcp | 2026-04-29 |
+| `docs/foundation/decisions/ADR-0008-productivity-agent-introduction.md` | **ADR-0008**: productivity-agent austere MVP, Context7 verified: /microsoft/markitdown Bench 90.05 | 2026-04-29 |
+| `.aria/kilocode/agents/productivity-agent.md` | **Agent definition**: 11 tool, 4 skill, boundary delega workspace-agent | 2026-04-29 |
+| `.aria/kilocode/skills/office-ingest/SKILL.md` | **Skill office-ingest@2.0.0**: office file → markdown via markitdown-mcp, deprecates pdf-extract | 2026-04-29 |
+| `.aria/kilocode/skills/consultancy-brief/SKILL.md` | **Skill consultancy-brief@1.0.0**: multi-doc executive summary | 2026-04-29 |
+| `.aria/kilocode/skills/meeting-prep/SKILL.md` | **Skill meeting-prep@1.0.0**: calendar event-driven meeting briefings | 2026-04-29 |
+| `src/aria/agents/productivity/ingest.py` | **Ingest module**: detect_format, hash_file, parse_markitdown_output, IngestResult | 2026-04-29 |
+| `src/aria/agents/productivity/synthesizer.py` | **Synthesizer module**: compose_brief, BriefOutline, render_markdown | 2026-04-29 |
+| `src/aria/agents/productivity/meeting_prep.py` | **Meeting Prep module**: MeetingBrief, build_meeting_brief, workspace delegate mock | 2026-04-29 |
+| `tests/unit/agents/productivity/test_ingest.py` | **25 unit tests**: format detection, hashing, yaml parsing, IngestResult | 2026-04-29 |
+| `tests/unit/agents/productivity/test_synthesizer.py` | **10 unit tests**: brief composition, wiki context, rendering | 2026-04-29 |
+| `tests/unit/agents/productivity/test_meeting_prep.py` | **14 unit tests**: event parsing, participant truncation, build/render flow | 2026-04-29 |
+| `tests/integration/productivity/test_office_ingest_mcp.py` | **13 integration tests**: E2E with real markitdown-mcp subprocess | 2026-04-29 |
+| `tests/fixtures/office_files/` | **5 fixture files**: PDF, DOCX, XLSX, PPTX, TXT | 2026-04-29 |
 
 | `scripts/wrappers/exa-wrapper.sh` | Exa MCP wrapper | 2026-04-27 |
 | `scripts/wrappers/searxng-wrapper.sh` | SearXNG MCP wrapper (auto-detect Docker 8888) | 2026-04-27 |

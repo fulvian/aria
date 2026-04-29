@@ -2298,3 +2298,46 @@ Q13 (tracked-changes contratti).
 4. Blueprint update (§8.3.3, §8.5, §9.5, §15)
 5. Wiki maintenance
 
+## 2026-04-29T19:00 — Productivity-Agent MVP Sprint 1 Complete
+
+**Operation**: IMPLEMENTATION — Sprint 1 of productivity-agent foundation plan
+**Branch**: `feature/productivity-agent-mvp`
+**Status**: Sprint 1 completato. 49 unit tests + 13 integration tests pass.
+
+### Deliverables creati
+
+| Categoria | File | Stato |
+|-----------|------|-------|
+| ADR | `docs/foundation/decisions/ADR-0008-productivity-agent-introduction.md` | Proposed |
+| MCP config | `.aria/kilocode/mcp.json` (entry `markitdown-mcp`) | ✅ |
+| Agent definition | `.aria/kilocode/agents/productivity-agent.md` | ✅ |
+| Skill: office-ingest@2.0.0 | `.aria/kilocode/skills/office-ingest/SKILL.md` | ✅ |
+| Skill: consultancy-brief@1.0.0 | `.aria/kilocode/skills/consultancy-brief/SKILL.md` | ✅ |
+| Skill: meeting-prep@1.0.0 | `.aria/kilocode/skills/meeting-prep/SKILL.md` | ✅ |
+| Python: ingest.py | `src/aria/agents/productivity/ingest.py` | ✅ |
+| Python: synthesizer.py | `src/aria/agents/productivity/synthesizer.py` | ✅ |
+| Python: meeting_prep.py | `src/aria/agents/productivity/meeting_prep.py` | ✅ |
+| Tests: unit (49 tests) | `tests/unit/agents/productivity/` | ✅ |
+| Tests: integration (13 tests) | `tests/integration/productivity/` | ✅ |
+| Fixtures (5 file types) | `tests/fixtures/office_files/` | ✅ |
+| Registry update | `.aria/kilocode/skills/_registry.json` | ✅ |
+| Conductor update | `.aria/kilocode/agents/aria-conductor.md` | ✅ |
+| Blueprint update | `docs/foundation/aria_foundation_blueprint.md` §8.3.3, §8.5, §9.5, §15 | ✅ |
+| Wiki page | `docs/llm_wiki/wiki/productivity-agent.md` | ✅ |
+| Wiki index | `docs/llm_wiki/wiki/index.md` | ✅ |
+
+### Test Results
+```
+Unit: 49 passed (ingest=25, synthesizer=10, meeting_prep=14)
+Integration: 13 passed (format detection=5, hash=5, fallback=1, MCP E2E=2)
+```
+
+### Quality Gate
+- `ruff check .` — pending (Step 8)
+- `mypy src/` — pending (Step 8)
+- `pytest` — 49 unit + 13 integration = 62 total passed
+
+### Prossimo Sprint
+Sprint 2 (Fase 1b): email-draft skill con dynamic style (Q7).
+Branch separato o continuation: `feature/productivity-agent-email-draft` (da decidere).
+
