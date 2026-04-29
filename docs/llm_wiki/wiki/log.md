@@ -1,5 +1,121 @@
 # Implementation Log
 
+## 2026-04-29T17:25 — v3 Finale: Dual Tier 1 policy implementata in tutto l'ecosistema
+
+**Operation**: IMPLEMENT v3 FINALE — Dual Tier 1 (searxng + reddit-search)
+**Trigger**: Richiesta utente di rendere searxng + reddit-search sempre tier 1 per tutti gli intent
+
+### Nuova Policy — Dual Tier 1
+
+**REGOLA FISSA**: searxng (tier 1a) + reddit-search (tier 1b) sono SEMPRE i primi due provider
+da tentare per TUTTI gli intent eccetto deep_scrape. Entrambi sono gratuiti e illimitati.
+Non passare mai a provider a pagamento senza prima aver tentato entrambi.
+
+| Intent | 1a | 1b | 2 | 3 | 4 | 5 | 6 | 7 |
+|--------|----|----|---|---|---|---|---|---|
+| general/news | searxng | reddit | tavily | exa | brave | fetch | — | — |
+| social | reddit | searxng | tavily | brave | — | — | — | — |
+| academic | searxng | reddit | pubmed | scientific_papers | tavily | exa | brave | fetch |
+| deep_scrape | fetch | webfetch | — | — | — | — | — | — |
+
+### Files Updated (completo)
+
+| Categoria | File | Modifica |
+|-----------|------|----------|
+| **Router** | `src/aria/agents/search/router.py` | INTENT_TIERS con dual tier 1; Provider commenti aggiornati; KEYLESS_PROVIDERS include reddit |
+| **Agente ricerca** | `.aria/kilocode/agents/search-agent.md` | Tier ladder dual tier 1 con legenda; sezione buone pratiche Reddit; regola fissa in testa |
+| **Skill deep-research** | `.aria/kilocode/skills/deep-research/SKILL.md` | v2.1.0: Dual tier 1 in procedura, tier ladder, invarianti SOTA |
+| **Blueprint** | `docs/foundation/aria_foundation_blueprint.md` §11 | INTENT_ROUTING aggiornato con reddit; dual tier 1 rationale; fallback tree v3 |
+| **Wiki research-routing** | `docs/llm_wiki/wiki/research-routing.md` | Matrice v3 con dual tier 1; REGOLA FISSA in testa; tier definitions con note |
+| **Test provider reddit** | `tests/unit/agents/search/test_provider_reddit.py` | test_not_in_general_news → test_is_tier_1b_in_general_news + test_is_tier_1b_in_academic |
+| **Test provider pubmed** | `tests/unit/agents/search/test_provider_pubmed.py` | tier 2 → tier 3 after reddit |
+| **Test provider scientific_papers** | `tests/unit/agents/search/test_provider_scientific_papers.py` | tier 3 → tier 4 after reddit |
+| **Test academic tiers** | `tests/unit/agents/search/test_router_academic_tiers.py` | 7→8 providers; reddit incluso; nuovi test fallback searxng→reddit e reddit→pubmed |
+| **Test integration** | `tests/unit/agents/search/test_router_integration.py` | 5 test aggiornati per dual tier 1; 2 nuovi test per fallback tra tier1a→1b e 1b→2 |
+
+### Quality Gates
+
+```
+pytest tests/unit/agents/search/ -q  → 115/115 PASS  (era 110/110, +5 nuovi test)
+ruff check src/aria/agents/search/   → All checks passed
+mypy src/aria/agents/search/         → Success: no issues found
+```
+
+---
+
+## 2026-04-29T10:41 — v3 Implementata: Reddit keyless live, OAuth wrapper rimosso
+
+**Operation**: IMPLEMENT v3
+**Branch**: `main`
+**Trigger**: Completamento report github-discovery + approvazione utente
+**Report**: `docs/analysis/report_gemme_reddit_mcp.md`
+
+### Changes
+
+| File | Azione | Dettaglio |
+|------|--------|-----------|
+| `.aria/kilocode/mcp.json` | MOD | `reddit-mcp` (OAuth disabled) → `reddit-search` (keyless enabled): `"command": "uvx", "args": ["reddit-no-auth-mcp-server"]` |
+| `scripts/wrappers/reddit-wrapper.sh` | DEL | Rimosso definitivamente. Sostituito da header comment che spiega la sostituzione |
+| `src/aria/agents/search/router.py` | MOD | `"reddit"` aggiunto a `KEYLESS_PROVIDERS`; commenti aggiornati (OAuth→keyless) |
+| `tests/unit/agents/search/test_provider_reddit.py` | MOD | `test_reddit_is_key_based` → `test_reddit_is_keyless` + `test_reddit_bypasses_rotator` |
+| `.aria/kilocode/agents/search-agent.md` | MOD | 6 tool reddit-search aggiunti a `allowed-tools`, `mcp-dependencies` aggiornato, tier ladder social e buone pratiche Reddit |
+| `.aria/kilocode/skills/deep-research/SKILL.md` | MOD | v2.0.0: tier ladder social integrato, procedure con Reddit, invarianti SOTA 2026 |
+
+### Quality Gates
+
+```
+pytest tests/unit/agents/search/ -q  → 110 passed (era 109, +1 test)
+ruff check src/aria/agents/search/   → All checks passed
+mypy src/aria/agents/search/         → Success: no issues found
+ruff format --check                   → 2 files already formatted
+```
+
+### Comportamento Nuovo
+
+- **SOCIAL** intent: REDDIT e sempre tier 1 keyless (prima era OAuth-gated → DOWN)
+- Router bypassa Rotator per reddit (keyless)
+- `reddit-search` espone 6 tool MCP: search, search_subreddit, get_post, get_subreddit_posts, get_user, get_user_posts
+- Aggiornate anche le skill e agent prompt per best practice SOTA April 2026
+
+---
+
+## 2026-04-29T10:30 — github-discovery: keyless Reddit MCP alternatives trovate
+
+**Operation**: RESEARCH + WIKI_UPDATE
+**Artifact**: `docs/analysis/report_gemme_reddit_mcp.md`
+
+### Ricerca eseguita
+
+- **github-discovery**: 6 pool, 300 candidati totali, 12+ screenati (Gate 1 + Gate 2 + deep assessment)
+- **Context7**: `/jordanburke/reddit-mcp-server` (OAuth confermato), `/adhikasp/mcp-reddit` (keyless verificato)
+- **Brave Search**: ricerca complementare su MCP server Reddit senza API key
+
+### Risultati principali
+
+Identificate **3 gemme keyless** per Reddit MCP senza autenticazione:
+
+| Gemma | Stars | Tools | Metodo |
+|-------|-------|-------|--------|
+| `eliasbiondo/reddit-mcp-server` | 134 | 6 (search, search_subreddit, get_post, get_subreddit_posts, get_user, get_user_posts) | HTML scraping old.reddit.com |
+| `adhikasp/mcp-reddit` | 398 | 2 (fetch_hot_threads, get_post_details) | Scraping old.reddit.com |
+| `cmpxchg16/mcp-ethical-hacking/reddit-mcp` | 19 | 1 (reddit_extract) | API + HTML ibrido |
+
+### Raccomandazione
+
+`eliasbiondo/reddit-mcp-server` (PyPI: `reddit-no-auth-mcp-server`) e' il candidato primario:
+- `uvx reddit-no-auth-mcp-server` — zero configurazione
+- 6 tool MCP, compatibile con `Provider.REDDIT` e `KEYLESS_PROVIDERS` esistenti
+- Sostituisce il bloccato `jordanburke/reddit-mcp-server` (OAuth)
+- Vedi report completo in `docs/analysis/report_gemme_reddit_mcp.md`
+
+### Wiki updates
+
+- `index.md`: timestamp, status, raw sources table updated, Reddit OAuth gate note rimosso
+- `research-routing.md`: tier matrix aggiornato (Reddit keyless), provider table nuova riga Reddit Keyless, sezione "Reddit OAuth Setup" sostituita con "Reddit — Alternative Keyless"
+- `log.md`: this entry
+
+---
+
 ## 2026-04-27T22:15 — ADR-0006 approvato, wiki aggiornato, push su GitHub
 
 **Operation**: WIKI_UPDATE + COMMIT + PUSH

@@ -1347,7 +1347,8 @@ owner: fulvio
 | Provider       | Tier gratuito          | Forte su                    | Costo incremento       |
 |----------------|-----------------------|----------------------------|------------------------|
 | **Tavily**     | 1.000 req/mese         | LLM-ready synthesis, news  | $0.008/req base        |
-| **Firecrawl**  | 500 credits lifetime   | deep scraping, extract AI  | ~$0.005–0.015/page     |
+| **Reddit**     | illimitato (keyless)    | social, discussioni        | zero                   |
+| **Firecrawl**  | 500 credits lifetime   | deep scraping, extract AI  | ~~$0.005–0.015/page~~ REMOVED |
 | **Brave**      | $5/mese free credits   | privacy, volume (50 req/s) | $0.005/web, $0.004/ans |
 | **Exa**        | 1.000 req/mese         | semantic search academic   | $0.007/req             |
 | **SearXNG**    | self-hosted, illimitato| meta, privacy totale       | zero (solo infra)      |
@@ -1359,20 +1360,31 @@ DuckDuckGo esplicitamente escluso (no API ufficiale, scraping fragile).
 
 Il router Python (`src/aria/agents/search/router.py`) classifica l'intent della query e seleziona provider in ordine deterministico basato su "real API key availability to rotate".
 
+**REGOLA FISSA (v3)**: searxng + reddit-search sono SEMPRE tier 1 per tutti gli intent eccetto deep_scrape. Entrambi sono **gratuiti e illimitati**. Non passare mai a provider a pagamento senza prima aver tentato entrambi.
+
 **Policy Matrix (Single Source of Truth)**:
 ```python
 INTENT_ROUTING = {
-    "general/news":  ["searxng", "tavily", "firecrawl", "exa", "brave"],
-    "academic":      ["searxng", "tavily", "firecrawl", "exa", "brave"],
-    "deep_scrape":   ["firecrawl_extract", "firecrawl_scrape", "fetch"],
+    "general/news":  ["searxng", "reddit", "tavily", "exa", "brave", "fetch"],
+    "academic":      ["searxng", "reddit", "pubmed", "scientific_papers", "tavily", "exa", "brave", "fetch"],
+    "social":        ["reddit", "searxng", "tavily", "brave"],
+    "deep_scrape":   ["fetch", "webfetch"],
 }
 ```
 
 **Rationale**:
-- SearXNG è sempre tier 1 (self-hosted, illimitato, nessuna API key richiesta)
-- Provider commerciali in ordine: tavily → firecrawl → exa → brave
-- Tutti gli intent condividono lo stesso ordine di fallback commerciale
-- Deep scrape ha flow specializzato con firecrawl come prima scelta
+- **searxng** (self-hosted, illimitato) + **reddit** (keyless scraper, illimitato) = dual tier 1 gratuito
+- Provider commerciali in ordine: tavily → exa → brave
+- Intent `social` inverte l'ordine: Reddit prima di SearXNG (priorità social)
+- Academic aggiunge provider specializzati: pubmed → scientific_papers
+- Deep scrape ha flow specializzato read-only: fetch → webfetch
+- Firecrawl REMOVED 2026-04-27: tutti i 6 account lifetime esauriti
+
+**Provider tier 1 — entrambi gratuiti e illimitati**:
+| Provider | Tipo | Key | Limiti | Note |
+|----------|------|-----|--------|------|
+| searxng | Self-hosted meta-search | Nessuna | Illimitato | Privacy-first, Docker su 8888 |
+| reddit | Keyless scraper | Nessuna | Illimitato | 6 MCP tool, scraping old.reddit.com |
 
 Il classifier è una mini-skill `intent-classifier` basata su keyword + (opzionale) zero-shot LLM call su Haiku 4.5.
 
@@ -1432,10 +1444,11 @@ Circuit breaker: dopo 3 failure consecutivi in 5min → `circuit_state=open` per
 Runbook deterministico quando quote/crediti sono esauriti:
 
 1. Health-check provider all'avvio e ogni 5 minuti (`available`, `degraded`, `down`, `credits_exhausted`).
-2. Fallback tree per intent (follows INTENT_ROUTING order):
-   - `general/news`: SearXNG → Tavily → Firecrawl → Exa → Brave → degraded (cache stale + banner)
-   - `academic`: SearXNG → Tavily → Firecrawl → Exa → Brave → degraded
-   - `deep_scrape`: Firecrawl Extract → Firecrawl Scrape → fetch locale → degraded (solo metadata)
+ 2. Fallback tree per intent (follows INTENT_ROUTING order, v3):
+    - `general/news`: searxng(1a) → reddit(1b) → tavily(2) → exa(3) → brave(4) → fetch(5) → degraded
+    - `social`:     reddit(1a) → searxng(1b) → tavily(2) → brave(3) → degraded
+    - `academic`:   searxng(1a) → reddit(1b) → pubmed(2) → scientific_papers(3) → tavily(4) → exa(5) → brave(6) → fetch(7) → degraded
+    - `deep_scrape`: fetch(1) → webfetch(2) → degraded (solo metadata)
 3. Se tutti i provider esterni sono indisponibili: modalità `local-only` (cache + SearXNG self-hosted se presente), risposta esplicita all'utente con qualità ridotta.
 4. Notifica `system_event` + report giornaliero con tasso degradazione.
 

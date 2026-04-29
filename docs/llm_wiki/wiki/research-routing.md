@@ -1,42 +1,56 @@
 # Research Routing — Tier Policy
 
-**Last Updated**: 2026-04-27T17:30 (v2 Implementata — PubMed + Scientific Papers + SOCIAL intent live)
-**Status**: ✅ 6 provider attivi (searxng, tavily, exa, brave, pubmed, scientific_papers) + reddit (OAuth gated). v2 Implementata.
+**Last Updated**: 2026-04-29T10:41 (v3 Implementata — Reddit keyless live, OAuth wrapper rimosso)
+**Status**: ✅ **7 provider attivi** (searxng, tavily, exa, brave, pubmed, scientific_papers, **reddit-keyless**) + Reddit da OAuth-gated a **keyless attivo**. Vedi § v3 Implementation.
 
 ## Purpose
 
 This page documents the canonical provider routing policy for research operations. All references (blueprint, skill, agent, code) must align with this policy.
 
-## Provider Tier Matrix v2
+## REGOLA FISSA — Dual Tier 1 (v3)
 
-| Intent | Tier 1 | Tier 2 | Tier 3 | Tier 4 | Tier 5 | Tier 6 | Tier 7 |
-|--------|--------|--------|--------|--------|--------|--------|--------|
-| `general/news` | **searxng** | **tavily** | **exa** | **brave** | **fetch** | — | — |
-| `academic` | **searxng** | **pubmed** | **scientific_papers** | **tavily** | **exa** | **brave** | **fetch** |
-| `deep_scrape` | **fetch** | **webfetch** | — | — | — | — | — |
-| `social` | **reddit** (OAuth) | **searxng** | **tavily** | **brave** | — | — | — |
+**searxng** + **reddit-search** sono SEMPRE tier 1 per TUTTI gli intent eccetto deep_scrape.
+Entrambi sono gratuiti e illimitati — **non passare mai a provider a pagamento senza prima aver tentato entrambi.**
+
+| Provider | Tipo | Costo | Limiti | Note |
+|----------|------|-------|--------|------|
+| searxng | Self-hosted meta-search | Zero | Illimitato | Privacy-first, Docker su 8888 |
+| reddit | Keyless scraper (eliasbiondo) | Zero | Illimitato | 6 MCP tool: search, search_subreddit, get_post, get_subreddit_posts, get_user, get_user_posts |
+
+## Provider Tier Matrix v3
+
+| Intent | 1a 🆓 | 1b 🆓 | 2 | 3 | 4 | 5 | 6 | 7 |
+|--------|-------|-------|---|---|---|---|---|---|
+| `general/news` | **searxng** | **reddit** | **tavily** | **exa** | **brave** | **fetch** | — | — |
+| `academic` | **searxng** | **reddit** | **pubmed** | **scientific_papers** | **tavily** | **exa** | **brave** | **fetch** |
+| `social` | **reddit** | **searxng** | **tavily** | **brave** | — | — | — | — |
+| `deep_scrape` | **fetch** | **webfetch** | — | — | — | — | — | — |
 
 ### Tier Definitions
 
-| Provider | Type | Key Required | Cost | Notes |
-|----------|------|--------------|------|-------|
-| `searxng` | Self-hosted meta-search | No | Zero (infra only) | Tier 1; privacy-first; Docker su 8888 |
-| `tavily` | Commercial LLM-ready API | Yes | 1000 req/mo free, poi $0.008/req | 8 chiavi multi-account rotazione `least_used` |
-| `firecrawl` | ~~Commercial scraping API~~ | ~~Yes~~ | **REMOVED** (all 6 accounts exhausted) | ~~6 chiavi~~ — vedi Removed Providers |
-| `exa` | Commercial semantic search | Yes | 1000 req/mo free, poi $0.007/req | 1 chiave |
-| `brave` | Commercial search API | Yes | $5/mo free credits | 1 chiave; env var = `BRAVE_API_KEY` (no `_ACTIVE`) |
-| `pubmed` | Accademico biomedico (NCBI E-utilities) | Opt (10 req/s con chiave) | Free | 9 MCP tool; `NCBI_API_KEY` opzionale via SOPS+CredentialManager |
-| `scientific_papers` | Accademico multi-source (arXiv, Europe PMC, OpenAlex, etc.) | No | Gratuito (rate limit: 10 req/min Europe PMC) | 6 sorgenti; keyless; npm: `@futurelab-studio/latest-science-mcp` |
-| `reddit` | Social/Discussioni (OAuth) | Sì (OAuth) | Gratuito | Solo read (Phase 1); HITL gate per setup OAuth |
+| Provider | Type | Key Required | Cost | Tier | Notes |
+|----------|------|--------------|------|------|-------|
+| `searxng` | Self-hosted meta-search | No | Zero (infra only) | **1a** | Privacy-first; Docker su 8888; illimitato |
+| `reddit` | Keyless scraper (eliasbiondo) | **No** | **Zero** | **1b** | **REGOLA FISSA v3**: sempre tier 1 con searxng. 6 MCP tool (search, search_subreddit, get_post, get_subreddit_posts, get_user, get_user_posts). Illimitato. |
+| `tavily` | Commercial LLM-ready API | Yes | 1000 req/mo free, poi $0.008/req | 2 | 8 chiavi multi-account rotazione `least_used` |
+| `exa` | Commercial semantic search | Yes | 1000 req/mo free, poi $0.007/req | 3 | 1 chiave |
+| `brave` | Commercial search API | Yes | $5/mo free credits | 4 | 1 chiave; env var = `BRAVE_API_KEY` (no `_ACTIVE`) |
+| `pubmed` | Accademico biomedico (NCBI E-utilities) | Opt (10 req/s con chiave) | Free | academic 2 | 9 MCP tool; `NCBI_API_KEY` opzionale via SOPS+CredentialManager |
+| `scientific_papers` | Accademico multi-source (arXiv, Europe PMC, OpenAlex, etc.) | No | Gratuito (rate limit: 10 req/min Europe PMC) | academic 3 | 6 sorgenti; keyless; npm: `@futurelab-studio/latest-science-mcp` |
+| `fetch` | HTTP fetch (readabilipy) | No | Zero | 5+ | Fallback finale |
+| ~~`firecrawl`~~ | ~~Commercial scraping API~~ | ~~Yes~~ | **REMOVED** | — | ~~6 chiavi~~ — vedi Removed Providers |
 
-### Rationale
+### Rationale (v3 — Dual Tier 1 gratuito)
 
-Order follows "real API key availability to rotate" principle:
-1. **SearXNG** — self-hosted, unlimited, no API key required; always attempted first
-2. **Tavily** — has free tier, LLM-ready synthesis; 8 keys per multi-account
-3. **Firecrawl** — credits limited; specialized for deep scrape; 6 keys
-4. **Exa** — good for academic/semantic search
-5. **Brave** — last fallback (has $5/mo free but lower priority for rotation)
+Order follows "free/unlimited first, key-based commercial fallback" principle:
+1a. **SearXNG** — self-hosted, unlimited, no API key required; sempre primo tentativo
+1b. **Reddit** — keyless scraper, unlimited, no API key required; secondo tentativo gratuito
+2. **Tavily** — has free tier (1000 req/mo), LLM-ready synthesis; 8 keys
+3. **Exa** — good for academic/semantic search
+4. **Brave** — last fallback (has $5/mo free)
+5. **Fetch** — HTTP fallback finale, zero cost
+
+**REGOLA**: Non passare mai a provider a pagamento senza prima aver tentato searxng E reddit-search.
 
 ## Implementation
 
@@ -152,13 +166,16 @@ Tutti i test passano: 109/109 nei search tests.
 |----------|------|-------------|------|--------|
 | **PubMed** (`@cyanheads/pubmed-mcp-server` v2.6.4) | Accademico biomedico | ACADEMIC tier 2 | `NCBI_API_KEY` (opt) via SOPS+CredentialManager | ✅ Implementato |
 | **Scientific Papers** (`@futurelab-studio/latest-science-mcp`) | Accademico multi-source (arXiv + Europe PMC + OpenAlex + biorxiv + CORE + PMC) | ACADEMIC tier 3 | Nessuna (keyless) | ✅ Implementato |
-| **Reddit** (`jordanburke/reddit-mcp-server`) | Social/Discussioni | SOCIAL tier 1 | **OAuth obbligatorio** | ⏸️ Disabled — attesa HITL OAuth — vedi Reddit OAuth Setup sotto |
+| ~~**Reddit** (`jordanburke/reddit-mcp-server`)~~ | Social/Discussioni | SOCIAL tier 1 | ~~**OAuth obbligatorio**~~ | ❌ **RIMOSSO v3** — sostituito da keyless — vedi v3 Implementation |
+| **Reddit Keyless** (`eliasbiondo/reddit-mcp-server`) | Social/Discussioni (scraping) | SOCIAL tier 1 | **Nessuna** | ✅ **KEYLESS ATTIVO v3** — 6 tool (search, search_subreddit, get_post, get_subreddit_posts, get_user, get_user_posts). PyPI: `reddit-no-auth-mcp-server`. MCP key: `reddit-search` |
 | **arXiv standalone** (`blazickjp/arxiv-mcp-server[pdf]`) | Accademico preprint (PDF read pipeline) | OPZIONALE Phase 2 | Nessuna | ⏸️ Conditional su necessità PDF |
 
 ### Cambi chiave v2 implementati
 
 - Europe PMC: native Python provider RIMOSSO (violava P8). Sostituito da `scientific-papers-mcp` MCP.
-- Reddit: claim "anonymous mode" UNVERIFIED su Context7 → OAuth obbligatorio.
+- Reddit: claim "anonymous mode" UNVERIFIED su Context7 → OAuth obbligatorio (jordanburke/reddit-mcp-server).
+- **2026-04-29**: github-discovery ha trovato alternativa **keyless** valida: `eliasbiondo/reddit-mcp-server` (PyPI: `reddit-no-auth-mcp-server`) — 6 tool MCP di ricerca, scraping old.reddit.com, nessuna API key. Report: `docs/analysis/report_gemme_reddit_mcp.md`.
+- **2026-04-29 v3**: sostituzione completata — `reddit` aggiunto a `KEYLESS_PROVIDERS`, OAuth wrapper eliminato, test aggiornati (110/110 PASS).
 - ADR-0006 creato (P10 compliance).
 - arXiv: `[pdf]` extra confermato via Context7 per paper pre-2007 PDF-only.
 - Pattern CredentialManager per NCBI key (non raw env var).
@@ -177,7 +194,8 @@ class Intent(StrEnum):
 
 ### Accompanied by:
 
-- **`KEYLESS_PROVIDERS`** frozenset: searxng, fetch, webfetch, scientific_papers bypassano Rotator.
+- **`KEYLESS_PROVIDERS`** frozenset: searxng, fetch, webfetch, scientific_papers, **reddit** bypassano Rotator.
+- **REGOLA FISSA v3**: searxng + reddit sono sempre tier 1 (entrambi gratuiti e illimitati). Mai passare a provider a pagamento senza prima aver tentato entrambi.
 - **`test_provider_pubmed.py`**: 7 test (enum, tier, health).
 - **`test_provider_scientific_papers.py`**: 8 test (enum, keyless, tier).
 - **`test_provider_reddit.py`**: 6 test (enum, SOCIAL tier, fallback).
@@ -194,43 +212,92 @@ class Intent(StrEnum):
 | arXiv standalone | `/blazickjp/arxiv-mcp-server` | 112 | 76.1 | `[pdf]` extra confermato |
 | Reddit | `/jordanburke/reddit-mcp-server` | 39 | — | OAuth env vars **obbligatori** (no anonymous mode docs) |
 
-## Reddit OAuth Setup
+## v3 Implementation — Reddit Keyless Live (2026-04-29)
 
-### 1. Registrare app Reddit
+### Stato
+
+| Azione | Dettaglio | Status |
+|--------|-----------|--------|
+| `mcp.json` | `reddit-mcp` (OAuth, disabled) → `reddit-search` (keyless, enabled) | ✅ Fatto |
+| `scripts/wrappers/reddit-wrapper.sh` | Eliminato (non serve piu — keyless, nessuna gestione credenziali) | ✅ Rimosso |
+| `router.py` | `"reddit"` aggiunto a `KEYLESS_PROVIDERS`; commenti aggiornati | ✅ Fatto |
+| `test_provider_reddit.py` | `test_reddit_is_key_based` → `test_reddit_is_keyless` + `test_reddit_bypasses_rotator` | ✅ Aggiornato |
+| `search-agent.md` | 6 tool reddit-search aggiunti ad `allowed-tools` e `mcp-dependencies`; tier ladder aggiornato | ✅ Fatto |
+| `deep-research/SKILL.md` | Reddit integrato nel tier ladder social; procedure update | ✅ Fatto |
+| Qualita | `ruff check` ✅ `mypy` ✅ `pytest` 110/110 PASS | ✅ Pass |
+
+### Modifiche al Comportamento del Router
+
+**Prima (v2)**: `SOCIAL` → REDDIT (OAuth-gated, DOWN senza client_id) → SEARXNG → TAVILY → BRAVE
+**Dopo (v3)**: `SOCIAL` → REDDIT (keyless, sempre AVAILABLE) → SEARXNG → TAVILY → BRAVE
+
+Reddit e ora un provider sempre disponibile, bypassando il Rotator (nessuna chiave da gestire).
+Il vecchio wrapper OAuth e i file `reddit-wrapper.sh` sono stati eliminati definitivamente.
+
+### Quality Gate
+
+```
+pytest tests/unit/agents/search/ -q  → 110 passed (era 109, +1 test per keyless)
+ruff check src/aria/agents/search/   → All checks passed
+mypy src/aria/agents/search/         → Success: no issues found
+```
+
+## Reddit — Alternative Keyless (LIVE in ARIA)
+
+### Configurazione Attiva: eliasbiondo/reddit-mcp-server (KEYLESS)
+
+MCP server keyless con 6 tool di ricerca. Usa scraping di `old.reddit.com`.
+**ATTIVO in ARIA** dal 2026-04-29. Nessuna API key, nessun OAuth.
+
+```json
+{
+  "mcpServers": {
+    "reddit-search": {
+      "command": "uvx",
+      "args": ["reddit-no-auth-mcp-server"],
+      "env": {},
+      "disabled": false
+    }
+  }
+}
+```
+
+**Tools**: `search`, `search_subreddit`, `get_post`, `get_subreddit_posts`, `get_user`, `get_user_posts`
+**PyPI**: `reddit-no-auth-mcp-server`
+**Repo**: https://github.com/eliasbiondo/reddit-mcp-server
+**Report completo**: `docs/analysis/report_gemme_reddit_mcp.md`
+
+### Opzione B: adhikasp/mcp-reddit (KEYLESS, solo hot threads)
+
+MCP server popolare (398 ⭐) per hot threads, senza search.
+
+```json
+{
+  "mcpServers": {
+    "reddit-hot": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/adhikasp/mcp-reddit.git", "mcp-reddit"],
+      "env": {}
+    }
+  }
+}
+```
+
+### Opzione C (OAuth, solo se necessario per write)
+
+Se in futuro servono write operations (postare, commentare), seguire questi passaggi:
 
 1. Vai su https://www.reddit.com/prefs/apps
 2. Clicca **"are you a developer? create an app..."**
-3. Compila:
-   - **name**: `aria-reddit-reader` (o nome a piacere)
-   - **type**: `script`
-   - **description**: (opzionale)
-   - **about url**: `http://localhost`
-   - **redirect uri**: `http://localhost`
-4. Clicca **"create app"**
-
-### 2. Salvare credenziali
-
-Dopo la creazione trovi:
-- **Client ID**: la stringa sotto il nome dell'app
-- **Client Secret**: segnato come "secret"
-
-```bash
-python -m aria.credentials add --provider reddit_client_id --id reddit-app --key <CLIENT_ID>
-python -m aria.credentials add --provider reddit_client_secret --id reddit-app --key <CLIENT_SECRET>
-```
-
-### 3. Abilitare il MCP
-
-In `.aria/kilocode/mcp.json`, impostare `"disabled": false` per `reddit-mcp`.
-
-### 4. Verificare
-
-```bash
-kilo mcp list | grep reddit
-# → reddit-mcp should show connected
-```
+3. Compila: name=`aria-reddit-reader`, type=`script`
+4. Salva Client ID e Secret via CredentialManager:
+   ```bash
+   python -m aria.credentials add --provider reddit_client_id --id reddit-app --key <CLIENT_ID>
+   python -m aria.credentials add --provider reddit_client_secret --id reddit-app --key <CLIENT_SECRET>
+   ```
+5. Abilitare `jordanburke/reddit-mcp-server` in `mcp.json`
 
 ### Fallback senza Reddit
 
-Se Reddit non è configurato, il router scala automaticamente:
+Se Reddit non è configurato/raggiungibile, il router scala automaticamente:
 `SOCIAL`: REDDIT (DOWN) → SEARXNG → TAVILY → BRAVE

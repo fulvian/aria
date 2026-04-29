@@ -35,18 +35,22 @@ if TYPE_CHECKING:
 class Provider(StrEnum):
     """Research providers with tier assignment.
 
-    Tier assignments per canonical policy:
-    - general/news:  searxng > tavily > exa > brave > fetch
-    - academic:      searxng > pubmed > scientific_papers > tavily > exa > brave > fetch
-    - deep_scrape:   fetch > webfetch
-    - social:        reddit (cond. OAuth) > searxng > tavily > brave
+    Tier assignments per canonical policy (v3 — dual free tier 1):
+    - general/news:  searxng(1a) > reddit(1b) > tavily(2) > exa(3) > brave(4) > fetch(5)
+    - social:        reddit(1a) > searxng(1b) > tavily(2) > brave(3)
+    - academic:      searxng(1a) > reddit(1b) > pubmed(2) > scientific_papers(3)
+                     > tavily(4) > exa(5) > brave(6) > fetch(7)
+    - deep_scrape:   fetch(1) > webfetch(2)
     - firecrawl REMOVED 2026-04-27: all 6 accounts exhausted lifetime credits.
+    - REGOLA FISSA: searxng + reddit-search sono sempre tier 1 (entrambi gratuiti e illimitati).
+      Mai passare a provider a pagamento senza prima aver tentato entrambi.
     """
 
-    # --- Tier 1 (self-hosted / keyless) ---
-    SEARXNG = "searxng"
+    # --- Tier 1 (self-hosted / keyless — gratuiti e illimitati) ---
+    SEARXNG = "searxng"  # self-hosted meta-search, privacy-first
+    REDDIT = "reddit"  # keyless (eliasbiondo/reddit-mcp-server), 6 search tools
 
-    # --- Tier 2 ---
+    # --- Tier 2 (key-based commerciali) ---
     TAVILY = "tavily"
 
     # --- Tier 3 ---
@@ -55,16 +59,15 @@ class Provider(StrEnum):
     # --- Tier 4 ---
     BRAVE = "brave"
 
-    # --- Tier 5 ---
+    # --- Tier 5+ ---
     FETCH = "fetch"
     WEBFETCH = "webfetch"
 
-    # --- Nuovi v2 (academic + social) ---
+    # --- Accademici specializzati ---
     PUBMED = "pubmed"
     SCIENTIFIC_PAPERS = (
         "scientific_papers"  # copre arxiv + europepmc + openalex + biorxiv + pmc + core
     )
-    REDDIT = "reddit"  # solo se OAuth attivo (HITL gate)
     ARXIV = "arxiv"  # opzionale Phase 2 (blazickjp/arxiv-mcp-server[pdf])
 
 
@@ -118,16 +121,20 @@ class SearchResult(BaseModel):
 # === Policy Matrix ===
 
 INTENT_TIERS: dict[Intent, tuple[Provider, ...]] = {
+    # REGOLA FISSA (v3): searxng + reddit sono SEMPRE tier 1 — entrambi gratuiti e illimitati.
+    # Non passare mai a provider a pagamento senza prima aver tentato entrambi.
     Intent.GENERAL_NEWS: (
-        Provider.SEARXNG,  # tier 1 — self-hosted, privacy-first
-        Provider.TAVILY,  # tier 2 — commercial, LLM-ready synthesis
-        Provider.EXA,  # tier 3 — academic/semantic search
-        Provider.BRAVE,  # tier 4 — commercial, web+news
+        Provider.SEARXNG,  # tier 1a — self-hosted, illimitato, nessuna API key
+        Provider.REDDIT,  # tier 1b — keyless scraper, illimitato, nessuna API key
+        Provider.TAVILY,  # tier 2 — commerciale, LLM-ready synthesis
+        Provider.EXA,  # tier 3 — semantic search
+        Provider.BRAVE,  # tier 4 — commerciale, web+news
         Provider.FETCH,  # tier 5 — HTTP fallback
     ),
     Intent.ACADEMIC: (
-        Provider.SEARXNG,  # tier 1 — self-hosted meta-search (privacy-first)
-        Provider.PUBMED,  # tier 2 — biomedico specialized (NCBI API key opt)
+        Provider.SEARXNG,  # tier 1a — self-hosted, illimitato
+        Provider.REDDIT,  # tier 1b — keyless scraper, illimitato
+        Provider.PUBMED,  # tier 2 — biomedico specializzato (NCBI key opzionale)
         Provider.SCIENTIFIC_PAPERS,  # tier 3 — arXiv+Europe PMC+OpenAlex+altri (keyless)
         Provider.TAVILY,  # tier 4 — fallback generale LLM-ready
         Provider.EXA,  # tier 5 — semantic search
@@ -139,11 +146,10 @@ INTENT_TIERS: dict[Intent, tuple[Provider, ...]] = {
         Provider.WEBFETCH,  # tier 2 — web fetch fallback
     ),
     Intent.SOCIAL: (
-        # Tier 1 condizionale a OAuth Reddit:
-        Provider.REDDIT,  # solo se REDDIT_CLIENT_ID presente (HITL gate)
-        Provider.SEARXNG,  # tier fallback (engine reddit nativo)
-        Provider.TAVILY,
-        Provider.BRAVE,
+        Provider.REDDIT,  # tier 1a — keyless scraper Reddit (prioritario per social)
+        Provider.SEARXNG,  # tier 1b — self-hosted meta-search (engine reddit nativo)
+        Provider.TAVILY,  # tier 2 — fallback commerciale
+        Provider.BRAVE,  # tier 3 — fallback finale
     ),
 }
 
@@ -152,12 +158,14 @@ RETRYABLE_FAILURE: set[FailureReason] = {FailureReason.TIMEOUT, FailureReason.NE
 
 # Providers that bypass the Rotator (no API key mechanism).
 # scientific_papers added v2: Europe PMC + arXiv are both keyless.
+# reddit added v3: eliasbiondo/reddit-mcp-server (keyless scraper).
 KEYLESS_PROVIDERS: frozenset[str] = frozenset(
     {
         "searxng",
         "fetch",
         "webfetch",
         "scientific_papers",
+        "reddit",
     }
 )
 
@@ -181,6 +189,12 @@ class ResearchRouter:
 
     Implements canonical policy from docs/llm_wiki/wiki/research-routing.md
     with failure classification per blueprint §11.6.
+
+    REGOLA FISSA (v3): searxng + reddit-search sono SEMPRE tier 1 per tutti gli intent
+    eccetto deep_scrape. Entrambi sono gratuiti e illimitati:
+      - searxng: self-hosted, nessuna API key
+      - reddit: keyless scraper (eliasbiondo/reddit-mcp-server), nessuna API key
+    Mai passare a provider a pagamento senza prima aver tentato entrambi.
 
     Args:
         rotator: Rotator instance for key + circuit breaker management

@@ -106,14 +106,11 @@
       "disabled": false,
       "_comment": "@v2 Scientific Papers MCP (benedict2310/scientific-papers-mcp) — Europe PMC, arXiv, OpenAlex, keyless"
     },
-    "reddit-mcp": {
-      "command": "/home/fulvio/coding/aria/scripts/wrappers/reddit-wrapper.sh",
-      "disabled": true,
-      "env": {
-        "SOPS_AGE_KEY_FILE": "/home/fulvio/.config/sops/age/keys.txt",
-        "ARIA_HOME": "/home/fulvio/coding/aria"
-      },
-      "_comment": "@v2 Reddit MCP (jordanburke/reddit-mcp-server) — OAuth required, disabled until HITL setup"
+    "reddit-search": {
+      "command": "uvx",
+      "args": ["reddit-no-auth-mcp-server"],
+      "disabled": false,
+      "_comment": "@v3 Reddit MCP keyless (eliasbiondo/reddit-mcp-server) — 6 tools: search, search_subreddit, get_post, get_subreddit_posts, get_user, get_user_posts. Zero config, no auth."
     }
   }
 }

@@ -23,14 +23,16 @@ class TestScientificPapersProviderEnum:
         academic_tiers = INTENT_TIERS[Intent.ACADEMIC]
         assert Provider.SCIENTIFIC_PAPERS in academic_tiers
 
-    def test_is_tier_3_in_academic(self):
-        """SCIENTIFIC_PAPERS is tier 3 in ACADEMIC (after SEARXNG, PUBMED)."""
+    def test_is_tier_4_in_academic(self):
+        """SCIENTIFIC_PAPERS is tier 4 in ACADEMIC (after SEARXNG 1a, REDDIT 1b, PUBMED 2)."""
         from aria.agents.search.router import INTENT_TIERS
 
         academic_tiers = INTENT_TIERS[Intent.ACADEMIC]
-        assert academic_tiers[0] == Provider.SEARXNG
-        assert academic_tiers[1] == Provider.PUBMED
-        assert academic_tiers[2] == Provider.SCIENTIFIC_PAPERS
+        # v3 dual tier 1: searxng(1a) > reddit(1b) > pubmed(2) > scientific_papers(3)
+        assert academic_tiers[0] == Provider.SEARXNG  # tier 1a
+        assert academic_tiers[1] == Provider.REDDIT  # tier 1b
+        assert academic_tiers[2] == Provider.PUBMED  # tier 2
+        assert academic_tiers[3] == Provider.SCIENTIFIC_PAPERS  # tier 3
 
     def test_not_in_general_news(self):
         """SCIENTIFIC_PAPERS is NOT in GENERAL_NEWS tier list."""

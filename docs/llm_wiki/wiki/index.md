@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-04-27T22:15 (ADR-0006 approvato, push su GitHub)
-**Status**: ✅ COMPLETE — Ricerca: 6 provider operativi + 3 MCP nuovi (PubMed, Scientific Papers, Reddit). ADR-0006 accepted. Feature branch su GitHub.
+**Last Updated**: 2026-04-29T10:41 (v3 Implementata — Reddit keyless live)
+**Status**: ✅ **v3 IMPLEMENTATA** — 7 provider operativi (searxng, tavily, exa, brave, pubmed, scientific_papers, **reddit-keyless**). Reddit da OAuth-gated a keyless attivo. `docs/analysis/report_gemme_reddit_mcp.md`.
 
 ## Purpose
 
@@ -54,6 +54,7 @@ docs/llm_wiki/
 | `.aria/runtime/credentials/google_workspace_mcp/fulviold@gmail.com.json` | Google OAuth token (write scopes) | 2026-04-27 |
 | `bin/aria` | ARIA launcher (hard isolation, MCP migration) | 2026-04-27 |
 | `scripts/wrappers/tavily-wrapper.sh` | Tavily MCP wrapper | 2026-04-27 |
+| `docs/analysis/report_gemme_reddit_mcp.md` | **Report github-discovery**: Reddit MCP keyless alternatives (eliasbiondo, adhikasp, cmpxchg16) | 2026-04-29 |
 
 | `scripts/wrappers/exa-wrapper.sh` | Exa MCP wrapper | 2026-04-27 |
 | `scripts/wrappers/searxng-wrapper.sh` | SearXNG MCP wrapper (auto-detect Docker 8888) | 2026-04-27 |
@@ -99,7 +100,7 @@ docs/llm_wiki/
   - Memory v3: profile persists, wiki_recall, 4 wiki MCP tools, watchdog, Phase E pending
   - Ricerca multi-tier: 6 provider (searxng > tavily > exa > brave > pubmed > scientific_papers)
   - `Intent.SOCIAL`: nuovo intent per social (reddit > searxng > tavily > brave)
-    - Reddit: **OAuth required** — HITL gate per setup (vedi research-routing.md)
+    - Reddit: **KEYLESS ATTIVA v3** — `eliasbiondo/reddit-mcp-server` (6 tool, PyPI `reddit-no-auth-mcp-server`) — OAuth wrapper rimosso, `KEYLESS_PROVIDERS` aggiornato
   - PubMed MCP: 9 tool, NCBI_API_KEY opzionale via CredentialManager
   - Scientific Papers MCP: keyless, 6 sorgenti (arXiv, Europe PMC, OpenAlex, etc.)
   - ADR-0006 accettato (P10 compliance: blueprint §11 divergence registrata)

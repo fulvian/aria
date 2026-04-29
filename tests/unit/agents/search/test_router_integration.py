@@ -48,31 +48,23 @@ class TestRouterRoute:
         assert key is None  # keyless provider
 
     @pytest.mark.asyncio
-    async def test_route_tier1_rate_limit_falls_to_tier2(self, router, mock_rotator):
-        """tier 1 rate_limit -> fallback to tier 2 (tavily)."""
-        # Set searxng to DOWN (keyless, returns immediately — must mark DOWN to skip)
+    async def test_route_tier1_rate_limit_falls_to_tier1b(self, router, mock_rotator):
+        """tier 1a (searxng) DOWN -> fallback to tier 1b (reddit, keyless)."""
+        # Set searxng to DOWN — should fall to reddit (tier 1b, also keyless)
         router._health["searxng"] = HealthState.DOWN
-        router._health["tavily"] = HealthState.AVAILABLE
-
-        mock_key_tavily = MagicMock(spec=KeyInfo)
-        mock_key_tavily.key_id = "tvly-1"
-        mock_key_tavily.circuit_state = CircuitState.CLOSED
-        mock_key_tavily.credits_remaining = 500
-
-        mock_rotator.acquire.return_value = mock_key_tavily
 
         result = await router.route("latest news on AI", Intent.GENERAL_NEWS, "trace-2")
 
         assert isinstance(result, tuple)
         provider, key = result
-        assert provider == Provider.TAVILY
-        assert key.key_id == "tvly-1"
+        assert provider == Provider.REDDIT  # tier 1b — free+unlimited
+        assert key is None  # keyless
 
     @pytest.mark.asyncio
     async def test_route_all_tiers_fail_enters_degraded(self, router, mock_rotator):
         """All tiers fail -> degraded mode."""
-        # searxng and fetch are keyless — must mark them DOWN to skip
-        for skip in ("searxng", "fetch"):
+        # All keyless providers (searxng, reddit, fetch) must be DOWN to skip
+        for skip in ("searxng", "reddit", "fetch"):
             router._health[skip] = HealthState.DOWN
         for provider in [Provider.TAVILY, Provider.EXA, Provider.BRAVE]:
             router._health[provider.value] = HealthState.AVAILABLE
@@ -102,8 +94,9 @@ class TestRouterRoute:
     @pytest.mark.asyncio
     async def test_route_circuit_open_skips_provider(self, router, mock_rotator):
         """circuit_state=OPEN -> skip provider."""
-        # searxng is keyless — mark DOWN to skip to key-based providers
+        # Both keyless providers DOWN to reach key-based tiers
         router._health["searxng"] = HealthState.DOWN
+        router._health["reddit"] = HealthState.DOWN
         router._health["tavily"] = HealthState.AVAILABLE
         router._health["exa"] = HealthState.AVAILABLE
 
@@ -129,10 +122,23 @@ class TestRouterRoute:
         assert provider == Provider.EXA
 
     @pytest.mark.asyncio
-    async def test_route_health_state_down_skips(self, router, mock_rotator):
-        """Provider with health=down skipped. DEGRADED still attempts."""
-        # Set searxng to DOWN (skipped), tavily to AVAILABLE
+    async def test_route_health_state_down_skips_to_reddit(self, router, mock_rotator):
+        """searxng DOWN -> falls to reddit (tier 1b, keyless)."""
+        # Set searxng to DOWN — should go to reddit (tier 1b)
         router._health["searxng"] = HealthState.DOWN
+
+        result = await router.route("latest news on AI", Intent.GENERAL_NEWS, "trace-6")
+
+        assert isinstance(result, tuple)
+        provider, key = result
+        assert provider == Provider.REDDIT  # tier 1b
+        assert key is None  # keyless
+
+    @pytest.mark.asyncio
+    async def test_route_health_state_down_skips_both_free_tiers_to_tavily(self, router, mock_rotator):
+        """Both free tiers DOWN -> falls to tavily (tier 2, key-based)."""
+        router._health["searxng"] = HealthState.DOWN
+        router._health["reddit"] = HealthState.DOWN
         router._health["tavily"] = HealthState.AVAILABLE
 
         mock_key = MagicMock(spec=KeyInfo)
@@ -142,7 +148,7 @@ class TestRouterRoute:
 
         mock_rotator.acquire.return_value = mock_key
 
-        result = await router.route("latest news on AI", Intent.GENERAL_NEWS, "trace-6")
+        result = await router.route("latest news on AI", Intent.GENERAL_NEWS, "trace-7")
 
         assert isinstance(result, tuple)
         provider, key = result
@@ -163,13 +169,18 @@ class TestRouterFallback:
     def router(self, mock_rotator):
         return ResearchRouter(mock_rotator, Path("/tmp/test_state.yaml"))
 
-    def test_fallback_searxng_returns_tavily(self, router):
-        """SEARXNG fallback -> TAVILY (for general_news)."""
+    def test_fallback_searxng_returns_reddit(self, router):
+        """SEARXNG fallback -> REDDIT (tier 1a -> tier 1b for general_news)."""
         next_provider = router.fallback(Provider.SEARXNG, Intent.GENERAL_NEWS, "rate_limit")
+        assert next_provider == Provider.REDDIT  # tier 1b
+
+    def test_fallback_reddit_returns_tavily(self, router):
+        """REDDIT fallback -> TAVILY (tier 1b -> tier 2 for general_news)."""
+        next_provider = router.fallback(Provider.REDDIT, Intent.GENERAL_NEWS, "rate_limit")
         assert next_provider == Provider.TAVILY
 
     def test_fallback_tavily_returns_exa(self, router):
-        """TAVILY fallback -> EXA (for general_news, post-FIRECRAWL)."""
+        """TAVILY fallback -> EXA (for general_news)."""
         next_provider = router.fallback(Provider.TAVILY, Intent.GENERAL_NEWS, "rate_limit")
         assert next_provider == Provider.EXA
 
