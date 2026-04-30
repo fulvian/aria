@@ -43,15 +43,15 @@ def mcp_deps_set(search_agent_yaml: dict) -> set[str]:
 class TestSearchAgentExposure:
     """Search-agent YAML must expose tools for all providers declared in the router."""
 
-    def test_allowed_tools_has_24_entries(self, search_agent_yaml: dict):
-        """search-agent.md declares exactly 24 allowed-tools (pubmed 9→5 tools in v2.6.6)."""
+    def test_allowed_tools_has_19_entries(self, search_agent_yaml: dict):
+        """search-agent.md declares exactly 19 allowed-tools (pubmed-mcp removed)."""
         tools = search_agent_yaml.get("allowed-tools", [])
-        assert len(tools) == 24, f"Expected 24 allowed-tools, got {len(tools)}"
+        assert len(tools) == 19, f"Expected 19 allowed-tools, got {len(tools)}"
 
-    def test_mcp_dependencies_has_7_entries(self, search_agent_yaml: dict):
-        """search-agent.md declares exactly 7 mcp-dependencies."""
+    def test_mcp_dependencies_has_6_entries(self, search_agent_yaml: dict):
+        """search-agent.md declares exactly 6 mcp-dependencies (pubmed-mcp removed)."""
         deps = search_agent_yaml.get("mcp-dependencies", [])
-        assert len(deps) == 7, f"Expected 7 mcp-dependencies, got {len(deps)}"
+        assert len(deps) == 6, f"Expected 6 mcp-dependencies, got {len(deps)}"
 
     # --- Provider-level exposure checks ---
 
@@ -79,13 +79,6 @@ class TestSearchAgentExposure:
             f"Expected 6 reddit-search tools, got {len(reddit_tools)}: {reddit_tools}"
         )
 
-    def test_exposes_pubmed(self, allowed_tools_set: set[str]):
-        """search-agent exposes all 5 pubmed-mcp tools (npm v2.6.6)."""
-        pubmed_tools = {t for t in allowed_tools_set if t.startswith("pubmed-mcp/")}
-        assert len(pubmed_tools) == 5, (
-            f"Expected 5 pubmed-mcp tools, got {len(pubmed_tools)}: {pubmed_tools}"
-        )
-
     def test_exposes_scientific_papers(self, allowed_tools_set: set[str]):
         """search-agent exposes all 5 scientific-papers-mcp tools."""
         sci_tools = {t for t in allowed_tools_set if t.startswith("scientific-papers-mcp/")}
@@ -94,10 +87,6 @@ class TestSearchAgentExposure:
         )
 
     # --- MCP dependencies checks ---
-
-    def test_mcp_deps_pubmed(self, mcp_deps_set: set[str]):
-        """mcp-dependencies includes pubmed-mcp."""
-        assert "pubmed-mcp" in mcp_deps_set
 
     def test_mcp_deps_scientific_papers(self, mcp_deps_set: set[str]):
         """mcp-dependencies includes scientific-papers-mcp."""
@@ -138,7 +127,6 @@ class TestSearchAgentExposure:
             "exa": "exa-script",
             "brave": "brave-mcp",
             "reddit": "reddit-search",
-            "pubmed": "pubmed-mcp",
             "scientific_papers": "scientific-papers-mcp",
         }
         known_implicit = {"fetch", "webfetch"}
@@ -170,7 +158,6 @@ class TestSearchAgentExposure:
             "exa": "exa-script",
             "brave": "brave-mcp",
             "reddit": "reddit-search",
-            "pubmed": "pubmed-mcp",
             "scientific_papers": "scientific-papers-mcp",
         }
 
@@ -182,26 +169,20 @@ class TestSearchAgentExposure:
 
 
 class TestRouterAcademicExposure:
-    """Router must include PUBMED and SCIENTIFIC_PAPERS in ACADEMIC tiers."""
-
-    def test_academic_tiers_include_pubmed(self):
-        """ACADEMIC INTENT_TIERS includes Provider.PUBMED."""
-        assert Provider.PUBMED in INTENT_TIERS[Intent.ACADEMIC]
+    """Router must include SCIENTIFIC_PAPERS in ACADEMIC tiers (pubmed removed)."""
 
     def test_academic_tiers_include_scientific_papers(self):
         """ACADEMIC INTENT_TIERS includes Provider.SCIENTIFIC_PAPERS."""
         assert Provider.SCIENTIFIC_PAPERS in INTENT_TIERS[Intent.ACADEMIC]
 
-    def test_pubmed_is_tier_3_in_academic(self):
-        """PUBMED is at position 2 in ACADEMIC tier list (index 2, tier 3 counting from 1)."""
-        tiers = INTENT_TIERS[Intent.ACADEMIC]
-        assert tiers[2] == Provider.PUBMED, (
-            f"Expected PUBMED at position 2, got {tiers[2]}"
-        )
+    def test_pubmed_string_not_in_academic_tiers(self):
+        """'pubmed' is NOT in ACADEMIC tiers anymore (removed 2026-04-30)."""
+        tier_values = [p.value for p in INTENT_TIERS[Intent.ACADEMIC]]
+        assert "pubmed" not in tier_values
 
-    def test_scientific_papers_is_tier_4_in_academic(self):
-        """SCIENTIFIC_PAPERS is at position 3 in ACADEMIC tier list."""
+    def test_scientific_papers_is_tier_2_in_academic(self):
+        """SCIENTIFIC_PAPERS is at position 2 (index 2) in ACADEMIC tier list."""
         tiers = INTENT_TIERS[Intent.ACADEMIC]
-        assert tiers[3] == Provider.SCIENTIFIC_PAPERS, (
-            f"Expected SCIENTIFIC_PAPERS at position 3, got {tiers[3]}"
+        assert tiers[2] == Provider.SCIENTIFIC_PAPERS, (
+            f"Expected SCIENTIFIC_PAPERS at position 2, got {tiers[2]}"
         )

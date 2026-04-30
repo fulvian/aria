@@ -49,6 +49,8 @@ INTENT_KEYWORDS: dict[Intent, frozenset[str]] = {
             "conference",
             "proceedings",
             # Nuovi v2:
+            # pubmed/pmid: intent keywords, not tied to a specific provider
+            # PubMed content is served via scientific-papers-mcp/source="europepmc"
             "pubmed",
             "pmid",
             "europe pmc",

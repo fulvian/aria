@@ -1,5 +1,55 @@
 # Implementation Log
 
+## 2026-04-30T06:55+02:00 — REMOVE: pubmed-mcp completamente eliminato
+
+**Operation**: REMOVE  
+**Branch**: `feature/productivity-agent-mvp`  
+**Motivo**: pubmed-mcp non funziona (startup failure con bunx/npx) e scientific-papers-mcp
+gia' copre PubMed tramite source="europepmc" e source="pmc". Ridondanza eliminata.
+
+### File eliminati
+- `scripts/wrappers/pubmed-wrapper.sh` — wrapper rimosso
+- `tests/unit/agents/search/test_provider_pubmed.py` — test rimosso
+
+### File modificati (pubmed-mcp rimosso)
+
+| File | Modifica |
+|------|----------|
+| `.aria/kilocode/mcp.json` | Rimosso blocco pubmed-mcp (16→15 server) |
+| `.aria/kilocode/agents/search-agent.md` | Rimosso 5 pubmed tool da allowed-tools (19 total), pubmed da tier ladder, pubmed da mcp-dependencies (6), intera sezione "Strumenti PubMed Disponibili" |
+| `.aria/kilocode/skills/deep-research/SKILL.md` | Aggiornato tier ladder academic (6 tier), rimosso PubMed Call Patterns, aggiunta nota su europepmc |
+| `.aria/kilo-home/.config/kilo/kilo.jsonc` | Rimosso pubmed-mcp dalla runtime config |
+| `src/aria/agents/search/router.py` | Rimosso Provider.PUBMED da enum, rimosso da INTENT_TIERS[ACADEMIC] (7 tier) |
+| `src/aria/agents/search/capability_probe.py` | Rimosso pubmed-mcp da EXPECTED_TOOL_SNAPSHOTS |
+| `src/aria/agents/search/query_preprocessor.py` | Rimosso "pubmed" da ACADEMIC_SOURCES e SOURCE_FORMATTERS |
+| `scripts/benchmarks/mcp_startup_latency.py` | Aggiunto commento pubmed rimosso |
+| `tests/unit/agents/search/test_config_consistency.py` | 19 allowed-tools, 6 deps, rimosso test pubmed |
+| `tests/unit/agents/search/test_capability_probe.py` | Rimosso test pubmed snapshot |
+| `tests/unit/agents/search/test_router_academic_tiers.py` | 7 tier, aggiornato fallback reddit→scientific_papers |
+| `tests/unit/agents/search/test_router_social_tiers.py` | Rimosso riferimento PUBMED |
+| `tests/unit/agents/search/test_provider_scientific_papers.py` | scientific_papers ora tier 2 (index 2) |
+| `tests/unit/agents/search/test_query_preprocessor.py` | 6 academic sources (pubmed rimosso) |
+| `tests/integration/agents/search/test_academic_smoke.py` | 7 tier, fallback aggiornato, snapshot senza pubmed |
+
+### Cache pulite
+- `~/.bun/install/cache/@cyanheads-pubmed*` — cache bun stale rimossa
+- `npm cache clean --force` — npm cache pulita
+
+### Academic tier ladder (nuovo)
+```
+searxng(1a) → reddit(1b) → scientific_papers(2) → tavily(3) → exa(4) → brave(5) → fetch(6)
+```
+PubMed content: scientific-papers-mcp/search_papers(source="europepmc", ...)
+
+### Quality gates
+```
+pytest: 182/182 PASS  ✅
+mypy: 0 errors  ✅
+shell syntax: OK  ✅
+```
+
+---
+
 ## 2026-04-30T06:41+02:00 — FIX: pubmed-mcp startup failure + tool version mismatch
 
 **Operation**: DEBUG + FIX  

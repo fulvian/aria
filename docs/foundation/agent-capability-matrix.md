@@ -16,7 +16,7 @@ code e LLM Wiki (§2.5 del piano di ottimizzazione).
 | Agent | Type | Allowed Tools | MCP Dependencies | Delegation Targets | HITL Required | Intent Categories |
 |-------|------|--------------|------------------|-------------------|---------------|------------------|
 | **aria-conductor** | primary (orchestrator) | 12 (4 wiki + 4 HITL + 2 legacy + seq-thinking + spawn-subagent) | `aria-memory` | search-agent, workspace-agent, productivity-agent | Su decisioni distruttive/costose | N/A (dispatch-only) |
-| **search-agent** | subagent (research) | 28 (7 provider MCP + 2 wiki + fetch) | `tavily-mcp, brave-mcp, exa-script, searxng-script, reddit-search, pubmed-mcp, scientific-papers-mcp` | Nessuna (leaf agent) | No | general/news, academic, social, deep_scrape |
+| **search-agent** | subagent (research) | 23 (6 provider MCP + 2 wiki + fetch) | `tavily-mcp, brave-mcp, exa-script, searxng-script, reddit-search, scientific-papers-mcp` | Nessuna (leaf agent) | No | general/news, academic, social, deep_scrape |
 | **workspace-agent** | subagent (productivity) | 8 (5 Google Workspace patterns + 2 wiki + HITL) | `google_workspace` | Nessuna (leaf agent) | Su write Gmail/Drive | Operazioni Gmail/Calendar/Drive/Docs/Sheets |
 | **productivity-agent** | subagent (productivity) | 11 (markitdown + filesystem + 4 wiki + HITL + fetch + seq-thinking + spawn-subagent) | `markitdown-mcp, aria-memory, filesystem` | workspace-agent (2-hop delega per Gmail/Calendar/Drive) | Su write wiki immutable (decision/lesson), send mail via workspace-agent | Office ingestion, briefing, meeting prep, email draft |
 
@@ -35,7 +35,7 @@ code e LLM Wiki (§2.5 del piano di ottimizzazione).
 - `exa-script/search` (1)
 - `brave-mcp/*` (2: web_search, news_search)
 - `reddit-search/*` (6: search, search_subreddit, get_post, get_subreddit_posts, get_user, get_user_posts)
-- `pubmed-mcp/*` (9: pubmed_search_articles, pubmed_fetch_articles, pubmed_fetch_fulltext, pubmed_format_citations, pubmed_find_related, pubmed_spell_check, pubmed_lookup_mesh, pubmed_lookup_citation, pubmed_convert_ids)
+- `pubmed-mcp/*` (RIMOSSO 2026-04-30: coperto da scientific-papers-mcp/source="europepmc")
 - `scientific-papers-mcp/*` (5: search_papers, fetch_content, fetch_latest, list_categories, fetch_top_cited)
 - `aria-memory/*` (2: wiki_update, wiki_recall)
 - `fetch/fetch` (1)
@@ -165,5 +165,5 @@ Per task compositi, conductor PUO usare catene sequenziali:
 - Source: `.aria/kilocode/agents/workspace-agent.md` (read 2026-04-29)
 - Source: `docs/llm_wiki/wiki/research-routing.md` (read 2026-04-29)
 - Source: `src/aria/agents/search/router.py` (read 2026-04-29)
-- Source: Context7 `/cyanheads/pubmed-mcp-server` (queried 2026-04-29)
+- Source: ~~Context7 `/cyanheads/pubmed-mcp-server` (queried 2026-04-29, removed 2026-04-30)~~
 - Source: Context7 `/benedict2310/scientific-papers-mcp` (queried 2026-04-29)

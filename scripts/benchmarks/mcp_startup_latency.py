@@ -42,7 +42,7 @@ SEARCH_SERVERS: dict[str, list[str]] = {
     "fetch": ["uvx", "mcp-server-fetch"],
     "searxng-script": [str(ARIA_HOME / "scripts/wrappers/searxng-wrapper.sh")],
     "reddit-search": ["uvx", "reddit-no-auth-mcp-server"],
-    "pubmed-mcp": [str(ARIA_HOME / "scripts/wrappers/pubmed-wrapper.sh")],
+    # pubmed-mcp REMOVED 2026-04-30: scientific-papers-mcp covers PubMed via source="europepmc"
     "scientific-papers-mcp": [str(ARIA_HOME / "scripts/wrappers/scientific-papers-wrapper.sh")],
 }
 

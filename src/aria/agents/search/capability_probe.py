@@ -30,13 +30,7 @@ logger = get_logger("aria.agents.search.capability_probe")
 # Ultimo aggiornamento: 2026-04-29 (verificato via Context7 e benchmark)
 
 EXPECTED_TOOL_SNAPSHOTS: dict[str, set[str]] = {
-    "pubmed-mcp": {
-        "pubmed_search_articles",
-        "pubmed_fetch_contents",
-        "pubmed_article_connections",
-        "pubmed_generate_chart",
-        "pubmed_research_agent",
-    },
+    # pubmed-mcp REMOVED 2026-04-30: scientific-papers-mcp covers PubMed via source="europepmc"
     "scientific-papers-mcp": {
         "search_papers",
         "fetch_content",

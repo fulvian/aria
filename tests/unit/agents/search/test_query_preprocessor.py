@@ -98,25 +98,6 @@ class TestEuropePmcPreprocessor:
         assert preprocess_query("", source="europepmc") == ""
 
 
-class TestPubmedPreprocessor:
-    """PubMed-specific query formatting."""
-
-    def test_simple_query(self):
-        """Simple query preserved."""
-        result = preprocess_query("CRISPR cancer therapy", source="pubmed")
-        assert result == "CRISPR cancer therapy"
-
-    def test_preserves_quoted_terms(self):
-        """PubMed supports quoted phrases."""
-        result = preprocess_query('"machine learning" oncology', source="pubmed")
-        assert '"machine learning"' in result
-
-    def test_normalizes_whitespace(self):
-        """Whitespace normalized."""
-        result = preprocess_query("  gene   therapy  ", source="pubmed")
-        assert result == "gene therapy"
-
-
 class TestOpenAlexPreprocessor:
     """OpenAlex-specific query formatting."""
 
@@ -157,8 +138,8 @@ class TestAvailableSources:
     """Verify source registry is complete."""
 
     def test_academic_sources_defined(self):
-        """ACADEMIC_SOURCES includes all expected sources."""
-        expected = {"arxiv", "europepmc", "openalex", "pubmed", "core", "biorxiv", "generic"}
+        """ACADEMIC_SOURCES includes all expected sources (pubmed removed)."""
+        expected = {"arxiv", "europepmc", "openalex", "core", "biorxiv", "generic"}
         assert ACADEMIC_SOURCES == expected
 
     def test_all_sources_have_formatters(self):

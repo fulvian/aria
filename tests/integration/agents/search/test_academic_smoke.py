@@ -36,10 +36,10 @@ class TestAcademicSmokeRoute:
 
     # ─── Tier order invariants ───
 
-    def test_academic_has_8_tiers(self):
-        """ACADEMIC intent has exactly 8 providers in tier order."""
+    def test_academic_has_7_tiers(self):
+        """ACADEMIC intent has exactly 7 providers (pubmed removed)."""
         tiers = INTENT_TIERS[Intent.ACADEMIC]
-        assert len(tiers) == 8
+        assert len(tiers) == 7
 
     def test_academic_starts_with_searxng_reddit(self):
         """ACADEMIC intent starts with searxng (1a) then reddit (1b)."""
@@ -47,35 +47,18 @@ class TestAcademicSmokeRoute:
         assert tiers[0] == Provider.SEARXNG
         assert tiers[1] == Provider.REDDIT
 
-    def test_academic_has_pubmed_at_tier_3(self):
-        """PUBMED is tier 3 in ACADEMIC (index 2)."""
-        assert INTENT_TIERS[Intent.ACADEMIC][2] == Provider.PUBMED
-
-    def test_academic_has_scientific_papers_at_tier_4(self):
-        """SCIENTIFIC_PAPERS is tier 4 in ACADEMIC (index 3)."""
-        assert INTENT_TIERS[Intent.ACADEMIC][3] == Provider.SCIENTIFIC_PAPERS
-
-    def test_academic_ends_with_fetch(self):
-        """FETCH is the last tier in ACADEMIC."""
-        tiers = INTENT_TIERS[Intent.ACADEMIC]
-        assert tiers[-1] == Provider.FETCH
-
-    # ─── Provider enum integrity ───
-
-    def test_pubmed_enum_exists(self):
-        """Provider.PUBMED exists."""
-        assert Provider.PUBMED is not None
-        assert Provider.PUBMED.value == "pubmed"
+    def test_academic_has_scientific_papers_at_tier_2(self):
+        """SCIENTIFIC_PAPERS is tier 2 in ACADEMIC (index 2, covers PubMed via source='europepmc')."""
+        assert INTENT_TIERS[Intent.ACADEMIC][2] == Provider.SCIENTIFIC_PAPERS
 
     def test_scientific_papers_enum_exists(self):
         """Provider.SCIENTIFIC_PAPERS exists."""
         assert Provider.SCIENTIFIC_PAPERS is not None
         assert Provider.SCIENTIFIC_PAPERS.value == "scientific_papers"
 
-    def test_both_in_keyless(self):
-        """Both academic providers are NOT in KEYLESS_PROVIDERS (PubMed needs optional key)."""
+    def test_scientific_papers_in_keyless(self):
+        """Scientific_papers is in KEYLESS_PROVIDERS."""
         from aria.agents.search.router import KEYLESS_PROVIDERS
-        assert "pubmed" not in KEYLESS_PROVIDERS  # NCBI_API_KEY optional
         assert "scientific_papers" in KEYLESS_PROVIDERS  # keyless
 
     # ─── Fallback chain ───
@@ -85,14 +68,9 @@ class TestAcademicSmokeRoute:
         next_prov = router.fallback(Provider.SEARXNG, Intent.ACADEMIC, "rate_limit")
         assert next_prov == Provider.REDDIT
 
-    def test_fallback_reddit_to_pubmed(self, router):
-        """REDDIT fallback → PUBMED."""
+    def test_fallback_reddit_to_scientific(self, router):
+        """REDDIT fallback → SCIENTIFIC_PAPERS (pubmed removed)."""
         next_prov = router.fallback(Provider.REDDIT, Intent.ACADEMIC, "network_error")
-        assert next_prov == Provider.PUBMED
-
-    def test_fallback_pubmed_to_scientific(self, router):
-        """PUBMED fallback → SCIENTIFIC_PAPERS."""
-        next_prov = router.fallback(Provider.PUBMED, Intent.ACADEMIC, "rate_limit")
         assert next_prov == Provider.SCIENTIFIC_PAPERS
 
     def test_fallback_scientific_to_tavily(self, router):
@@ -101,7 +79,7 @@ class TestAcademicSmokeRoute:
         assert next_prov == Provider.TAVILY
 
     def test_fallback_academic_full_chain(self, router):
-        """Full fallback chain through all 8 tiers returns None at end."""
+        """Full fallback chain through all 7 tiers returns None at end."""
         providers = list(INTENT_TIERS[Intent.ACADEMIC])
         for i in range(len(providers) - 1):
             next_prov = router.fallback(providers[i], Intent.ACADEMIC, "timeout")
@@ -147,9 +125,8 @@ class TestAcademicSmokeRoute:
     # ─── Capability probe smoke ───
 
     def test_expected_snapshots_defined(self):
-        """Expected capability snapshots are defined for both academic MCPs."""
+        """Expected capability snapshots are defined for scientific-papers-mcp (pubmed removed)."""
         from aria.agents.search.capability_probe import EXPECTED_TOOL_SNAPSHOTS
-        assert "pubmed-mcp" in EXPECTED_TOOL_SNAPSHOTS
+        assert "pubmed-mcp" not in EXPECTED_TOOL_SNAPSHOTS
         assert "scientific-papers-mcp" in EXPECTED_TOOL_SNAPSHOTS
-        assert len(EXPECTED_TOOL_SNAPSHOTS["pubmed-mcp"]) == 5
         assert len(EXPECTED_TOOL_SNAPSHOTS["scientific-papers-mcp"]) == 5

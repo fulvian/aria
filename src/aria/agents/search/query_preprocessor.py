@@ -24,11 +24,11 @@ from typing import Final
 # ─── Configurazione ──────────────────────────────────────────────────────────
 
 # Sorgenti supportate dal preprocessor
+# pubmed REMOVED 2026-04-30: scientific-papers-mcp covers PubMed via source="europepmc"
 ACADEMIC_SOURCES: Final[set[str]] = {
     "arxiv",
     "europepmc",
     "openalex",
-    "pubmed",  # NCBI E-utilities
     "core",
     "biorxiv",
     "generic",
@@ -137,21 +137,6 @@ def _format_europepmc_query(query: str) -> str:
     return _normalize_whitespace(query)
 
 
-def _format_pubmed_query(query: str) -> str:
-    """Formatta query per NCBI E-utilities (PubMed).
-
-    PubMed supporta query sintattiche come:
-      - "term1 term2"[Title/Abstract]
-      - term1 AND term2
-    Per default, usiamo query in linguaggio naturale.
-
-    Esempio:
-      Input:  '"machine learning" cancer therapy'
-      Output: '"machine learning" cancer therapy'
-    """
-    return _normalize_whitespace(query)
-
-
 def _format_openalex_query(query: str) -> str:
     """Formatta query per OpenAlex API.
 
@@ -190,7 +175,6 @@ def _format_generic_query(query: str) -> str:
 SOURCE_FORMATTERS: dict[str, Callable[[str], str]] = {
     "arxiv": _format_arxiv_query,
     "europepmc": _format_europepmc_query,
-    "pubmed": _format_pubmed_query,
     "openalex": _format_openalex_query,
     "biorxiv": _format_biorxiv_query,
     "core": _format_core_query,

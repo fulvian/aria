@@ -18,19 +18,18 @@ from aria.agents.search.router import (
 class TestAcademicTierOrder:
     """Test ACADEMIC tier ladder order (v3 dual tier 1)."""
 
-    def test_academic_tier_list_has_8_providers(self):
-        """ACADEMIC has 8 providers: SEARXNG(1a) > REDDIT(1b) > PUBMED(2) > SCIENTIFIC_PAPERS(3) > TAVILY(4) > EXA(5) > BRAVE(6) > FETCH(7)."""
+    def test_academic_tier_list_has_7_providers(self):
+        """ACADEMIC has 7 providers (pubmed removed): SEARXNG(1a) > REDDIT(1b) > SCIENTIFIC_PAPERS(2) > TAVILY(3) > EXA(4) > BRAVE(5) > FETCH(6)."""
         tiers = INTENT_TIERS[Intent.ACADEMIC]
-        assert len(tiers) == 8
+        assert len(tiers) == 7
         assert tiers == (
             Provider.SEARXNG,  # 1a — free, unlimited
             Provider.REDDIT,  # 1b — free, unlimited
-            Provider.PUBMED,  # 2
-            Provider.SCIENTIFIC_PAPERS,  # 3
-            Provider.TAVILY,  # 4
-            Provider.EXA,  # 5
-            Provider.BRAVE,  # 6
-            Provider.FETCH,  # 7
+            Provider.SCIENTIFIC_PAPERS,  # 2 — covers PubMed via source="europepmc"
+            Provider.TAVILY,  # 3
+            Provider.EXA,  # 4
+            Provider.BRAVE,  # 5
+            Provider.FETCH,  # 6
         )
 
     def test_academic_starts_with_searxng(self):
@@ -49,11 +48,12 @@ class TestAcademicTierOrder:
         tiers = INTENT_TIERS[Intent.ACADEMIC]
         assert Provider.REDDIT in tiers
 
-    def test_academic_includes_pubmed_and_scientific(self):
-        """ACADEMIC includes PUBMED and SCIENTIFIC_PAPERS."""
+    def test_academic_includes_scientific(self):
+        """ACADEMIC includes SCIENTIFIC_PAPERS (covers PubMed via source='europepmc')."""
         tiers = INTENT_TIERS[Intent.ACADEMIC]
-        assert Provider.PUBMED in tiers
         assert Provider.SCIENTIFIC_PAPERS in tiers
+        # pubmed-mcp REMOVED 2026-04-30: verify by value
+        assert "pubmed" not in [p.value for p in tiers]
 
 
 class TestAcademicRouterFallback:
@@ -75,14 +75,9 @@ class TestAcademicRouterFallback:
         next_provider = router.fallback(Provider.SEARXNG, Intent.ACADEMIC, "rate_limit")
         assert next_provider == Provider.REDDIT
 
-    def test_fallback_reddit_returns_pubmed(self, router):
-        """REDDIT fallback -> PUBMED (tier 1b -> tier 2 for academic)."""
+    def test_fallback_reddit_returns_scientific_papers(self, router):
+        """REDDIT fallback -> SCIENTIFIC_PAPERS (tier 1b -> tier 2 for academic, pubmed removed)."""
         next_provider = router.fallback(Provider.REDDIT, Intent.ACADEMIC, "network_error")
-        assert next_provider == Provider.PUBMED
-
-    def test_fallback_pubmed_returns_scientific_papers(self, router):
-        """PUBMED fallback -> SCIENTIFIC_PAPERS (for academic)."""
-        next_provider = router.fallback(Provider.PUBMED, Intent.ACADEMIC, "rate_limit")
         assert next_provider == Provider.SCIENTIFIC_PAPERS
 
     def test_fallback_scientific_papers_returns_tavily(self, router):

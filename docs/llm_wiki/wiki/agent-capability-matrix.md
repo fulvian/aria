@@ -15,7 +15,7 @@ aggiornato per il LLM Wiki.
 | Agent | Type | Allowed Tools | MCP Dependencies | Delegation Targets | HITL Required |
 |-------|------|--------------|------------------|-------------------|---------------|
 | **aria-conductor** | primary (orchestrator) | 12 | `aria-memory` | search-agent, workspace-agent, productivity-agent | Su decisioni distruttive/costose |
-| **search-agent** | subagent (research) | 28 | `tavily-mcp, brave-mcp, exa-script, searxng-script, reddit-search, pubmed-mcp, scientific-papers-mcp` | Nessuna (leaf agent) | No |
+| **search-agent** | subagent (research) | 23 | `tavily-mcp, brave-mcp, exa-script, searxng-script, reddit-search, scientific-papers-mcp` | Nessuna (leaf agent) | No |
 | **workspace-agent** | subagent (productivity) | 8 | `google_workspace` | Nessuna (leaf agent) | Su write Gmail/Drive |
 | **productivity-agent** | subagent (productivity) | 11 | `markitdown-mcp, aria-memory, filesystem` | workspace-agent (2-hop) | Su write wiki immutable, send mail |
 
