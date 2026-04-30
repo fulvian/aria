@@ -154,9 +154,7 @@ class TestBuildRecallBlock:
 class TestRegenerateConductorTemplate:
     """regenerate_conductor_template tests."""
 
-    async def test_substitutes_placeholder(
-        self, wiki_store: WikiStore, agent_dir: Any
-    ) -> None:
+    async def test_substitutes_placeholder(self, wiki_store: WikiStore, agent_dir: Any) -> None:
         """Template is regenerated with profile substituted."""
         # Create a profile
         patch = PagePatch(
@@ -205,9 +203,7 @@ class TestRegenerateConductorTemplate:
 
         assert result is False
 
-    async def test_template_without_placeholder(
-        self, wiki_store: WikiStore, tmp_path: Any
-    ) -> None:
+    async def test_template_without_placeholder(self, wiki_store: WikiStore, tmp_path: Any) -> None:
         """Returns False when template has no placeholder."""
         agents = tmp_path / "agents"
         agents.mkdir()
@@ -218,9 +214,7 @@ class TestRegenerateConductorTemplate:
 
         assert result is False
 
-    async def test_preserves_frontmatter(
-        self, wiki_store: WikiStore, agent_dir: Any
-    ) -> None:
+    async def test_preserves_frontmatter(self, wiki_store: WikiStore, agent_dir: Any) -> None:
         """Frontmatter (YAML) is preserved after regeneration."""
         result = await regenerate_conductor_template(wiki_store, agent_dir=agent_dir)
 
@@ -230,9 +224,7 @@ class TestRegenerateConductorTemplate:
         assert "name: aria-conductor" in active
         assert "type: primary" in active
 
-    async def test_template_source_unchanged(
-        self, wiki_store: WikiStore, agent_dir: Any
-    ) -> None:
+    async def test_template_source_unchanged(self, wiki_store: WikiStore, agent_dir: Any) -> None:
         """Template source file is not modified."""
         template_path = agent_dir / "_aria-conductor.template.md"
         original = template_path.read_text(encoding="utf-8")

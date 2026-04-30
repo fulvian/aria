@@ -6,7 +6,8 @@
 # Circuit breaker parameters:
 # - OPEN after 3 consecutive failures in 5 minutes
 # - cooldown_until = now + 30 minutes
-# - HALF_OPEN on first acquire after cooldown: 1 probe; success→CLOSED, failure→OPEN (cooldown doubled, max 2h)
+# - HALF_OPEN on first acquire after cooldown: 1 probe;
+#   success→CLOSED, failure→OPEN (cooldown doubled, max 2h)
 # - credits_remaining == 0 → key implicitly skipped
 #
 # Usage:
@@ -248,15 +249,18 @@ class Rotator:
             existing = prov.keys.get(key_id, KeyState(key_id=key_id))
             existing.key_id = key_id
             # Accept both credits_total and free_tier_credits (backward compat)
-            credits_val = key_payload.get("credits_total") or key_payload.get("free_tier_credits")
-            if credits_val is not None:
-                existing.credits_total = int(credits_val)
+            credits_total = key_payload.get("credits_total")
+            free_tier = key_payload.get("free_tier_credits")
+            if credits_total is not None:
+                existing.credits_total = int(credits_total)
+            elif free_tier is not None:
+                existing.credits_total = int(free_tier)
             synced[key_id] = existing
 
         prov.keys = synced
         self._dirty = True
 
-    async def acquire(
+    async def acquire(  # noqa: PLR0912
         self,
         provider: str,
         strategy: Literal["least_used", "round_robin", "failover"] | None = None,
@@ -298,11 +302,12 @@ class Rotator:
                         # Still in cooldown
                         continue
 
-                if key_state.circuit_state == CircuitState.HALF_OPEN:
+                if (
+                    key_state.circuit_state == CircuitState.HALF_OPEN
+                    and key_state.failure_count >= self.HALF_OPEN_PROBES
+                ):
                     # In half_open, only allow one probe (tracked by failure_count)
-                    # We use failure_count to track probes in half_open
-                    if key_state.failure_count >= self.HALF_OPEN_PROBES:
-                        continue
+                    continue
 
                 candidates.append((key_id, key_state))
 
@@ -319,7 +324,8 @@ class Rotator:
 
             elif strategy == "round_robin":
                 # Select key with oldest last_used_at (never-used keys FIRST)
-                candidates.sort(key=lambda x: (x[1].last_used_at or datetime(1970, 1, 1, tzinfo=UTC)))
+                _epoch = datetime(1970, 1, 1, tzinfo=UTC)
+                candidates.sort(key=lambda x: x[1].last_used_at or _epoch)
                 selected_key_id = candidates[0][0]
 
             elif strategy == "failover":

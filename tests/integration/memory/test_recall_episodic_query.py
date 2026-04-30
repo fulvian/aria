@@ -23,16 +23,26 @@ async def test_list_by_time_range_excludes_tags(tmp_path: Path) -> None:
     now = datetime.now(UTC)
     await store.insert(
         EpisodicEntry(
-            session_id=sid, ts=now, actor=Actor.USER_INPUT, role="user",
-            content="benchmark row", content_hash=content_hash("benchmark row"),
-            tags=["benchmark"], meta={},
+            session_id=sid,
+            ts=now,
+            actor=Actor.USER_INPUT,
+            role="user",
+            content="benchmark row",
+            content_hash=content_hash("benchmark row"),
+            tags=["benchmark"],
+            meta={},
         )
     )
     await store.insert(
         EpisodicEntry(
-            session_id=sid, ts=now, actor=Actor.USER_INPUT, role="user",
-            content="real chat about barbecue", content_hash=content_hash("real chat about barbecue"),
-            tags=["repl_message"], meta={},
+            session_id=sid,
+            ts=now,
+            actor=Actor.USER_INPUT,
+            role="user",
+            content="real chat about barbecue",
+            content_hash=content_hash("real chat about barbecue"),
+            tags=["repl_message"],
+            meta={},
         )
     )
 

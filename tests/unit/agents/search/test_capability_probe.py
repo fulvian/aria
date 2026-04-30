@@ -66,7 +66,8 @@ class TestProbeResult:
         result = ProbeResult(
             server_name="scientific-papers-mcp",
             tool_count=10,
-            tools=EXPECTED_TOOL_SNAPSHOTS["scientific-papers-mcp"] | {"extra1", "extra2", "extra3", "extra4", "extra5"},
+            tools=EXPECTED_TOOL_SNAPSHOTS["scientific-papers-mcp"]
+            | {"extra1", "extra2", "extra3", "extra4", "extra5"},
             quarantine=True,
             quarantine_reason="Tool extra (5): extra1, ...",
         )

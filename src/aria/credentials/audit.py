@@ -4,7 +4,8 @@
 # Per blueprint §13.6 and sprint plan W1.1.F.
 #
 # Format (JSON line, consistent with aria.utils.logging):
-#   {"ts":"2026-04-20T14:32:10Z","op":"acquire","provider":"tavily","key_id":"tvly-1","result":"ok","credits_remaining":847,"trace_id":"abc123"}
+#   {"ts":"2026-04-20T14:32:10Z","op":"acquire","provider":"tavily",
+#    "key_id":"tvly-1","result":"ok","credits_remaining":847,"trace_id":"abc123"}
 #
 # Rules:
 # - NEVER log KeyInfo.key (SecretStr) - only key_id
@@ -14,7 +15,10 @@
 #   from aria.credentials.audit import AuditLogger
 #
 #   audit = AuditLogger()
-#   audit.record(provider="tavily", op="acquire", key_id="tvly-1", result="ok", credits_remaining=847)
+#   audit.record(
+#       provider="tavily", op="acquire", key_id="tvly-1",
+#       result="ok", credits_remaining=847,
+#   )
 
 from __future__ import annotations
 
@@ -208,7 +212,7 @@ _audit_logger: AuditLogger | None = None
 
 def get_audit_logger() -> AuditLogger:
     """Get the singleton audit logger instance."""
-    global _audit_logger
+    global _audit_logger  # noqa: PLW0603
     if _audit_logger is None:
         _audit_logger = AuditLogger()
     return _audit_logger

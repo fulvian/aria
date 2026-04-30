@@ -19,15 +19,18 @@ from __future__ import annotations
 import logging
 import time
 import uuid as _uuid
-from collections.abc import Callable  # noqa: TC003
-from datetime import UTC, datetime, timedelta
+import zoneinfo
+from datetime import UTC, datetime, timedelta, tzinfo
 from typing import TYPE_CHECKING, Literal
+
+from croniter import croniter
 
 from aria.scheduler.store import HitlRequest
 
 if TYPE_CHECKING:
     from aria.config import ARIAConfig
     from aria.scheduler.store import Task, TaskStore
+    from aria.scheduler.triggers import EventBus
 
 logger = logging.getLogger(__name__)
 
@@ -149,15 +152,12 @@ class TaskRunner:
 
             # Update task next_run_at for cron tasks
             if task.trigger_type == "cron" and result.outcome == "success" and task.schedule_cron:
-                from croniter import croniter
-
+                cron_tz: tzinfo
                 if task.timezone and task.timezone != "UTC":
-                    import zoneinfo
-
-                    tz: datetime.tzinfo = zoneinfo.ZoneInfo(task.timezone)
+                    cron_tz = zoneinfo.ZoneInfo(task.timezone)
                 else:
-                    tz: datetime.tzinfo = UTC
-                cron = croniter(task.schedule_cron, datetime.now(tz))
+                    cron_tz = UTC
+                cron = croniter(task.schedule_cron, datetime.now(cron_tz))
                 task.next_run_at = int(cron.get_next(datetime).timestamp() * 1000)
                 await self._store.update_task(task)
 
@@ -376,20 +376,3 @@ class HitlManager:
             channel="scheduler",
         )
         return await self._store.create_hitl_request(req)
-
-
-class EventBus:
-    """Simple event bus for publishing events."""
-
-    def __init__(self) -> None:
-        self._subscribers: dict[str, list] = {}
-
-    def subscribe(self, event: str, handler: Callable[..., object]) -> None:  # noqa: ANN401
-        if event not in self._subscribers:
-            self._subscribers[event] = []
-        self._subscribers[event].append(handler)
-
-    async def publish(self, event: str, payload: dict) -> None:
-        if event in self._subscribers:
-            for handler in self._subscribers[event]:
-                await handler(payload)

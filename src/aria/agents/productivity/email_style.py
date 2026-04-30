@@ -88,7 +88,6 @@ REGISTER_MARKERS: dict[Register, list[str]] = {
     "concise": [
         "done",
         "merged",
-        "deploy",
         "eod",
         "wip",
         "fyi",
@@ -111,6 +110,7 @@ REGISTER_MARKERS: dict[Register, list[str]] = {
         "config",
         "error",
         "debug",
+        "deployment",
     ],
 }
 

@@ -194,8 +194,7 @@ async def wiki_recall(
                 "score": 1.0,
             }
             if not any(
-                d["slug"] == profile.slug and d["kind"] == profile.kind.value
-                for d in output
+                d["slug"] == profile.slug and d["kind"] == profile.kind.value for d in output
             ):
                 output.insert(0, profile_dict)
 

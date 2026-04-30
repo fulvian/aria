@@ -59,6 +59,7 @@ class TestAcademicSmokeRoute:
     def test_scientific_papers_in_keyless(self):
         """Scientific_papers is in KEYLESS_PROVIDERS."""
         from aria.agents.search.router import KEYLESS_PROVIDERS
+
         assert "scientific_papers" in KEYLESS_PROVIDERS  # keyless
 
     # ─── Fallback chain ───
@@ -84,7 +85,7 @@ class TestAcademicSmokeRoute:
         for i in range(len(providers) - 1):
             next_prov = router.fallback(providers[i], Intent.ACADEMIC, "timeout")
             assert next_prov == providers[i + 1], (
-                f"Expected {providers[i+1]} after {providers[i]}, got {next_prov}"
+                f"Expected {providers[i + 1]} after {providers[i]}, got {next_prov}"
             )
         # Last provider should return None
         last = router.fallback(providers[-1], Intent.ACADEMIC, "timeout")
@@ -95,6 +96,7 @@ class TestAcademicSmokeRoute:
     def test_academic_query_classified_correctly(self):
         """Query with academic keywords is classified as ACADEMIC."""
         from aria.agents.search.intent import classify_intent
+
         academic_queries = [
             "research papers on CRISPR gene therapy abstract",
             "find academic papers about machine learning",
@@ -116,6 +118,7 @@ class TestAcademicSmokeRoute:
             ACADEMIC_SOURCES,
             preprocess_query,
         )
+
         query = '"machine learning" transformer model attention'
         for source in ACADEMIC_SOURCES:
             result = preprocess_query(query, source=source)
@@ -127,6 +130,7 @@ class TestAcademicSmokeRoute:
     def test_expected_snapshots_defined(self):
         """Expected capability snapshots are defined for scientific-papers-mcp (pubmed removed)."""
         from aria.agents.search.capability_probe import EXPECTED_TOOL_SNAPSHOTS
+
         assert "pubmed-mcp" not in EXPECTED_TOOL_SNAPSHOTS
         assert "scientific-papers-mcp" in EXPECTED_TOOL_SNAPSHOTS
         assert len(EXPECTED_TOOL_SNAPSHOTS["scientific-papers-mcp"]) == 5

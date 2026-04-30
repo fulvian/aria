@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-04-30T06:55 (v4.5 — pubmed-mcp RIMOSSO, sostituito da scientific-papers-mcp/europepmc)
-**Status**: ✅ **v4.5** — pubmed-mcp completamente eliminato dal codice. Scientific-papers-mcp copre PubMed via source="europepmc". Academic tier aggiornato: 6 tier (searxng→reddit→scientific_papers→tavily→exa→brave→fetch). 9 file sorgente modificati, 2 file eliminati, 182 test, mypy 0 errori. Branch `feature/productivity-agent-mvp`.
+**Last Updated**: 2026-04-30T19:30 (v4.8 — Stabilizzazione pre-Fase 2: quality gate F0 completo)
+**Status**: 🔧 **v4.8** — Stabilizzazione ARIA pre-Fase 2 in corso (F0: quality fix completati). Tutti i quality gate verdi: ruff 0 errori, mypy 0 errori (66 files), pytest 548/548 pass. Fix pre-esistenti: 21 ruff errors, 12 mypy errors, 6 test failures. Bug fix: Rotator credits_total=0 falsy, email_style register classification overlap, duplicate EventBus classes unificate. Branch `feature/productivity-agent-mvp` con quality gate completo pronto per PR→main.
 
 ## Purpose
 

@@ -47,39 +47,7 @@ Il seguente profilo utente è stato caricato da wiki.db.
 Usa queste informazioni per personalizzare ogni risposta.
 
 <profile>
-# Profile
-
-## Identity
-- Name: Fulvio Luca Daniele Ventura
-- Preferred name: Fulvio
-- Language: Italian
-- Data di nascita: 16 dicembre 1981 (codice fiscale VNTFVL81L16B429G)
-- Residenza: Via Lorenzo Perosi, 25, 93100 Caltanissetta
-- Email principale: fulviold@gmail.com
-- Email PEC: fulvio.ventura@pec.it
-- Cellulare: 328 454 4212
-
-## Famiglia
-- **Coniuge**: Federica Vinciguerra (sposato)
-- **Figlia**: Adriana Ventura Vinciguerra, nata il 29 giugno 2024
-- Ha una cartella dedicata ad Adri con foto, favole, materiale battesimo, GPT personalizzato per la sua crescita
-- Compleanni tracciati in calendario: "manci", "lucio", "angela", "lollo" (amici/familiari)
-
-## Professional Profile
-
-### Incarico Attuale - Formez PA (2026)
-**Ruolo**: Esperto senior / Coordinatore gruppo esperti territoriali
-**Progetto**: Uffici di Prossimita (UdP) - Regione Siciliana
-**Committente**: Formez PA
-**Durata contratto**: 16 marzo 2026 - 30 ottobre 2026
-**Compenso complessivo**: EUR 31.500,00 (lordo)
-**Seniority**: oltre 7 anni fino a 10 anni
-**Referente**: Dott.ssa Paola di Capua (pdicapua@formez.it)
-
-**Attivita**:
-- Coordinamento di 6+ esperti territoriali per assistenza ai Comuni nell'attivazione degli UdP
--
-...[truncated]
+new content
 </profile>
 
 

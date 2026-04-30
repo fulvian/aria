@@ -23,11 +23,18 @@ async def test_only_benchmark_rows_are_tombstoned(tmp_path: Path) -> None:
     sid = uuid.uuid4()
     now = datetime.now(UTC)
     keep = EpisodicEntry(
-        session_id=sid, ts=now, actor=Actor.USER_INPUT, role="user",
-        content="real chat about barbecue", content_hash=content_hash("a"),
+        session_id=sid,
+        ts=now,
+        actor=Actor.USER_INPUT,
+        role="user",
+        content="real chat about barbecue",
+        content_hash=content_hash("a"),
     )
     drop = EpisodicEntry(
-        session_id=sid, ts=now, actor=Actor.USER_INPUT, role="user",
+        session_id=sid,
+        ts=now,
+        actor=Actor.USER_INPUT,
+        role="user",
         content="test content entry 42 for memory recall benchmark",
         content_hash=content_hash("b"),
     )

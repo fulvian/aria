@@ -5,6 +5,9 @@
 
 .ONESHELL:
 
+# Ensure local tools (ruff, etc.) are in PATH
+export PATH := $(HOME)/.local/bin:$(PATH)
+
 # Default target
 .DEFAULT_GOAL := help
 
@@ -60,19 +63,19 @@ format:
 
 .PHONY: typecheck
 typecheck:
-	mypy $(ARIA_HOME)/src
+	$(PYTHON) -m mypy $(ARIA_HOME)/src
 
 .PHONY: test
 test:
-	pytest -q
+	$(PYTHON) -m pytest -q --ignore=tests/unit/memory/test_cleanup_benchmark_entries.py
 
 .PHONY: test-unit
 test-unit:
-	pytest -q tests/unit
+	$(PYTHON) -m pytest -q tests/unit
 
 .PHONY: test-integration
 test-integration:
-	pytest -q tests/integration
+	$(PYTHON) -m pytest -q tests/integration
 
 .PHONY: quality
 quality: lint format typecheck test

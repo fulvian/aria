@@ -41,7 +41,10 @@ EXPECTED_TOOL_SNAPSHOTS: dict[str, set[str]] = {
 }
 
 # Directory per snapshot persistenti
-SNAPSHOTS_DIR = Path(os.environ.get("ARIA_HOME", str(Path.home() / "coding" / "aria"))) / ".aria" / "runtime" / "mcp_snapshots"
+_ARIA_HOME_DEFAULT = str(Path.home() / "coding" / "aria")
+SNAPSHOTS_DIR = (
+    Path(os.environ.get("ARIA_HOME", _ARIA_HOME_DEFAULT)) / ".aria" / "runtime" / "mcp_snapshots"
+)
 
 
 # ─── Data structures ─────────────────────────────────────────────────────────
@@ -108,12 +111,12 @@ def _build_notification_initialized() -> bytes:
 
 async def _read_json_line(
     reader: asyncio.StreamReader,
-    timeout: float = 15.0,
+    timeout_secs: float = 15.0,
 ) -> dict[str, Any]:
     """Read one JSON-RPC response line from an asyncio stream reader."""
-    deadline = asyncio.get_event_loop().time() + timeout
+    deadline = asyncio.get_event_loop().time() + timeout_secs
     while asyncio.get_event_loop().time() < deadline:
-        line = await asyncio.wait_for(reader.readline(), timeout=timeout)
+        line = await asyncio.wait_for(reader.readline(), timeout=timeout_secs)
         if not line:
             raise TimeoutError("Connection closed before JSON response")
         line_str = line.decode("utf-8").strip()
@@ -125,17 +128,17 @@ async def _read_json_line(
         except json.JSONDecodeError:
             # Linea informativa (log), continua
             continue
-    raise TimeoutError(f"No JSON-RPC response within {timeout}s")
+    raise TimeoutError(f"No JSON-RPC response within {timeout_secs}s")
 
 
 # ─── Probe execution ─────────────────────────────────────────────────────────
 
 
-async def probe_mcp_server(
+async def probe_mcp_server(  # noqa: PLR0912, PLR0915
     server_name: str,
     cmd: list[str],
     expected_tools: set[str] | None = None,
-    timeout: float = 20.0,
+    timeout_secs: float = 20.0,
 ) -> ProbeResult:
     """Esegue capability probe su un MCP server via stdio.
 
@@ -182,14 +185,12 @@ async def probe_mcp_server(
         proc.stdin.write(_build_initialize())
         await proc.stdin.drain()
 
-        init_resp = await _read_json_line(reader, timeout=timeout)
+        init_resp = await _read_json_line(reader, timeout_secs=timeout_secs)
         if "error" in init_resp:
             result.error = f"initialize error: {init_resp['error'].get('message', 'unknown')}"
             return result
 
-        result.protocol_version = (
-            init_resp.get("result", {}).get("protocolVersion", None)
-        )
+        result.protocol_version = init_resp.get("result", {}).get("protocolVersion", None)
         server_info = init_resp.get("result", {}).get("serverInfo", {})
         result.server_version = server_info.get("version", None)
 
@@ -204,7 +205,7 @@ async def probe_mcp_server(
         proc.stdin.write(_build_list_tools())
         await proc.stdin.drain()
 
-        list_resp = await _read_json_line(reader, timeout=timeout)
+        list_resp = await _read_json_line(reader, timeout_secs=timeout_secs)
 
         if "error" in list_resp:
             result.error = f"tools/list error: {list_resp['error'].get('message', 'unknown')}"
@@ -233,7 +234,7 @@ async def probe_mcp_server(
                     f"possibile aggiornamento major, verificare compatibilita'"
                 )
 
-    except (asyncio.TimeoutError, TimeoutError) as e:
+    except TimeoutError as e:
         result.error = f"Timeout: {e}"
     except FileNotFoundError as e:
         result.error = f"Command not found: {e}"
@@ -282,7 +283,9 @@ def save_snapshot(result: ProbeResult) -> Path:
     path = SNAPSHOTS_DIR / f"{result.server_name}.snapshot.json"
     path.write_text(json.dumps(snapshot, indent=2), encoding="utf-8")
     log_event(
-        logger, 20, "snapshot_saved",
+        logger,
+        20,
+        "snapshot_saved",
         server=result.server_name,
         path=str(path),
         success=result.success,
@@ -318,7 +321,7 @@ def get_expected_tools(server_name: str) -> set[str] | None:
 async def probe_and_quarantine(
     server_name: str,
     cmd: list[str],
-    timeout: float = 20.0,
+    timeout_secs: float = 20.0,
 ) -> ProbeResult:
     """Esegue probe + confronto snapshot atteso + quarantena automatica.
 
@@ -326,7 +329,12 @@ async def probe_and_quarantine(
     Se il server fallisce, il risultato e' marcato quarantine=True.
     """
     expected = get_expected_tools(server_name)
-    result = await probe_mcp_server(server_name, cmd, expected_tools=expected, timeout=timeout)
+    result = await probe_mcp_server(
+        server_name,
+        cmd,
+        expected_tools=expected,
+        timeout_secs=timeout_secs,
+    )
 
     # Salva snapshot solo se il probe ha avuto successo (per evitare snapshot corrotti)
     if result.success:
@@ -334,7 +342,9 @@ async def probe_and_quarantine(
 
     if result.quarantine:
         log_event(
-            logger, 40, "server_quarantined",
+            logger,
+            40,
+            "server_quarantined",
             server=server_name,
             reason=result.quarantine_reason,
             tool_count=result.tool_count,
@@ -342,14 +352,18 @@ async def probe_and_quarantine(
         )
     elif result.success:
         log_event(
-            logger, 20, "server_probe_ok",
+            logger,
+            20,
+            "server_probe_ok",
             server=server_name,
             tool_count=result.tool_count,
             elapsed_ms=result.elapsed_ms,
         )
     else:
         log_event(
-            logger, 40, "server_probe_failed",
+            logger,
+            40,
+            "server_probe_failed",
             server=server_name,
             error=result.error,
             elapsed_ms=result.elapsed_ms,

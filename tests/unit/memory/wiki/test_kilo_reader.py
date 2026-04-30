@@ -58,15 +58,60 @@ async def kilo_db_with_messages(tmp_path: Any) -> Path:
     """Create a kilo.db with sample conductor messages."""
     db_path = tmp_path / "kilo.db"
     now_ms = int(time.time() * 1000)
-    _create_kilo_db(db_path, [
-        {"id": "m1", "session_id": "sess1", "role": "user", "content": "hello", "ts": now_ms - 600000},
-        {"id": "m2", "session_id": "sess1", "role": "assistant", "content": "hi there", "ts": now_ms - 500000},
-        {"id": "m3", "session_id": "sess1", "role": "user", "content": "how are you", "ts": now_ms - 400000},
-        {"id": "m4", "session_id": "sess2", "role": "user", "content": "test", "ts": now_ms - 200000},
-        {"id": "m5", "session_id": "sess3", "role": "user", "content": "a", "ts": now_ms - 100000},
-        {"id": "m6", "session_id": "sess3", "role": "assistant", "content": "b", "ts": now_ms - 90000},
-        {"id": "m7", "session_id": "sess3", "role": "user", "content": "c", "ts": now_ms - 80000},
-    ])
+    _create_kilo_db(
+        db_path,
+        [
+            {
+                "id": "m1",
+                "session_id": "sess1",
+                "role": "user",
+                "content": "hello",
+                "ts": now_ms - 600000,
+            },
+            {
+                "id": "m2",
+                "session_id": "sess1",
+                "role": "assistant",
+                "content": "hi there",
+                "ts": now_ms - 500000,
+            },
+            {
+                "id": "m3",
+                "session_id": "sess1",
+                "role": "user",
+                "content": "how are you",
+                "ts": now_ms - 400000,
+            },
+            {
+                "id": "m4",
+                "session_id": "sess2",
+                "role": "user",
+                "content": "test",
+                "ts": now_ms - 200000,
+            },
+            {
+                "id": "m5",
+                "session_id": "sess3",
+                "role": "user",
+                "content": "a",
+                "ts": now_ms - 100000,
+            },
+            {
+                "id": "m6",
+                "session_id": "sess3",
+                "role": "assistant",
+                "content": "b",
+                "ts": now_ms - 90000,
+            },
+            {
+                "id": "m7",
+                "session_id": "sess3",
+                "role": "user",
+                "content": "c",
+                "ts": now_ms - 80000,
+            },
+        ],
+    )
     return db_path
 
 
@@ -109,13 +154,17 @@ class TestKiloReaderSchema:
         db2 = tmp_path / "kilo2.db"
 
         conn1 = sqlite3.connect(str(db1))
-        conn1.execute("CREATE TABLE message (id TEXT, session_id TEXT, role TEXT, content TEXT, time_created INTEGER)")
+        conn1.execute(
+            "CREATE TABLE message (id TEXT, session_id TEXT, role TEXT, content TEXT, time_created INTEGER)"
+        )
         conn1.execute("CREATE TABLE part (id TEXT, message_id TEXT, type TEXT, content TEXT)")
         conn1.commit()
         conn1.close()
 
         conn2 = sqlite3.connect(str(db2))
-        conn2.execute("CREATE TABLE message (id TEXT, session_id TEXT, role TEXT, content TEXT, time_created INTEGER, extra_col TEXT)")
+        conn2.execute(
+            "CREATE TABLE message (id TEXT, session_id TEXT, role TEXT, content TEXT, time_created INTEGER, extra_col TEXT)"
+        )
         conn2.execute("CREATE TABLE part (id TEXT, message_id TEXT, type TEXT, content TEXT)")
         conn2.commit()
         conn2.close()
