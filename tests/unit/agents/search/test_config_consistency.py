@@ -43,10 +43,10 @@ def mcp_deps_set(search_agent_yaml: dict) -> set[str]:
 class TestSearchAgentExposure:
     """Search-agent YAML must expose tools for all providers declared in the router."""
 
-    def test_allowed_tools_has_28_entries(self, search_agent_yaml: dict):
-        """search-agent.md declares exactly 28 allowed-tools."""
+    def test_allowed_tools_has_24_entries(self, search_agent_yaml: dict):
+        """search-agent.md declares exactly 24 allowed-tools (pubmed 9→5 tools in v2.6.6)."""
         tools = search_agent_yaml.get("allowed-tools", [])
-        assert len(tools) == 28, f"Expected 28 allowed-tools, got {len(tools)}"
+        assert len(tools) == 24, f"Expected 24 allowed-tools, got {len(tools)}"
 
     def test_mcp_dependencies_has_7_entries(self, search_agent_yaml: dict):
         """search-agent.md declares exactly 7 mcp-dependencies."""
@@ -80,10 +80,10 @@ class TestSearchAgentExposure:
         )
 
     def test_exposes_pubmed(self, allowed_tools_set: set[str]):
-        """search-agent exposes all 9 pubmed-mcp tools."""
+        """search-agent exposes all 5 pubmed-mcp tools (npm v2.6.6)."""
         pubmed_tools = {t for t in allowed_tools_set if t.startswith("pubmed-mcp/")}
-        assert len(pubmed_tools) == 9, (
-            f"Expected 9 pubmed-mcp tools, got {len(pubmed_tools)}: {pubmed_tools}"
+        assert len(pubmed_tools) == 5, (
+            f"Expected 5 pubmed-mcp tools, got {len(pubmed_tools)}: {pubmed_tools}"
         )
 
     def test_exposes_scientific_papers(self, allowed_tools_set: set[str]):

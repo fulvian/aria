@@ -32,14 +32,10 @@ logger = get_logger("aria.agents.search.capability_probe")
 EXPECTED_TOOL_SNAPSHOTS: dict[str, set[str]] = {
     "pubmed-mcp": {
         "pubmed_search_articles",
-        "pubmed_fetch_articles",
-        "pubmed_fetch_fulltext",
-        "pubmed_format_citations",
-        "pubmed_find_related",
-        "pubmed_spell_check",
-        "pubmed_lookup_mesh",
-        "pubmed_lookup_citation",
-        "pubmed_convert_ids",
+        "pubmed_fetch_contents",
+        "pubmed_article_connections",
+        "pubmed_generate_chart",
+        "pubmed_research_agent",
     },
     "scientific-papers-mcp": {
         "search_papers",

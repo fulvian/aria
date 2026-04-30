@@ -65,13 +65,14 @@ export UNPAYWALL_EMAIL="${UNPAYWALL_EMAIL:-$NCBI_ADMIN_EMAIL}"
 export MCP_TRANSPORT_TYPE="${MCP_TRANSPORT_TYPE:-stdio}"
 export MCP_LOG_LEVEL="${MCP_LOG_LEVEL:-info}"
 
-# Use bunx instead of npx for ~50x faster startup (BL-20260429-02)
-# Engine requires bun >=1.3.2 (current: "$(bun --version 2>/dev/null)")
-# npx on node v20 takes ~15s due to engine checks + ESM module compilation
-# Fallback automatico bunx → npx (FIX 2026-04-29): se bun non disponibile, usa npx
-if command -v bun &>/dev/null; then
+# Use npx (default) for reliable stdio MCP transport.
+# bunx was tried (BL-20260429-02) but it closes the subprocess immediately when
+# stdin isn't actively piped, causing "MCP error -32000: Connection closed local
+# mcp startup failed" in KiloCode's MCP client. npx properly waits for stdin
+# indefinitely as required by the JSON-RPC stdio protocol.
+# To use bunx (faster startup), set PUBMED_USE_BUNX=1.
+if [[ "${PUBMED_USE_BUNX:-0}" == "1" ]] && command -v bun &>/dev/null; then
   exec bunx @cyanheads/pubmed-mcp-server
 else
-  echo "WARN: bun not found, falling back to npx (startup will be ~15s slower)" >&2
   exec npx -y @cyanheads/pubmed-mcp-server
 fi

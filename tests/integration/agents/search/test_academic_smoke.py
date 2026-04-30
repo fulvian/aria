@@ -151,5 +151,5 @@ class TestAcademicSmokeRoute:
         from aria.agents.search.capability_probe import EXPECTED_TOOL_SNAPSHOTS
         assert "pubmed-mcp" in EXPECTED_TOOL_SNAPSHOTS
         assert "scientific-papers-mcp" in EXPECTED_TOOL_SNAPSHOTS
-        assert len(EXPECTED_TOOL_SNAPSHOTS["pubmed-mcp"]) == 9
+        assert len(EXPECTED_TOOL_SNAPSHOTS["pubmed-mcp"]) == 5
         assert len(EXPECTED_TOOL_SNAPSHOTS["scientific-papers-mcp"]) == 5

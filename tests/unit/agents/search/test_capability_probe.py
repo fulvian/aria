@@ -16,11 +16,11 @@ from aria.agents.search.capability_probe import (
 class TestExpectedToolSnapshots:
     """Verify expected tool snapshots are complete and consistent."""
 
-    def test_pubmed_has_9_tools(self):
-        """PubMed MCP expected snapshot has 9 tools."""
+    def test_pubmed_has_5_tools(self):
+        """PubMed MCP expected snapshot has 5 tools (npx registry v2.6.6)."""
         tools = EXPECTED_TOOL_SNAPSHOTS.get("pubmed-mcp")
         assert tools is not None
-        assert len(tools) == 9
+        assert len(tools) == 5
 
     def test_pubmed_tools_prefix(self):
         """All pubmed tools start with 'pubmed_'."""
@@ -32,8 +32,8 @@ class TestExpectedToolSnapshots:
         """PubMed snapshot includes pubmed_search_articles."""
         tools = EXPECTED_TOOL_SNAPSHOTS.get("pubmed-mcp", set())
         assert "pubmed_search_articles" in tools
-        assert "pubmed_fetch_articles" in tools
-        assert "pubmed_fetch_fulltext" in tools
+        assert "pubmed_fetch_contents" in tools
+        assert "pubmed_article_connections" in tools
 
     def test_scientific_papers_has_5_tools(self):
         """Scientific Papers MCP expected snapshot has 5 tools."""
@@ -107,11 +107,12 @@ class TestGetExpectedTools:
     """Verify expected tool retrieval logic."""
 
     def test_get_expected_pubmed(self):
-        """get_expected_tools returns pubmed tools."""
+        """get_expected_tools returns pubmed tools (5 tools, npm v2.6.6)."""
         tools = get_expected_tools("pubmed-mcp")
         assert tools is not None
         assert "pubmed_search_articles" in tools
-        assert "pubmed_convert_ids" in tools
+        assert "pubmed_fetch_contents" in tools
+        assert "pubmed_article_connections" in tools
 
     def test_get_expected_scientific(self):
         """get_expected_tools returns scientific papers tools."""
