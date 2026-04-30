@@ -2957,3 +2957,41 @@ pytest           → 634 passed, 21 skipped ✅
 | `src/aria/observability/` | logger.py, metrics.py, events.py |
 | `src/aria/routing/` | llm_router.py |
 | Config YAML | agent_capability_matrix.yaml, mcp_catalog.yaml, llm_routing.yaml |
+
+---
+
+## 2026-04-30T20:26+02:00 — v5.0 ARCHITETTURA 4 LIVELLI: aggiornamento wiki completo
+
+**Operation**: WIKI_UPDATE + ARCHITECTURE_SNAPSHOT  
+**Branch**: `main` (baseline-LKG-v1)  
+**Tag**: v5.0
+
+### Nuove wiki pages (4)
+| Page | File | Descrizione |
+|------|------|-------------|
+| agent-coordination.md | `docs/llm_wiki/wiki/agent-coordination.md` | L1: Handoff Pydantic, ContextEnvelope, Registry, Spawn validator + 86 test |
+| mcp-refoundation.md | `docs/llm_wiki/wiki/mcp-refoundation.md` | L2: MCP Catalog 14 server, Drift validator, Capability probe, Lazy loader |
+| observability.md | `docs/llm_wiki/wiki/observability.md` | L4: Logger JSON structlog, 6 metriche Prometheus, Eventi tipati, Trace_id UUIDv7 |
+| llm-routing.md | `docs/llm_wiki/wiki/llm-routing.md` | L3: Matrice dichiarativa 3 modelli × 4 agenti, Router Python, Budget gate |
+
+### Architettura documentata
+```
+L4 Observability: logger JSON + metrics Prometheus + eventi tipati
+L3 LLM Routing:  llm_routing.yaml + Python router + budget gate
+L2 MCP Plane:    mcp_catalog.yaml + probe + lazy loader + drift validator
+L1 Coordination: capability matrix YAML + handoff + envelope + registry + spawn
+```
+
+### Index.md aggiornato
+- Status → v5.0, 4 livelli
+- Raw sources table: tutte le 12 nuove fonti catalogate
+- Pages table: 4 nuovi wiki pages
+- Bootstrap log: v3.x → v5.0 completo
+- Implementation branch: 3 commit finali, 6 ADR ratificati
+
+### Quality gate
+```
+ruff check src → All checks passed ✅
+mypy src       → 81 files, 0 errors ✅
+pytest -q      → 634 passed, 21 skipped ✅
+```
