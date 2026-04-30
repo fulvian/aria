@@ -80,6 +80,13 @@ Added wiki memory contract per plan §5.2:
 - Decision pages immutable (no edit/delete)
 - Profile exactly 1 page
 
+## Title Field Rules (since v4.6)
+
+- **`title` is required** on all `op="create"` operations
+- **Auto-extraction fallback**: if `title` is omitted, the system extracts it from the first Markdown heading (`#+ .+`) in `body_md`
+- **Conductor prompt** (since v4.6): documents `title` column in the Regole per patch table
+- **Schema validation**: Pydantic `_validate_title_on_create` logs a warning when `op="create"` and `title=None`, enabling early detection in logs
+
 ## Context7 Verification (2026-04-27)
 
 - aiosqlite `/omnilib/aiosqlite`: async SQLite API confirmed
