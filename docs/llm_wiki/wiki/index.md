@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-04-29T23:55 (v4.3 — Piano completo: B-2 capability probe, B-3 query preprocessor, D-2 smoke test, D-3 rollback drill)
-**Status**: ✅ **v4.3** — **PIANO COMPLETO AL 100%**. Tutte le fasi (A+B+C+D+P2) + 4 item rimanenti implementati. 203 test, mypy 0 errori. Capability probe framework, query preprocessor centralizzato, smoke E2E, rollback drill. Branch `feature/productivity-agent-mvp`.
+**Last Updated**: 2026-04-30T06:41 (v4.4 — pubmed-mcp fix: bunx→npx, tool version mismatch v0.1.0→v2.6.6)
+**Status**: ✅ **v4.4** — pubmed-mcp risolto: wrapper passa da bunx a npx (stdio reliable), tool snapshots allineati a npm registry v2.6.6 (5 tool invece di 9). 203 test, mypy 0 errori. Branch `feature/productivity-agent-mvp`.
 
 ## Purpose
 
@@ -114,7 +114,7 @@ docs/llm_wiki/
 | `src/aria/gateway/conductor_bridge.py` | Gateway: post-session CLM hook, HITL | 2026-04-24 |
 | `.aria/kilocode/agents/search-agent.md` | **v4.0**: tool pubmed-mcp/* e scientific-papers-mcp/* aggiunti a allowed-tools e mcp-dependencies | 2026-04-29 |
 | `.aria/kilocode/agents/aria-conductor.md` | **v4.0**: productivity-agent aggiunto ai sub-agenti con regole dispatch | 2026-04-29 |
-| `scripts/wrappers/pubmed-wrapper.sh` | **v4.0**: fallback bunx→npx automatico | 2026-04-29 |
+| `scripts/wrappers/pubmed-wrapper.sh` | **v4.4**: default npx (reliable stdio), bunx via PUBMED_USE_BUNX=1. Toolset allineato a registry v2.6.6 (5 tool) | 2026-04-30 |
 | `scripts/wrappers/scientific-papers-wrapper.sh` | **v4.0**: checksum guard, version pin 0.1.40, hard fail diagnostico | 2026-04-29 |
 | `docs/patches/scientific-papers-mcp/MANIFEST.md` | **v4.0**: checksum manifest + update procedure | 2026-04-29 |
 | `.aria/kilocode/skills/deep-research/SKILL.md` | Deep research skill (tier ladder) | 2026-04-27 |
@@ -164,6 +164,7 @@ docs/llm_wiki/
 - 2026-04-29: **v4.1** — Fase C+D: capability matrix canonica, handoff protocol, routing policy, 34 nuovi test di coerenza configurativa e dispatch
 - 2026-04-29: **v4.2** — Fase P2: benchmark startup/latency per 9 MCP server (6.5s cold, 6.1s warm, 49 tools totali). Gateway search: NON giustificato. Alternativa: lazy loading per intent.
 - 2026-04-29: **v4.3** — PIANO COMPLETO: B-2 capability probe framework, B-3 query preprocessor centralizzato (7 sorgenti), D-2 smoke E2E academic (16 test), D-3 rollback drill script. 203 test totali.
+- 2026-04-30: **v4.4** — pubmed-mcp fix: bunx→npx (stdio reliable), npm v0.1.0→v2.6.6 tool mapping, 9 tool rimpiazzati da 5 nuovi. Cache bunx stale pulita.
 
 ## Git & GitHub Rules
 

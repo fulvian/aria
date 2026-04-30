@@ -1,5 +1,62 @@
 # Implementation Log
 
+## 2026-04-30T06:41+02:00 — FIX: pubmed-mcp startup failure + tool version mismatch
+
+**Operation**: DEBUG + FIX  
+**Branch**: `feature/productivity-agent-mvp`  
+**Trigger**: pubmed-mcp non si avviava correttamente — errore "Connection closed local mcp startup failed"
+
+### Root cause 1: bunx stdio incompatibility (P0)
+`bunx @cyanheads/pubmed-mcp-server` chiude il subprocesso immediatamente se stdin
+non ha dati in arrivo. KiloCode spawna il wrapper, ma prima che possa inviare
+`initialize`, bunx ha gia' chiuso il pipe → `MCP error -32000`.
+
+**Fix**: wrapper passa da `exec bunx` a `exec npx -y` come default.
+`exec npx` mantiene il processo vivo in attesa di stdin per lo stdio transport.
+Opzione `PUBMED_USE_BUNX=1` per chi vuole bunx (startup piu' veloce ma fragile).
+
+### Root cause 2: npm package v0.1.0 → v2.6.6 con tool diversi
+bunx usava una versione cached v0.1.0 con 9 tool. npx scarica v2.6.6 dal registry
+che espone 5 tool con nomi diversi:
+
+**Tool mapping**:
+| Vecchi (9 tool, v0.1.0 cached) | Nuovi (5 tool, v2.6.6 registry) |
+|---------------------------------|----------------------------------|
+| `pubmed_search_articles` | ✅ `pubmed_search_articles` |
+| `pubmed_fetch_articles` | → `pubmed_fetch_contents` |
+| `pubmed_fetch_fulltext` | → merged in `pubmed_fetch_contents` |
+| `pubmed_find_related` | → `pubmed_article_connections` |
+| `pubmed_format_citations` | → merged in `pubmed_article_connections` |
+| `pubmed_convert_ids` | → merged in `pubmed_article_connections` |
+| `pubmed_spell_check` | ❌ RIMOSSO |
+| `pubmed_lookup_mesh` | ❌ RIMOSSO |
+| `pubmed_lookup_citation` | ❌ RIMOSSO |
+| *(nuovo)* | ✅ `pubmed_generate_chart` |
+| *(nuovo)* | ✅ `pubmed_research_agent` |
+
+**Fix**: 6 file aggiornati:
+- `.aria/kilocode/agents/search-agent.md`: allowed-tools pubmed 9→5
+- `src/aria/agents/search/capability_probe.py`: EXPECTED_TOOL_SNAPSHOTS 9→5
+- `tests/unit/agents/search/test_capability_probe.py`: assertion aggiornate
+- `tests/unit/agents/search/test_config_consistency.py`: 28→24 total tools
+- `tests/integration/agents/search/test_academic_smoke.py`: snapshot count
+- `scripts/wrappers/pubmed-wrapper.sh`: default npx, documentato bunx issue
+- Cache bunx stale: `~/.bun/install/cache/@cyanheads-pubmed-mcp-server*` pulita
+
+### Verification
+```
+pytest: 203/203 PASS  ✅
+mypy: 0 errors  ✅
+Wrapper handshake: npx alive, JSON-RPC risponde  ✅
+Tools reali: 5/5 corrispondono al registry npm v2.6.6  ✅
+```
+
+### Wiki updates
+- `index.md`: v4.4 status, raw sources updated
+- `log.md`: this entry
+
+---
+
 ## 2026-04-29T23:55+02:00 — IMPLEMENT: 4 item rimanenti (B-2, B-3, D-2, D-3)
 
 **Operation**: IMPLEMENT  
