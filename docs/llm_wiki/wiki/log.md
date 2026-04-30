@@ -2878,3 +2878,40 @@ pytest -q           → 548 passed, 21 skipped ✅
 - Rimosso `_loggers_lock` dead code da `logging.py`
 - REGISTER_MARKERS `concise` e `technical`: rimossi `deploy`/`merge` da concise (erano duplicati e causavano misclassificazione tecnica→concisa)
 - `sync_provider_keys`: bug fix `credits_total=0` veniva trattato come falsy (`0 or None`)
+
+---
+
+## 2026-04-30T19:55+02:00 — IMPLEMENT: F1+F2 del piano stabilizzazione ARIA
+
+**Operation**: IMPLEMENT  
+**Branch**: `main` (baseline-LKG-v1)  
+**Piano**: `docs/plans/stabilizzazione_aria.md` §F1-F2
+
+### F1 — Audit, Freeze & Drift Inventory — COMPLETE
+
+| Deliverable | File | Stato |
+|-------------|------|:-----:|
+| MCP baseline snapshot | `docs/operations/baseline_lkg_v1/mcp_baseline.md` | ✅ |
+| Agent prompt snapshots | `docs/operations/baseline_lkg_v1/agents/*.md` | ✅ |
+| Drift audit script | `scripts/audit_drift.py` | ✅ |
+| Drift report (baseline) | `docs/operations/baseline_lkg_v1/drift_report.md` | ✅ (21 P1, 0 P0) |
+| Rollback matrix | `docs/operations/rollback_matrix.md` | ✅ |
+
+### F2 — Coordinamento Agenti — COMPLETE
+
+| Deliverable | File | Stato |
+|-------------|------|:-----:|
+| Capability matrix YAML | `.aria/config/agent_capability_matrix.yaml` | ✅ |
+| HandoffRequest model | `src/aria/agents/coordination/handoff.py` | ✅ |
+| ContextEnvelope model | `src/aria/agents/coordination/envelope.py` | ✅ |
+| AgentRegistry | `src/aria/agents/coordination/registry.py` | ✅ |
+| Spawn validator | `src/aria/agents/coordination/spawn.py` | ✅ |
+| Unit tests (x4) | `tests/unit/agents/coordination/` | ✅ (68 test) |
+| Integration tests (x4) | `tests/integration/coordination/` | ✅ (18 test) |
+
+### Quality gate
+```
+ruff check src   → All checks passed ✅
+mypy src         → Success (71 files) ✅
+pytest           → 634 passed, 21 skipped ✅
+```

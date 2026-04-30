@@ -1,0 +1,112 @@
+agents:
+  - name: aria-conductor
+    type: primary
+    allowed_tools:
+      - aria-memory/wiki_update_tool
+      - aria-memory/wiki_recall_tool
+      - aria-memory/wiki_show_tool
+      - aria-memory/wiki_list_tool
+      - aria-memory/forget
+      - aria-memory/stats
+      - aria-memory/hitl_ask
+      - aria-memory/hitl_list_pending
+      - aria-memory/hitl_cancel
+      - aria-memory/hitl_approve
+      - sequential-thinking/*
+      - spawn-subagent
+    mcp_dependencies:
+      - aria-memory
+    delegation_targets:
+      - search-agent
+      - workspace-agent
+      - productivity-agent
+    hitl_triggers:
+      - destructive
+      - costly
+      - oauth_consent
+    intent_categories: []
+    max_tools: 20
+    max_spawn_depth: 2
+
+  - name: search-agent
+    type: worker
+    allowed_tools:
+      - searxng-script/search
+      - tavily-mcp/search
+      - exa-script/search
+      - brave-mcp/web_search
+      - brave-mcp/news_search
+      - reddit-search/search
+      - reddit-search/search_subreddit
+      - reddit-search/get_post
+      - reddit-search/get_subreddit_posts
+      - reddit-search/get_user
+      - reddit-search/get_user_posts
+      - scientific-papers-mcp/search_papers
+      - scientific-papers-mcp/fetch_content
+      - scientific-papers-mcp/fetch_latest
+      - scientific-papers-mcp/list_categories
+      - scientific-papers-mcp/fetch_top_cited
+      - aria-memory/wiki_update_tool
+      - aria-memory/wiki_recall_tool
+      - fetch/fetch
+    mcp_dependencies:
+      - tavily-mcp
+      - brave-mcp
+      - exa-script
+      - searxng-script
+      - reddit-search
+      - scientific-papers-mcp
+    delegation_targets: []
+    hitl_triggers: []
+    intent_categories:
+      - general/news
+      - academic
+      - social
+      - deep_scrape
+    max_tools: 20
+    max_spawn_depth: 0
+
+  - name: workspace-agent
+    type: worker
+    allowed_tools:
+      - google_workspace/gmail.*
+      - google_workspace/calendar.*
+      - google_workspace/drive.*
+      - google_workspace/docs.*
+      - google_workspace/sheets.*
+      - aria-memory/wiki_update_tool
+      - aria-memory/wiki_recall_tool
+      - hitl-queue/ask
+    mcp_dependencies:
+      - google_workspace
+    delegation_targets: []
+    hitl_triggers: []
+    intent_categories: []
+    max_tools: 20
+    max_spawn_depth: 0
+
+  - name: productivity-agent
+    type: worker
+    allowed_tools:
+      - markitdown-mcp/convert_to_markdown
+      - filesystem/read
+      - filesystem/list_directory
+      - aria-memory/wiki_update_tool
+      - aria-memory/wiki_recall_tool
+      - aria-memory/wiki_show_tool
+      - aria-memory/wiki_list_tool
+      - hitl-queue/ask
+      - fetch/fetch
+      - sequential-thinking/*
+      - spawn-subagent
+    mcp_dependencies:
+      - markitdown-mcp
+      - aria-memory
+      - filesystem
+    delegation_targets:
+      - workspace-agent
+    hitl_triggers: []
+    intent_categories: []
+    max_tools: 20
+    max_spawn_depth: 1
