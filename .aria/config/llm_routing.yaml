@@ -1,0 +1,47 @@
+models:
+  opus_4_7:
+    id: claude-opus-4-7
+    cost_tier: high
+    capabilities: [orchestration, deep_reasoning, planning]
+  sonnet_4_6:
+    id: claude-sonnet-4-6
+    cost_tier: medium
+    capabilities: [research, synthesis, drafting, tool_use]
+  haiku_4_5:
+    id: claude-haiku-4-5-20251001
+    cost_tier: low
+    capabilities: [classification, triage, formatting, cheap_calls]
+
+routing:
+  - agent: aria-conductor
+    primary: opus_4_7
+    fallback: sonnet_4_6
+    cache_strategy: long
+    max_tokens: 8192
+  - agent: search-agent
+    primary: sonnet_4_6
+    fallback: haiku_4_5
+    cache_strategy: medium
+    max_tokens: 4096
+  - agent: workspace-agent
+    primary: sonnet_4_6
+    fallback: haiku_4_5
+    cache_strategy: medium
+    max_tokens: 4096
+  - agent: productivity-agent
+    primary: sonnet_4_6
+    fallback: haiku_4_5
+    cache_strategy: long
+    max_tokens: 6144
+
+intent_overrides:
+  - intent: triage
+    model: haiku_4_5
+  - intent: deep_reasoning
+    model: opus_4_7
+
+policy:
+  budget_gate:
+    daily_token_cap_usd: 5.0
+    overflow_action: degrade
+  fallback_chain_max: 2

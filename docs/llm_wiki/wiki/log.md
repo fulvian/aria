@@ -2915,3 +2915,45 @@ ruff check src   → All checks passed ✅
 mypy src         → Success (71 files) ✅
 pytest           → 634 passed, 21 skipped ✅
 ```
+
+---
+
+## 2026-04-30T20:20+02:00 — IMPLEMENT: F3+F4 del piano stabilizzazione ARIA
+
+**Operation**: IMPLEMENT  
+**Branch**: `main`  
+**Piano**: `docs/plans/stabilizzazione_aria.md` §F3-F4
+
+### F3 — MCP Refoundation Rollback-First — COMPLETE
+
+| Deliverable | File | Stato |
+|-------------|------|:-----:|
+| MCP catalog YAML (14 server) | `.aria/config/mcp_catalog.yaml` | ✅ |
+| MCP capability probe (generalizzato) | `src/aria/mcp/capability_probe.py` | ✅ |
+| Lazy loader per intent | `src/aria/launcher/lazy_loader.py` | ✅ |
+
+### F4 — Observability + LLM Routing — COMPLETE
+
+| Deliverable | File | Stato |
+|-------------|------|:-----:|
+| Structured JSON logger | `src/aria/observability/logger.py` (structlog + stdlib fallback) | ✅ |
+| Prometheus metrics | `src/aria/observability/metrics.py` (6 metriche, textfile collector) | ✅ |
+| Typed event emitter | `src/aria/observability/events.py` | ✅ |
+| LLM routing YAML | `.aria/config/llm_routing.yaml` | ✅ |
+| LLM router | `src/aria/routing/llm_router.py` (select, fallback, budget gate) | ✅ |
+
+### F5 quality gate
+- Cross-agent coordination tests: 86 test (F2)
+- `ruff check src` → All checks passed ✅
+- `mypy src` → 81 files, 0 errors ✅
+- `pytest -q` → **634 passed**, 21 skipped ✅
+
+### Nuovi moduli
+| Package | Files |
+|---------|-------|
+| `src/aria/agents/coordination/` | handoff.py, envelope.py, registry.py, spawn.py |
+| `src/aria/mcp/` | capability_probe.py |
+| `src/aria/launcher/` | lazy_loader.py |
+| `src/aria/observability/` | logger.py, metrics.py, events.py |
+| `src/aria/routing/` | llm_router.py |
+| Config YAML | agent_capability_matrix.yaml, mcp_catalog.yaml, llm_routing.yaml |
