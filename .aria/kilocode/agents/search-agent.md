@@ -69,6 +69,44 @@ senza prima aver tentato entrambi**.
 3. Se tutti i tier falliscono → degraded mode con banner esplicito.
 4. Non saltare mai l'ordine dei tier.
 
+## Strumenti PubMed Disponibili
+
+Il server `pubmed-mcp` (npm `@cyanheads/pubmed-mcp-server` v2.6.6, server v1.4.5)
+espone 5 tool per cercare e recuperare articoli biomedici da PubMed/NCBI:
+
+| Tool | Parametri richiesti | Parametri opzionali | Descrizione |
+|------|---------------------|---------------------|-------------|
+| `pubmed_search_articles` | `queryTerm:string` | `maxResults:integer`, `sortBy:string` (relevance/pub_date), `dateRange:object`, `filterByPublicationTypes:array`, `fetchBriefSummaries:integer` | Cerca articoli PubMed. Restituisce PMID list con conteggio totale. |
+| `pubmed_fetch_contents` | — | `pmids:array`, `queryKey:string`, `webEnv:string`, `retstart:integer`, `retmax:integer`, `detailLevel:string`, `includeMeshTerms:boolean`, `includeGrantInfo:boolean`, `outputFormat:string` | Recupera dettagli articoli da PMID o da risultati di search. |
+| `pubmed_article_connections` | `sourcePmid:string` | `relationshipType:string`, `maxRelatedResults:integer`, `citationStyles:array` | Trova articoli correlati e citation formatted. |
+| `pubmed_generate_chart` | `chartType:string`, `dataValues:array`, `xField:string`, `yField:string` | `title:string`, `width:integer`, `height:integer`, `outputFormat:string`, `seriesField:string`, `sizeField:string` | Genera grafico PNG da dati strutturati. |
+| `pubmed_research_agent` | `project_title_suggestion:string`, `primary_research_goal:string`, `research_keywords:array` | 30+ parametri opzionali per piano di ricerca dettagliato | Genera research plan strutturato. |
+
+### Pattern di Chiamata PubMed
+
+**Cerca articoli**:
+```
+pubmed_search_articles(queryTerm="machine learning cancer", maxResults=5, sortBy="relevance", fetchBriefSummaries=1)
+```
+
+**Recupera dettagli**:
+```
+pubmed_fetch_contents(pmids=["36462630", "39895632"], detailLevel="full")
+```
+
+**Articoli correlati**:
+```
+pubmed_article_connections(sourcePmid="36462630", maxRelatedResults=5)
+```
+
+### Note Importanti
+- **NO API key richiesta**: NCBI_API_KEY e' opzionale (10 req/s con key, 3 req/s senza)
+- **queryTerm** (non "query"): il parametro di ricerca si chiama `queryTerm`
+- **maxResults** (non "max_results"): usa camelCase, non snake_case
+- **fetchBriefSummaries**: e' un intero (0 o 1), non booleano
+- **Rate limit**: senza NCBI_API_KEY, massimo 3 richieste al secondo
+- Il server usa `npx` per stdio reliable. Per startup piu veloce (ma meno reliable): `PUBMED_USE_BUNX=1`
+
 ## Strumenti Reddit Disponibili
 
 Il server `reddit-search` espone 6 tool per interagire con Reddit senza autenticazione:

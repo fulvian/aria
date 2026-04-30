@@ -65,6 +65,21 @@ da tentare per TUTTI gli intent (eccetto deep_scrape). Entrambi sono **gratuiti 
 2. Se un provider fallisce (rate_limit/crediti/circuito aperto), scala immediatamente al prossimo
 3. **Non saltare mai l'ordine dei tier**
 
+### PubMed Call Patterns (academic tier 2)
+Quando pubmed e' raggiunto nella fallback chain, usa questi pattern esatti:
+
+**Ricerca articoli**:
+```
+pubmed_search_articles(queryTerm="machine learning cancer", maxResults=5, sortBy="relevance", fetchBriefSummaries=1)
+```
+- Usa `queryTerm` (non `query`), `maxResults` (non `max_results`)
+- `fetchBriefSummaries`: intero 0/1, non booleano
+
+**Dettaglio articoli** (dopo aver ottenuto PMID da search):
+```
+pubmed_fetch_contents(pmids=["36462630"], detailLevel="full")
+```
+
 ### Fase 3 — Deduplica e Arricchimento
 1. Deduplica URL (Levenshtein title + URL canonicalization)
 2. Per post Reddit rilevanti: usa `reddit-search/get_post` per ottenere l'albero commenti completo
