@@ -1,6 +1,6 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-04-30T21:15 (v5.0 remediation)
+**Last Updated**: 2026-04-30T23:55 (tier1 anti-bypass hardening)
 **Status**: v5.0 stabilization artifacts are present, but a follow-up remediation restored the missing plan file and aligned the shipped coordination/MCP code with the documented YAML sources. The source of truth for the stabilization rollout remains `docs/plans/stabilizzazione_aria.md`.
 
 ## Purpose
@@ -117,8 +117,11 @@ docs/llm_wiki/
 |--------|-------------|--------------|
 | `.aria/kilocode/agents/aria-conductor.md` | **v4.6**: colonna `title`, auto-estrazione, productivity-agent dispatch | 2026-04-30 |
 | `.aria/kilocode/agents/search-agent.md` | **v4.0**: dual-tier-1, pubmed→scientific-papers, reddit keyless | 2026-04-29 |
+| `.aria/kilocode/agents/search-agent.md` | **v4.1**: gate anti-bypass su provider a pagamento + evidence obbligatoria | 2026-04-30 |
 | `.aria/kilocode/agents/productivity-agent.md` | **v4.0**: 11 tool, 4 skill, boundary delega workspace-agent | 2026-04-29 |
 | `.aria/kilocode/agents/workspace-agent.md` | Prompt operativo Workspace con boundary, HITL, handoff e tool catalog | 2026-04-30 |
+| `.aria/kilocode/skills/deep-research/SKILL.md` | Gate anti-bypass Tier-1-first (`searxng` + `reddit`) prima di `tavily/exa/brave` | 2026-04-30 |
+| `tests/unit/agents/search/test_prompt_tier1_enforcement.py` | Test regressione policy prompt Tier-1-first | 2026-04-30 |
 
 ### Config & Runtime
 | Source | Description | Last Updated |

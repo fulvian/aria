@@ -47,7 +47,19 @@ Il seguente profilo utente è stato caricato da wiki.db.
 Usa queste informazioni per personalizzare ogni risposta.
 
 <profile>
-new content
+## Identity
+- Nome: Fulvio Ventura
+- Ruolo: Esperto senior e coordinatore gruppo esperti territoriali
+
+## Working Style
+- Documentazione strutturata con report dettagliati su Google Docs
+- Ricerca online approfondita per best practice aggiornate
+- Approccio analitico con confronto di opzioni e tabelle comparative
+
+## Preferences
+- Preferisce report chiari, discorsivi e completi
+- Utilizza Gmail e Google Drive come strumenti principali
+- Lavora con Formez PA su progetti di pubblica amministrazione
 </profile>
 
 
@@ -85,6 +97,8 @@ Catene di dispatch consentite (max 2 hop):
 - **Bozze email** (con stile derivato dal recipient context) → productivity-agent
 - **Operazioni Google Workspace** (gmail, calendar, drive) → workspace-agent (anche come delegato da productivity-agent)
 - **Ricerca informazioni online** → search-agent
+- Per task di ricerca online, includi sempre nel `constraints` dello spawn:
+  `tier1-first obbligatorio: tentare searxng poi reddit prima di tavily/exa/brave; riportare Tier-1 evidence`.
 - **Task misti** (es. "leggi questo PDF e mandalo via email") → productivity-agent, che a sua volta delega workspace-agent per la spedizione
 
 ## Memory contract v3 (wiki)
@@ -135,15 +149,13 @@ Formato JSON:
 
 ### Regole per patch
 
-| Kind | op | slug | title (richiesto su create) | body_md |
-|------|----|------|-----------------------------|---------|
-| profile | update | "profile" | — | Markdown con sezioni: Identity, Preferences, Working Style |
-| topic | create o append | kebab-case | Titolo della pagina (es. "MCP Scalability per ARIA") | Markdown con `## Sezioni`, `[[entity]]` link |
-| lesson | create | kebab-case | Titolo breve della regola | Rule / Why / When-to-apply / Source — IMMUTABILE dopo creazione |
-| entity | create o append | kebab-case | Nome dell'entità (es. "ARIA System") | Alias, tipo, related topics, attributi |
-| decision | create | kebab-case | Titolo della decisione | Context / Decision / Rationale / Date — IMMUTABILE |
-
-> **Nota**: Se `title` non è esplicitamente fornito in un'operazione `create`, il sistema tenta di estrarlo automaticamente dal primo heading Markdown (`# Titolo`) presente in `body_md`.
+| Kind | op | slug | body_md |
+|------|----|------|---------|
+| profile | update | "profile" | Markdown con sezioni: Identity, Preferences, Working Style |
+| topic | create o append | kebab-case | Markdown con `## Decision YYYY-MM-DD`, `[[entity]]` link |
+| lesson | create | kebab-case | Rule / Why / When-to-apply / Source — IMMUTABILE dopo creazione |
+| entity | create o append | kebab-case | Alias, tipo, related topics, attributi |
+| decision | create | kebab-case | Context / Decision / Rationale / Date — IMMUTABILE |
 
 ### Salience trigger (quando emettere patch)
 

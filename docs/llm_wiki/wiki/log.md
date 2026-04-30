@@ -1,5 +1,45 @@
 # Implementation Log
 
+## 2026-04-30T23:55+02:00 — FIX: enforce free Tier-1 providers before paid search
+
+**Operation**: DEBUG + HARDENING  
+**Branch**: working tree currently on `main`  
+**Trigger**: session logs showed online research starting directly with Tavily/Brave instead of free Tier-1 (`searxng`, `reddit`).
+
+### Root cause
+
+- Routing policy existed in wiki/router/prompt docs, but enforcement was mostly declarative.
+- In live chat flows, the LLM could still bypass the intended order and call paid providers first.
+- No regression test asserted that operational prompts contain explicit anti-bypass gate language.
+
+### Fix applied
+
+- Hardened prompt contracts with an explicit **anti-bypass execution gate**:
+  - `.aria/kilocode/agents/search-agent.md`
+  - `.aria/kilocode/skills/deep-research/SKILL.md`
+  - `.aria/kilocode/agents/aria-conductor.md`
+- Added mandatory `Tier-1 evidence` reasoning line before paid fallback.
+- Added regression test: `tests/unit/agents/search/test_prompt_tier1_enforcement.py`.
+- Updated wiki pages:
+  - `docs/llm_wiki/wiki/research-routing.md`
+  - `docs/llm_wiki/wiki/index.md`
+
+### Verification
+
+```text
+uv run pytest -q tests/unit/agents/search/test_prompt_tier1_enforcement.py  → 3 passed ✅
+uv run ruff check [changed files]                                            → all checks passed ✅
+uv run mypy src/aria/agents/search                                            → success (0 errors) ✅
+```
+
+### Provenance
+
+- User-provided runtime log excerpt (chat trace with immediate tavily/brave calls).
+- Source policy pages and prompts in repository.
+- Context7 `/pytest-dev/pytest` consulted for test-structure confirmation.
+
+---
+
 ## 2026-04-30T22:18+02:00 — FIX: remaining pytest warnings eliminated
 
 **Operation**: DEBUG + FIX  

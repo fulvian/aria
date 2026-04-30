@@ -1,11 +1,11 @@
 # Project State
 
-## Current Phase: Phase 4 — Verification (stabilization remediation + clean full suite)
+## Current Phase: Phase 4 — Verification (research tier routing hardening)
 ## Started: 2026-04-30T20:38+02:00
 ## Branch: `main` (working tree contains uncommitted stabilization remediation changes)
 ## PRD: `task_plan.md` (stabilization audit and remediation)
 ## TDD: `findings.md` (audit findings + reconstructed plan reconciliation)
-## Implementation: coordination registry, MCP catalog/probe/lazy-loader remediation, prompt alignment, workspace-agent prompt completion, full pytest collection fix, memory warning cleanup
+## Implementation: coordination registry, MCP catalog/probe/lazy-loader remediation, prompt alignment, workspace-agent prompt completion, full pytest collection fix, memory warning cleanup, tier1-first anti-bypass prompt hardening for online research
 ## Tests: targeted remediation tests PASS; full suite PASS (633 passed, 21 skipped, 0 warnings)
 ## Deployment: READY
 
@@ -18,6 +18,7 @@
 | 2026-04-30T21:33+02:00 | General Manager | Reconciled reconstructed stabilization plan and replaced workspace-agent stub | Done |
 | 2026-04-30T22:10+02:00 | General Manager | Fixed full pytest collection by adding tests/conftest.py and reran full suite | Done |
 | 2026-04-30T22:18+02:00 | General Manager | Eliminated remaining pytest warnings with memory cursor cleanup and test-only aiosqlite teardown shim | Done |
+| 2026-04-30T23:55+02:00 | General Manager | Hardened search prompt policy to enforce searxng+reddit before paid providers; added regression tests | Done |
 
 ## Skills Invoked
 | Phase | Skill | Outcome |

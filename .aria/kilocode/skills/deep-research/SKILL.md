@@ -65,6 +65,16 @@ da tentare per TUTTI gli intent (eccetto deep_scrape). Entrambi sono **gratuiti 
 2. Se un provider fallisce (rate_limit/crediti/circuito aperto), scala immediatamente al prossimo
 3. **Non saltare mai l'ordine dei tier**
 
+### Gate anti-bypass provider a pagamento
+
+- Prima del primo uso di `tavily-mcp/search`, `exa-script/search` o `brave-mcp/web_search`,
+  devono essere presenti nello stesso turno:
+  1) un tentativo `searxng-script/search`
+  2) un tentativo `reddit-search/search` o `reddit-search/search_subreddit`
+- Inserire nel reasoning la riga:
+  `Tier-1 evidence: searxng=<ok|fail motivo>, reddit=<ok|fail motivo>`
+- Se un tier 1 fallisce per errore tool/network, non saltarlo silenziosamente: riportare l'errore e poi avanzare di tier.
+
 ### PubMed content via Scientific Papers (academic tier 2)
 PubMed e' coperto da `scientific-papers-mcp` tramite la sorgente `source="europepmc"`.
 Non esiste piu' un MCP server pubmed separato (RIMOSSO 2026-04-30).

@@ -63,6 +63,19 @@ senza prima aver tentato entrambi**.
 3. Se tutti i tier falliscono → degraded mode con banner esplicito.
 4. Non saltare mai l'ordine dei tier.
 
+## GATE DI ESECUZIONE OBBLIGATORIO (anti-bypass)
+
+Per evitare che il modello salti direttamente a Tavily/Brave:
+
+1. **Prima di qualunque provider a pagamento**, effettua **esattamente in questo ordine**:
+   - `searxng-script/search`
+   - `reddit-search/search` (oppure `reddit-search/search_subreddit` se la query e chiaramente subreddit-specific)
+2. Una chiamata a `tavily-mcp/search`, `exa-script/search` o `brave-mcp/*` senza i due tentativi Tier-1 nello stesso turno e **non conforme**.
+3. Prima del primo fallback a pagamento, registra nel reasoning:
+   - `Tier-1 evidence: searxng=<ok|fail motivo>, reddit=<ok|fail motivo>`
+4. Se un provider gratuito e non disponibile/tool-error, registra comunque il tentativo fallito e passa al tier successivo.
+5. Query commerciali/marketplace (annunci usato, comparazione prezzi, offerte) restano `general/news`: regola Tier-1-first invariata.
+
 ## Strumenti Reddit Disponibili
 
 Il server `reddit-search` espone 6 tool per interagire con Reddit senza autenticazione:

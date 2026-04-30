@@ -1,6 +1,6 @@
 # Research Routing — Tier Policy
 
-**Last Updated**: 2026-04-29T10:41 (v3 Implementata — Reddit keyless live, OAuth wrapper rimosso)
+**Last Updated**: 2026-04-30T23:55 (tier1 anti-bypass hardening)
 **Status**: ✅ **7 provider attivi** (searxng, tavily, exa, brave, pubmed, scientific_papers, **reddit-keyless**) + Reddit da OAuth-gated a **keyless attivo**. Vedi § v3 Implementation.
 
 ## Purpose
@@ -53,6 +53,19 @@ Order follows "free/unlimited first, key-based commercial fallback" principle:
 **REGOLA**: Non passare mai a provider a pagamento senza prima aver tentato searxng E reddit-search.
 
 ## Implementation
+
+### Prompt-level anti-bypass hardening (2026-04-30)
+
+Per mitigare i casi in cui il modello partiva direttamente con Tavily/Brave,
+sono stati aggiunti gate espliciti nei prompt operativi:
+
+- `.aria/kilocode/agents/search-agent.md`
+- `.aria/kilocode/skills/deep-research/SKILL.md`
+- `.aria/kilocode/agents/aria-conductor.md`
+
+Regola operativa introdotta: prima di provider a pagamento (`tavily/exa/brave`),
+il turno deve includere tentativi documentati su `searxng` e `reddit` (Tier-1 evidence).
+È stato aggiunto un test di regressione: `tests/unit/agents/search/test_prompt_tier1_enforcement.py`.
 
 ### Router Code
 
