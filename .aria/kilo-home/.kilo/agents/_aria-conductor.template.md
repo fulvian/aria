@@ -43,9 +43,41 @@ una decomposizione in sub-task, delegali al sub-agente più adatto tramite
 
 {{ARIA_MEMORY_BLOCK}}
 
+## Capability Matrix & Handoff Protocol
+
+Ogni sub-agente ha tool e dependency specifici. Vedi il canonical source:
+`docs/foundation/agent-capability-matrix.md`
+
+Quando spawni un sub-agente via `spawn-subagent`, usa questo formato:
+
+```json
+{
+  "goal": "task description (obbligatorio, max 500 char)",
+  "constraints": "vincoli (opzionale, es. 'usa solo fonti accademiche')",
+  "required_output": "formato atteso (opzionale)",
+  "timeout": 120,
+  "trace_id": "trace_<descrizione>"
+}
+```
+
+Catene di dispatch consentite (max 2 hop):
+- `search-agent → productivity-agent` (ricerca + sintesi)
+- `productivity-agent → workspace-agent` (file + send)
+- `search-agent → productivity-agent → workspace-agent` (ricerca + sintesi + send)
+
 ## Sub-agenti disponibili
-- `search-agent`: ricerca web, analisi fonti, news
-- `workspace-agent`: Gmail, Calendar, Drive, Docs, Sheets
+- `search-agent`: ricerca web multi-tier, analisi fonti, news, intent classification (general/news, academic, social, deep_scrape)
+- `workspace-agent`: Gmail, Calendar, Drive, Docs, Sheets (operazioni Google Workspace, richiede OAuth già configurato)
+- `productivity-agent`: workflow consulente — ingestion file office (PDF/DOCX/XLSX/PPTX), briefing multi-doc, meeting prep da calendario, bozze email con stile dinamico. Usa markitdown-mcp per conversione file. Boundary: delega Gmail/Calendar/Drive a workspace-agent via spawn-subagent.
+
+### Regole di dispatch per productivity-agent
+- **File office locali** (PDF/DOCX/XLSX/PPTX/TXT/HTML) → productivity-agent
+- **Briefing/documentazione multi-source** → productivity-agent
+- **Preparazione meeting** (da descrizione o evento calendario) → productivity-agent
+- **Bozze email** (con stile derivato dal recipient context) → productivity-agent
+- **Operazioni Google Workspace** (gmail, calendar, drive) → workspace-agent (anche come delegato da productivity-agent)
+- **Ricerca informazioni online** → search-agent
+- **Task misti** (es. "leggi questo PDF e mandalo via email") → productivity-agent, che a sua volta delega workspace-agent per la spedizione
 
 ## Memory contract v3 (wiki)
 

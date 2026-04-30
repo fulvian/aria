@@ -41,8 +41,12 @@ async def test_barbecue_topic_recall_after_distillation(tmp_path: Path) -> None:
     ):
         await episodic.insert(
             EpisodicEntry(
-                session_id=sid, ts=now, actor=actor, role=role,
-                content=text, content_hash=content_hash(text),
+                session_id=sid,
+                ts=now,
+                actor=actor,
+                role=role,
+                content=text,
+                content_hash=content_hash(text),
                 tags=["repl_message"],
             )
         )

@@ -95,9 +95,7 @@ class TestWatchdogNoGap:
 class TestWatchdogGapDetection:
     """Watchdog gap detection tests."""
 
-    async def test_detects_gap_in_session(
-        self, wiki_store: WikiStore, tmp_path: Any
-    ) -> None:
+    async def test_detects_gap_in_session(self, wiki_store: WikiStore, tmp_path: Any) -> None:
         """Watchdog detects a session with unprocessed messages."""
         now_ms = int(time.time() * 1000)
 
@@ -105,13 +103,15 @@ class TestWatchdogGapDetection:
         kilo_path = tmp_path / "kilo.db"
         messages = []
         for i in range(5):
-            messages.append({
-                "id": f"msg_{i}",
-                "session_id": "sess_gap",
-                "role": "user" if i % 2 == 0 else "assistant",
-                "content": f"Message {i}",
-                "ts": now_ms - (600000 - i * 60000),  # Staggered over 10 min
-            })
+            messages.append(
+                {
+                    "id": f"msg_{i}",
+                    "session_id": "sess_gap",
+                    "role": "user" if i % 2 == 0 else "assistant",
+                    "content": f"Message {i}",
+                    "ts": now_ms - (600000 - i * 60000),  # Staggered over 10 min
+                }
+            )
         _create_kilo_db_with_messages(kilo_path, messages)
 
         reader = KiloReader(kilo_path)
@@ -137,9 +137,27 @@ class TestWatchdogGapDetection:
         # Create kilo.db with recent messages
         kilo_path = tmp_path / "kilo.db"
         messages = [
-            {"id": "m1", "session_id": "sess_recent", "role": "user", "content": "hi", "ts": now_ms - 1000},
-            {"id": "m2", "session_id": "sess_recent", "role": "assistant", "content": "hello", "ts": now_ms - 500},
-            {"id": "m3", "session_id": "sess_recent", "role": "user", "content": "test", "ts": now_ms},
+            {
+                "id": "m1",
+                "session_id": "sess_recent",
+                "role": "user",
+                "content": "hi",
+                "ts": now_ms - 1000,
+            },
+            {
+                "id": "m2",
+                "session_id": "sess_recent",
+                "role": "assistant",
+                "content": "hello",
+                "ts": now_ms - 500,
+            },
+            {
+                "id": "m3",
+                "session_id": "sess_recent",
+                "role": "user",
+                "content": "test",
+                "ts": now_ms,
+            },
         ]
         _create_kilo_db_with_messages(kilo_path, messages)
 
@@ -156,9 +174,7 @@ class TestWatchdogGapDetection:
 
         await reader.close()
 
-    async def test_gap_with_old_watermark(
-        self, wiki_store: WikiStore, tmp_path: Any
-    ) -> None:
+    async def test_gap_with_old_watermark(self, wiki_store: WikiStore, tmp_path: Any) -> None:
         """Watchdog detects gap when watermark is old."""
         now_ms = int(time.time() * 1000)
         old_ts = now_ms - 3600000  # 1 hour ago
@@ -168,12 +184,42 @@ class TestWatchdogGapDetection:
         messages = [
             # Old messages (already curated via watermark)
             {"id": "m1", "session_id": "sess_old", "role": "user", "content": "a", "ts": old_ts},
-            {"id": "m2", "session_id": "sess_old", "role": "assistant", "content": "b", "ts": old_ts + 1000},
-            {"id": "m3", "session_id": "sess_old", "role": "user", "content": "c", "ts": old_ts + 2000},
+            {
+                "id": "m2",
+                "session_id": "sess_old",
+                "role": "assistant",
+                "content": "b",
+                "ts": old_ts + 1000,
+            },
+            {
+                "id": "m3",
+                "session_id": "sess_old",
+                "role": "user",
+                "content": "c",
+                "ts": old_ts + 2000,
+            },
             # New unprocessed messages (> 5 min after watermark, >= 3 msgs)
-            {"id": "m4", "session_id": "sess_old", "role": "user", "content": "d", "ts": now_ms - 600000},
-            {"id": "m5", "session_id": "sess_old", "role": "assistant", "content": "e", "ts": now_ms - 500000},
-            {"id": "m6", "session_id": "sess_old", "role": "user", "content": "f", "ts": now_ms - 400000},
+            {
+                "id": "m4",
+                "session_id": "sess_old",
+                "role": "user",
+                "content": "d",
+                "ts": now_ms - 600000,
+            },
+            {
+                "id": "m5",
+                "session_id": "sess_old",
+                "role": "assistant",
+                "content": "e",
+                "ts": now_ms - 500000,
+            },
+            {
+                "id": "m6",
+                "session_id": "sess_old",
+                "role": "user",
+                "content": "f",
+                "ts": now_ms - 400000,
+            },
         ]
         _create_kilo_db_with_messages(kilo_path, messages)
 
@@ -190,17 +236,27 @@ class TestWatchdogGapDetection:
 
         await reader.close()
 
-    async def test_too_few_messages_no_catchup(
-        self, wiki_store: WikiStore, tmp_path: Any
-    ) -> None:
+    async def test_too_few_messages_no_catchup(self, wiki_store: WikiStore, tmp_path: Any) -> None:
         """Watchdog does not trigger for sessions with too few messages."""
         now_ms = int(time.time() * 1000)
 
         kilo_path = tmp_path / "kilo.db"
         # Only 2 messages (below MIN_MESSAGES_FOR_CATCHUP=3)
         messages = [
-            {"id": "m1", "session_id": "sess_small", "role": "user", "content": "a", "ts": now_ms - 600000},
-            {"id": "m2", "session_id": "sess_small", "role": "assistant", "content": "b", "ts": now_ms - 590000},
+            {
+                "id": "m1",
+                "session_id": "sess_small",
+                "role": "user",
+                "content": "a",
+                "ts": now_ms - 600000,
+            },
+            {
+                "id": "m2",
+                "session_id": "sess_small",
+                "role": "assistant",
+                "content": "b",
+                "ts": now_ms - 590000,
+            },
         ]
         _create_kilo_db_with_messages(kilo_path, messages)
 

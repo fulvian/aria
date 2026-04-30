@@ -17,13 +17,24 @@ allowed-tools:
   - reddit-search/get_subreddit_posts
   - reddit-search/get_user
   - reddit-search/get_user_posts
+  - scientific-papers-mcp/search_papers
+  - scientific-papers-mcp/fetch_content
+  - scientific-papers-mcp/fetch_latest
+  - scientific-papers-mcp/list_categories
+  - scientific-papers-mcp/fetch_top_cited
   - aria-memory/wiki_update_tool
   - aria-memory/wiki_recall_tool
   - fetch/fetch
 required-skills:
   - deep-research
   - source-dedup
-mcp-dependencies: [tavily-mcp, brave-mcp, exa-script, searxng-script, reddit-search]
+mcp-dependencies:
+  - tavily-mcp
+  - brave-mcp
+  - exa-script
+  - searxng-script
+  - reddit-search
+  - scientific-papers-mcp
 ---
 
 # Search-Agent
@@ -40,7 +51,7 @@ senza prima aver tentato entrambi**.
 | Intent | 1a | 1b | 2 | 3 | 4 | 5 | 6 | 7 |
 |--------|----|----|---|---|---|---|---|---|
 | `general/news` | **searxng** 🆓 | **reddit** 🆓 | **tavily** | **exa** | **brave** | **fetch** | — | — |
-| `academic` | **searxng** 🆓 | **reddit** 🆓 | **pubmed** | **scientific_papers** | **tavily** | **exa** | **brave** | **fetch** |
+| `academic` | **searxng** 🆓 | **reddit** 🆓 | **scientific_papers** | **tavily** | **exa** | **brave** | **fetch** | — |
 | `social` | **reddit** 🆓 | **searxng** 🆓 | **tavily** | **brave** | — | — | — | — |
 | `deep_scrape` | **fetch** | **webfetch** | — | — | — | — | — | — |
 
@@ -75,7 +86,7 @@ Il server `reddit-search` espone 6 tool per interagire con Reddit senza autentic
 
 ## Regole Generali
 1. Provider health check: ogni 5 minuti.
-2. **scientific_papers** e keyless (bypassa Rotator). **pubmed** usa NCBI_API_KEY opzionale via CredentialManager.
+2. **scientific_papers** e keyless (bypassa Rotator). Per contenuti PubMed usa `source="europepmc"`.
 3. **Reddit e read-only**: i tool reddit-search sono read-only. Non e possibile postare/commentare/votare.
 4. **Ricerca combinata**: per risultati ottimali, usa searxng E reddit in sequenza — il primo da risultati web generali, il secondo da discussioni social.
 

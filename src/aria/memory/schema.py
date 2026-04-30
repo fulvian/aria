@@ -83,7 +83,7 @@ class EpisodicEntry(BaseModel):
     def __init__(self, **data: object) -> None:  # noqa: ANN003
         # Auto-generate content_hash if not provided
         if ("content_hash" not in data or not data["content_hash"]) and "content" in data:
-            data["content_hash"] = content_hash(data["content"])
+            data["content_hash"] = content_hash(str(data["content"]))
         super().__init__(**data)
 
     model_config = {

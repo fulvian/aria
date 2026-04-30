@@ -41,7 +41,7 @@ da tentare per TUTTI gli intent (eccetto deep_scrape). Entrambi sono **gratuiti 
 | Intent | 1a 🆓 | 1b 🆓 | 2 | 3 | 4 | 5 | 6 | 7 |
 |--------|-------|-------|---|---|---|---|---|---|
 | `general/news` | **searxng** | **reddit** | **tavily** | **exa** | **brave** | **fetch** | — | — |
-| `academic` | **searxng** | **reddit** | **pubmed** | **scientific_papers** | **tavily** | **exa** | **brave** | **fetch** |
+| `academic` | **searxng** | **reddit** | **scientific_papers** | **tavily** | **exa** | **brave** | **fetch** | — |
 | `social` | **reddit** | **searxng** | **tavily** | **brave** | — | — | — | — |
 | `deep_scrape` | **fetch** | **webfetch** | — | — | — | — | — | — |
 
@@ -60,10 +60,18 @@ da tentare per TUTTI gli intent (eccetto deep_scrape). Entrambi sono **gratuiti 
    ```
    general/news: searxng(1a) → reddit(1b) → tavily(2) → exa(3) → brave(4) → fetch(5)
    social:      reddit(1a) → searxng(1b) → tavily(2) → brave(3)
-   academic:    searxng(1a) → reddit(1b) → pubmed(2) → scientific_papers(3) → tavily(4) → exa(5) → brave(6) → fetch(7)
+    academic:    searxng(1a) → reddit(1b) → scientific_papers(2) → tavily(3) → exa(4) → brave(5) → fetch(6)
    ```
 2. Se un provider fallisce (rate_limit/crediti/circuito aperto), scala immediatamente al prossimo
 3. **Non saltare mai l'ordine dei tier**
+
+### PubMed content via Scientific Papers (academic tier 2)
+PubMed e' coperto da `scientific-papers-mcp` tramite la sorgente `source="europepmc"`.
+Non esiste piu' un MCP server pubmed separato (RIMOSSO 2026-04-30).
+
+```
+scientific-papers-mcp/search_papers(source="europepmc", query="machine learning cancer", count=10)
+```
 
 ### Fase 3 — Deduplica e Arricchimento
 1. Deduplica URL (Levenshtein title + URL canonicalization)

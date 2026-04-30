@@ -18,14 +18,14 @@ _running = False
 
 def start_metrics_server(host: str = "127.0.0.1", port: int = 9090) -> None:
     """Start the metrics server."""
-    global _running
+    global _running  # noqa: PLW0603
     _running = True
     logger.info("Metrics server would start on %s:%d (stub)", host, port)
 
 
 def stop_metrics_server() -> None:
     """Stop the metrics server."""
-    global _running
+    global _running  # noqa: PLW0603
     _running = False
     logger.info("Metrics server stopped")
 

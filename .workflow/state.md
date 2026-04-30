@@ -1,12 +1,12 @@
 # Project State
 
-## Current Phase: Phase D — Memory v3 Deprecation COMPLETE ✅
+## Current Phase: Phase 2 — Architecture Planning (MCP + multi-agent coordination optimization)
 ## Started: 2026-04-27T01:31:00+02:00
-## Plan: docs/plans/auto_persistence_echo.md (v3)
-## TDD: task_plan.md (Phase A+B+C scope)
-## Implementation: 100% (wiki module + watchdog + conductor prompt + profile auto-inject)
-## Tests: 146/146 passing (wiki), 315/315 total unit
-## Deployment: Pending (Phase E: hard delete frozen modules after 30 days stable)
+## Plan: docs/plans/mcp_productivity_coordination_optimization_plan_2026-04-29.md
+## TDD: task_plan.md (MCP refoundation rollback-first analysis + planning scope)
+## Implementation: Planning artifact completed; no code changes in runtime modules
+## Tests: Quality gates attempted; `ruff check .` fails on pre-existing repo issues, `mypy` and `pytest` not installed in shell PATH
+## Deployment: Pending (implementation phases not started)
 
 ## Agent History
 | Timestamp | Agent | Action | Status |
@@ -21,6 +21,9 @@
 | 2026-04-27T12:12:00+02:00 | General Manager | Fixed launcher MCP migration reintroducing deprecated aliases/profiles (`bin/aria`) | Done |
 | 2026-04-27T12:20:00+02:00 | General Manager | Enabled research MCP wrappers (tavily/firecrawl/exa/searxng) + added key operations runbook | Done |
 | 2026-04-29T17:58+02:00 | General Manager | Ricerca MCP Produttività: 40+ server, hidden gems, report in docs/analysis/ | Done |
+| 2026-04-29T19:12+02:00 | General Manager | Analisi architettura MCP reale + piano di refoundation progressiva in docs/plans/ | Done |
+| 2026-04-29T19:58+02:00 | General Manager | Revisione rollback-first del piano MCP con baseline LKG, gating e fallback path | Done |
+| 2026-04-29T20:25+02:00 | General Manager | Analisi problemi PubMed/Scientific + coordinamento search/workspace/productivity e nuovo piano ottimizzazione | Done |
 
 ## Skills Invoked
 | Phase | Skill | Outcome |
@@ -32,6 +35,11 @@
 | Research | github-discovery | 12 pool, ~300 candidates, screening Gate 1+2 |
 | Research | brave-search | 5 web searches per hidden gems complementari |
 | Research | context7 | 15 library verifications per MCP produttività |
+| Planning | planning-with-files | task_plan.md, findings.md, progress.md aggiornati per MCP refoundation |
+| Planning | yagni-enforcement | roadmap mantenuta progressiva, gateway/code execution differiti finché non giustificati |
+| Planning | context7 | `/modelcontextprotocol/modelcontextprotocol`, `/lastmile-ai/mcp-agent`, `/metatool-ai/metamcp` verificati |
+| Planning | general sub-agent | sintesi meccanismi di rollback, trigger e blast radius |
+| Planning | context7 | `/cyanheads/pubmed-mcp-server`, `/benedict2310/scientific-papers-mcp`, `/modelcontextprotocol/modelcontextprotocol` verificati per piano remediation |
 
 ## Implementation Progress
 

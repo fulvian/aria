@@ -82,9 +82,8 @@ async def _async_main() -> int:  # noqa: PLR0915
     from aria.config import get_config
     from aria.memory.episodic import create_episodic_store
     from aria.scheduler.reaper import Reaper
-    from aria.scheduler.runner import BudgetGate, HitlManager, PolicyGate, TaskRunner
+    from aria.scheduler.runner import BudgetGate, EventBus, HitlManager, PolicyGate, TaskRunner
     from aria.scheduler.store import TaskStore
-    from aria.scheduler.triggers import EventBus
 
     config = get_config()
     logger.info("Starting ARIA Scheduler daemon...")
@@ -130,7 +129,10 @@ async def _async_main() -> int:  # noqa: PLR0915
 
     # Set up signal handlers
     for sig in (signal.SIGTERM, signal.SIGINT):
-        asyncio.get_event_loop().add_signal_handler(sig, lambda s=sig: handle_signal(s))
+        asyncio.get_event_loop().add_signal_handler(
+            sig,
+            lambda s=sig: handle_signal(s),  # type: ignore[misc]
+        )
 
     try:
         # Run reaper in background task

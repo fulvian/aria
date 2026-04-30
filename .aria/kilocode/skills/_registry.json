@@ -2,7 +2,11 @@
   "skills": [
     {"name": "planning-with-files", "path": "planning-with-files/SKILL.md", "version": "1.0.0", "category": "system"},
     {"name": "deep-research", "path": "deep-research/SKILL.md", "version": "1.0.0", "category": "research"},
-    {"name": "pdf-extract", "path": "pdf-extract/SKILL.md", "version": "1.0.0", "category": "ingest"},
+    {"name": "pdf-extract", "path": "pdf-extract/SKILL.md", "version": "1.0.0", "category": "ingest", "deprecated_by": "office-ingest@2.0.0"},
+    {"name": "office-ingest", "path": "office-ingest/SKILL.md", "version": "2.0.0", "category": "productivity"},
+    {"name": "consultancy-brief", "path": "consultancy-brief/SKILL.md", "version": "1.0.0", "category": "productivity"},
+    {"name": "meeting-prep", "path": "meeting-prep/SKILL.md", "version": "1.0.0", "category": "productivity"},
+    {"name": "email-draft", "path": "email-draft/SKILL.md", "version": "1.0.0", "category": "productivity"},
     {"name": "triage-email", "path": "triage-email/SKILL.md", "version": "0.9.0", "category": "workspace"},
     {"name": "memory-distillation", "path": "memory-distillation/SKILL.md", "version": "1.0.0", "category": "memory"},
     {"name": "hitl-queue", "path": "hitl-queue/SKILL.md", "version": "1.0.0", "category": "system"},

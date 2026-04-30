@@ -234,7 +234,7 @@ class SopsAdapter:
                             raise SopsError(
                                 f"Timed out acquiring lock on {lock_path} after 10s",
                                 path=path,
-                            )
+                            ) from None
                         time.sleep(0.05)
                     except OSError as e:
                         raise SopsError(

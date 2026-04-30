@@ -88,29 +88,22 @@
       "disabled": true,
       "_comment": "@fase2"
     },
-    "pubmed-mcp": {
-      "command": "/home/fulvio/coding/aria/scripts/wrappers/pubmed-wrapper.sh",
-      "disabled": false,
-      "env": {
-        "NCBI_API_KEY": "${NCBI_API_KEY}",
-        "NCBI_ADMIN_EMAIL": "${NCBI_ADMIN_EMAIL}",
-        "UNPAYWALL_EMAIL": "${UNPAYWALL_EMAIL}",
-        "SOPS_AGE_KEY_FILE": "/home/fulvio/.config/sops/age/keys.txt",
-        "ARIA_HOME": "/home/fulvio/coding/aria",
-        "MCP_TRANSPORT_TYPE": "stdio"
-      },
-      "_comment": "@v2 PubMed MCP (cyanheads/pubmed-mcp-server v2.6.4) — 9 tools, NCBI_API_KEY optional"
-    },
     "scientific-papers-mcp": {
       "command": "/home/fulvio/coding/aria/scripts/wrappers/scientific-papers-wrapper.sh",
       "disabled": false,
-      "_comment": "@v2 Scientific Papers MCP (benedict2310/scientific-papers-mcp) — Europe PMC, arXiv, OpenAlex, keyless"
+      "_comment": "@v2 Scientific Papers MCP (benedict2310/scientific-papers-mcp) — 6 sources including Europe PMC (PubMed content), arXiv, OpenAlex, keyless. Pubmed-MCP REMOVED 2026-04-30: scientific-papers-mcp covers PubMed via europepmc source; pubmed-mcp had startup failures with bunx/npx."
     },
     "reddit-search": {
       "command": "uvx",
       "args": ["reddit-no-auth-mcp-server"],
       "disabled": false,
       "_comment": "@v3 Reddit MCP keyless (eliasbiondo/reddit-mcp-server) — 6 tools: search, search_subreddit, get_post, get_subreddit_posts, get_user, get_user_posts. Zero config, no auth."
+    },
+    "markitdown-mcp": {
+      "command": "uvx",
+      "args": ["markitdown-mcp"],
+      "disabled": false,
+      "_comment": "@productivity-mvp Microsoft markitdown — convert office files (PDF/DOCX/XLSX/PPTX/TXT/HTML) to markdown LLM-ready. MIT license, keyless, Context7 Bench 90.05."
     }
   }
 }

@@ -14,36 +14,14 @@ export const searchPapersSchema = z.object({
     sortBy: z.enum(["relevance", "date", "citations"]).optional().default("relevance"),
 });
 /**
- * Preprocess query to fix common issues before dispatching to drivers.
- * Handles query normalization that is source-independent.
- */
-function preprocessQuery(query) {
-    // Strip outer quotes if present (the LLM often wraps entire query in quotes)
-    let cleaned = query.trim();
-    if ((cleaned.startsWith('"') && cleaned.endsWith('"')) ||
-        (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
-        cleaned = cleaned.slice(1, -1).trim();
-    }
-    
-    // Normalize multiple spaces
-    cleaned = cleaned.replace(/\s+/g, ' ');
-    
-    return cleaned;
-}
-
-/**
  * MCP tool: search_papers
  * Search for papers across different sources with query and field-specific options
  */
 export async function searchPapers(input, rateLimiter) {
     try {
-        // Run centralized query preprocessing
-        const processedQuery = preprocessQuery(input.query);
-        
         logInfo("search_papers tool called", {
             source: input.source,
             query: input.query,
-            processedQuery: processedQuery,
             field: input.field,
             count: input.count,
             sortBy: input.sortBy,
@@ -52,22 +30,22 @@ export async function searchPapers(input, rateLimiter) {
         switch (input.source) {
             case "arxiv": {
                 const driver = new ArxivDriver(rateLimiter);
-                papers = await driver.searchPapers(processedQuery, input.field, input.count, input.sortBy);
+                papers = await driver.searchPapers(input.query, input.field, input.count, input.sortBy);
                 break;
             }
             case "openalex": {
                 const driver = new OpenAlexDriver(rateLimiter);
-                papers = await driver.searchPapers(processedQuery, input.field, input.count, input.sortBy);
+                papers = await driver.searchPapers(input.query, input.field, input.count, input.sortBy);
                 break;
             }
             case "europepmc": {
                 const driver = new EuropePMCDriver(rateLimiter);
-                papers = await driver.searchPapers(processedQuery, input.field, input.count, input.sortBy);
+                papers = await driver.searchPapers(input.query, input.field, input.count, input.sortBy);
                 break;
             }
             case "core": {
                 const driver = new CoreDriver(rateLimiter);
-                papers = await driver.searchPapers(processedQuery, input.field, input.count, input.sortBy);
+                papers = await driver.searchPapers(input.query, input.field, input.count, input.sortBy);
                 break;
             }
             default:

@@ -123,9 +123,7 @@ async def populated_store(tmp_path: Any) -> WikiStore:
 class TestWikiRecallEngine:
     """WikiRecallEngine tests."""
 
-    async def test_recall_by_keyword(
-        self, populated_store: WikiStore
-    ) -> None:
+    async def test_recall_by_keyword(self, populated_store: WikiStore) -> None:
         engine = WikiRecallEngine(populated_store)
         results = await engine.recall("memory system design", max_pages=5)
 
@@ -134,18 +132,14 @@ class TestWikiRecallEngine:
         slugs = [r.slug for r in results]
         assert "memory-system" in slugs
 
-    async def test_recall_profile(
-        self, populated_store: WikiStore
-    ) -> None:
+    async def test_recall_profile(self, populated_store: WikiStore) -> None:
         engine = WikiRecallEngine(populated_store)
         profile = await engine.get_profile()
         assert profile is not None
         assert profile.slug == "profile"
         assert "Fulvio" in profile.body_md
 
-    async def test_recall_returns_scored_results(
-        self, populated_store: WikiStore
-    ) -> None:
+    async def test_recall_returns_scored_results(self, populated_store: WikiStore) -> None:
         engine = WikiRecallEngine(populated_store)
         results = await engine.recall("SQLite database tests")
 
@@ -156,9 +150,7 @@ class TestWikiRecallEngine:
             assert result.slug
             assert result.title
 
-    async def test_recall_min_score_filter(
-        self, populated_store: WikiStore
-    ) -> None:
+    async def test_recall_min_score_filter(self, populated_store: WikiStore) -> None:
         engine = WikiRecallEngine(populated_store)
         # Very high min_score should filter most results
         results = await engine.recall("memory system", min_score=0.99)
@@ -166,44 +158,30 @@ class TestWikiRecallEngine:
         for result in results:
             assert result.score >= 0.99
 
-    async def test_recall_max_pages(
-        self, populated_store: WikiStore
-    ) -> None:
+    async def test_recall_max_pages(self, populated_store: WikiStore) -> None:
         engine = WikiRecallEngine(populated_store)
         results = await engine.recall("database system memory oauth", max_pages=2)
         assert len(results) <= 2
 
-    async def test_recall_empty_query(
-        self, populated_store: WikiStore
-    ) -> None:
+    async def test_recall_empty_query(self, populated_store: WikiStore) -> None:
         engine = WikiRecallEngine(populated_store)
         results = await engine.recall("")
         assert results == []
 
-    async def test_recall_no_results(
-        self, populated_store: WikiStore
-    ) -> None:
+    async def test_recall_no_results(self, populated_store: WikiStore) -> None:
         engine = WikiRecallEngine(populated_store)
         results = await engine.recall("xyzzyfrobnicate12345")
         assert results == []
 
-    async def test_recall_kind_filter(
-        self, populated_store: WikiStore
-    ) -> None:
+    async def test_recall_kind_filter(self, populated_store: WikiStore) -> None:
         engine = WikiRecallEngine(populated_store)
-        results = await engine.recall(
-            "Fulvio", kind_filter=PageKind.ENTITY
-        )
+        results = await engine.recall("Fulvio", kind_filter=PageKind.ENTITY)
         for result in results:
             assert result.kind == PageKind.ENTITY
 
-    async def test_recall_token_budget(
-        self, populated_store: WikiStore
-    ) -> None:
+    async def test_recall_token_budget(self, populated_store: WikiStore) -> None:
         engine = WikiRecallEngine(populated_store)
-        results = await engine.recall(
-            "database memory", max_tokens=50
-        )
+        results = await engine.recall("database memory", max_tokens=50)
         total_tokens = sum(r.estimated_tokens for r in results)
         # Should be within budget (with some tolerance)
         assert total_tokens <= 100  # Allow some overshoot

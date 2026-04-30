@@ -38,10 +38,11 @@ class Provider(StrEnum):
     Tier assignments per canonical policy (v3 — dual free tier 1):
     - general/news:  searxng(1a) > reddit(1b) > tavily(2) > exa(3) > brave(4) > fetch(5)
     - social:        reddit(1a) > searxng(1b) > tavily(2) > brave(3)
-    - academic:      searxng(1a) > reddit(1b) > pubmed(2) > scientific_papers(3)
-                     > tavily(4) > exa(5) > brave(6) > fetch(7)
+    - academic:      searxng(1a) > reddit(1b) > scientific_papers(2) [europepmc per PubMed]
+                     > tavily(3) > exa(4) > brave(5) > fetch(6)
     - deep_scrape:   fetch(1) > webfetch(2)
     - firecrawl REMOVED 2026-04-27: all 6 accounts exhausted lifetime credits.
+    - pubmed-mcp REMOVED 2026-04-30: scientific-papers-mcp covers PubMed via source="europepmc"
     - REGOLA FISSA: searxng + reddit-search sono sempre tier 1 (entrambi gratuiti e illimitati).
       Mai passare a provider a pagamento senza prima aver tentato entrambi.
     """
@@ -64,7 +65,7 @@ class Provider(StrEnum):
     WEBFETCH = "webfetch"
 
     # --- Accademici specializzati ---
-    PUBMED = "pubmed"
+    # PUBMED REMOVED 2026-04-30: scientific-papers-mcp covers PubMed via source="europepmc"
     SCIENTIFIC_PAPERS = (
         "scientific_papers"  # copre arxiv + europepmc + openalex + biorxiv + pmc + core
     )
@@ -134,12 +135,11 @@ INTENT_TIERS: dict[Intent, tuple[Provider, ...]] = {
     Intent.ACADEMIC: (
         Provider.SEARXNG,  # tier 1a — self-hosted, illimitato
         Provider.REDDIT,  # tier 1b — keyless scraper, illimitato
-        Provider.PUBMED,  # tier 2 — biomedico specializzato (NCBI key opzionale)
-        Provider.SCIENTIFIC_PAPERS,  # tier 3 — arXiv+Europe PMC+OpenAlex+altri (keyless)
-        Provider.TAVILY,  # tier 4 — fallback generale LLM-ready
-        Provider.EXA,  # tier 5 — semantic search
-        Provider.BRAVE,  # tier 6 — web fallback
-        Provider.FETCH,  # tier 7 — HTTP fallback
+        Provider.SCIENTIFIC_PAPERS,  # tier 2 — arXiv+Europe PMC (PubMed)+OpenAlex+altri (keyless)
+        Provider.TAVILY,  # tier 3 — fallback generale LLM-ready
+        Provider.EXA,  # tier 4 — semantic search
+        Provider.BRAVE,  # tier 5 — web fallback
+        Provider.FETCH,  # tier 6 — HTTP fallback
     ),
     Intent.DEEP_SCRAPE: (
         Provider.FETCH,  # tier 1 — HTTP fetch (readabilipy)

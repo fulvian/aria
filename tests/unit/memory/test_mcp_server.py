@@ -94,6 +94,7 @@ async def test_remember_recall_stats_flow(monkeypatch: pytest.MonkeyPatch) -> No
 @pytest.mark.asyncio
 async def test_tool_error_paths(monkeypatch: pytest.MonkeyPatch) -> None:
     """DEPRECATED: remember/recall/distill/curate tools removed."""
+
     async def broken_store():
         raise RuntimeError("boom")
 
@@ -231,6 +232,7 @@ async def test_hitl_list_pending(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.asyncio
 async def test_hitl_cancel(monkeypatch: pytest.MonkeyPatch) -> None:
     """hitl_cancel still works — validates signature."""
+
     async def fake_ensure_store():
         raise RuntimeError("boom")
 

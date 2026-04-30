@@ -103,4 +103,4 @@ def calculate_backoff(
 
     base_wait = config.multiplier * (2**attempt)
     jitter = random.uniform(0, config.jitter)
-    return min(base_wait + jitter, config.max_wait)
+    return min(base_wait + jitter, config.max_wait)  # type: ignore[no-any-return]

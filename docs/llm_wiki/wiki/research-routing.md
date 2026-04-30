@@ -133,9 +133,11 @@ Health check (5 provider)        → tutti available ✅
 |--------|----------|------------------|
 | Blueprint routing | `docs/foundation/aria_foundation_blueprint.md` §11.2 | ✅ Aligned |
 | Blueprint fallback | `docs/foundation/aria_foundation_blueprint.md` §11.6 | ✅ Aligned |
-| Search-Agent | `.aria/kilocode/agents/search-agent.md` | ✅ Tier ladder esplicito |
+| Search-Agent | `.aria/kilocode/agents/search-agent.md` | ✅ **v4.4**: pubmed-mcp RIMOSSO (2026-04-30). Scientific-papers-mcp copre PubMed via source="europepmc". allowed-tools: 19, mcp-dependencies: 6. |
 | Deep-Research Skill | `.aria/kilocode/skills/deep-research/SKILL.md` | ✅ Tier ladder già presente |
-| MCP config | `.aria/kilocode/mcp.json` | ✅ All 5 provider enabled |
+| MCP config | `.aria/kilocode/mcp.json` | ✅ pubmed-mcp RIMOSSO (2026-04-30). scientific-papers-mcp copre PubMed via source="europepmc". |
+| Conductor | `.aria/kilocode/agents/aria-conductor.md` | ✅ **v4.0**: productivity-agent nei sub-agenti con dispatch rules |
+| Scientific Papers wrapper | `scripts/wrappers/scientific-papers-wrapper.sh` | ✅ **v4.0**: version pin 0.1.40, checksum guard, hard fail. pubmed-wrapper.sh RIMOSSO 2026-04-30. |
 
 ## Removed Providers
 

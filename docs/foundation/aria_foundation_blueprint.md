@@ -1056,6 +1056,59 @@ Orchestri provider multipli con rotation intelligente. Vedi §11 per la policy m
 
 **File**: `.aria/kilocode/agents/workspace-agent.md`
 
+#### 8.3.3 Productivity-Agent (ADR-0008)
+
+**File**: `.aria/kilocode/agents/productivity-agent.md`
+
+Introdotto da ADR-0008 come 3° sub-agente operativo (MVP Sprint 1).
+Specializzato in workflow consulente: ingestion office files locali,
+briefing multi-documento, meeting prep da calendario.
+
+```markdown
+---
+name: productivity-agent
+type: subagent
+description: Workflow consulente — ingestion office files, briefing multi-doc, meeting prep, email drafting con stile dinamico
+color: "#7C3AED"
+category: productivity
+temperature: 0.2
+allowed-tools:
+  - markitdown-mcp/convert_to_markdown
+  - filesystem/read
+  - filesystem/list_directory
+  - aria-memory/wiki_update_tool
+  - aria-memory/wiki_recall_tool
+  - aria-memory/wiki_show_tool
+  - aria-memory/wiki_list_tool
+  - hitl-queue/ask
+  - fetch/fetch
+  - sequential-thinking/*
+  - spawn-subagent
+required-skills:
+  - office-ingest
+  - consultancy-brief
+  - meeting-prep
+  - planning-with-files
+mcp-dependencies:
+  - markitdown-mcp
+  - aria-memory
+  - filesystem
+---
+
+# Productivity-Agent
+
+Workflow consulente: leggi/sintetizza file office locali (PDF/DOCX/XLSX/PPTX/TXT/HTML),
+componi briefing multi-documento, prepara meeting da eventi calendario.
+
+## Boundary
+- NON tocca direttamente Gmail/Calendar/Drive — delega a `workspace-agent` via spawn-subagent.
+- NON crea documenti DOCX/PPTX/XLSX in locale.
+```
+
+**Skills registrate**: `office-ingest@2.0.0` (deprecates `pdf-extract@1.0.0`),
+`consultancy-brief@1.0.0`, `meeting-prep@1.0.0`.
+**Sprint 2**: `email-draft@1.0.0` con dynamic style (Q7).
+
 ```markdown
 ---
 name: workspace-agent
@@ -1098,16 +1151,17 @@ Invisibili all'utente, invocati in automatico dai flussi interni.
 
 ### 8.5 Matrice capabilities (tool access)
 
-| Sub-Agent          | aria-memory | tavily | firecrawl | brave | exa | searxng | google_* | playwright | filesystem | git | github |
-|--------------------|:-----------:|:------:|:---------:|:-----:|:---:|:-------:|:--------:|:----------:|:----------:|:---:|:------:|
-| aria-conductor     | ✅          |        |           |       |     |         |          |            |            |     |        |
-| search-agent       | ✅          | ✅     | ✅        | ✅    | ✅  | ✅      |          | ✅ @fase2  |            |     |        |
-| workspace-agent    | ✅          |        |           |       |     |         | ✅       |            |            |     |        |
-| compaction-agent   | ✅          |        |           |       |     |         |          |            |            |     |        |
-| summary-agent      | ✅          |        |           |       |     |         |          |            |            |     |        |
-| memory-curator     | ✅          |        |           |       |     |         |          |            |            |     |        |
-| blueprint-keeper   | ✅          |        |           |       |     |         |          |            | ✅ ro      | ✅  | ✅     |
-| security-auditor   | ✅          |        |           |       |     |         |          |            | ✅ ro      | ✅  |        |
+| Sub-Agent          | aria-memory | markitdown | tavily | firecrawl | brave | exa | searxng | google_* | playwright | filesystem | git | github |
+|--------------------|:-----------:|:----------:|:------:|:---------:|:-----:|:---:|:-------:|:--------:|:----------:|:----------:|:---:|:------:|
+| aria-conductor     | ✅          |            |        |           |       |     |         |          |            |            |     |        |
+| search-agent       | ✅          |            | ✅     | ✅        | ✅    | ✅  | ✅      |          | ✅ @fase2  |            |     |        |
+| workspace-agent    | ✅          |            |        |           |       |     |         | ✅       |            |            |     |        |
+| productivity-agent | ✅          | ✅         |        |           |       |     |         | ⬜ delega |            | ✅ ro      |     |        |
+| compaction-agent   | ✅          |            |        |           |       |     |         |          |            |            |     |        |
+| summary-agent      | ✅          |            |        |           |       |     |         |          |            |            |     |        |
+| memory-curator     | ✅          |            |        |           |       |     |         |          |            |            |     |        |
+| blueprint-keeper   | ✅          |            |        |           |       |     |         |          |            | ✅ ro      | ✅  | ✅     |
+| security-auditor   | ✅          |            |        |           |       |     |         |          |            | ✅ ro      | ✅  |        |
 
 **ro = read only**. Il totale tool di ciascun sub-agente **MUST** ≤ 20 (P9).
 
@@ -1205,7 +1259,10 @@ In MVP implementiamo **stadi 1 e 2** nativamente; stadi 3-4 se KiloCode li suppo
     { "name": "planning-with-files", "path": "planning-with-files/SKILL.md", "version": "1.0.0", "category": "system" },
     { "name": "deep-research", "path": "deep-research/SKILL.md", "version": "1.0.0", "category": "research" },
     { "name": "triage-email", "path": "triage-email/SKILL.md", "version": "0.9.0", "category": "workspace" },
-    { "name": "pdf-extract", "path": "pdf-extract/SKILL.md", "version": "1.0.0", "category": "ingest" },
+    { "name": "pdf-extract", "path": "pdf-extract/SKILL.md", "version": "1.0.0", "category": "ingest", "deprecated_by": "office-ingest@2.0.0" },
+    { "name": "office-ingest", "path": "office-ingest/SKILL.md", "version": "2.0.0", "category": "productivity" },
+    { "name": "consultancy-brief", "path": "consultancy-brief/SKILL.md", "version": "1.0.0", "category": "productivity" },
+    { "name": "meeting-prep", "path": "meeting-prep/SKILL.md", "version": "1.0.0", "category": "productivity" },
     { "name": "hitl-queue", "path": "hitl-queue/SKILL.md", "version": "1.0.0", "category": "system" },
     { "name": "memory-distillation", "path": "memory-distillation/SKILL.md", "version": "1.0.0", "category": "memory" },
     { "name": "blueprint-keeper", "path": "blueprint-keeper/SKILL.md", "version": "1.0.0", "category": "governance" }
@@ -1226,11 +1283,15 @@ Per evitare drift funzionale tra skill e tool signatures:
 
 1. **planning-with-files**: pianificazione strutturata su file (`task_plan.md`, `findings.md`, `progress.md`) — pattern kilo_kit.
 2. **deep-research**: ricerca multi-provider (vedi §9.1).
-3. **pdf-extract**: PyMuPDF → testo + metadata, salva in memoria.
-4. **triage-email**: classifica Inbox per urgenza, genera digest.
-5. **memory-distillation**: invoca CLM su range/sessione.
-6. **hitl-queue**: interfaccia gate HITL verso Telegram.
-7. **blueprint-keeper**: scansione codice vs blueprint, PR automatica.
+3. **pdf-extract**: PyMuPDF → testo + metadata, salva in memoria. **DEPRECATED** da `office-ingest@2.0.0`.
+4. **office-ingest@2.0.0**: estrae testo, tabelle e metadata da PDF/DOCX/XLSX/PPTX/TXT/HTML/CSV in markdown LLM-ready via markitdown-mcp. Sostituisce `pdf-extract@1.0.0` con copertura formati estesa.
+5. **consultancy-brief@1.0.0**: sintesi executive multi-documento. Compone outline strutturato (TL;DR, contesto, findings, decisioni, open questions) da N file ingested + contesto wiki.
+6. **meeting-prep@1.0.0**: briefing pre-meeting da evento calendario. Aggrega: descrizione evento, partecipanti (storia conversazioni), allegati Drive (ingested), contesto wiki.
+7. **email-draft@1.0.0**: (Sprint 2) compone bozze email con stile dinamico derivato runtime dalle ultime conversazioni con il recipient.
+8. **triage-email**: classifica Inbox per urgenza, genera digest.
+9. **memory-distillation**: invoca CLM su range/sessione.
+10. **hitl-queue**: interfaccia gate HITL verso Telegram.
+11. **blueprint-keeper**: scansione codice vs blueprint, PR automatica.
 
 ---
 
@@ -1771,7 +1832,7 @@ Quality gates quantitativi Fase 1 (obbligatori):
 - **LLM routing deterministico**: intent classifier + mapping sub-agente/task → modello (config dichiarativa)
 - **Canali aggiuntivi**: Slack, WhatsApp, WebUI Tauri
 - **MCP Gateway**: riduzione tool bloat via proxy scoped
-- **Nuovi sub-agenti**: Finance-Agent (estratti conto), Health-Agent (CSV fitness tipo Hevy), Research-Academic (Exa + Zotero MCP)
+- **Nuovi sub-agenti**: Productivity-Agent (già MVP in Fase 1 — ADR-0008), Finance-Agent (estratti conto), Health-Agent (CSV fitness tipo Hevy), Research-Academic (Exa + Zotero MCP)
 - **Playwright per browser automation**: avanzate ricerche + form filling
 - **Backup automatici + Disaster Recovery runbook**
 - **Observability dashboard**: Grafana locale

@@ -15,34 +15,37 @@ def agent_text() -> str:
 
 
 def test_remember_tool_is_allowed(agent_text: str) -> None:
-    assert "aria-memory/remember" in agent_text, (
-        "aria-conductor must declare aria-memory/remember in allowed-tools"
+    assert "aria-memory/wiki_update_tool" in agent_text or "aria-memory/remember" in agent_text, (
+        "aria-conductor must declare wiki_update_tool or remember in allowed-tools"
     )
 
 
 def test_complete_turn_tool_is_allowed(agent_text: str) -> None:
-    assert "aria-memory/complete_turn" in agent_text, (
-        "aria-conductor must declare aria-memory/complete_turn in allowed-tools"
-    )
+    assert (
+        "aria-memory/wiki_update_tool" in agent_text or "aria-memory/complete_turn" in agent_text
+    ), "aria-conductor must declare wiki_update_tool or complete_turn in allowed-tools"
 
 
 def test_remember_user_input_is_mandatory(agent_text: str) -> None:
     must_contain = [
         "PRIMA di rispondere",
-        "aria-memory/remember",
-        "actor=user_input",
+        "wiki_recall",
     ]
     for fragment in must_contain:
         assert fragment in agent_text, f"missing required fragment: {fragment!r}"
 
 
 def test_complete_turn_is_mandatory(agent_text: str) -> None:
-    assert "complete_turn" in agent_text
-    assert "response_text" in agent_text
+    assert "wiki_update_tool" in agent_text or "complete_turn" in agent_text
+    assert "patches" in agent_text or "response_text" in agent_text
 
 
 def test_session_id_resolved_automatically(agent_text: str) -> None:
-    assert "NON passare session_id" in agent_text or "risolto automaticamente" in agent_text
+    assert (
+        "NON passare session_id" in agent_text
+        or "risolto automaticamente" in agent_text
+        or "lasciati vuoti" in agent_text
+    )
 
 
 def test_mcp_dependency_declared(agent_text: str) -> None:

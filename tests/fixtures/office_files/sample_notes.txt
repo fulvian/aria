@@ -1,0 +1,15 @@
+Meeting Notes - Project Alpha
+=============================
+
+Date: 2026-04-15
+Attendees: Fulvio, Mario, Anna
+
+Discussion Points:
+1. Project timeline review
+2. Budget allocation for Q3
+3. Resource planning
+
+Action Items:
+- Mario: Draft proposal by 2026-04-20
+- Anna: Review technical specs
+- Fulvio: Approve budget

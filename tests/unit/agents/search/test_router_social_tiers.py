@@ -48,9 +48,8 @@ class TestSocialTierOrder:
         assert tiers[-1] == Provider.BRAVE
 
     def test_social_excludes_academic_providers(self):
-        """SOCIAL does NOT include PUBMED or SCIENTIFIC_PAPERS."""
+        """SOCIAL does NOT include SCIENTIFIC_PAPERS (pubmed-mcp removed)."""
         tiers = INTENT_TIERS[Intent.SOCIAL]
-        assert Provider.PUBMED not in tiers
         assert Provider.SCIENTIFIC_PAPERS not in tiers
 
 

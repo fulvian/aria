@@ -96,30 +96,35 @@ class JsonLineFormatter(logging.Formatter):
             if attr.startswith("_"):
                 continue
             val = getattr(record, attr, None)
-            if val is not None and attr not in (
-                "name",
-                "levelname",
-                "levelno",
-                "pathname",
-                "lineno",
-                "module",
-                "funcName",
-                "created",
-                "msecs",
-                "relativeCreated",
-                "thread",
-                "threadName",
-                "processName",
-                "process",
-                "filename",
-                "exc_text",
-                "stack_info",
-                "message",
-                "args",
-                "msg",
-                "taskName",
-                "marker",
-            ) and isinstance(val, (dict, list, str, int, float, bool, type(None))):
+            if (
+                val is not None
+                and attr
+                not in (
+                    "name",
+                    "levelname",
+                    "levelno",
+                    "pathname",
+                    "lineno",
+                    "module",
+                    "funcName",
+                    "created",
+                    "msecs",
+                    "relativeCreated",
+                    "thread",
+                    "threadName",
+                    "processName",
+                    "process",
+                    "filename",
+                    "exc_text",
+                    "stack_info",
+                    "message",
+                    "args",
+                    "msg",
+                    "taskName",
+                    "marker",
+                )
+                and isinstance(val, (dict, list, str, int, float, bool, type(None)))
+            ):
                 context[attr] = val
 
         # Special handling for marker field
@@ -163,20 +168,20 @@ class GzipRotatingFileHandler(TimedRotatingFileHandler):
         filename: str | Path,
         when: str = "midnight",
         interval: int = 1,
-        backupCount: int = 90,
+        backup_count: int = 90,
         encoding: str = "utf-8",
     ) -> None:
         super().__init__(
             filename=str(filename),
             when=when,
             interval=interval,
-            backupCount=backupCount,
+            backupCount=backup_count,
             encoding=encoding,
         )
         # Override suffix to include date
         self.suffix = "%Y-%m-%d"
         # Override extMatch to match the suffix format
-        self.extMatch = re.compile(r"^\d{4}-\d{2}-\d{2}$")  # type: ignore[assignment]
+        self.extMatch = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
     def rotation_filename(self, default_name: str) -> str:
         """Add .gz to rotated files."""
@@ -196,7 +201,6 @@ class GzipRotatingFileHandler(TimedRotatingFileHandler):
 # === Logger Factory ===
 
 _loggers: dict[str, logging.Logger] = {}
-_loggers_lock = None  # Will use simple dict locking
 
 
 def get_logger(name: str) -> logging.Logger:
@@ -207,7 +211,7 @@ def get_logger(name: str) -> logging.Logger:
     - Console output only if stdout is a tty
     - All loggers propagate to root for unified handling
     """
-    global _loggers, _loggers_lock
+    global _loggers  # noqa: PLW0602
 
     if name in _loggers:
         return _loggers[name]
@@ -231,7 +235,7 @@ def get_logger(name: str) -> logging.Logger:
         file_handler = GzipRotatingFileHandler(
             filename=str(log_file),
             when="midnight",
-            backupCount=90,
+            backup_count=90,
         )
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(JsonLineFormatter())
@@ -259,7 +263,7 @@ def get_logger(name: str) -> logging.Logger:
 # === Structured Event Logging ===
 
 
-def log_event(logger: logging.Logger, level: int, event: str, **context: Any) -> None:
+def log_event(logger: logging.Logger, level: int, event: str, **context: object) -> None:  # noqa: ANN401
     """Log a structured event with context.
 
     Args:
@@ -268,7 +272,7 @@ def log_event(logger: logging.Logger, level: int, event: str, **context: Any) ->
         event: Event name/identifier
         **context: Additional context fields (will be merged with extra)
     """
-    extra = {"event": event}
+    extra: dict[str, Any] = {"event": event}
     extra.update(context)
 
     # Create a LogRecord with the extra context

@@ -135,7 +135,9 @@ class TestRouterRoute:
         assert key is None  # keyless
 
     @pytest.mark.asyncio
-    async def test_route_health_state_down_skips_both_free_tiers_to_tavily(self, router, mock_rotator):
+    async def test_route_health_state_down_skips_both_free_tiers_to_tavily(
+        self, router, mock_rotator
+    ):
         """Both free tiers DOWN -> falls to tavily (tier 2, key-based)."""
         router._health["searxng"] = HealthState.DOWN
         router._health["reddit"] = HealthState.DOWN
