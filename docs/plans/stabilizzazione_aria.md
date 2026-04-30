@@ -9,6 +9,7 @@
 > **Priorità decisionale**: Refoundation v2 rollback-first (gateway NON giustificato ora)
 > **Scope coordinamento**: Massimo (capability matrix enforced + handoff JSON + shared context envelope + observability end-to-end)
 > **Phase 2 scaffold**: LLM routing dichiarativo + observability scaffold (tutto il resto deferred a piani dedicati)
+> **Nota di ricostruzione**: questo documento NON è il piano originale; è una ricostruzione basata su wiki, log, blueprint e stato repository. Va interpretato come direzione tecnica da riallineare continuamente con il codice reale.
 
 ---
 
@@ -41,7 +42,7 @@
 
 ## 0. Executive Summary
 
-ARIA Phase 1 MVP è in verifica con **3 sub-agenti implementati** (search, workspace, productivity) ma il lavoro su `productivity-agent` e tutta l'analisi MCP (gateway evaluation, refoundation v2, capability matrix, mcp_productivity_coordination plan) vive su `feature/productivity-agent-mvp` (18 commit ahead di `main`). Il branch corrente `fix/wiki-update-title-field` non li include.
+ARIA Phase 1 MVP risulta oggi gia' consolidato nel repository con **3 sub-agenti implementati** (search, workspace, productivity) e con artefatti v5.0 gia' presenti su `main`. Le assunzioni di branch divergence riportate piu sotto hanno valore storico: vanno lette come provenienza del lavoro, non come stato corrente garantito.
 
 Prima della Fase 2 ARIA deve consolidare 5 fronti, in quest'ordine:
 
@@ -69,6 +70,8 @@ Nessuna delle 6 fasi tocca lo stato persistente (DB memoria, OAuth tokens, crede
 ## 1. Stato Attuale & Gap Analysis
 
 ### 1.1 Branch divergence & merge gap
+
+> **Reality check 2026-04-30 sera**: questa sezione descrive il gap storico usato per ricostruire la direzione del piano. Lo stato attuale del repository deve essere verificato contro `docs/llm_wiki/wiki/index.md`, `docs/llm_wiki/wiki/log.md`, `git log`, e i file reali sotto `src/aria/` e `.aria/config/`.
 
 | Asset | `main` | `feature/productivity-agent-mvp` | `fix/wiki-update-title-field` |
 |-------|:------:|:-------------------------------:|:----------------------------:|

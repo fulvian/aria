@@ -1,47 +1,45 @@
-# MCP Productivity Coordination + Academic MCP Hardening — Findings
+# Findings — Stabilization Audit
 
-## Primary Findings
+## Session: 2026-04-30
 
-1. **Drift search-agent → policy**: search-agent dichiarava tier policy con `pubmed` e `scientific_papers` ma non li esponeva in `allowed-tools` né `mcp-dependencies`. Policy non pienamente eseguibile. **Fixato v4.0**: aggiunti 9+5 tool.
+### Repository facts
+- `docs/plans/stabilizzazione_aria.md` is missing, despite multiple wiki/log/runbook references.
+- Working tree was clean at session start.
+- Current remediation branch: `fix/stabilization-remediation`.
 
-2. **Gap conductor → productivity-agent**: `aria-conductor.md` elencava solo search-agent e workspace-agent come sub-agenti. Productivity-agent esisteva ma non era dispatchabile. **Fixato v4.0**: aggiunto con dispatch rules.
+### Context7 verification
+- `/pydantic/pydantic`: Pydantic v2 recommends `ConfigDict` for `extra='forbid'` and strict model configuration; `model_validate()` remains the canonical validation API.
+- `/hynek/structlog`: recommended stdlib/contextvars integration preserves bound fields by using contextvar merge processors instead of overwriting explicit event fields.
 
-3. **PubMed wrapper monocultura bunx**: wrapper usava solo `bunx`, se bun non presente → crash. **Fixato v4.0**: fallback automatico a `npx` con log WARN.
+### High-priority implementation gaps
+1. `src/aria/launcher/lazy_loader.py`
+   - Loads catalog assuming `servers` is a mapping.
+   - Actual `.aria/config/mcp_catalog.yaml` stores `servers` as a list of objects.
+   - Result: lazy-loading filter cannot operate on the real catalog.
 
-4. **Scientific papers cache mutation fragile**: patching basato su copia file JS in cache npx, senza version pin né checksum verification. **Fixato v4.0**: version pinned 0.1.40, SHA256 checksum pre/post, hard fail su mismatch.
+2. `src/aria/mcp/capability_probe.py`
+   - Parses only JSON/JSONC runtime config.
+   - Cannot consume `.aria/config/mcp_catalog.yaml` directly.
+   - Needs YAML support plus runtime command resolution from `.aria/kilocode/mcp.json`.
 
-5. **Originali npm non preservati**: i file `.original.js` in `docs/patches/scientific-papers-mcp/` erano duplicati dei patched (stessi checksum). **Fixato v4.0**: scaricati veri originali da `npm pack @futurelab-studio/latest-science-mcp@0.1.40`.
+3. `src/aria/agents/coordination/registry.py`
+   - Only defines a `Protocol`; no real registry implementation exists.
+   - Repo already has canonical data in `.aria/config/agent_capability_matrix.yaml`.
 
-## Context7-Verified Tool Names
+4. `.aria/kilocode/agents/aria-conductor.md`
+   - Handoff JSON example uses `timeout` instead of `timeout_seconds`.
+   - Omits required `parent_agent` field.
 
-### PubMed MCP (9 tools)
-- `pubmed_search_articles`, `pubmed_fetch_articles`, `pubmed_fetch_fulltext`
-- `pubmed_format_citations`, `pubmed_find_related`, `pubmed_spell_check`
-- `pubmed_lookup_mesh`, `pubmed_lookup_citation`, `pubmed_convert_ids`
+5. `src/aria/agents/coordination/spawn.py`
+   - Uses `aria.utils.metrics.incr`, which is a stub/no-op.
+   - Should use `aria.observability.metrics` and emit richer validation telemetry without faking actual spawn execution.
 
-### Scientific Papers MCP (5 tools)
-- `search_papers`, `fetch_content`, `fetch_latest`, `list_categories`, `fetch_top_cited`
+### Documentation drift
+- Wiki pages claim missing artifacts such as `scripts/check_mcp_drift.py` and the stabilization plan file.
+- `docs/operations/baseline_lkg_v1/mcp_baseline.md` contains stale commit/tool-count facts.
+- `docs/plans/stabilizzazione_aria.md` is useful as reconstructed direction, but several sections describe historical branch divergence rather than current repository state.
+- `workspace-agent.md` was still a 25-line stub before this pass, despite the plan and wiki expecting an enforced coordination layer.
 
-## Key Decisions
-- Pubmed tool names use `pubmed_` prefix (confirmed by Context7)
-- Scientific papers tools use unprefixed names (no prefix, confirmed by Context7)
-- Version pin scelto invece di `@latest` per evitare drift patch/npm
-- Checksum verification eseguita sia pre-patch (originale npm match) sia post-patch (patched match)
-- SCIENTIFIC_PAPERS_SKIP_PATCH=1 per bypassare hard fail in emergenza
-
-## P2 Findings — Benchmark & Gateway
-
-### Startup Latency (9 MCP servers, 2026-04-29)
-- **Cold start total**: 6.5s (avg 722ms/server)
-- **Warm start total**: 6.1s (avg 680ms/server)
-- **Tools total**: 49 (14 filesystem + 1 seq-thinking + 10 aria-memory + 1 fetch + 1 searxng + 6 reddit + 9 pubmed + 6 scientific-papers + 1 markitdown)
-- **tools/list**: 1-11ms per server (bottleneck non e' la negoziazione capability)
-- **Slowest**: searxng-script (1.45s, invariato cold/warm — backend Docker)
-- **Fastest**: fetch (342ms cold, 329ms warm — uvx con caching efficace)
-
-### Gateway Evaluation: ❌ NON giustificato
-- Overhead startup accettabile (~700ms medio)
-- Warm start gia' veloce (~680ms medio)
-- Gateway aggiunge: latenza, complessita', single point of failure
-- Alternativa migliore: **lazy loading per intent** (caricare solo server necessari per l'intent corrente)
-- Soglia per riconsiderare: >25 server, >20s startup, >200 tool count
+### YAGNI guardrails for this remediation
+- Do not invent a full runtime spawn executor in Python; only repair validation, registry, and observability around the existing wrapper.
+- Do not force full Phase 2 LLM-router activation; keep fixes limited to correctness, testability, and truthfulness of docs.

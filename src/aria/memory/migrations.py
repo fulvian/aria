@@ -200,7 +200,7 @@ class MigrationRunner:
         return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
     async def _ensure_migrations_table(self, conn: aiosqlite.Connection) -> None:
-        await conn.execute(
+        cursor = await conn.execute(
             """
             CREATE TABLE IF NOT EXISTS schema_migrations (
                 version INTEGER PRIMARY KEY,
@@ -209,6 +209,7 @@ class MigrationRunner:
             )
             """
         )
+        await cursor.close()
         await conn.commit()
 
     async def run(self, conn: aiosqlite.Connection) -> list[int]:
@@ -225,11 +226,11 @@ class MigrationRunner:
 
         for version, _filename, sql in self.MIGRATIONS:
             # Check if already applied
-            cursor = await conn.execute(
+            async with conn.execute(
                 "SELECT checksum FROM schema_migrations WHERE version = ?",
                 (version,),
-            )
-            row = await cursor.fetchone()
+            ) as cursor:
+                row = await cursor.fetchone()
 
             if row:
                 # Already applied - verify checksum
@@ -249,12 +250,15 @@ class MigrationRunner:
             checksum = self._file_checksum(sql)
             now = int(__import__("time").time())
             try:
-                await conn.execute("BEGIN")
-                await conn.executescript(sql)
-                await conn.execute(
+                cursor = await conn.execute("BEGIN")
+                await cursor.close()
+                cursor = await conn.executescript(sql)
+                await cursor.close()
+                cursor = await conn.execute(
                     "INSERT INTO schema_migrations (version, applied_at, checksum) VALUES (?, ?, ?)",
                     (version, now, checksum),
                 )
+                await cursor.close()
                 await conn.commit()
             except Exception:
                 await conn.rollback()
@@ -266,8 +270,8 @@ class MigrationRunner:
 
     async def get_applied_versions(self, conn: aiosqlite.Connection) -> list[int]:
         """Get list of applied migration versions."""
-        cursor = await conn.execute("SELECT version FROM schema_migrations ORDER BY version")
-        rows = await cursor.fetchall()
+        async with conn.execute("SELECT version FROM schema_migrations ORDER BY version") as cursor:
+            rows = await cursor.fetchall()
         return [row[0] for row in rows]
 
 

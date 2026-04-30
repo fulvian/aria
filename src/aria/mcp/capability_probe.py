@@ -1,4 +1,4 @@
-"""Generalized MCP Capability Probe Module.
+"""Generalized MCP capability probe.
 
 Probes MCP servers via stdio JSON-RPC, validates tool sets,
 and manages schema snapshots for drift detection across all MCP servers.
@@ -14,6 +14,7 @@ Usage:
 
 CLI:
     python -m aria.mcp.capability_probe --catalog /path/to/mcp.json
+    python -m aria.mcp.capability_probe --catalog .aria/config/mcp_catalog.yaml
 """
 
 # ruff: noqa: T201, ASYNC240
@@ -27,6 +28,8 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+import yaml
 
 from aria.agents.search.capability_probe import (
     EXPECTED_TOOL_SNAPSHOTS,
@@ -99,12 +102,101 @@ def _strip_jsonc_comments(text: str) -> str:
     return "".join(result)
 
 
-def read_catalog(filepath: str | Path) -> dict[str, dict[str, Any]]:
-    """Read MCP server catalog from a JSON or JSONC file.
+def _load_json_or_jsonc(path: Path) -> dict[str, Any]:
+    raw = path.read_text(encoding="utf-8")
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        data = json.loads(_strip_jsonc_comments(raw))
+    return data if isinstance(data, dict) else {}
+
+
+def _read_runtime_mcp_config(path: str | Path | None = None) -> dict[str, dict[str, Any]]:
+    runtime_path = Path(path) if path is not None else _resolve_default_runtime_config()
+    if runtime_path is None or not runtime_path.exists():
+        return {}
+
+    data = _load_json_or_jsonc(runtime_path)
+    servers = data.get("mcpServers")
+    if not isinstance(servers, dict):
+        return {}
+    return {name: cfg for name, cfg in servers.items() if isinstance(cfg, dict)}
+
+
+def _resolve_enabled_catalog_names(data: dict[str, Any]) -> list[str]:
+    raw_servers = data.get("servers")
+    if not isinstance(raw_servers, list):
+        return []
+
+    enabled: list[str] = []
+    for entry in raw_servers:
+        if not isinstance(entry, dict):
+            continue
+        name = str(entry.get("name", "")).strip()
+        if not name:
+            continue
+
+        lifecycle = str(entry.get("lifecycle", "enabled")).strip().lower()
+        if lifecycle in {"disabled", "quarantined", "shadow"}:
+            continue
+        if entry.get("enabled") is False:
+            continue
+
+        enabled.append(name)
+
+    return enabled
+
+
+def _read_yaml_catalog(
+    path: Path,
+    runtime_config_path: str | Path | None = None,
+) -> dict[str, dict[str, Any]]:
+    raw_yaml = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data = raw_yaml if isinstance(raw_yaml, dict) else {}
+    enabled_names = _resolve_enabled_catalog_names(data)
+    runtime_servers = _read_runtime_mcp_config(runtime_config_path)
+
+    resolved: dict[str, dict[str, Any]] = {}
+    for name in enabled_names:
+        runtime_cfg = runtime_servers.get(name)
+        if runtime_cfg is None:
+            log_event(
+                logger,
+                20,
+                "catalog_server_missing_from_runtime",
+                server=name,
+                path=str(path),
+            )
+            continue
+        if runtime_cfg.get("disabled", False) or runtime_cfg.get("enabled") is False:
+            log_event(logger, 20, "catalog_server_disabled_in_runtime", server=name)
+            continue
+
+        cmd = _normalise_command(name, runtime_cfg)
+        if not cmd:
+            continue
+
+        resolved[name] = {
+            "command": cmd,
+            "env": _normalise_environment(runtime_cfg),
+            "timeout": runtime_cfg.get("timeout", 20),
+        }
+
+    return resolved
+
+
+def read_catalog(
+    filepath: str | Path,
+    runtime_config_path: str | Path | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Read MCP server catalog from YAML, JSON, or JSONC.
 
     Supports both legacy ``mcpServers`` (``mcp.json``) and modern ``mcp``
-    (``kilo.jsonc``) key formats. Returns only *enabled* server entries
-    with a normalised structure::
+    (``kilo.jsonc``) key formats. When given the YAML catalog
+    (``.aria/config/mcp_catalog.yaml``), it resolves enabled server names
+    against the runtime ``mcp.json`` configuration.
+
+    Returns only *enabled* server entries with a normalised structure::
 
         {"command": ["npx", "-y", "pkg"], "env": {...}, "timeout": 20}
     """
@@ -113,12 +205,10 @@ def read_catalog(filepath: str | Path) -> dict[str, dict[str, Any]]:
         log_event(logger, 30, "catalog_not_found", path=str(path))
         return {}
 
-    raw = path.read_text(encoding="utf-8")
+    if path.suffix.lower() in {".yaml", ".yml"}:
+        return _read_yaml_catalog(path, runtime_config_path=runtime_config_path)
 
-    try:
-        data: dict[str, Any] = json.loads(raw)
-    except json.JSONDecodeError:
-        data = json.loads(_strip_jsonc_comments(raw))
+    data = _load_json_or_jsonc(path)
 
     servers: dict[str, Any] | None = None
 
@@ -225,6 +315,7 @@ async def probe_server_from_config(
 async def probe_all_servers(
     mcp_catalog_path: str | Path,
     timeout_secs: float = 20.0,
+    runtime_config_path: str | Path | None = None,
 ) -> dict[str, ProbeResult]:
     """Probe every enabled MCP server in a catalog file.
 
@@ -237,7 +328,7 @@ async def probe_all_servers(
     Returns:
         Dict mapping server name to ProbeResult.
     """
-    catalog = read_catalog(mcp_catalog_path)
+    catalog = read_catalog(mcp_catalog_path, runtime_config_path=runtime_config_path)
     if not catalog:
         log_event(logger, 30, "probe_all_no_servers", path=str(mcp_catalog_path))
         return {}
@@ -381,6 +472,27 @@ def _resolve_default_catalog() -> Path | None:
     return None
 
 
+def _resolve_default_runtime_config() -> Path | None:
+    """Resolve the default runtime ``mcp.json`` path."""
+
+    kilocode_cfg = os.environ.get("KILOCODE_CONFIG_DIR")
+    if kilocode_cfg:
+        candidate = Path(kilocode_cfg) / "mcp.json"
+        if candidate.exists():
+            return candidate
+
+    candidate = (
+        Path(os.environ.get("ARIA_HOME", "/home/fulvio/coding/aria"))
+        / ".aria"
+        / "kilocode"
+        / "mcp.json"
+    )
+    if candidate.exists():
+        return candidate
+
+    return None
+
+
 def _print_result(name: str, result: ProbeResult) -> None:
     status = (
         "OK"
@@ -405,7 +517,11 @@ async def _main(argv: list[str]) -> None:
     parser.add_argument(
         "--catalog",
         "-c",
-        help="Path to MCP catalog file (mcp.json / kilo.jsonc)",
+        help="Path to MCP catalog file (.yaml, mcp.json, or kilo.jsonc)",
+    )
+    parser.add_argument(
+        "--runtime-config",
+        help="Optional runtime mcp.json used to resolve YAML catalog entries",
     )
     parser.add_argument(
         "--server",
@@ -444,7 +560,7 @@ async def _main(argv: list[str]) -> None:
     print()
 
     if args.server:
-        catalog = read_catalog(str(catalog_path))
+        catalog = read_catalog(str(catalog_path), runtime_config_path=args.runtime_config)
         if args.server not in catalog:
             print(f"ERROR: Server '{args.server}' not found in catalog.", file=sys.stderr)
             sys.exit(1)
@@ -458,7 +574,11 @@ async def _main(argv: list[str]) -> None:
             save_snapshot(result)
         _print_result(args.server, result)
     else:
-        results = await probe_all_servers(str(catalog_path), timeout_secs=args.timeout)
+        results = await probe_all_servers(
+            str(catalog_path),
+            timeout_secs=args.timeout,
+            runtime_config_path=args.runtime_config,
+        )
 
         if not results:
             print("No enabled MCP servers found in catalog.")

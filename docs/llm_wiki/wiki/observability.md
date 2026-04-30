@@ -14,7 +14,7 @@ Componenti:
 1. **Logger** — wrapper structlog con fallback stdlib
 2. **Metrics** — registry Prometheus textfile collector
 3. **Events** — emitter eventi tipati (cutover, rollback, drift)
-4. **Trace propagation** — UUIDv7 per turno
+4. **Trace propagation** — trace_id contestuale propagato via `contextvars`
 
 ## Logger
 
@@ -51,7 +51,7 @@ Componenti:
 - Prova `structlog` prima (import condizionale)
 - Fallback stdlib con formattatore JSON custom
 - Env `ARIA_STRUCTLOG=0` forza fallback stdlib
-- Output: `.aria/runtime/logs/aria.jsonl` (append, rotazione 10 file × 50MB)
+- Output: `.aria/runtime/logs/aria.jsonl` (rotazione giornaliera, `backupCount=90`)
 - `AriaLogger` class: `.info()`, `.warning()`, `.error()`, `.bind()`
 - `get_aria_logger(name)` factory singleton
 
@@ -91,7 +91,7 @@ Ogni evento ha: `ts`, `event_type`, `agent`, `trace_id`, `metadata`.
 
 ```
 Gateway (entrypoint)
-    │ genera trace_id (UUIDv7)
+    │ genera trace_id contestuale
     │ include in messaggio → conductor
     ▼
 Conductor
@@ -126,6 +126,4 @@ runtime/envelopes/
 
 ## Test Coverage
 
-- Logger: testato via unit test con mock structlog/stdlib
-- Metrics: testato via unit test con CollectorRegistry
-- Trace_id: verificato E2E in test di integrazione (traccia visibile in log)
+- Logger/Metrics/Trace propagation: verificare contro il codice sorgente e i test effettivamente presenti nel repository; questa pagina documenta il comportamento implementato, non una suite dedicata completa.

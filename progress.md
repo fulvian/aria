@@ -1,52 +1,41 @@
-# MCP Productivity Coordination + Academic MCP Hardening — Progress
+# Progress — Stabilization Audit and Remediation
 
-## 2026-04-29T20:17+02:00 — Session start
-- Richiesta utente: implementare `docs/plans/mcp_productivity_coordination_optimization_plan_2026-04-29.md`
-- Vincoli: AGENTS.md, wiki-first, Context7-first
+## 2026-04-30T20:38+02:00 — Session start
+- User requested audit of ARIA stabilization implementation before Phase 2.
+- Constraints: strict `AGENTS.md`, LLM Wiki mandatory, Context7 mandatory.
 
-## 2026-04-29T20:18+02:00 — Context recovery complete
-- Current branch: `feature/productivity-agent-mvp` (14 uncommitted changes)
-- Eseguito session catchup: planning files existono da task precedente
-- Letti wiki index.md, log.md, research-routing.md, mcp-architecture.md, productivity-agent.md
+## 2026-04-30T20:39+02:00 — Context recovery
+- Read wiki `index.md` and `log.md`.
+- Read `.workflow/state.md` and previous planning files.
+- Session catchup confirms working tree clean on `main` before changes.
 
-## 2026-04-29T20:20+02:00 — Source audit complete
-- Letti: search-agent.md, aria-conductor.md, productivity-agent.md, workspace-agent.md
-- Letti: pubmed-wrapper.sh, scientific-papers-wrapper.sh, mcp.json, router.py
-- Identificati tutti i gap: exposure, conductor, wrapper hardening
+## 2026-04-30T20:42+02:00 — Audit complete
+- Stabilization source file `docs/plans/stabilizzazione_aria.md` confirmed missing.
+- Verified concrete implementation/code gaps in coordination, lazy loader, generalized capability probe, prompt contract, and documentation.
 
-## 2026-04-29T20:23+02:00 — Context7 verification complete
-- `/cyanheads/pubmed-mcp-server` — 9 tool names confermati (prefix `pubmed_`)
-- `/benedict2310/scientific-papers-mcp` — 5 tool names confermati (no prefix)
+## 2026-04-30T20:45+02:00 — Context7 verification complete
+- Pydantic v2 model configuration patterns verified.
+- Structlog contextvars / JSON logging patterns verified.
 
-## 2026-04-29T20:25+02:00 — Phase A implementation complete
-- A-1: search-agent.md — allowed-tools + mcp-dependencies aggiunti
-- A-2: aria-conductor.md — productivity-agent + dispatch rules
-- A-3: pubmed-wrapper.sh — bunx→npx fallback
-- A-4: scientific-papers-wrapper.sh — hard fail su patch seed invalido
+## 2026-04-30T20:46+02:00 — Branch created
+- Created feature branch: `fix/stabilization-remediation`.
 
-## 2026-04-29T20:30+02:00 — Phase B implementation complete
-- B-1: scientific-papers-wrapper — version pin 0.1.40, checksum guard, verifica pre/post patch
-- B-1: MANIFEST.md creato con checksum originali/patched
-- B-1: .original.js sostituiti con veri originali npm (prima erano duplicati)
-- B-1: npx pinato a @0.1.40 invece di @latest
+## Next execution block
+- Implement minimal robust fixes for registry, lazy loader, capability probe, spawn metrics alignment, prompt contract, and stabilization plan/docs.
 
-## 2026-04-29T20:35+02:00 — Wiki maintenance
-- docs/llm_wiki/wiki/log.md: aggiornato
-- docs/llm_wiki/wiki/index.md: v4.0 status, raw sources, bootstrap log
-- docs/llm_wiki/wiki/research-routing.md: agent alignment table updated
-- task_plan.md, findings.md, progress.md: aggiornati
+## 2026-04-30T21:33+02:00 — Reconstructed plan alignment pass
+- Reviewed reconstructed `docs/plans/stabilizzazione_aria.md` against actual implementation and wiki state.
+- Expanded `workspace-agent.md` from stub to operational prompt with boundary, HITL, memory, handoff, and tool rules.
+- Updated canonical/mirror capability-matrix docs to the real `HandoffRequest` schema (`timeout_seconds`, `parent_agent`, `spawn_depth`, `envelope_ref`).
+- Renamed generalized MCP probe test file to avoid pytest import-name collision with the existing search probe test module.
 
-## Errors / Adaptations
-| Time | Issue | Resolution |
-|------|-------|------------|
-| 20:28 | `.original.js` files in docs/patches erano duplicati dei patched | Scaricati veri originali da npm pack @0.1.40 |
-| 20:29 | npm pack fallisce in /tmp con path lunghi | Usato /tmp/npmextract dedicato |
+## 2026-04-30T22:10+02:00 — Full suite fix completed
+- Added `tests/conftest.py` to guarantee repository-root imports during pytest collection.
+- Fixed the full-suite collection failure for `tests/unit/memory/test_cleanup_benchmark_entries.py` (`ModuleNotFoundError: scripts`).
+- Full suite now passes: `633 passed, 21 skipped`.
 
-## Final Outputs
-- `.aria/kilocode/agents/search-agent.md` — fully aligned exposure
-- `.aria/kilocode/agents/aria-conductor.md` — productivity-agent dispatchable
-- `scripts/wrappers/pubmed-wrapper.sh` — bunx→npx fallback
-- `scripts/wrappers/scientific-papers-wrapper.sh` — version pin + checksum guard
-- `docs/patches/scientific-papers-mcp/MANIFEST.md` — version manifest
-- `docs/patches/scientific-papers-mcp/*.original.js` — true npm originals
-- Wiki pages aggiornate
+## 2026-04-30T22:18+02:00 — Warning remediation completed
+- Audited the remaining 3 pytest warnings tied to `aiosqlite` worker-thread callbacks during async test teardown.
+- Tightened cursor lifecycle in `src/aria/memory/{episodic,semantic,migrations}.py` to avoid leaked cursor proxies during memory tests.
+- Added a test-only `aiosqlite` teardown shim in `tests/conftest.py` so late callbacks to already-closed pytest event loops are ignored during collection/teardown.
+- Full suite is now clean: `633 passed, 21 skipped`, no warnings.

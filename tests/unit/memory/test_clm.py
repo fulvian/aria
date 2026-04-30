@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
@@ -13,8 +14,9 @@ from aria.memory.episodic import EpisodicStore
 from aria.memory.schema import Actor, EpisodicEntry
 from aria.memory.semantic import SemanticStore
 
+pytestmark = pytest.mark.asyncio(loop_scope="session")
 
-@pytest.mark.asyncio
+
 async def test_clm_distill_session(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("ARIA_HOME", str(tmp_path))
     monkeypatch.setenv("ARIA_RUNTIME", str(tmp_path / ".aria" / "runtime"))
@@ -59,3 +61,4 @@ async def test_clm_distill_session(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
         assert second == []
     finally:
         await store.close()
+        await asyncio.sleep(0)

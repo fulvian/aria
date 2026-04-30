@@ -106,9 +106,12 @@ class SemanticStore:
         self._conn = conn
 
         # Create tables
-        await conn.execute(self.CREATE_TABLE)
-        await conn.execute(self.CREATE_FTS)
-        await conn.executescript(self.CREATE_INDEXES)
+        cursor = await conn.execute(self.CREATE_TABLE)
+        await cursor.close()
+        cursor = await conn.execute(self.CREATE_FTS)
+        await cursor.close()
+        cursor = await conn.executescript(self.CREATE_INDEXES)
+        await cursor.close()
         await conn.commit()
 
     async def insert(self, chunk: SemanticChunk) -> None:
@@ -125,7 +128,7 @@ class SemanticStore:
         first_seen_int = int(chunk.first_seen.timestamp())
         last_seen_int = int(chunk.last_seen.timestamp())
 
-        await self._conn.execute(
+        cursor = await self._conn.execute(
             """
             INSERT INTO semantic_chunks (id, source_episodic_ids, actor, kind, text, keywords, confidence, first_seen, last_seen, occurrences, embedding_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -144,6 +147,7 @@ class SemanticStore:
                 str(chunk.embedding_id) if chunk.embedding_id else None,
             ),
         )
+        await cursor.close()
         await self._conn.commit()
 
     async def insert_many(self, chunks: list[SemanticChunk]) -> None:
@@ -178,13 +182,14 @@ class SemanticStore:
                 )
             )
 
-        await self._conn.executemany(
+        cursor = await self._conn.executemany(
             """
             INSERT INTO semantic_chunks (id, source_episodic_ids, actor, kind, text, keywords, confidence, first_seen, last_seen, occurrences, embedding_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             rows,
         )
+        await cursor.close()
         await self._conn.commit()
 
     async def get(self, id: UUID) -> SemanticChunk | None:
@@ -199,11 +204,11 @@ class SemanticStore:
         if self._conn is None:
             raise RuntimeError("SemanticStore not connected")
 
-        cursor = await self._conn.execute(
+        async with self._conn.execute(
             "SELECT * FROM semantic_chunks WHERE id = ?",
             (str(id),),
-        )
-        row = await cursor.fetchone()
+        ) as cursor:
+            row = await cursor.fetchone()
 
         if not row:
             return None
@@ -225,7 +230,7 @@ class SemanticStore:
 
         # Find chunks that have source_episodic_ids containing entries from this session
         # This requires joining with episodic table
-        cursor = await self._conn.execute(
+        async with self._conn.execute(
             """
             SELECT DISTINCT c.* FROM semantic_chunks c
             JOIN episodic e ON e.id IN (SELECT value FROM json_each(c.source_episodic_ids))
@@ -234,8 +239,8 @@ class SemanticStore:
             LIMIT ?
             """,
             (str(session_id), limit),
-        )
-        rows = await cursor.fetchall()
+        ) as cursor:
+            rows = await cursor.fetchall()
 
         return [self._row_to_chunk(row) for row in rows]
 
@@ -256,11 +261,11 @@ class SemanticStore:
         if self._conn is None:
             raise RuntimeError("SemanticStore not connected")
 
-        cursor = await self._conn.execute(
+        async with self._conn.execute(
             "SELECT * FROM semantic_chunks WHERE kind = ? ORDER BY first_seen DESC LIMIT ?",
             (kind, limit),
-        )
-        rows = await cursor.fetchall()
+        ) as cursor:
+            rows = await cursor.fetchall()
 
         return [self._row_to_chunk(row) for row in rows]
 
@@ -293,7 +298,7 @@ class SemanticStore:
                 kind_filter = f"AND kind IN ({','.join('?' * len(kinds))})"
                 params = (fts_query, *kinds)
 
-            cursor = await self._conn.execute(
+            async with self._conn.execute(
                 f"""
                 SELECT c.* FROM semantic_chunks c
                 JOIN semantic ON semantic.rowid = c.rowid
@@ -302,8 +307,8 @@ class SemanticStore:
                 LIMIT ?
                 """,
                 (*params, top_k),
-            )
-            rows = await cursor.fetchall()
+            ) as cursor:
+                rows = await cursor.fetchall()
             return [self._row_to_chunk(row) for row in rows]
         except Exception:
             # Fall back to LIKE search
@@ -314,7 +319,7 @@ class SemanticStore:
                 kind_filter = f"AND kind IN ({','.join('?' * len(kinds))})"
                 like_params = (like_query, like_query, *kinds)
 
-            cursor = await self._conn.execute(
+            async with self._conn.execute(
                 f"""
                 SELECT * FROM semantic_chunks
                 WHERE (text LIKE ? OR keywords LIKE ?) {kind_filter}
@@ -322,8 +327,8 @@ class SemanticStore:
                 LIMIT ?
                 """,
                 (*like_params, top_k),
-            )
-            rows = await cursor.fetchall()
+            ) as cursor:
+                rows = await cursor.fetchall()
             return [self._row_to_chunk(row) for row in rows]
 
     async def promote(self, id: UUID) -> bool:
@@ -338,10 +343,11 @@ class SemanticStore:
         if self._conn is None:
             raise RuntimeError("SemanticStore not connected")
 
-        await self._conn.execute(
+        cursor = await self._conn.execute(
             "UPDATE semantic_chunks SET confidence = 1.0 WHERE id = ?",
             (str(id),),
         )
+        await cursor.close()
         await self._conn.commit()
         return True
 
@@ -357,10 +363,11 @@ class SemanticStore:
         if self._conn is None:
             raise RuntimeError("SemanticStore not connected")
 
-        await self._conn.execute(
+        cursor = await self._conn.execute(
             "UPDATE semantic_chunks SET confidence = MAX(0.0, confidence - 0.3) WHERE id = ?",
             (str(id),),
         )
+        await cursor.close()
         await self._conn.commit()
         return True
 
@@ -376,12 +383,13 @@ class SemanticStore:
         if self._conn is None:
             raise RuntimeError("SemanticStore not connected")
 
-        cursor = await self._conn.execute(
+        async with self._conn.execute(
             "DELETE FROM semantic_chunks WHERE id = ?",
             (str(id),),
-        )
+        ) as cursor:
+            rowcount = cursor.rowcount
         await self._conn.commit()
-        return cursor.rowcount > 0
+        return rowcount > 0
 
     def _row_to_chunk(self, row: aiosqlite.Row) -> SemanticChunk:
         """Convert database row to SemanticChunk."""

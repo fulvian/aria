@@ -108,11 +108,12 @@ class EpisodicStore:
 
         # Apply PRAGMAs
         for pragma in self.PRAGMAS:
-            await self._conn.execute(pragma)
+            cursor = await self._conn.execute(pragma)
+            await cursor.close()
 
         # Check SQLite version
-        cursor = await self._conn.execute("SELECT sqlite_version()")
-        row = await cursor.fetchone()
+        async with self._conn.execute("SELECT sqlite_version()") as cursor:
+            row = await cursor.fetchone()
         version = row[0] if row else "0"
 
         if version_tuple(version) < MIN_SQLITE_VERSION:
@@ -124,8 +125,8 @@ class EpisodicStore:
         await self._migrations.run(self._conn)
 
         # Verify FTS5 is available
-        cursor = await self._conn.execute("PRAGMA compile_options")
-        options = [row[0] for row in await cursor.fetchall()]
+        async with self._conn.execute("PRAGMA compile_options") as cursor:
+            options = [row[0] for row in await cursor.fetchall()]
         if "ENABLE_FTS5" not in options:
             logging.warning("FTS5 not compiled in SQLite - full-text search may not work")
 
@@ -161,7 +162,7 @@ class EpisodicStore:
         tags_json = json.dumps(entry.tags)
         meta_json = json.dumps(entry.meta)
 
-        await conn.execute(
+        cursor = await conn.execute(
             """
             INSERT INTO episodic (
                 id, session_id, ts, actor, role,
@@ -180,6 +181,7 @@ class EpisodicStore:
                 meta_json,
             ),
         )
+        await cursor.close()
         await conn.commit()
 
     async def insert_many(self, entries: Sequence[EpisodicEntry]) -> None:
@@ -211,7 +213,7 @@ class EpisodicStore:
                 )
             )
 
-        await conn.executemany(
+        cursor = await conn.executemany(
             """
             INSERT INTO episodic (
                 id, session_id, ts, actor, role,
@@ -220,6 +222,7 @@ class EpisodicStore:
             """,
             rows,
         )
+        await cursor.close()
         await conn.commit()
 
     # === Query Operations ===
@@ -235,15 +238,15 @@ class EpisodicStore:
         """
         conn = await self._ensure_connected()
 
-        cursor = await conn.execute(
+        async with conn.execute(
             """
             SELECT e.* FROM episodic e
             LEFT JOIN episodic_tombstones t ON e.id = t.episodic_id
             WHERE e.id = ? AND t.episodic_id IS NULL
             """,
             (str(id),),
-        )
-        row = await cursor.fetchone()
+        ) as cursor:
+            row = await cursor.fetchone()
 
         if not row:
             return None
@@ -268,7 +271,7 @@ class EpisodicStore:
         """
         conn = await self._ensure_connected()
 
-        cursor = await conn.execute(
+        async with conn.execute(
             """
             SELECT e.* FROM episodic e
             LEFT JOIN episodic_tombstones t ON e.id = t.episodic_id
@@ -277,8 +280,8 @@ class EpisodicStore:
             LIMIT ? OFFSET ?
             """,
             (str(session_id), limit, offset),
-        )
-        rows = await cursor.fetchall()
+        ) as cursor:
+            rows = await cursor.fetchall()
 
         return [self._row_to_entry(row) for row in rows]
 
@@ -307,7 +310,7 @@ class EpisodicStore:
         since_int = int(since.timestamp())
         until_int = int(until.timestamp())
 
-        cursor = await conn.execute(
+        async with conn.execute(
             """
             SELECT e.* FROM episodic e
             LEFT JOIN episodic_tombstones t ON e.id = t.episodic_id
@@ -316,8 +319,8 @@ class EpisodicStore:
             LIMIT ?
             """,
             (since_int, until_int, limit),
-        )
-        rows = await cursor.fetchall()
+        ) as cursor:
+            rows = await cursor.fetchall()
         entries = [self._row_to_entry(row) for row in rows]
         if exclude_tags:
             blocked = set(exclude_tags)
@@ -348,7 +351,7 @@ class EpisodicStore:
         fts_query = query.replace('"', '""')
 
         try:
-            cursor = await conn.execute(
+            async with conn.execute(
                 """
                 SELECT e.* FROM episodic e
                 JOIN episodic_fts ON episodic_fts.rowid = e.rowid
@@ -358,13 +361,13 @@ class EpisodicStore:
                 LIMIT ?
                 """,
                 (fts_query, top_k),
-            )
-            rows = await cursor.fetchall()
+            ) as cursor:
+                rows = await cursor.fetchall()
             return [self._row_to_entry(row) for row in rows]
         except Exception:
             # FTS5 table might not exist or query failed
             # Fall back to LIKE search
-            cursor = await conn.execute(
+            async with conn.execute(
                 """
                 SELECT e.* FROM episodic e
                 LEFT JOIN episodic_tombstones t ON e.id = t.episodic_id
@@ -373,8 +376,8 @@ class EpisodicStore:
                 LIMIT ?
                 """,
                 (f"%{query}%", top_k),
-            )
-            rows = await cursor.fetchall()
+            ) as cursor:
+                rows = await cursor.fetchall()
             return [self._row_to_entry(row) for row in rows]
 
     # === Soft Delete (Tombstone) ===
@@ -400,11 +403,11 @@ class EpisodicStore:
         conn = await self._ensure_connected()
 
         # Check entry exists and not already tombstoned
-        cursor = await conn.execute(
+        async with conn.execute(
             "SELECT id FROM episodic WHERE id = ?",
             (str(id),),
-        )
-        row = await cursor.fetchone()
+        ) as cursor:
+            row = await cursor.fetchone()
 
         if not row:
             return False
@@ -412,7 +415,7 @@ class EpisodicStore:
         # Insert tombstone record
         import time as _time
 
-        await conn.execute(
+        cursor = await conn.execute(
             """
             INSERT OR REPLACE INTO episodic_tombstones (
                 episodic_id, tombstoned_at, reason, actor_user_id
@@ -420,6 +423,7 @@ class EpisodicStore:
             """,
             (str(id), int(_time.time()), reason, actor_user_id),
         )
+        await cursor.close()
         await conn.commit()
 
         return True
@@ -440,7 +444,7 @@ class EpisodicStore:
         import uuid as _uuid
 
         hitl_id = str(_uuid.uuid4())
-        await conn.execute(
+        cursor = await conn.execute(
             """
             INSERT INTO memory_hitl_pending (
                 id, target_id, action, reason,
@@ -457,13 +461,14 @@ class EpisodicStore:
                 int(time.time()),
             ),
         )
+        await cursor.close()
         await conn.commit()
         return hitl_id
 
     async def list_hitl_pending(self, limit: int = 100) -> list[dict[str, str | int | None]]:
         """List pending HITL records for memory operations."""
         conn = await self._ensure_connected()
-        cursor = await conn.execute(
+        async with conn.execute(
             """
             SELECT id, target_id, action, reason, trace_id, channel, status, created_at, resolved_at
             FROM memory_hitl_pending
@@ -471,8 +476,8 @@ class EpisodicStore:
             LIMIT ?
             """,
             (limit,),
-        )
-        rows = await cursor.fetchall()
+        ) as cursor:
+            rows = await cursor.fetchall()
         return [
             {
                 "id": row["id"],
@@ -501,13 +506,15 @@ class EpisodicStore:
         """
         conn = await self._ensure_connected()
         try:
-            await conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            cursor = await conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            await cursor.close()
         except Exception as exc:  # noqa: BLE001 — checkpoint is best-effort
             logging.warning("wal_checkpoint(TRUNCATE) failed: %s", exc)
             return
 
         try:
-            await conn.execute("VACUUM")
+            cursor = await conn.execute("VACUUM")
+            await cursor.close()
         except Exception as exc:  # noqa: BLE001
             msg = str(exc).lower()
             if "sql statements in progress" in msg or "database is locked" in msg:
@@ -528,7 +535,7 @@ class EpisodicStore:
         """
         conn = await self._ensure_connected()
         cutoff_ts = int(datetime.now(UTC).timestamp()) - retention_days * 86400
-        cursor = await conn.execute(
+        async with conn.execute(
             """
             INSERT INTO episodic_tombstones (episodic_id, tombstoned_at, reason)
             SELECT id, ?, 'retention_expired'
@@ -537,9 +544,10 @@ class EpisodicStore:
               AND id NOT IN (SELECT episodic_id FROM episodic_tombstones)
             """,
             (int(time.time()), cutoff_ts),
-        )
+        ) as cursor:
+            rowcount = cursor.rowcount
         await conn.commit()
-        return cursor.rowcount
+        return rowcount
 
     async def stats(self) -> MemoryStats:
         """Get memory statistics.
@@ -550,53 +558,53 @@ class EpisodicStore:
         conn = await self._ensure_connected()
 
         # Count T0 entries
-        cursor = await conn.execute(
+        async with conn.execute(
             """
             SELECT COUNT(*) FROM episodic e
             LEFT JOIN episodic_tombstones t ON e.id = t.episodic_id
             WHERE t.episodic_id IS NULL
             """
-        )
-        row = await cursor.fetchone()
+        ) as cursor:
+            row = await cursor.fetchone()
         t0_count = row[0] if row else 0
 
         # Count T1 (semantic chunks)
-        cursor = await conn.execute("SELECT COUNT(*) FROM semantic_chunks")
-        row = await cursor.fetchone()
+        async with conn.execute("SELECT COUNT(*) FROM semantic_chunks") as cursor:
+            row = await cursor.fetchone()
         t1_count = row[0] if row else 0
 
         # Count unique sessions
-        cursor = await conn.execute(
+        async with conn.execute(
             """
             SELECT COUNT(DISTINCT session_id) FROM episodic e
             LEFT JOIN episodic_tombstones t ON e.id = t.episodic_id
             WHERE t.episodic_id IS NULL
             """
-        )
-        row = await cursor.fetchone()
+        ) as cursor:
+            row = await cursor.fetchone()
         sessions = row[0] if row else 0
 
         # Last session timestamp
-        cursor = await conn.execute(
+        async with conn.execute(
             """
             SELECT MAX(ts) FROM episodic e
             LEFT JOIN episodic_tombstones t ON e.id = t.episodic_id
             WHERE t.episodic_id IS NULL
             """
-        )
-        row = await cursor.fetchone()
+        ) as cursor:
+            row = await cursor.fetchone()
         last_ts = row[0] if row else None
         last_session_ts = datetime.fromtimestamp(last_ts, tz=UTC) if last_ts else None
 
         # Average entry size
-        cursor = await conn.execute(
+        async with conn.execute(
             """
             SELECT AVG(LENGTH(content)) FROM episodic e
             LEFT JOIN episodic_tombstones t ON e.id = t.episodic_id
             WHERE t.episodic_id IS NULL
             """
-        )
-        row = await cursor.fetchone()
+        ) as cursor:
+            row = await cursor.fetchone()
         avg_entry_size = row[0] if row else 0.0
 
         # DB file size

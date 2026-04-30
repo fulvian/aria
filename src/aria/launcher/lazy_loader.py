@@ -63,7 +63,12 @@ class LazyLoaderConfig:
 def load_catalog(catalog_path: str) -> dict[str, MCPServerMeta]:
     """Load MCP server metadata from a YAML catalog file.
 
-    Expected structure::
+    Supports both the legacy mapping form and the current list form::
+
+        servers:
+          - name: filesystem
+            lazy_load: false
+            intent_tags: [system]
 
         servers:
           server-name:
@@ -83,11 +88,32 @@ def load_catalog(catalog_path: str) -> dict[str, MCPServerMeta]:
         data: dict[str, Any] = raw if isinstance(raw, dict) else {}
 
     servers: dict[str, MCPServerMeta] = {}
-    for name, meta in data.get("servers", {}).items():
+    raw_servers = data.get("servers", {})
+
+    if isinstance(raw_servers, list):
+        for entry in raw_servers:
+            if not isinstance(entry, dict):
+                continue
+            name = str(entry.get("name", "")).strip()
+            if not name:
+                continue
+            servers[name] = MCPServerMeta(
+                name=name,
+                lazy_load=bool(entry.get("lazy_load", True)),
+                intent_tags=[str(tag) for tag in entry.get("intent_tags", []) if str(tag).strip()],
+            )
+        return servers
+
+    if not isinstance(raw_servers, dict):
+        return {}
+
+    for name, meta in raw_servers.items():
+        if not isinstance(meta, dict):
+            continue
         servers[name] = MCPServerMeta(
             name=name,
             lazy_load=bool(meta.get("lazy_load", True)),
-            intent_tags=list(meta.get("intent_tags", [])),
+            intent_tags=[str(tag) for tag in meta.get("intent_tags", []) if str(tag).strip()],
         )
     return servers
 

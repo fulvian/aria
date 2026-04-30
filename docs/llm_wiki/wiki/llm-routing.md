@@ -85,8 +85,8 @@ Basata su Anthropic prompt caching (2026).
 
 | ADR | Titolo | Status |
 |-----|--------|:------:|
-| ADR-0013 | LLM routing as declarative matrix | ✅ Accepted |
-| ADR-0014 | Observability schema and trace propagation | ✅ Accepted |
+| ADR-0013 | LLM routing as declarative matrix | ⚠️ Referenced, file non presente |
+| ADR-0014 | Observability schema and trace propagation | ⚠️ Referenced, file non presente |
 
 ## Env Flag Rollback
 

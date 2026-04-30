@@ -158,7 +158,7 @@
 
 **Procedura di rollback**:
 1. `export ARIA_CATALOG_ENFORCEMENT=0` (disabilita validazione catalogo).
-2. `git checkout main -- docs/foundation/mcp_catalog.yaml` (ripristino baseline catalogo).
+2. `git checkout main -- .aria/config/mcp_catalog.yaml` (ripristino baseline catalogo).
 3. Se shadow mode attivo: disabilitare enforcement diff, mantenere solo logging.
 4. Ricatturare baseline con `scripts/check_mcp_drift.py --recapture`.
 

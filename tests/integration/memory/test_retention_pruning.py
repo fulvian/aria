@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import pytest
 import pytest_asyncio
 from datetime import UTC, datetime, timedelta
@@ -10,6 +11,8 @@ from uuid import uuid4
 
 from aria.memory.episodic import EpisodicStore
 from aria.memory.schema import Actor, EpisodicEntry, content_hash
+
+pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
 @pytest.fixture
@@ -21,17 +24,17 @@ def mock_config(tmp_path):
     return cfg
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(loop_scope="session")
 async def store(tmp_path, mock_config):
     db_path = tmp_path / "episodic.db"
     s = EpisodicStore(db_path, mock_config)
     await s.connect()
     yield s
     await s.close()
+    await asyncio.sleep(0)
 
 
 @pytest.mark.integration
-@pytest.mark.asyncio
 async def test_prune_old_entries_e2e(store):
     """Entries older than retention_days are tombstoned; recent ones survive."""
     # Old entry (40 days ago)
@@ -64,7 +67,6 @@ async def test_prune_old_entries_e2e(store):
 
 
 @pytest.mark.integration
-@pytest.mark.asyncio
 async def test_prune_idempotent(store):
     """Running prune twice does not double-tombstone entries."""
     old_entry = EpisodicEntry(

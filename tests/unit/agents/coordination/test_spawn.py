@@ -166,6 +166,8 @@ class TestSpawnSubAgentValidated:
         assert result.target_agent == "search_agent"
         assert result.spawn_depth == 1
         assert result.trace_id == "trace-spawn-001"
+        assert result.payload is not None
+        assert result.payload["goal"] == "Search for AI papers"
 
     @pytest.mark.asyncio
     async def test_valid_spawn_with_envelope(
@@ -177,6 +179,8 @@ class TestSpawnSubAgentValidated:
             envelope=envelope,
         )
         assert result.success is True
+        assert result.payload is not None
+        assert result.payload["envelope_ref"] == envelope.envelope_id
 
     @pytest.mark.asyncio
     async def test_delegation_allowed_by_registry(self, valid_handoff: HandoffRequest) -> None:
@@ -187,6 +191,19 @@ class TestSpawnSubAgentValidated:
             registry=registry,
         )
         assert result.success is True
+
+    @pytest.mark.asyncio
+    async def test_trace_id_mismatch_with_envelope_fails(
+        self, valid_handoff: HandoffRequest, envelope: ContextEnvelope
+    ) -> None:
+        mismatched = envelope.model_copy(update={"trace_id": "other-trace"})
+        result = await spawn_subagent_validated(
+            target_agent="search_agent",
+            handoff_request=valid_handoff,
+            envelope=mismatched,
+        )
+        assert result.success is False
+        assert "trace_id" in (result.error or "")
 
     @pytest.mark.asyncio
     async def test_delegation_denied_by_registry(self, valid_handoff: HandoffRequest) -> None:

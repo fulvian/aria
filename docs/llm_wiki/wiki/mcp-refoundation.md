@@ -131,9 +131,9 @@ Regole di filtro:
 
 | ADR | Titolo | Status |
 |-----|--------|:------:|
-| ADR-0009 | MCP catalog as single source of truth | ✅ Accepted |
-| ADR-0010 | Lazy loading per intent enablement | ✅ Accepted |
-| ADR-0012 | MCP cutover and rollback policy | ✅ Accepted |
+| ADR-0009 | MCP catalog as single source of truth | ⚠️ Referenced, file non presente |
+| ADR-0010 | Lazy loading per intent enablement | ⚠️ Referenced, file non presente |
+| ADR-0012 | MCP cutover and rollback policy | ⚠️ Referenced, file non presente |
 
 ## Rollback Matrix
 
@@ -146,10 +146,10 @@ Regole di filtro:
 
 ## Runbook
 
-**File**: `docs/operations/mcp_cutover_rollback.md`
+**File operativo**: `docs/operations/rollback_matrix.md`
 
 Procedura:
 1. `git checkout baseline-LKG-v1 -- .aria/config/mcp_catalog.yaml`
 2. `bin/aria start --profile baseline` (ripristina mcp.json originale)
 3. Verifica smoke test dominio
-4. Logga cutover/rollback in `docs/operations/mcp_cutover_rollback.md`
+4. Logga cutover/rollback in `docs/llm_wiki/wiki/log.md` e aggiorna `docs/operations/rollback_matrix.md` se cambia la procedura.

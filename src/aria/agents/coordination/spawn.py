@@ -7,13 +7,18 @@ runtime validation, delegation registry checks, and spawn depth limiting.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from time import perf_counter
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 
 from aria.agents.coordination.envelope import ContextEnvelope  # noqa: TC001
 from aria.agents.coordination.handoff import HandoffRequest  # noqa: TC001
-from aria.utils.metrics import incr
+from aria.observability.metrics import (
+    observe_agent_spawn,
+    observe_agent_spawn_duration,
+    observe_tool_call,
+)
 
 if TYPE_CHECKING:
     from aria.agents.coordination.registry import AgentRegistry
@@ -43,12 +48,12 @@ class SpawnRequest(BaseModel):
 
 @dataclass
 class SpawnResult:
-    """Tracks the outcome of a validated sub-agent spawn.
+    """Tracks the outcome of a validated sub-agent spawn request.
 
     Attributes
     ----------
     success : bool
-        Whether the spawn completed without error.
+        Whether validation and payload preparation completed without error.
     target_agent : str
         Name of the agent that was targeted.
     spawn_depth : int
@@ -57,6 +62,8 @@ class SpawnResult:
         Propagation trace identifier.
     error : str | None
         Human-readable error when success is False.
+    payload : dict[str, object] | None
+        Prepared spawn payload. Present only when validation succeeds.
     """
 
     success: bool
@@ -64,6 +71,27 @@ class SpawnResult:
     spawn_depth: int
     trace_id: str
     error: str | None = None
+    payload: dict[str, object] | None = None
+
+
+def _failure(
+    *,
+    parent_agent: str,
+    target_agent: str,
+    spawn_depth: int,
+    trace_id: str,
+    error: str,
+    duration_s: float,
+) -> SpawnResult:
+    observe_tool_call(parent_agent or "unknown", "spawn-subagent", outcome="validation_failed")
+    observe_agent_spawn_duration(target_agent or "unknown", duration_s)
+    return SpawnResult(
+        success=False,
+        target_agent=target_agent,
+        spawn_depth=spawn_depth,
+        trace_id=trace_id,
+        error=error,
+    )
 
 
 async def spawn_subagent_validated(
@@ -72,13 +100,16 @@ async def spawn_subagent_validated(
     envelope: ContextEnvelope | None = None,
     registry: AgentRegistry | None = None,
 ) -> SpawnResult:
-    """Validate and execute a sub-agent spawn.
+    """Validate and prepare a sub-agent spawn request.
 
     Runs the full validation pipeline:
     1. Validates that the handoff request has all required fields.
     2. If a registry is provided, validates the delegation is allowed.
     3. Validates that the spawn depth does not exceed the maximum.
-    4. If all checks pass, constructs the spawn-subagent call parameters.
+    4. If all checks pass, constructs the spawn-subagent payload.
+
+    This function does not invoke the actual Kilo spawn tool. It only prepares
+    the validated payload and emits telemetry for the caller.
 
     Parameters
     ----------
@@ -96,57 +127,91 @@ async def spawn_subagent_validated(
     SpawnResult
         Result of the validation and spawn attempt.
     """
+    started = perf_counter()
     trace_id = handoff_request.trace_id
     spawn_depth = handoff_request.spawn_depth
+    parent_agent = handoff_request.parent_agent
+    normalized_target = target_agent.strip()
 
     # --- Validation 1: handoff has all required fields ---
-    required = ["goal", "trace_id", "parent_agent"]
-    missing = [f for f in required if getattr(handoff_request, f, None) is None]
+    missing = [
+        field_name
+        for field_name in ("goal", "trace_id", "parent_agent")
+        if not isinstance(getattr(handoff_request, field_name, None), str)
+        or not str(getattr(handoff_request, field_name, "")).strip()
+    ]
     if missing:
-        incr("aria_agent_spawn_total", value=1, target=target_agent, status="validation_failed")
-        return SpawnResult(
-            success=False,
-            target_agent=target_agent,
+        return _failure(
+            parent_agent=parent_agent,
+            target_agent=normalized_target,
             spawn_depth=spawn_depth,
             trace_id=trace_id,
             error=f"HandoffRequest missing required fields: {', '.join(missing)}",
+            duration_s=perf_counter() - started,
+        )
+
+    if not normalized_target:
+        return _failure(
+            parent_agent=parent_agent,
+            target_agent=target_agent,
+            spawn_depth=spawn_depth,
+            trace_id=trace_id,
+            error="Target agent must be a non-empty string",
+            duration_s=perf_counter() - started,
+        )
+
+    if envelope is not None and envelope.trace_id != trace_id:
+        return _failure(
+            parent_agent=parent_agent,
+            target_agent=normalized_target,
+            spawn_depth=spawn_depth,
+            trace_id=trace_id,
+            error="ContextEnvelope trace_id does not match HandoffRequest trace_id",
+            duration_s=perf_counter() - started,
         )
 
     # --- Validation 2: delegation allowed by registry ---
     if registry is not None:
-        allowed = registry.validate_delegation(handoff_request.parent_agent, target_agent)
+        allowed = registry.validate_delegation(parent_agent, normalized_target)
         if not allowed:
-            incr("aria_agent_spawn_total", value=1, target=target_agent, status="delegation_denied")
-            return SpawnResult(
-                success=False,
-                target_agent=target_agent,
+            return _failure(
+                parent_agent=parent_agent,
+                target_agent=normalized_target,
                 spawn_depth=spawn_depth,
                 trace_id=trace_id,
                 error=(
-                    f"Delegation from '{handoff_request.parent_agent}' to "
-                    f"'{target_agent}' is not allowed by registry"
+                    f"Delegation from '{parent_agent}' to '{normalized_target}' "
+                    "is not allowed by registry"
                 ),
+                duration_s=perf_counter() - started,
             )
 
     # --- Validation 3: spawn depth ≤ 2 ---
     if not validate_spawn_depth(spawn_depth):
-        incr("aria_agent_spawn_total", value=1, target=target_agent, status="depth_exceeded")
-        return SpawnResult(
-            success=False,
-            target_agent=target_agent,
+        return _failure(
+            parent_agent=parent_agent,
+            target_agent=normalized_target,
             spawn_depth=spawn_depth,
             trace_id=trace_id,
             error=f"Spawn depth {spawn_depth} exceeds maximum allowed depth of {_MAX_SPAWN_DEPTH}",
+            duration_s=perf_counter() - started,
         )
 
     # --- All checks passed ---
-    incr("aria_agent_spawn_total", value=1, target=target_agent, status="success")
+    payload = handoff_request.model_dump(mode="json")
+    if envelope is not None:
+        payload["envelope_ref"] = envelope.envelope_id
+
+    observe_tool_call(parent_agent, "spawn-subagent", outcome="validated")
+    observe_agent_spawn(normalized_target, parent_agent)
+    observe_agent_spawn_duration(normalized_target, perf_counter() - started)
     return SpawnResult(
         success=True,
-        target_agent=target_agent,
+        target_agent=normalized_target,
         spawn_depth=spawn_depth,
         trace_id=trace_id,
         error=None,
+        payload=payload,
     )
 
 

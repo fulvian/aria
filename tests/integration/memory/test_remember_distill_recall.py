@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import pytest
 import pytest_asyncio
 from datetime import UTC, datetime, timedelta
@@ -13,6 +14,8 @@ from aria.memory.episodic import EpisodicStore
 from aria.memory.schema import Actor, EpisodicEntry, content_hash
 from aria.memory.semantic import SemanticStore
 
+pytestmark = pytest.mark.asyncio(loop_scope="session")
+
 
 @pytest.fixture
 def mock_config(tmp_path):
@@ -23,7 +26,7 @@ def mock_config(tmp_path):
     return cfg
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(loop_scope="session")
 async def stores(tmp_path, mock_config):
     db_path = tmp_path / "episodic.db"
     mock_config.paths.runtime = tmp_path
@@ -34,10 +37,10 @@ async def stores(tmp_path, mock_config):
     clm = CLM(store, semantic)
     yield store, semantic, clm
     await store.close()
+    await asyncio.sleep(0)
 
 
 @pytest.mark.integration
-@pytest.mark.asyncio
 async def test_remember_distill_recall_e2e(stores):
     """remember → distill_session → recall returns the distilled chunk."""
     store, semantic, clm = stores
@@ -66,7 +69,6 @@ async def test_remember_distill_recall_e2e(stores):
 
 
 @pytest.mark.integration
-@pytest.mark.asyncio
 async def test_distill_range_covers_multiple_sessions(stores):
     """distill_range processes entries from multiple sessions."""
     store, semantic, clm = stores

@@ -28,8 +28,11 @@ Payload minimo per `spawn-subagent`:
   "goal": "descrizione del task (obbligatorio, max 500 char)",
   "constraints": "vincoli specifici (opzionale)",
   "required_output": "formato atteso risultato (opzionale)",
-  "timeout": 120,
-  "trace_id": "trace_xxx"
+  "timeout_seconds": 120,
+  "trace_id": "trace_xxx",
+  "parent_agent": "aria-conductor",
+  "spawn_depth": 1,
+  "envelope_ref": "env_uuid_opzionale"
 }
 ```
 

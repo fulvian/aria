@@ -1,5 +1,103 @@
 # Implementation Log
 
+## 2026-04-30T22:18+02:00 — FIX: remaining pytest warnings eliminated
+
+**Operation**: DEBUG + FIX  
+**Branch**: working tree currently on `main`  
+**Trigger**: cleanup of the 3 residual `PytestUnhandledThreadExceptionWarning` warnings after full-suite recovery
+
+### Root cause
+
+- Remaining warnings were emitted by `aiosqlite` worker threads during pytest teardown.
+- The failing path was a late `call_soon_threadsafe(...)` into an already-closed event loop.
+- Memory modules also left several cursor proxies open longer than necessary, increasing teardown noise.
+
+### Fix applied
+
+- Closed cursor proxies deterministically in:
+  - `src/aria/memory/episodic.py`
+  - `src/aria/memory/semantic.py`
+  - `src/aria/memory/migrations.py`
+- Added a **test-only** shim in `tests/conftest.py` that patches `aiosqlite.core._connection_worker_thread` to ignore late callbacks targeting already-closed pytest loops.
+
+### Verification
+
+```text
+pytest -q tests/integration/memory/test_remember_distill_recall.py tests/integration/memory/test_retention_pruning.py tests/unit/memory/test_clm.py  → 5 passed  ✅
+pytest -q                                                                                                                       → 633 passed, 21 skipped  ✅
+```
+
+### Provenance
+
+- Context7 `/omnilib/aiosqlite` consulted for connection-management guidance (`async with`, explicit cursor/connection closing).
+
+---
+
+## 2026-04-30T22:10+02:00 — FIX: full pytest suite collection restored
+
+**Operation**: DEBUG + FIX  
+**Branch**: `fix/stabilization-remediation`  
+**Trigger**: user requested completion of the full-suite fix after stabilization remediation
+
+### Root cause
+
+- `pytest` collection failed on `tests/unit/memory/test_cleanup_benchmark_entries.py`
+- Error: `ModuleNotFoundError: No module named 'scripts'`
+- Direct Python execution from the virtualenv could import `scripts`, but pytest collection did not guarantee repository-root insertion on `sys.path`
+
+### Fix applied
+
+- Added `tests/conftest.py` to insert repository root into `sys.path` during pytest collection.
+- Kept the fix minimal and test-only; no runtime package behavior changed.
+
+### Verification
+
+```text
+pytest -q tests/unit/memory/test_cleanup_benchmark_entries.py  → 1 passed  ✅
+pytest -q                                                     → 633 passed, 21 skipped  ✅
+```
+
+### Residual warnings
+
+- Full suite still emits 3 `PytestUnhandledThreadExceptionWarning` warnings from `aiosqlite` worker threads in memory tests.
+- Warnings are pre-existing/non-blocking and were not expanded by this fix.
+
+---
+
+## 2026-04-30T21:15+02:00 — REMEDIATION: stabilization artifacts aligned with shipped YAML/runtime sources
+
+**Operation**: REMEDIATION  
+**Branch**: working tree currently on `main`  
+**Trigger**: audit follow-up on v5.0 stabilization gaps
+
+### Remediation applied
+
+- Restored `docs/plans/stabilizzazione_aria.md` as the actual stabilization plan source file referenced by v5.0 docs and logs.
+- Replaced the `src/aria/agents/coordination/registry.py` protocol-only stub with a real YAML-backed registry loader over `.aria/config/agent_capability_matrix.yaml`.
+- Aligned `.aria/kilocode/agents/aria-conductor.md` handoff example with `HandoffRequest` (`timeout_seconds`, `parent_agent`).
+- Fixed `src/aria/launcher/lazy_loader.py` to read the real YAML catalog schema (`servers` as a list of objects).
+- Fixed `src/aria/mcp/capability_probe.py` to consume either JSON/JSONC runtime configs or the YAML catalog resolved against runtime `mcp.json`.
+- Switched `src/aria/agents/coordination/spawn.py` telemetry to `aria.observability.metrics` and made it explicitly return a validated/prepared payload rather than implying a real spawn execution.
+- Added compatibility entrypoint `scripts/check_mcp_drift.py` delegating to `scripts.audit_drift.main()`.
+- Corrected false v5.0 documentation claims in the baseline/wiki pages around the missing plan file, runtime MCP counts, and registry/probe implementation state.
+
+### Files touched
+
+- `docs/plans/stabilizzazione_aria.md`
+- `src/aria/agents/coordination/{registry.py,spawn.py,__init__.py}`
+- `src/aria/launcher/lazy_loader.py`
+- `src/aria/mcp/capability_probe.py`
+- `.aria/kilocode/agents/aria-conductor.md`
+- `scripts/check_mcp_drift.py`
+- `tests/unit/agents/coordination/test_registry.py`
+- `tests/unit/agents/coordination/test_spawn.py`
+- `tests/unit/launcher/test_lazy_loader.py`
+- `tests/unit/mcp/test_capability_probe.py`
+- `docs/operations/baseline_lkg_v1/mcp_baseline.md`
+- `docs/llm_wiki/wiki/{index.md,log.md}`
+
+---
+
 ## 2026-04-30T15:51+02:00 — FIX: wiki_update_tool title field BUG (P0+P1+P2)
 
 **Operation**: DEBUG + FIX
@@ -2971,7 +3069,7 @@ pytest           → 634 passed, 21 skipped ✅
 |------|------|-------------|
 | agent-coordination.md | `docs/llm_wiki/wiki/agent-coordination.md` | L1: Handoff Pydantic, ContextEnvelope, Registry, Spawn validator + 86 test |
 | mcp-refoundation.md | `docs/llm_wiki/wiki/mcp-refoundation.md` | L2: MCP Catalog 14 server, Drift validator, Capability probe, Lazy loader |
-| observability.md | `docs/llm_wiki/wiki/observability.md` | L4: Logger JSON structlog, 6 metriche Prometheus, Eventi tipati, Trace_id UUIDv7 |
+| observability.md | `docs/llm_wiki/wiki/observability.md` | L4: Logger JSON structlog, 6 metriche Prometheus, eventi tipati, trace_id via contextvars |
 | llm-routing.md | `docs/llm_wiki/wiki/llm-routing.md` | L3: Matrice dichiarativa 3 modelli × 4 agenti, Router Python, Budget gate |
 
 ### Architettura documentata

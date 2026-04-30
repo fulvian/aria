@@ -21,7 +21,14 @@ from aria.agents.coordination.handoff import (
     HandoffValidationError,
     validate_handoff,
 )
-from aria.agents.coordination.registry import AgentRegistry
+from aria.agents.coordination.registry import (
+    AgentRegistry,
+    AgentSpec,
+    RegistryValidationError,
+    YamlAgentRegistry,
+    get_default_registry_path,
+    load_agent_registry,
+)
 from aria.agents.coordination.spawn import (
     SpawnRequest,
     SpawnResult,
@@ -31,18 +38,23 @@ from aria.agents.coordination.spawn import (
 
 __all__ = [
     "AgentRegistry",
+    "AgentSpec",
     "ContextEnvelope",
     "HandoffRequest",
     "HandoffResult",
     "HandoffValidationError",
+    "RegistryValidationError",
     "SpawnRequest",
     "SpawnResult",
     "WikiPageSnapshot",
     "cleanup_expired_envelopes",
     "create_envelope",
     "load_envelope",
+    "load_agent_registry",
     "save_envelope",
     "spawn_subagent_validated",
     "validate_handoff",
     "validate_spawn_depth",
+    "YamlAgentRegistry",
+    "get_default_registry_path",
 ]

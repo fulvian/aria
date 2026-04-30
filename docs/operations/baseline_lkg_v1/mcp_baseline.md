@@ -2,11 +2,14 @@
 
 **Data**: 2026-04-30T19:52+02:00  
 **Tag**: `baseline-LKG-v1`  
-**Commit**: cfc24029c0774d05eabc9917bc7910e2cd93394a
+**Commit**: ef0e5e66faad200056e1c0fba345b1f927d7ad24
 
 ## MCP Server Inventory
 
-Fonte: `.aria/kilocode/mcp.json` (commit cfc2402)
+Fonte: `.aria/config/mcp_catalog.yaml` (stabilization scope) con riscontro runtime su `.aria/kilocode/mcp.json`.
+
+Nota: il runtime `mcp.json` include anche i server compatibilita' `git` e `github`.
+La baseline di stabilizzazione sotto riporta i 14 server catalogati nel piano v5.0.
 
 | Server | Transport | Tools | Enabled |
 |--------|-----------|-------|:-------:|
@@ -16,16 +19,16 @@ Fonte: `.aria/kilocode/mcp.json` (commit cfc2402)
 | fetch | stdio | 1 | Si |
 | searxng-script | stdio | 1 | Si |
 | reddit-search | stdio | 6 | Si |
-| scientific-papers-mcp | stdio | 6 | Si |
+| scientific-papers-mcp | stdio | 5 | Si |
 | markitdown-mcp | stdio | 1 | Si |
 | brave-mcp | stdio | 5+ | Si |
 | exa-script | stdio | 2 | Si |
 | tavily-mcp | stdio | 5+ | Si |
 | google_workspace | stdio | 20+ | Si |
-| playwright | stdio | ~15 | Si |
+| playwright | stdio | ~15 | No |
 | github-discovery | stdio | 10+ | Si |
 
-**Totale server**: 15  
+**Totale server catalogati**: 14  
 **Tool stimate**: ~75+
 
 ## Startup Latency (riferimento)
@@ -40,7 +43,7 @@ Da benchmark 2026-04-29 su 9 server:
 | fetch | 342 | 329 | 1 |
 | searxng-script | 1453 | 1452 | 1 |
 | reddit-search | 510 | 526 | 6 |
-| scientific-papers-mcp | 1137 | 670 | 6 |
+| scientific-papers-mcp | 1137 | 670 | 5 |
 | markitdown-mcp | 632 | 676 | 1 |
 | **Total (9 server)** | **~6.5s** | **~6.1s** | **49** |
 

@@ -68,8 +68,11 @@ Quando conductor (o productivity-agent) delega un task a un sub-agente via
   "goal": "string — descrizione del task da eseguire (obbligatorio, max 500 char)",
   "constraints": "string — vincoli specifici (opzionale, es. 'usa solo fonti accademiche')",
   "required_output": "string — formato atteso del risultato (opzionale, es. 'lista di 5 paper con titolo, autore, DOI')",
-  "timeout": "number — timeout in secondi (opzionale, default: 120)",
-  "trace_id": "string — trace ID per correlazione log (opzionale, ereditato dal conductor)"
+  "timeout_seconds": "number — timeout in secondi (opzionale, default: 120)",
+  "trace_id": "string — trace ID per correlazione log (obbligatorio)",
+  "parent_agent": "string — agente chiamante (obbligatorio)",
+  "spawn_depth": "number — profondita corrente della catena (default: 1, max: 2)",
+  "envelope_ref": "string — riferimento al ContextEnvelope condiviso (opzionale)"
 }
 ```
 
@@ -81,8 +84,10 @@ Quando conductor (o productivity-agent) delega un task a un sub-agente via
   "goal": "Cerca ultimi paper su Mamba state space models per update survey",
   "constraints": "usa intent=academic, dai priorità a pubmed e scientific_papers",
   "required_output": "lista di 5 paper con titolo, autori, anno, DOI, fonte",
-  "timeout": 180,
-  "trace_id": "trace_search_academic_001"
+  "timeout_seconds": 180,
+  "trace_id": "trace_search_academic_001",
+  "parent_agent": "aria-conductor",
+  "spawn_depth": 1
 }
 ```
 
@@ -92,7 +97,10 @@ Quando conductor (o productivity-agent) delega un task a un sub-agente via
   "goal": "Leggi il file PDF in docs/reports/Q1-2026-report.pdf e produci un executive summary",
   "constraints": "usa office-ingest skill, output in italiano",
   "required_output": "brief markdown con TL;DR, contesto, findings, open questions",
-  "timeout": 300
+  "timeout_seconds": 300,
+  "trace_id": "trace_productivity_001",
+  "parent_agent": "aria-conductor",
+  "spawn_depth": 1
 }
 ```
 
@@ -102,7 +110,11 @@ Quando conductor (o productivity-agent) delega un task a un sub-agente via
   "goal": "Invia email al cliente con allegato il brief appena generato",
   "constraints": "usa gmail, destinatario: cliente@example.com, oggetto: 'Report Q1 2026'",
   "required_output": "conferma invio con message_id",
-  "timeout": 60
+  "timeout_seconds": 60,
+  "trace_id": "trace_workspace_001",
+  "parent_agent": "productivity-agent",
+  "spawn_depth": 2,
+  "envelope_ref": "env_123"
 }
 ```
 

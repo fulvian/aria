@@ -103,7 +103,7 @@ Validator runtime rifiuta payload free-form.
 
 ```python
 class ContextEnvelope(BaseModel):
-    envelope_id: str  # UUIDv7
+    envelope_id: str  # identificatore univoco generato runtime
     trace_id: str
     session_id: str
     wiki_pages: list[WikiPageSnapshot]
