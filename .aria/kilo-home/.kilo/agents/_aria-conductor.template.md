@@ -127,13 +127,15 @@ Formato JSON:
 
 ### Regole per patch
 
-| Kind | op | slug | body_md |
-|------|----|------|---------|
-| profile | update | "profile" | Markdown con sezioni: Identity, Preferences, Working Style |
-| topic | create o append | kebab-case | Markdown con `## Decision YYYY-MM-DD`, `[[entity]]` link |
-| lesson | create | kebab-case | Rule / Why / When-to-apply / Source — IMMUTABILE dopo creazione |
-| entity | create o append | kebab-case | Alias, tipo, related topics, attributi |
-| decision | create | kebab-case | Context / Decision / Rationale / Date — IMMUTABILE |
+| Kind | op | slug | title (richiesto su create) | body_md |
+|------|----|------|-----------------------------|---------|
+| profile | update | "profile" | — | Markdown con sezioni: Identity, Preferences, Working Style |
+| topic | create o append | kebab-case | Titolo della pagina (es. "MCP Scalability per ARIA") | Markdown con `## Sezioni`, `[[entity]]` link |
+| lesson | create | kebab-case | Titolo breve della regola | Rule / Why / When-to-apply / Source — IMMUTABILE dopo creazione |
+| entity | create o append | kebab-case | Nome dell'entità (es. "ARIA System") | Alias, tipo, related topics, attributi |
+| decision | create | kebab-case | Titolo della decisione | Context / Decision / Rationale / Date — IMMUTABILE |
+
+> **Nota**: Se `title` non è esplicitamente fornito in un'operazione `create`, il sistema tenta di estrarlo automaticamente dal primo heading Markdown (`# Titolo`) presente in `body_md`.
 
 ### Salience trigger (quando emettere patch)
 

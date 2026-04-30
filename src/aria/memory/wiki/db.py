@@ -172,14 +172,31 @@ class WikiStore:
 
         if patch.op != "create":
             raise ValueError(f"create_page requires op='create', got {patch.op!r}")
-        if not patch.title:
-            raise ValueError("title is required for create operation")
+
+        # Auto-extract title from body_md if not explicitly provided (P2)
+        title = patch.title
+        if not title and patch.body_md:
+            heading_match = re.search(r"^#+\s+(.+)$", patch.body_md, re.MULTILINE)
+            if heading_match:
+                title = heading_match.group(1).strip()
+                logger.info(
+                    "Auto-extracted title from body_md heading: %r (slug=%s)",
+                    title,
+                    patch.slug,
+                )
+
+        if not title:
+            raise ValueError(
+                "title is required for create operation. "
+                "Provide 'title' in the patch, or start body_md with a Markdown "
+                "heading (e.g., '# My Title')."
+            )
 
         now = int(time.time())
         page = Page(
             slug=patch.slug,
             kind=patch.kind,
-            title=patch.title,
+            title=title,
             body_md=patch.body_md,
             confidence=patch.confidence,
             importance=patch.importance,

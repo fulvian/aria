@@ -20,7 +20,7 @@ from enum import StrEnum
 from typing import Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
 # === Page Kind Enum ===
 
@@ -93,9 +93,20 @@ class PagePatch(BaseModel):
 
     @field_validator("title")
     @classmethod
-    def _validate_title_on_create(cls, v: str | None, info: object) -> str | None:
-        """Title is required on create operations."""
-        # Access values via info if available (Pydantic v2)
+    def _validate_title_on_create(cls, v: str | None, info: ValidationInfo) -> str | None:
+        """Warn when title is missing on create operations.
+
+        The real fix is at the DB layer (create_page auto-extracts from body_md).
+        This validator provides early warning in logs for debugging/training.
+        """
+        if info.data.get("op") == "create" and not v:
+            import logging as _logging
+
+            _logging.getLogger(__name__).warning(
+                "PagePatch title is None but op='create' (slug=%s): "
+                "will be auto-extracted from body_md heading if available",
+                info.data.get("slug", "?"),
+            )
         return v
 
     @field_validator("confidence", mode="before")

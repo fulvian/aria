@@ -1,5 +1,44 @@
 # Implementation Log
 
+## 2026-04-30T15:51+02:00 — FIX: wiki_update_tool title field BUG (P0+P1+P2)
+
+**Operation**: DEBUG + FIX
+**Branch**: `fix/wiki-update-title-field`
+**Trigger**: wiki_update_tool falliva con "title is required for create operation" quando un LLM creava topic pages senza campo `title` esplicito.
+
+### Root cause (3 bugs)
+
+| Bug | File | Descrizione | Severità |
+|-----|------|-------------|----------|
+| **P0** | `aria-conductor.md` § Regole per patch | Tabella documentava solo `kind\|op\|slug\|body_md` — mancava colonna `title`. LLM non sapeva che `title` è campo separato obbligatorio su `create`. | P0 |
+| **P1** | `schema.py:94-99` | Validatore `_validate_title_on_create` era no-op (restituiva `v` senza mai controllare). | P1 |
+| **P2** | `db.py:175-176` | Nessun fallback: se `title=None`, errore Value.Error immediato, senza tentare di estrarre il primo heading Markdown da `body_md`. | P2 |
+
+### Fix applicati
+
+- **P0**: Aggiunta colonna `title (richiesto su create)` nella tabella Regole per patch di `aria-conductor.md` e `_aria-conductor.template.md`. Aggiunta nota su auto-estrazione automatica.
+- **P1**: Validatore ora usa `ValidationInfo.data.get("op")` per loggare warning quando `op="create"` e `title=None`. Import `ValidationInfo` aggiunto.
+- **P2**: In `create_page`, prima del check, il codice tenta di estrarre `title` dal primo heading Markdown (`#+ .+`) in `body_md`. Se trovato, uso quello. Errore migliorato con suggerimento.
+
+### Quality gates
+
+```
+ruff  src/aria/memory/wiki/  → All checks passed  ✅
+mypy  src/aria/memory/wiki/  → Success: no issues found in 9 source files  ✅
+pytest tests/unit/memory/wiki/  → 146/146 PASS (2 skipped)  ✅
+```
+
+### File modificati
+
+| File | Modifica |
+|------|----------|
+| `src/aria/memory/wiki/schema.py` | P1: ValidationInfo import, _validate_title_on_create ora logga warning su op=create+no title |
+| `src/aria/memory/wiki/db.py` | P2: auto-estrazione title da body_md heading #+, errore migliorato |
+| `.aria/kilocode/agents/aria-conductor.md` | P0: colonna `title` nella tabella + nota auto-estrazione |
+| `.aria/kilo-home/.kilo/agents/_aria-conductor.template.md` | P0: stesso fix del conductor attivo |
+
+---
+
 ## 2026-04-30T06:55+02:00 — REMOVE: pubmed-mcp completamente eliminato
 
 **Operation**: REMOVE  

@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-04-30T19:30 (v4.8 — Stabilizzazione pre-Fase 2: quality gate F0 completo)
-**Status**: 🔧 **v4.8** — Stabilizzazione ARIA pre-Fase 2 in corso (F0: quality fix completati). Tutti i quality gate verdi: ruff 0 errori, mypy 0 errori (66 files), pytest 548/548 pass. Fix pre-esistenti: 21 ruff errors, 12 mypy errors, 6 test failures. Bug fix: Rotator credits_total=0 falsy, email_style register classification overlap, duplicate EventBus classes unificate. Branch `feature/productivity-agent-mvp` con quality gate completo pronto per PR→main.
+**Last Updated**: 2026-04-30T19:30 (v4.9 — Stabilizzazione: F0 completa, main consolidato)
+**Status**: ✅ **v4.9** — Stabilizzazione ARIA pre-Fase 2: F0 completata. Productivity-agent-mvp merged in `main`. Wiki title field fix merged. Quality gate: ruff 0, mypy 0, pytest 548/548. Baseline LKG tag pending.
 
 ## Purpose
 
@@ -114,7 +114,11 @@ docs/llm_wiki/
 | `src/aria/gateway/conductor_bridge.py` | Gateway: post-session CLM hook, HITL | 2026-04-24 |
 | `.aria/kilocode/agents/search-agent.md` | **v4.0**: tool pubmed-mcp/* e scientific-papers-mcp/* aggiunti a allowed-tools e mcp-dependencies | 2026-04-29 |
 | `.aria/kilocode/agents/aria-conductor.md` | **v4.0**: productivity-agent aggiunto ai sub-agenti con regole dispatch | 2026-04-29 |
-| ~~`scripts/wrappers/pubmed-wrapper.sh`~~ | **RIMOSSO 2026-04-30**: scientific-papers-mcp copre PubMed via source="europepmc" | 2026-04-30 |
+ | ~~`scripts/wrappers/pubmed-wrapper.sh`~~ | **RIMOSSO 2026-04-30**: scientific-papers-mcp copre PubMed via source="europepmc" | 2026-04-30 |
+ | `src/aria/memory/wiki/schema.py` | **v4.6**: `_validate_title_on_create` fix (P1) — ora logga warning su create+no title con ValidationInfo | 2026-04-30 |
+ | `src/aria/memory/wiki/db.py` | **v4.6**: auto-estrazione title da body_md heading Markdown (P2) — fallback robusto | 2026-04-30 |
+ | `.aria/kilocode/agents/aria-conductor.md` | **v4.6**: colonna `title` in Regole per patch + nota auto-estrazione (P0) | 2026-04-30 |
+ | `.aria/kilo-home/.kilo/agents/_aria-conductor.template.md` | **v4.6**: stesso fix P0 del conductor attivo | 2026-04-30 |
 | `scripts/wrappers/scientific-papers-wrapper.sh` | **v4.0**: checksum guard, version pin 0.1.40, hard fail diagnostico | 2026-04-29 |
 | `docs/patches/scientific-papers-mcp/MANIFEST.md` | **v4.0**: checksum manifest + update procedure | 2026-04-29 |
 | `.aria/kilocode/skills/deep-research/SKILL.md` | Deep research skill (tier ladder) | 2026-04-27 |
@@ -165,7 +169,8 @@ docs/llm_wiki/
 - 2026-04-29: **v4.2** — Fase P2: benchmark startup/latency per 9 MCP server (6.5s cold, 6.1s warm, 49 tools totali). Gateway search: NON giustificato. Alternativa: lazy loading per intent.
 - 2026-04-29: **v4.3** — PIANO COMPLETO: B-2 capability probe framework, B-3 query preprocessor centralizzato (7 sorgenti), D-2 smoke E2E academic (16 test), D-3 rollback drill script. 203 test totali.
 - 2026-04-30: **v4.4** — pubmed-mcp fix: bunx→npx (stdio reliable), npm v0.1.0→v2.6.6 tool mapping, 9 tool rimpiazzati da 5 nuovi. Cache bunx stale pulita.
-- 2026-04-30: **v4.5** — pubmed-mcp RIMOSSO. Non risolveva startup failure. Sostituito da scientific-papers-mcp/source="europepmc". 2 file cancellati, 9 modificati. 182 test.
+  - 2026-04-30: **v4.5** — pubmed-mcp RIMOSSO. Non risolveva startup failure. Sostituito da scientific-papers-mcp/source="europepmc". 2 file cancellati, 9 modificati. 182 test.
+  - 2026-04-30: **v4.6** — FIX: wiki_update_tool title field BUG (P0+P1+P2). Prompt aggiornato, validatore Pydantic implementato, auto-extraction `# Heading` da body_md. 146 wiki test pass.
 
 ## Git & GitHub Rules
 
