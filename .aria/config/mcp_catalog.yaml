@@ -1,353 +1,313 @@
-# MCP Server Catalog — Canonical registry for ARIA
-# Schema: stabilization plan §3.2
-# Generated: 2026-04-30T20:07+02:00
-# Source of truth merge: .aria/kilocode/mcp.json + mcp_baseline.md + agent_capability_matrix.yaml
-
 servers:
-  - name: filesystem
-    domain: system
-    owner_agent: aria-conductor
-    tier: 0
-    transport: stdio
-    lifecycle: enabled
-    auth_mode: keyless
-    statefulness: stateful
-    expected_tools:
-      - read
-      - write
-      - edit
-      - search
-      - list_directory
-      - glob
-      - grep
-      - get_file_info
-      - create_directory
-      - move_file
-      - copy
-      - delete
-      - read_multiple_files
-      - directory_tree
-    risk_level: medium
-    cost_class: free
-    source_of_truth: npx -y @modelcontextprotocol/server-filesystem
-    rollback_class: server
-    baseline_status: lkg
-    intent_tags: [system, file_ops]
-    lazy_load: false
-    notes: "core filesystem server, always-on, 14 tools"
-
-  - name: sequential-thinking
-    domain: system
-    owner_agent: aria-conductor
-    tier: 0
-    transport: stdio
-    lifecycle: enabled
-    auth_mode: keyless
-    statefulness: stateless
-    expected_tools:
-      - sequential_thinking
-    risk_level: low
-    cost_class: free
-    source_of_truth: npx -y @modelcontextprotocol/server-sequential-thinking
-    rollback_class: server
-    baseline_status: lkg
-    intent_tags: [system, reasoning]
-    lazy_load: false
-    notes: "chain-of-thought reasoning server, 1 tool"
-
-  - name: aria-memory
-    domain: memory
-    owner_agent: aria-conductor
-    tier: 0
-    transport: stdio
-    lifecycle: enabled
-    auth_mode: keyless
-    statefulness: stateful
-    expected_tools:
-      - wiki_update_tool
-      - wiki_recall_tool
-      - wiki_show_tool
-      - wiki_list_tool
-      - forget
-      - stats
-      - hitl_ask
-      - hitl_list_pending
-      - hitl_cancel
-      - hitl_approve
-    risk_level: low
-    cost_class: free
-    source_of_truth: /home/fulvio/coding/aria/.venv/bin/python -m aria.memory.mcp_server
-    rollback_class: domain
-    baseline_status: lkg
-    intent_tags: [memory, persistence]
-    lazy_load: false
-    notes: "ARIA wiki + HITL queue, stateful via wiki.db, 10 tools"
-
-  - name: fetch
-    domain: search
-    owner_agent: search-agent
-    tier: 2
-    transport: stdio
-    lifecycle: enabled
-    auth_mode: keyless
-    statefulness: stateless
-    expected_tools:
-      - fetch
-    risk_level: low
-    cost_class: free
-    source_of_truth: uvx mcp-server-fetch
-    rollback_class: server
-    baseline_status: lkg
-    intent_tags: [web, fetch]
-    lazy_load: true
-    notes: "deep scrape tier for search-agent, 1 tool"
-
-  - name: searxng-script
-    domain: search
-    owner_agent: search-agent
-    tier: 1
-    transport: stdio
-    lifecycle: enabled
-    auth_mode: keyless
-    statefulness: stateless
-    expected_tools:
-      - search_web
-    risk_level: low
-    cost_class: free
-    source_of_truth: scripts/wrappers/searxng-wrapper.sh
-    rollback_class: server
-    baseline_status: lkg
-    intent_tags: [general, news, academic, social]
-    lazy_load: true
-    notes: "self-hosted SearXNG, tier 1a per search-agent, free + unlimited, 1 tool"
-
-  - name: reddit-search
-    domain: search
-    owner_agent: search-agent
-    tier: 1
-    transport: stdio
-    lifecycle: enabled
-    auth_mode: keyless
-    statefulness: stateless
-    expected_tools:
-      - search
-      - search_subreddit
-      - get_post
-      - get_subreddit_posts
-      - get_user
-      - get_user_posts
-    risk_level: low
-    cost_class: free
-    source_of_truth: uvx reddit-no-auth-mcp-server
-    rollback_class: server
-    baseline_status: lkg
-    intent_tags: [social, general]
-    lazy_load: true
-    notes: "keyless Reddit scraper via old.reddit.com, 6 tools, tier 1b per search-agent"
-
-  - name: scientific-papers-mcp
-    domain: search
-    owner_agent: search-agent
-    tier: 2
-    transport: stdio
-    lifecycle: enabled
-    auth_mode: keyless
-    statefulness: stateless
-    expected_tools:
-      - search_papers
-      - fetch_content
-      - fetch_latest
-      - list_categories
-      - fetch_top_cited
-    risk_level: low
-    cost_class: free
-    source_of_truth: scripts/wrappers/scientific-papers-wrapper.sh
-    rollback_class: server
-    baseline_status: lkg
-    intent_tags: [academic]
-    lazy_load: true
-    notes: "patched npm v0.1.40, version pin via wrapper checksum, 5 tools, 6 sources (arXiv, EuropePMC, OpenAlex, CORE)"
-
-  - name: brave-mcp
-    domain: search
-    owner_agent: search-agent
-    tier: 2
-    transport: stdio
-    lifecycle: enabled
-    auth_mode: api_key
-    statefulness: stateless
-    expected_tools:
-      - brave_web_search
-      - brave_local_search
-      - brave_news_search
-      - brave_video_search
-      - brave_image_search
-      - brave_summarizer
-    risk_level: low
-    cost_class: freemium
-    source_of_truth: scripts/wrappers/brave-wrapper.sh
-    rollback_class: server
-    baseline_status: lkg
-    intent_tags: [general, news]
-    lazy_load: true
-    notes: "Brave Search API wrapper, 6+ tools, freemium tier"
-
-  - name: exa-script
-    domain: search
-    owner_agent: search-agent
-    tier: 2
-    transport: stdio
-    lifecycle: enabled
-    auth_mode: api_key
-    statefulness: stateless
-    expected_tools:
-      - search
-      - get_contents
-    risk_level: low
-    cost_class: paid
-    source_of_truth: scripts/wrappers/exa-wrapper.sh
-    rollback_class: server
-    baseline_status: lkg
-    intent_tags: [general, deep_search]
-    lazy_load: true
-    notes: "Exa (ex Cipher) API, paid provider, 2 tools"
-
-  - name: tavily-mcp
-    domain: search
-    owner_agent: search-agent
-    tier: 2
-    transport: stdio
-    lifecycle: enabled
-    auth_mode: api_key
-    statefulness: stateless
-    expected_tools:
-      - tavily_search
-      - tavily_extract
-      - tavily_crawl
-    risk_level: low
-    cost_class: paid
-    source_of_truth: scripts/wrappers/tavily-wrapper.sh
-    rollback_class: server
-    baseline_status: lkg
-    intent_tags: [general, news]
-    lazy_load: true
-    notes: "Tavily Search API wrapper, 5+ tools, paid provider"
-
-  - name: google_workspace
-    domain: productivity
-    owner_agent: workspace-agent
-    tier: 1
-    transport: stdio
-    lifecycle: enabled
-    auth_mode: oauth
-    statefulness: stateful
-    expected_tools:
-      - gmail_send
-      - gmail_search
-      - gmail_list
-      - gmail_get
-      - calendar_list_events
-      - calendar_create_event
-      - calendar_get_event
-      - drive_list
-      - drive_read_file
-      - docs_create
-      - docs_get
-      - sheets_create
-      - sheets_get_values
-      - sheets_update_values
-      - slides_create
-    risk_level: high
-    cost_class: free
-    source_of_truth: scripts/wrappers/google-workspace-wrapper.sh
-    rollback_class: session
-    baseline_status: lkg
-    intent_tags: [email, calendar, drive, docs]
-    lazy_load: false
-    notes: "Google Workspace OAuth PKCE, single-user, Gmail+Calendar+Drive+Docs+Sheets+Slides, 20+ tools"
-
-  - name: playwright
-    domain: browser
-    owner_agent: aria-conductor
-    tier: 1
-    transport: stdio
-    lifecycle: disabled
-    auth_mode: keyless
-    statefulness: stateful
-    expected_tools:
-      - navigate
-      - screenshot
-      - click
-      - fill
-      - evaluate
-      - close
-      - resize
-      - press_key
-      - hover
-      - select
-      - go_back
-      - go_forward
-      - get_visible_html
-      - get_visible_text
-      - save_as_pdf
-    risk_level: medium
-    cost_class: free
-    source_of_truth: npx -y @executeautomation/playwright-mcp-server
-    rollback_class: session
-    baseline_status: shadow
-    intent_tags: [browser, automation]
-    lazy_load: false
-    notes: "@fase2, browser automation via Playwright, ~15 tools, currently disabled (shadow)"
-
-  - name: markitdown-mcp
-    domain: productivity
-    owner_agent: productivity-agent
-    tier: 1
-    transport: stdio
-    lifecycle: enabled
-    auth_mode: keyless
-    statefulness: stateless
-    expected_tools:
-      - convert
-    risk_level: low
-    cost_class: free
-    source_of_truth: uvx markitdown-mcp
-    rollback_class: server
-    baseline_status: lkg
-    intent_tags: [document_conversion]
-    lazy_load: false
-    notes: "Microsoft MarkItDown, converts PDF/DOCX/XLSX/PPTX/TXT/HTML to Markdown, 1 tool, MIT license"
-
-  - name: github-discovery
-    domain: search
-    owner_agent: search-agent
-    tier: 2
-    transport: stdio
-    lifecycle: enabled
-    auth_mode: api_key
-    statefulness: stateful
-    expected_tools:
-      - discover_repos
-      - get_candidate_pool
-      - expand_seeds
-      - screen_candidates
-      - get_shortlist
-      - quick_screen
-      - deep_assess
-      - quick_assess
-      - get_assessment
-      - rank_repos
-      - explain_repo
-      - compare_repos
-      - create_session
-      - get_session
-      - list_sessions
-      - export_session
-    risk_level: low
-    cost_class: free
-    source_of_truth: /home/fulvio/coding/github-discovery/.venv/bin/python -m github_discovery.mcp serve --transport stdio
-    rollback_class: server
-    baseline_status: lkg
-    intent_tags: [github, repository_discovery]
-    lazy_load: true
-    notes: "KiloOrg github-discovery MCP, uses GitHub PAT (GHDISC_GITHUB_TOKEN), stateful via pools.db + sessions.db, 16 tools"
+- name: filesystem
+  domain: system
+  owner_agent: aria-conductor
+  tier: 0
+  transport: stdio
+  lifecycle: enabled
+  auth_mode: keyless
+  statefulness: stateful
+  expected_tools:
+  - read
+  - write
+  - edit
+  - search
+  - list_directory
+  - glob
+  - grep
+  - get_file_info
+  - create_directory
+  - move_file
+  - copy
+  - delete
+  - read_multiple_files
+  - directory_tree
+  risk_level: medium
+  cost_class: free
+  source_of_truth: npx -y @modelcontextprotocol/server-filesystem
+  rollback_class: server
+  baseline_status: lkg
+  notes: core filesystem server, always-on, 14 tools
+- name: sequential-thinking
+  domain: system
+  owner_agent: aria-conductor
+  tier: 0
+  transport: stdio
+  lifecycle: enabled
+  auth_mode: keyless
+  statefulness: stateless
+  expected_tools:
+  - sequential_thinking
+  risk_level: low
+  cost_class: free
+  source_of_truth: npx -y @modelcontextprotocol/server-sequential-thinking
+  rollback_class: server
+  baseline_status: lkg
+  notes: chain-of-thought reasoning server, 1 tool
+- name: aria-memory
+  domain: memory
+  owner_agent: aria-conductor
+  tier: 0
+  transport: stdio
+  lifecycle: enabled
+  auth_mode: keyless
+  statefulness: stateful
+  expected_tools:
+  - wiki_update_tool
+  - wiki_recall_tool
+  - wiki_show_tool
+  - wiki_list_tool
+  - forget
+  - stats
+  - hitl_ask
+  - hitl_list_pending
+  - hitl_cancel
+  - hitl_approve
+  risk_level: low
+  cost_class: free
+  source_of_truth: /home/fulvio/coding/aria/.venv/bin/python -m aria.memory.mcp_server
+  rollback_class: domain
+  baseline_status: lkg
+  notes: ARIA wiki + HITL queue, stateful via wiki.db, 10 tools
+- name: fetch
+  domain: search
+  owner_agent: search-agent
+  tier: 2
+  transport: stdio
+  lifecycle: enabled
+  auth_mode: keyless
+  statefulness: stateless
+  expected_tools:
+  - fetch
+  risk_level: low
+  cost_class: free
+  source_of_truth: uvx mcp-server-fetch
+  rollback_class: server
+  baseline_status: lkg
+  notes: deep scrape tier for search-agent, 1 tool
+- name: searxng-script
+  domain: search
+  owner_agent: search-agent
+  tier: 1
+  transport: stdio
+  lifecycle: enabled
+  auth_mode: keyless
+  statefulness: stateless
+  expected_tools:
+  - search_web
+  risk_level: low
+  cost_class: free
+  source_of_truth: scripts/wrappers/searxng-wrapper.sh
+  rollback_class: server
+  baseline_status: lkg
+  notes: self-hosted SearXNG, tier 1a per search-agent, free + unlimited, 1 tool
+- name: reddit-search
+  domain: search
+  owner_agent: search-agent
+  tier: 1
+  transport: stdio
+  lifecycle: enabled
+  auth_mode: keyless
+  statefulness: stateless
+  expected_tools:
+  - search
+  - search_subreddit
+  - get_post
+  - get_subreddit_posts
+  - get_user
+  - get_user_posts
+  risk_level: low
+  cost_class: free
+  source_of_truth: uvx reddit-no-auth-mcp-server
+  rollback_class: server
+  baseline_status: lkg
+  notes: keyless Reddit scraper via old.reddit.com, 6 tools, tier 1b per search-agent
+- name: scientific-papers-mcp
+  domain: search
+  owner_agent: search-agent
+  tier: 2
+  transport: stdio
+  lifecycle: enabled
+  auth_mode: keyless
+  statefulness: stateless
+  expected_tools:
+  - search_papers
+  - fetch_content
+  - fetch_latest
+  - list_categories
+  - fetch_top_cited
+  risk_level: low
+  cost_class: free
+  source_of_truth: scripts/wrappers/scientific-papers-wrapper.sh
+  rollback_class: server
+  baseline_status: lkg
+  notes: patched npm v0.1.40, version pin via wrapper checksum, 5 tools, 6 sources
+    (arXiv, EuropePMC, OpenAlex, CORE)
+- name: brave-mcp
+  domain: search
+  owner_agent: search-agent
+  tier: 2
+  transport: stdio
+  lifecycle: enabled
+  auth_mode: api_key
+  statefulness: stateless
+  expected_tools:
+  - brave_web_search
+  - brave_local_search
+  - brave_news_search
+  - brave_video_search
+  - brave_image_search
+  - brave_summarizer
+  risk_level: low
+  cost_class: freemium
+  source_of_truth: scripts/wrappers/brave-wrapper.sh
+  rollback_class: server
+  baseline_status: lkg
+  notes: Brave Search API wrapper, 6+ tools, freemium tier
+- name: exa-script
+  domain: search
+  owner_agent: search-agent
+  tier: 2
+  transport: stdio
+  lifecycle: enabled
+  auth_mode: api_key
+  statefulness: stateless
+  expected_tools:
+  - search
+  - get_contents
+  risk_level: low
+  cost_class: paid
+  source_of_truth: scripts/wrappers/exa-wrapper.sh
+  rollback_class: server
+  baseline_status: lkg
+  notes: Exa (ex Cipher) API, paid provider, 2 tools
+- name: tavily-mcp
+  domain: search
+  owner_agent: search-agent
+  tier: 2
+  transport: stdio
+  lifecycle: enabled
+  auth_mode: api_key
+  statefulness: stateless
+  expected_tools:
+  - tavily_search
+  - tavily_extract
+  - tavily_crawl
+  risk_level: low
+  cost_class: paid
+  source_of_truth: scripts/wrappers/tavily-wrapper.sh
+  rollback_class: server
+  baseline_status: lkg
+  notes: Tavily Search API wrapper, 5+ tools, paid provider
+- name: google_workspace
+  domain: productivity
+  owner_agent: workspace-agent
+  tier: 1
+  transport: stdio
+  lifecycle: enabled
+  auth_mode: oauth
+  statefulness: stateful
+  expected_tools:
+  - gmail_send
+  - gmail_search
+  - gmail_list
+  - gmail_get
+  - calendar_list_events
+  - calendar_create_event
+  - calendar_get_event
+  - drive_list
+  - drive_read_file
+  - docs_create
+  - docs_get
+  - sheets_create
+  - sheets_get_values
+  - sheets_update_values
+  - slides_create
+  risk_level: high
+  cost_class: free
+  source_of_truth: scripts/wrappers/google-workspace-wrapper.sh
+  rollback_class: session
+  baseline_status: lkg
+  notes: Google Workspace OAuth PKCE, single-user, Gmail+Calendar+Drive+Docs+Sheets+Slides,
+    20+ tools
+- name: playwright
+  domain: browser
+  owner_agent: aria-conductor
+  tier: 1
+  transport: stdio
+  lifecycle: disabled
+  auth_mode: keyless
+  statefulness: stateful
+  expected_tools:
+  - navigate
+  - screenshot
+  - click
+  - fill
+  - evaluate
+  - close
+  - resize
+  - press_key
+  - hover
+  - select
+  - go_back
+  - go_forward
+  - get_visible_html
+  - get_visible_text
+  - save_as_pdf
+  risk_level: medium
+  cost_class: free
+  source_of_truth: npx -y @executeautomation/playwright-mcp-server
+  rollback_class: session
+  baseline_status: shadow
+  notes: '@fase2, browser automation via Playwright, ~15 tools, currently disabled
+    (shadow)'
+- name: markitdown-mcp
+  domain: productivity
+  owner_agent: productivity-agent
+  tier: 1
+  transport: stdio
+  lifecycle: enabled
+  auth_mode: keyless
+  statefulness: stateless
+  expected_tools:
+  - convert
+  risk_level: low
+  cost_class: free
+  source_of_truth: uvx markitdown-mcp
+  rollback_class: server
+  baseline_status: lkg
+  notes: Microsoft MarkItDown, converts PDF/DOCX/XLSX/PPTX/TXT/HTML to Markdown, 1
+    tool, MIT license
+- name: github-discovery
+  domain: search
+  owner_agent: search-agent
+  tier: 2
+  transport: stdio
+  lifecycle: enabled
+  auth_mode: api_key
+  statefulness: stateful
+  expected_tools:
+  - discover_repos
+  - get_candidate_pool
+  - expand_seeds
+  - screen_candidates
+  - get_shortlist
+  - quick_screen
+  - deep_assess
+  - quick_assess
+  - get_assessment
+  - rank_repos
+  - explain_repo
+  - compare_repos
+  - create_session
+  - get_session
+  - list_sessions
+  - export_session
+  risk_level: low
+  cost_class: free
+  source_of_truth: /home/fulvio/coding/github-discovery/.venv/bin/python -m github_discovery.mcp
+    serve --transport stdio
+  rollback_class: server
+  baseline_status: lkg
+  notes: KiloOrg github-discovery MCP, uses GitHub PAT (GHDISC_GITHUB_TOKEN), stateful
+    via pools.db + sessions.db, 16 tools
