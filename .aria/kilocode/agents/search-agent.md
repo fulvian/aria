@@ -6,25 +6,15 @@ color: "#2E86AB"
 category: research
 temperature: 0.1
 allowed-tools:
-  - searxng-script__search
-  - tavily-mcp__search
-  - exa-script__search
-  - brave-mcp__web_search
-  - brave-mcp__news_search
-  - reddit-search__search
-  - reddit-search__search_subreddit
-  - reddit-search__get_post
-  - reddit-search__get_subreddit_posts
-  - reddit-search__get_user
-  - reddit-search__get_user_posts
-  - scientific-papers-mcp__search_papers
-  - scientific-papers-mcp__fetch_content
-  - scientific-papers-mcp__fetch_latest
-  - scientific-papers-mcp__list_categories
-  - scientific-papers-mcp__fetch_top_cited
+  - searxng-script__*
+  - tavily-mcp__*
+  - exa-script__*
+  - brave-mcp__*
+  - reddit-search__*
+  - scientific-papers-mcp__*
   - aria-memory__wiki_update_tool
   - aria-memory__wiki_recall_tool
-  - fetch__fetch
+  - fetch__*
 required-skills:
   - deep-research
   - source-dedup

@@ -104,7 +104,7 @@ class CapabilityMatrixMiddleware(Middleware):
         return os.environ.get(self._env)
 
     @staticmethod
-    def _matches(tool_name: str, allowed: Iterable[str]) -> bool:
+    def _matches(tool_name: str, allowed: Iterable[str]) -> bool:  # noqa: PLR0911
         if tool_name in allowed:
             return True
         # legacy form: "server/tool" in matrix vs "server__tool" in proxy
@@ -116,7 +116,7 @@ class CapabilityMatrixMiddleware(Middleware):
         # Convert first _ to __ and try matching.
         if "_" in tool_name and "__" not in tool_name:
             first = tool_name.index("_")
-            double_form = tool_name[:first] + "__" + tool_name[first + 1:]
+            double_form = tool_name[:first] + "__" + tool_name[first + 1 :]
             if double_form in allowed:
                 return True
         # wildcard `server/*` or `server__*`

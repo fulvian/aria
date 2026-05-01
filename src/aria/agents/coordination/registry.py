@@ -28,41 +28,9 @@ class AgentRegistry(Protocol):
     def is_tool_allowed(self, agent: str, namespaced_tool: str) -> bool:
         """Return True if `namespaced_tool` is in the agent's allowed list.
 
-        Accepts three forms:
-          - `server__tool` (convention)
-          - `server/tool` (legacy pre-F3)
-          - Actual proxy names like `server_toolname` (single underscore)
+        Accepts server__tool, server/tool, and server_tool (proxy) forms.
         """
-        allowed = set(self.get_allowed_tools(agent))
-        if namespaced_tool in allowed:
-            return True
-        # Legacy form: server/tool
-        if "__" in namespaced_tool:
-            legacy = namespaced_tool.replace("__", "/", 1)
-            if legacy in allowed:
-                return True
-        # Proxy names use single _ but matrix uses __.
-        # Convert first _ to __ for matching.
-        if "_" in namespaced_tool and "__" not in namespaced_tool:
-            first = namespaced_tool.index("_")
-            double_form = namespaced_tool[:first] + "__" + namespaced_tool[first + 1:]
-            if double_form in allowed:
-                return True
-            # Wildcard: server__* matches server_toolname
-            wildcard_form = namespaced_tool[:first] + "__*"
-            if wildcard_form in allowed:
-                return True
-        # Wildcard server__* matches any server__form
-        for entry in allowed:
-            if entry.endswith("__*"):
-                prefix = entry[:-3]
-                if "__" in namespaced_tool and namespaced_tool.startswith(prefix + "__"):
-                    return True
-                if "_" in namespaced_tool and "__" not in namespaced_tool:
-                    first = namespaced_tool.index("_")
-                    if namespaced_tool[:first] == prefix:
-                        return True
-        return False
+        ...
 
 
 class YamlCapabilityRegistry:
@@ -101,40 +69,30 @@ class YamlCapabilityRegistry:
         """Return the list of tool names the agent is allowed to invoke."""
         return self._data.get(agent, [])
 
-    def is_tool_allowed(self, agent: str, namespaced_tool: str) -> bool:
+    def is_tool_allowed(self, agent: str, namespaced_tool: str) -> bool:  # noqa: PLR0911
         """Return True if `namespaced_tool` is in the agent's allowed list."""
         allowed = set(self.get_allowed_tools(agent))
         if namespaced_tool in allowed:
             return True
-        # Legacy form: server/tool (pre-F3) vs server__tool (F3 naming convention)
         if "__" in namespaced_tool:
             legacy = namespaced_tool.replace("__", "/", 1)
             if legacy in allowed:
                 return True
-        # Real tool names from proxy use single underscore (server_tool_name),
-        # but the matrix uses double underscore (server__tool_name).
-        # Try converting first single underscore to double underscore.
+        # Proxy names use single _ but matrix uses __.
         if "_" in namespaced_tool and "__" not in namespaced_tool:
             first = namespaced_tool.index("_")
-            double_form = namespaced_tool[:first] + "__" + namespaced_tool[first + 1:]
-            if double_form in allowed:
+            if namespaced_tool[:first] + "__" + namespaced_tool[first + 1 :] in allowed:
                 return True
-            # Also try with wildcard: server__* matches server_tool_name
-            wildcard_form = namespaced_tool[:first] + "__*"
-            if wildcard_form in allowed:
+            if namespaced_tool[:first] + "__*" in allowed:
                 return True
-        # Direct wildcard: server__* matches server__anything
+        # Wildcard server__* matches any form
         for entry in allowed:
             if entry.endswith("__*"):
-                prefix = entry[:-3] + "__"
-                if namespaced_tool.startswith(prefix):
+                prefix = entry[:-3]
+                if "__" in namespaced_tool and namespaced_tool.startswith(prefix + "__"):
                     return True
-                # Also try converting tool name: server_xxx → matches server__*
                 if "_" in namespaced_tool and "__" not in namespaced_tool:
                     first = namespaced_tool.index("_")
-                    single_prefix = namespaced_tool[:first] + "__"
-                    if namespaced_tool[:first] == entry[:-3] and namespaced_tool.startswith(
-                        namespaced_tool[:first] + "_"
-                    ):
+                    if namespaced_tool[:first] == prefix:
                         return True
         return False

@@ -6,11 +6,7 @@ color: "#4285F4"
 category: productivity
 temperature: 0.1
 allowed-tools:
-  - google_workspace__gmail.*
-  - google_workspace__calendar.*
-  - google_workspace__drive.*
-  - google_workspace__docs.*
-  - google_workspace__sheets.*
+  - google_workspace__*
   - aria-memory__wiki_update_tool
   - aria-memory__wiki_recall_tool
   - hitl-queue__ask

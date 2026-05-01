@@ -6,15 +6,14 @@ color: "#7C3AED"
 category: productivity
 temperature: 0.2
 allowed-tools:
-  - markitdown-mcp__convert_to_markdown
-  - filesystem__read
-  - filesystem__list_directory
+  - markitdown-mcp__*
+  - filesystem__*
   - aria-memory__wiki_update_tool
   - aria-memory__wiki_recall_tool
   - aria-memory__wiki_show_tool
   - aria-memory__wiki_list_tool
   - hitl-queue__ask
-  - fetch__fetch
+  - fetch__*
   - sequential-thinking__*
   - spawn-subagent
 required-skills:

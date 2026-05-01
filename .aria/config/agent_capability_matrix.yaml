@@ -32,25 +32,15 @@ agents:
   - name: search-agent
     type: worker
     allowed_tools:
-      - searxng-script__search
-      - tavily-mcp__search
-      - exa-script__search
-      - brave-mcp__web_search
-      - brave-mcp__news_search
-      - reddit-search__search
-      - reddit-search__search_subreddit
-      - reddit-search__get_post
-      - reddit-search__get_subreddit_posts
-      - reddit-search__get_user
-      - reddit-search__get_user_posts
-      - scientific-papers-mcp__search_papers
-      - scientific-papers-mcp__fetch_content
-      - scientific-papers-mcp__fetch_latest
-      - scientific-papers-mcp__list_categories
-      - scientific-papers-mcp__fetch_top_cited
+      - searxng-script__*
+      - tavily-mcp__*
+      - exa-script__*
+      - brave-mcp__*
+      - reddit-search__*
+      - scientific-papers-mcp__*
       - aria-memory__wiki_update_tool
       - aria-memory__wiki_recall_tool
-      - fetch__fetch
+      - fetch__*
     mcp_dependencies:
       - aria-mcp-proxy
       - aria-memory
@@ -67,11 +57,7 @@ agents:
   - name: workspace-agent
     type: worker
     allowed_tools:
-      - google_workspace__gmail.*
-      - google_workspace__calendar.*
-      - google_workspace__drive.*
-      - google_workspace__docs.*
-      - google_workspace__sheets.*
+      - google_workspace__*
       - aria-memory__wiki_update_tool
       - aria-memory__wiki_recall_tool
       - hitl-queue__ask
@@ -87,15 +73,14 @@ agents:
   - name: productivity-agent
     type: worker
     allowed_tools:
-      - markitdown-mcp__convert_to_markdown
-      - filesystem__read
-      - filesystem__list_directory
+      - markitdown-mcp__*
+      - filesystem__*
       - aria-memory__wiki_update_tool
       - aria-memory__wiki_recall_tool
       - aria-memory__wiki_show_tool
       - aria-memory__wiki_list_tool
       - hitl-queue__ask
-      - fetch__fetch
+      - fetch__*
       - sequential-thinking__*
       - spawn-subagent
     mcp_dependencies:

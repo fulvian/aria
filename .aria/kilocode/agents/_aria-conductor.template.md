@@ -6,16 +6,7 @@ color: "#FFD700"
 category: orchestration
 temperature: 0.2
 allowed-tools:
-  - aria-memory__wiki_update_tool
-  - aria-memory__wiki_recall_tool
-  - aria-memory__wiki_show_tool
-  - aria-memory__wiki_list_tool
-  - aria-memory__forget
-  - aria-memory__stats
-  - aria-memory__hitl_ask
-  - aria-memory__hitl_list_pending
-  - aria-memory__hitl_cancel
-  - aria-memory__hitl_approve
+  - aria-memory__*
   - sequential-thinking__*
   - spawn-subagent
 required-skills:
