@@ -139,5 +139,5 @@ echo "Redirect URI: $REDIRECT_URI"
 echo "Command: $CMD"
 echo ""
 
-# Execute
-exec $CMD
+# Execute with stdout filter (suppress non-JSONRPC startup noise)
+exec uv run "$(dirname "$0")/../mcp-stdio-filter.py" -- $CMD

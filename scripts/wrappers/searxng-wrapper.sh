@@ -27,4 +27,4 @@ if [[ -z "${SEARXNG_SERVER_URL:-}" ]]; then
   fi
 fi
 
-exec npx -y searxng-mcp@1.0.1
+exec uv run "$(dirname "$0")/../mcp-stdio-filter.py" -- npx -y searxng-mcp@1.0.1

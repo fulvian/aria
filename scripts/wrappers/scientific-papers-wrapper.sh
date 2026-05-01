@@ -152,4 +152,4 @@ if [ "$PATCH_SEED_VALID" -eq 1 ] && [ -d "$NPX_CACHE" ]; then
 fi
 
 # ═══ Avvia MCP server via npx (versione pinata) ═══
-exec npx -y "@futurelab-studio/latest-science-mcp@${SCIENTIFIC_PAPERS_PINNED_VERSION}"
+exec uv run "$(dirname "$0")/../mcp-stdio-filter.py" -- npx -y "@futurelab-studio/latest-science-mcp@${SCIENTIFIC_PAPERS_PINNED_VERSION}"

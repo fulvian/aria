@@ -98,4 +98,4 @@ if [[ -z "${TAVILY_API_KEY:-}" ]]; then
   echo "WARN: TAVILY_API_KEY missing; tavily-mcp will start but tool calls may fail." >&2
 fi
 
-exec npx -y tavily-mcp@0.2.19
+exec uv run "$(dirname "$0")/../mcp-stdio-filter.py" -- npx -y tavily-mcp@0.2.19
