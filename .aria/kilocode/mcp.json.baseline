@@ -1,0 +1,117 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/fulvio/coding/aria"],
+      "disabled": false
+    },
+    "git": {
+      "command": "uvx",
+      "args": ["mcp-server-git", "--repository", "/home/fulvio/coding/aria"]
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+      }
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "fetch": {
+      "command": "uvx",
+      "args": ["mcp-server-fetch"]
+    },
+    "aria-memory": {
+      "command": "/home/fulvio/coding/aria/.venv/bin/python",
+      "args": ["-m", "aria.memory.mcp_server"],
+      "env": {
+        "ARIA_HOME": "/home/fulvio/coding/aria"
+      }
+    },
+    "tavily-mcp": {
+      "command": "/home/fulvio/coding/aria/scripts/wrappers/tavily-wrapper.sh",
+      "disabled": false,
+      "env": {
+        "TAVILY_API_KEY": "${TAVILY_API_KEY}",
+        "SOPS_AGE_KEY_FILE": "/home/fulvio/.config/sops/age/keys.txt",
+        "ARIA_HOME": "/home/fulvio/coding/aria"
+      }
+    },
+
+    "brave-mcp": {
+      "command": "/home/fulvio/coding/aria/scripts/wrappers/brave-wrapper.sh",
+      "disabled": false,
+      "env": {
+        "BRAVE_API_KEY": "${BRAVE_API_KEY}",
+        "SOPS_AGE_KEY_FILE": "/home/fulvio/.config/sops/age/keys.txt",
+        "ARIA_HOME": "/home/fulvio/coding/aria",
+        "ARIA_CREDENTIALS": "/home/fulvio/coding/aria/.aria/credentials"
+      }
+    },
+    "exa-script": {
+      "command": "/home/fulvio/coding/aria/scripts/wrappers/exa-wrapper.sh",
+      "disabled": false,
+      "env": {
+        "EXA_API_KEY": "${EXA_API_KEY}",
+        "SOPS_AGE_KEY_FILE": "/home/fulvio/.config/sops/age/keys.txt",
+        "ARIA_HOME": "/home/fulvio/coding/aria"
+      }
+    },
+    "searxng-script": {
+      "command": "/home/fulvio/coding/aria/scripts/wrappers/searxng-wrapper.sh",
+      "disabled": false,
+      "env": {
+        "SEARXNG_SERVER_URL": "${SEARXNG_SERVER_URL}",
+        "SEARXNG_URL": "${SEARXNG_URL}"
+      }
+    },
+    "google_workspace": {
+      "command": "/home/fulvio/coding/aria/scripts/wrappers/google-workspace-wrapper.sh",
+      "disabled": false,
+      "env": {
+        "GOOGLE_OAUTH_CLIENT_ID": "${GOOGLE_OAUTH_CLIENT_ID}",
+        "GOOGLE_OAUTH_CLIENT_SECRET": "${GOOGLE_OAUTH_CLIENT_SECRET}",
+        "GOOGLE_OAUTH_REDIRECT_URI": "http://127.0.0.1:8080/callback",
+        "GOOGLE_OAUTH_USE_PKCE": "true",
+        "OAUTHLIB_INSECURE_TRANSPORT": "1",
+        "USER_GOOGLE_EMAIL": "${USER_GOOGLE_EMAIL}",
+        "GOOGLE_WORKSPACE_TOOLS": "gmail drive calendar docs sheets slides"
+      },
+      "_comment": "@phase2 single-user, gmail+calendar expanded — see docs/plans/rispristino_agenti_ricerca_google.md"
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@executeautomation/playwright-mcp-server"],
+      "disabled": true,
+      "_comment": "@fase2"
+    },
+    "scientific-papers-mcp": {
+      "command": "/home/fulvio/coding/aria/scripts/wrappers/scientific-papers-wrapper.sh",
+      "disabled": false,
+      "_comment": "@v2 Scientific Papers MCP (benedict2310/scientific-papers-mcp) — 6 sources including Europe PMC (PubMed content), arXiv, OpenAlex, keyless. Pubmed-MCP REMOVED 2026-04-30: scientific-papers-mcp covers PubMed via europepmc source; pubmed-mcp had startup failures with bunx/npx."
+    },
+    "reddit-search": {
+      "command": "uvx",
+      "args": ["reddit-no-auth-mcp-server"],
+      "disabled": false,
+      "_comment": "@v3 Reddit MCP keyless (eliasbiondo/reddit-mcp-server) — 6 tools: search, search_subreddit, get_post, get_subreddit_posts, get_user, get_user_posts. Zero config, no auth."
+    },
+    "markitdown-mcp": {
+      "command": "uvx",
+      "args": ["markitdown-mcp"],
+      "disabled": false,
+      "_comment": "@productivity-mvp Microsoft markitdown — convert office files (PDF/DOCX/XLSX/PPTX/TXT/HTML) to markdown LLM-ready. MIT license, keyless, Context7 Bench 90.05."
+    },
+    "aria-mcp-proxy": {
+      "command": "/home/fulvio/coding/aria/.venv/bin/python",
+      "args": ["-m", "aria.mcp.proxy"],
+      "env": {
+        "ARIA_HOME": "/home/fulvio/coding/aria"
+      },
+      "_comment": "@F2 shadow mode — not yet referenced by any agent prompt"
+    }
+  }
+}
