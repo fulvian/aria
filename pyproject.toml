@@ -72,6 +72,10 @@ dev = [
     "pytest-asyncio>=0.25",
     "pytest-cov>=6.0",
     "pytest-mock>=3.14",
+
+    # Proxy dev deps (MCP tool search)
+    "respx>=0.21",
+    "numpy>=1.26",
 ]
 
 ml = [
@@ -195,4 +199,10 @@ exclude_lines = [
     "raise NotImplementedError",
     "if TYPE_CHECKING:",
     "if __name__ == .__main__.:",
+]
+
+[dependency-groups]
+dev = [
+    "numpy>=1.26",
+    "respx>=0.21",
 ]
