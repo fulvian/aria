@@ -96,6 +96,34 @@ class MetricsCollector:
             registry=self._registry,
         )
 
+        # Proxy metrics (aria-mcp-proxy, F5)
+        self._proxy_search_latency = Histogram(
+            "aria_proxy_search_latency_seconds",
+            "search_tools latency",
+            labelnames=["agent"],
+            buckets=_MCP_BUCKETS,
+            registry=self._registry,
+        )
+        self._proxy_call_latency = Histogram(
+            "aria_proxy_call_latency_seconds",
+            "call_tool latency",
+            labelnames=["agent", "tool"],
+            buckets=_MCP_BUCKETS,
+            registry=self._registry,
+        )
+        self._proxy_tool_denied = Counter(
+            "aria_proxy_tool_denied_total",
+            "Tool calls denied by capability matrix",
+            labelnames=["agent", "tool"],
+            registry=self._registry,
+        )
+        self._proxy_caller_missing = Counter(
+            "aria_proxy_caller_missing_total",
+            "Tool calls without _caller_id",
+            labelnames=["tool"],
+            registry=self._registry,
+        )
+
     def inc_agent_spawn(self, agent: str, parent: str = "") -> None:
         if not self._enabled:
             return
@@ -129,6 +157,28 @@ class MetricsCollector:
             return
         labels = {"agent": agent, "model": model, "kind": kind}
         self._llm_tokens.labels(**labels).inc(amount)
+
+    # ---- Proxy metrics (F5) ----
+
+    def observe_proxy_search_latency(self, agent: str, latency_s: float) -> None:
+        if not self._enabled:
+            return
+        self._proxy_search_latency.labels(agent=agent).observe(latency_s)
+
+    def observe_proxy_call_latency(self, agent: str, tool: str, latency_s: float) -> None:
+        if not self._enabled:
+            return
+        self._proxy_call_latency.labels(agent=agent, tool=tool).observe(latency_s)
+
+    def inc_proxy_tool_denied(self, agent: str, tool: str) -> None:
+        if not self._enabled:
+            return
+        self._proxy_tool_denied.labels(agent=agent, tool=tool).inc()
+
+    def inc_proxy_caller_missing(self, tool: str) -> None:
+        if not self._enabled:
+            return
+        self._proxy_caller_missing.labels(tool=tool).inc()
 
     def flush(self) -> None:
         if not self._enabled:
@@ -176,6 +226,22 @@ def observe_mcp_startup(server: str, duration_s: float) -> None:
 
 def observe_llm_tokens(agent: str, model: str, kind: str, amount: int = 1) -> None:
     get_metrics_collector().inc_llm_tokens(agent, model, kind, amount)
+
+
+def observe_proxy_search_latency(agent: str, latency_s: float) -> None:
+    get_metrics_collector().observe_proxy_search_latency(agent, latency_s)
+
+
+def observe_proxy_call_latency(agent: str, tool: str, latency_s: float) -> None:
+    get_metrics_collector().observe_proxy_call_latency(agent, tool, latency_s)
+
+
+def inc_proxy_tool_denied(agent: str, tool: str) -> None:
+    get_metrics_collector().inc_proxy_tool_denied(agent, tool)
+
+
+def inc_proxy_caller_missing(tool: str) -> None:
+    get_metrics_collector().inc_proxy_caller_missing(tool)
 
 
 def flush_metrics() -> None:

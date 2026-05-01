@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -42,10 +42,31 @@ class QuarantineTriggered(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+ProxyEventKind = Literal[
+    "proxy.start",
+    "proxy.shutdown",
+    "proxy.tool_denied",
+    "proxy.caller_anomaly",
+    "proxy.backend_quarantine",
+    "proxy.cutover",
+    "proxy.emergency_rollback",
+]
+
+
+class ProxyEvent(BaseModel):
+    ts: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
+    event_type: ProxyEventKind
+    agent: str = ""
+    trace_id: str = Field(default_factory=new_trace_id)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 _EVENT_MARKER = "aria_event"
 
 
-def emit_event(event: CutoverEvent | RollbackEvent | DriftDetected | QuarantineTriggered) -> None:
+def emit_event(  # noqa: E501
+    event: CutoverEvent | RollbackEvent | DriftDetected | QuarantineTriggered | ProxyEvent,
+) -> None:
     logger = get_aria_logger(f"aria.events.{event.agent}")
     logger.info(
         event.event_type,
