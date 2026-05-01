@@ -39,12 +39,12 @@ KiloCode startup context.
 |---|---|---|
 | F0 | ✅ | Smoke — FastMCP proxy stdio verified |
 | F1 | ✅ | Core — all proxy modules with unit + integration tests |
-| F2 | ⏳ | Shadow — proxy entry alongside existing MCP servers |
-| F3 | ⏳ | Cutover — mcp.json reduced to 2 entries, agent prompts namespaced |
-| F4 | ⏳ | Lazy loader removal + ADR-0015 |
-| F5 | ⏳ | Observability + skills + wiki |
+| F2 | ✅ | Shadow — proxy entry alongside existing MCP servers |
+| F3 | ✅ | Cutover — mcp.json → 2 entries, agent prompts namespaced, tag `proxy-cutover-v1` |
+| F4 | ✅ | `lazy_loader.py` removed, `mcp_catalog.yaml` stripped of `lazy_load`/`intent_tags`, ADR-0015 |
+| F5 | ✅ | Observability (`proxy.*` events + `aria_proxy_*` metrics), skills namespaced, wiki finalized |
 
 ## Spec & ADR
 
 - Design: `docs/superpowers/specs/2026-05-01-mcp-tool-search-design.md`
-- ADR: `docs/foundation/decisions/ADR-0015-fastmcp-native-proxy.md` (planned for F4)
+- ADR: `docs/foundation/decisions/ADR-0015-fastmcp-native-proxy.md`

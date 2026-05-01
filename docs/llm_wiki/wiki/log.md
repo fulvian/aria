@@ -3042,3 +3042,42 @@ pytest unit + integration → 38 passed ✅
 - F3: Cutover — reduce mcp.json to 2 entries, update agent prompts
 - F4: Remove lazy_loader.py, write ADR-0015
 - F5: Observability (aria_proxy_* metrics), skills namespacing, wiki finalization
+
+### 2026-05-01 — v6.0 (F2-F5) Proxy rollout completo
+
+**Operation**: CUTOVER + REMOVAL + FINALIZATION
+**Branch**: `feat/mcp-tool-search-proxy`
+
+#### F2 — Shadow mode ✅
+- `aria-mcp-proxy` entry added to `.aria/kilocode/mcp.json`
+- 30-call observation: ok=100%, p50=1.8ms, p95=2.0ms
+
+#### F3 — Cutover ✅
+- `mcp.json` reduced to 2 entries: `aria-memory` + `aria-mcp-proxy`
+- Baseline snapshot saved as `mcp.json.baseline`
+- `agent_capability_matrix.yaml` → namespaced `server__tool` form
+- All 4 agent prompts updated + `_caller_id` proxy invocation rule
+- `scripts/check_mcp_drift.py` created with proxy-aware validation
+- Tag: `proxy-cutover-v1`
+
+#### F4 — Lazy loader removal ✅
+- `src/aria/launcher/lazy_loader.py` deleted (296 lines)
+- `lazy_load`/`intent_tags` stripped from `mcp_catalog.yaml` (28 fields)
+- ADR-0015 written (`docs/foundation/decisions/ADR-0015-fastmcp-native-proxy.md`)
+
+#### F5 — Observability + skills + wiki ✅
+- `events.py`: `ProxyEvent` with 7 event types
+- `metrics.py`: `aria_proxy_search_latency`, `aria_proxy_call_latency`,
+  `aria_proxy_tool_denied`, `aria_proxy_caller_missing`
+- All 11 skill files updated to namespaced `server__tool` names
+- Wiki pages updated: `mcp-proxy.md`, `mcp-refoundation.md`, `index.md`, `log.md`
+
+#### Quality gate finale
+```
+ruff check src/    → All checks passed ✅
+ruff format --check → 91 files already formatted ✅
+mypy src/aria/mcp/proxy/ → Success: no issues found ✅
+pytest unit        → 35 passed ✅
+pytest integration → 3 passed ✅
+Drift validator    → All checks passed ✅
+```

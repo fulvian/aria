@@ -1,9 +1,14 @@
 # MCP Refoundation — Rollback-First
 
 > **Architettura**: L2 — MCP Plane  
-> **Stato**: ✅ v1.0 (2026-04-30)  
-> **Source**: `.aria/config/mcp_catalog.yaml`, `src/aria/mcp/`, `src/aria/launcher/`  
-> **Plan**: `docs/plans/stabilizzazione_aria.md` §F3
+> **Stato**: ✅ v6.0 (2026-05-01) — Proxy-native  
+> **Source**: `.aria/config/mcp_catalog.yaml`, `src/aria/mcp/proxy/`  
+> **Plan**: `docs/plans/mcp_search_tool_plan_1.md`  
+
+> **⚠️ DEPRECATED — Lazy Loader rimosso in F4.**
+> Il `lazy_loader.py` e i campi `lazy_load`/`intent_tags` nel catalog sono
+> stati sostituiti dal `aria-mcp-proxy` (FastMCP-native). Vedi
+> `docs/llm_wiki/wiki/mcp-proxy.md` e ADR-0015.
 
 ## Overview
 
@@ -14,7 +19,8 @@ Componenti:
 1. **MCP Catalog YAML** — single source of truth per tutti i server MCP
 2. **Drift Validator** — confronto catalog ↔ mcp.json ↔ agent prompt ↔ router code
 3. **Capability Probe** — generalizzato a tutti i server, snapshot e quarantena
-4. **Lazy Loader** — bootstrap per-intent con profili baseline/candidate/shadow
+4. ~~**Lazy Loader**~~ (RIMOSSO in F4) — sostituito da `aria-mcp-proxy`
+5. **NEW: aria-mcp-proxy** — FastMCP-native multi-server proxy (ADR-0015)
 
 ## MCP Catalog
 
@@ -104,36 +110,21 @@ Funzionalità:
 - Quarantena automatica su mismatch (lifecycle=quarantined, NON modifica catalog SoT)
 - CLI: `bin/aria probe-mcp` (one-shot) + `bin/aria start --probe` (pre-flight)
 
-## Lazy Loader
+## ~~Lazy Loader~~ (RIMOSSO in F4)
 
-**File**: `src/aria/launcher/lazy_loader.py`
+~~**File**: `src/aria/launcher/lazy_loader.py`~~ (rimosso in F4/commit 0457044)
 
-Bootstrap per intent. Genera `mcp.json` runtime ridotto.
-
-```
-Input: lista intent richiesti (--intent academic)
-Output: mcp.json contenente solo server core + server con intent_tags matching
-```
-
-Profili:
-| Profile | Comportamento |
-|---------|---------------|
-| `baseline` | Usa `mcp.json` standard (tutti i server, no lazy) |
-| `candidate --intent X` | Genera `mcp.json` runtime ridotto |
-| `shadow --intent X` | Log decisioni lazy senza applicare (osservabilità) |
-
-Regole di filtro:
-- Sempre inclusi: server `lazy_load: false`
-- Inclusi per intent: `intent_tags ∩ requested_intents` non vuoto
-- Se `requested_intents` vuoto o contiene `all`: tutto incluso
+Sostituito da `aria-mcp-proxy` (ADR-0015). I campi `lazy_load` e `intent_tags`
+sono stati rimossi da `.aria/config/mcp_catalog.yaml`.
 
 ## ADR
 
 | ADR | Titolo | Status |
 |-----|--------|:------:|
 | ADR-0009 | MCP catalog as single source of truth | ✅ Accepted |
-| ADR-0010 | Lazy loading per intent enablement | ✅ Accepted |
+| ADR-0010 | Lazy loading per intent enablement | 🗑️ Deprecated (F4) |
 | ADR-0012 | MCP cutover and rollback policy | ✅ Accepted |
+| ADR-0015 | FastMCP-native multi-server proxy | ✅ Implemented (F1-F3) |
 
 ## Rollback Matrix
 
@@ -141,7 +132,7 @@ Regole di filtro:
 |---------|----------|:-----:|:----:|
 | Drift legittimo bloccato | Modalità `--shadow` | server | <5 min |
 | Falso positivo quarantena | lifecycle=enabled forzato | server | <2 min |
-| Server lazy non caricato | `--profile baseline` | session | <2 min |
+| Proxy fallisce al boot | `bin/aria start --emergency-direct` | proxy | <30 s |
 | Gateway PoC errori | Unset `ARIA_GATEWAY_SEARCH` | domain | <2 min |
 
 ## Runbook

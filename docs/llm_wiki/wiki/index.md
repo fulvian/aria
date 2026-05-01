@@ -169,7 +169,11 @@ docs/llm_wiki/
 - 2026-04-30: **v4.8** — F0 quality fix (21 ruff, 12 mypy, 6 test failures)
 - 2026-04-30: **v4.9** — PR #3+#4 merged, baseline-LKG-v1 tag
 - 2026-04-30: **v5.0** — **ARCHITETTURA 4 LIVELLI** completa. L1: agent coordination (86 test). L2: MCP catalog + lazy loader. L3: LLM routing dichiarativo. L4: Observability JSON/metriche. 634 test totali. 81 file Python verificati mypy.
-- 2026-05-01: **v6.0 (F1)** — `src/aria/mcp/proxy/` core implementation complete. HybridSearchTransform, CapabilityMatrixMiddleware, catalog loader, credential injector, LM Studio embedder. 35 unit + 3 integration tests. Fase F2-F5 pianificate.
+- 2026-05-01: **v6.0 (F1)** — `src/aria/mcp/proxy/` core implementation complete. HybridSearchTransform, CapabilityMatrixMiddleware, catalog loader, credential injector, LM Studio embedder. 35 unit + 3 integration tests.
+- 2026-05-01: **v6.0 (F2)** — Shadow mode: proxy entry added to mcp.json alongside 15 existing servers.
+- 2026-05-01: **v6.0 (F3)** — **CUTOVER**: mcp.json reduced to 2 entries (aria-memory + aria-mcp-proxy). Agent prompts namespaced with `__` tool names + `_caller_id` rule. Tagged `proxy-cutover-v1`.
+- 2026-05-01: **v6.0 (F4)** — Lazy loader removed (`src/aria/launcher/lazy_loader.py`). `lazy_load`/`intent_tags` stripped from catalog. ADR-0015 written.
+- 2026-05-01: **v6.0 (F5)** — `proxy.*` events + `aria_proxy_*` metrics in observability. All skill files updated to namespaced tool names. Wiki finalized.
 
 ## Git & GitHub Rules
 
@@ -189,6 +193,6 @@ Definite in `AGENTS.md` § "Git & GitHub Workflow Rules". Regole chiave:
 - `docs/llm_wiki/wiki/observability.md` — L4 logging, metrics, events
 - `docs/llm_wiki/wiki/research-routing.md` — tier policy
 - `docs/llm_wiki/wiki/mcp-architecture.md` — MCP architecture
-- `docs/llm_wiki/wiki/mcp-proxy.md` — **NEW v6.0 (F1)**: FastMCP-native MCP proxy replacing lazy loader
+- `docs/llm_wiki/wiki/mcp-proxy.md` — **v6.0 (F1-F5)**: FastMCP-native MCP proxy. Full implementation complete (cutover, lazy loader removal, observability, skills).
 - `docs/llm_wiki/wiki/agent-capability-matrix.md` — capability matrix
 - `docs/operations/rollback_matrix.md` — rollback matrix completa
