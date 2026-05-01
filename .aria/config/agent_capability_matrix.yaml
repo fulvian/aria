@@ -2,20 +2,21 @@ agents:
   - name: aria-conductor
     type: primary
     allowed_tools:
-      - aria-memory/wiki_update_tool
-      - aria-memory/wiki_recall_tool
-      - aria-memory/wiki_show_tool
-      - aria-memory/wiki_list_tool
-      - aria-memory/forget
-      - aria-memory/stats
-      - aria-memory/hitl_ask
-      - aria-memory/hitl_list_pending
-      - aria-memory/hitl_cancel
-      - aria-memory/hitl_approve
-      - sequential-thinking/*
+      - aria-memory__wiki_update_tool
+      - aria-memory__wiki_recall_tool
+      - aria-memory__wiki_show_tool
+      - aria-memory__wiki_list_tool
+      - aria-memory__forget
+      - aria-memory__stats
+      - aria-memory__hitl_ask
+      - aria-memory__hitl_list_pending
+      - aria-memory__hitl_cancel
+      - aria-memory__hitl_approve
+      - sequential-thinking__*
       - spawn-subagent
     mcp_dependencies:
       - aria-memory
+      - aria-mcp-proxy
     delegation_targets:
       - search-agent
       - workspace-agent
@@ -31,32 +32,28 @@ agents:
   - name: search-agent
     type: worker
     allowed_tools:
-      - searxng-script/search
-      - tavily-mcp/search
-      - exa-script/search
-      - brave-mcp/web_search
-      - brave-mcp/news_search
-      - reddit-search/search
-      - reddit-search/search_subreddit
-      - reddit-search/get_post
-      - reddit-search/get_subreddit_posts
-      - reddit-search/get_user
-      - reddit-search/get_user_posts
-      - scientific-papers-mcp/search_papers
-      - scientific-papers-mcp/fetch_content
-      - scientific-papers-mcp/fetch_latest
-      - scientific-papers-mcp/list_categories
-      - scientific-papers-mcp/fetch_top_cited
-      - aria-memory/wiki_update_tool
-      - aria-memory/wiki_recall_tool
-      - fetch/fetch
+      - searxng-script__search
+      - tavily-mcp__search
+      - exa-script__search
+      - brave-mcp__web_search
+      - brave-mcp__news_search
+      - reddit-search__search
+      - reddit-search__search_subreddit
+      - reddit-search__get_post
+      - reddit-search__get_subreddit_posts
+      - reddit-search__get_user
+      - reddit-search__get_user_posts
+      - scientific-papers-mcp__search_papers
+      - scientific-papers-mcp__fetch_content
+      - scientific-papers-mcp__fetch_latest
+      - scientific-papers-mcp__list_categories
+      - scientific-papers-mcp__fetch_top_cited
+      - aria-memory__wiki_update_tool
+      - aria-memory__wiki_recall_tool
+      - fetch__fetch
     mcp_dependencies:
-      - tavily-mcp
-      - brave-mcp
-      - exa-script
-      - searxng-script
-      - reddit-search
-      - scientific-papers-mcp
+      - aria-mcp-proxy
+      - aria-memory
     delegation_targets: []
     hitl_triggers: []
     intent_categories:
@@ -70,16 +67,17 @@ agents:
   - name: workspace-agent
     type: worker
     allowed_tools:
-      - google_workspace/gmail.*
-      - google_workspace/calendar.*
-      - google_workspace/drive.*
-      - google_workspace/docs.*
-      - google_workspace/sheets.*
-      - aria-memory/wiki_update_tool
-      - aria-memory/wiki_recall_tool
-      - hitl-queue/ask
+      - google_workspace__gmail.*
+      - google_workspace__calendar.*
+      - google_workspace__drive.*
+      - google_workspace__docs.*
+      - google_workspace__sheets.*
+      - aria-memory__wiki_update_tool
+      - aria-memory__wiki_recall_tool
+      - hitl-queue__ask
     mcp_dependencies:
-      - google_workspace
+      - aria-mcp-proxy
+      - aria-memory
     delegation_targets: []
     hitl_triggers: []
     intent_categories: []
@@ -89,21 +87,20 @@ agents:
   - name: productivity-agent
     type: worker
     allowed_tools:
-      - markitdown-mcp/convert_to_markdown
-      - filesystem/read
-      - filesystem/list_directory
-      - aria-memory/wiki_update_tool
-      - aria-memory/wiki_recall_tool
-      - aria-memory/wiki_show_tool
-      - aria-memory/wiki_list_tool
-      - hitl-queue/ask
-      - fetch/fetch
-      - sequential-thinking/*
+      - markitdown-mcp__convert_to_markdown
+      - filesystem__read
+      - filesystem__list_directory
+      - aria-memory__wiki_update_tool
+      - aria-memory__wiki_recall_tool
+      - aria-memory__wiki_show_tool
+      - aria-memory__wiki_list_tool
+      - hitl-queue__ask
+      - fetch__fetch
+      - sequential-thinking__*
       - spawn-subagent
     mcp_dependencies:
-      - markitdown-mcp
+      - aria-mcp-proxy
       - aria-memory
-      - filesystem
     delegation_targets:
       - workspace-agent
     hitl_triggers: []
