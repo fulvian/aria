@@ -89,24 +89,57 @@ agents:
   - name: productivity-agent
     type: worker
     allowed_tools:
-      - markitdown-mcp/convert_to_markdown
-      - filesystem/read
-      - filesystem/list_directory
-      - aria-memory/wiki_update_tool
-      - aria-memory/wiki_recall_tool
-      - aria-memory/wiki_show_tool
-      - aria-memory/wiki_list_tool
-      - hitl-queue/ask
-      - fetch/fetch
-      - sequential-thinking/*
+      - markitdown-mcp__*
+      - filesystem__*
+      - google_workspace__*
+      - aria-memory__wiki_update_tool
+      - aria-memory__wiki_recall_tool
+      - aria-memory__wiki_show_tool
+      - aria-memory__wiki_list_tool
+      - hitl-queue__ask
+      - fetch__*
+      - sequential-thinking__*
       - spawn-subagent
     mcp_dependencies:
-      - markitdown-mcp
+      - aria-mcp-proxy
       - aria-memory
-      - filesystem
     delegation_targets:
       - workspace-agent
     hitl_triggers: []
     intent_categories: []
     max_tools: 20
     max_spawn_depth: 1
+
+  - name: trader-agent
+    type: worker
+    allowed_tools:
+      - financial-modeling-prep-mcp__*
+      - helium-mcp__*
+      - mcp-fredapi__*
+      - financekit-mcp__*
+      - alpaca-mcp__*
+      - aria-memory__wiki_update_tool
+      - aria-memory__wiki_recall_tool
+      - aria-memory__wiki_show_tool
+      - aria-memory__wiki_list_tool
+      - hitl-queue__ask
+      - sequential-thinking__*
+    mcp_dependencies:
+      - aria-mcp-proxy
+      - aria-memory
+    delegation_targets: []
+    hitl_triggers:
+      - trading_recommendation_formal
+      - exposure_gt_50k
+      - asset_with_significant_exposure
+    intent_categories:
+      - finance.stock-analysis
+      - finance.options-analysis
+      - finance.macro-analysis
+      - finance.sentiment
+      - finance.crypto
+      - finance.commodity
+      - finance.comparison
+      - finance.brief
+    max_tools: 20
+    max_spawn_depth: 0
