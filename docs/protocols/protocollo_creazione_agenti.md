@@ -407,7 +407,84 @@ Il piano è il **gate package** per l'implementazione, non l'approvazione automa
 
 ---
 
-## Fase L — ADR e aggiornamento wiki
+## Fase L — Runtime Integration Checklist (obbligatoria)
+
+### Obiettivo
+Garantire che ogni nuovo agente sia **effettivamente visibile e routable** dal
+conductor e dal sistema di runtime. Nessun agente è "integrato" finché tutti i
+touchpoint seguenti sono verdi.
+
+### Origine del gap
+Questa fase è stata introdotta dopo il caso trader-agent (2026-05-02): l'agente
+esisteva in `.aria/kilo-home/.kilo/agents/` con 7 skill, ma era invisibile al
+conductor perché nessuno dei touchpoint runtime era stato aggiornato.
+
+### Checklist obbligatoria — tutti i punti devono essere verificati
+
+#### 1. Capability Matrix
+- [ ] `.aria/config/agent_capability_matrix.yaml` — entry aggiunta con:
+  - `name`, `type` (worker/subagent), `description`
+  - `allowed_tools` (inclusi proxy tools se necessario)
+  - `mcp_dependencies`
+  - `delegation_targets` (vuoto se non sub-delega)
+  - `intent_categories` (dominio-specifico)
+  - `hitl_triggers` (se side-effectful)
+  - `max_tools`, `max_spawn_depth`
+
+#### 2. Conductor delegation
+- [ ] `.aria/config/agent_capability_matrix.yaml` — conductor `delegation_targets`
+  include il nuovo agente
+
+#### 3. Conductor prompt
+- [ ] `.aria/kilocode/agents/aria-conductor.md` — sezione "Sub-agenti disponibili"
+  aggiornata con descrizione del nuovo agente
+- [ ] `.aria/kilocode/agents/aria-conductor.md` — "Catene di dispatch consentite"
+  aggiornata con catene che coinvolgono il nuovo agente
+- [ ] `.aria/kilocode/agents/aria-conductor.md` — regole di dispatch specifiche
+  per il dominio del nuovo agente (keyword routing, intent → agente mapping)
+- [ ] `.aria/kilocode/agents/aria-conductor.md` — regola esplicita "NON dispatchare
+  a X quando il dominio è Y" per evitare routing errato verso agenti esistenti
+
+#### 4. Agent prompt canonico
+- [ ] `.aria/kilocode/agents/<agent-name>.md` — prompt creato nella directory
+  agents del progetto (NON solo in `.aria/kilo-home/.kilo/agents/`)
+- [ ] YAML frontmatter valido con: name, type, description, color, category,
+  temperature, allowed-tools, required-skills, mcp-dependencies
+- [ ] Contenuto include: ruolo, proxy invocation rule, boundary operativo,
+  HITL rules, memory contract, output attesi
+
+#### 5. MCP Catalog (se nuovi backend)
+- [ ] `.aria/config/mcp_catalog.yaml` — eventuali nuovi server MCP registrati
+  con `owner_agent` corretto, `lifecycle: enabled`, `domain`, `expected_tools`
+
+#### 6. Test di dispatch
+- [ ] `tests/unit/agents/test_conductor_dispatch.py` — test che il conductor
+  elenca il nuovo agente
+- [ ] Test che il conductor ha dispatch rules per il dominio del nuovo agente
+- [ ] Test che keyword chiave del dominio routano al nuovo agente
+- [ ] Test che il nuovo agente NON riceve richieste fuori dominio
+- [ ] Test che il capability matrix ha la entry corretta
+
+#### 7. Test di prompt contract
+- [ ] Test che il file prompt del nuovo agente esiste nella posizione canonica
+- [ ] Test che lo YAML frontmatter ha tutti i campi obbligatori
+- [ ] Test che il contenuto del prompt rispetta le regole operative
+  (disclaimer, caller_id, boundary, HITL)
+
+#### 8. Wiki updates
+- [ ] `docs/llm_wiki/wiki/index.md` — aggiornato con nuova pagina/entry
+- [ ] `docs/llm_wiki/wiki/log.md` — append timestampato
+- [ ] `docs/llm_wiki/wiki/agent-capability-matrix.md` — snapshot aggiornato
+- [ ] Se il dominio è nuovo, creare pagina wiki dedicata
+
+### Regola hard
+**Nessun agente è considerato "integrato" se anche un solo punto della checklist
+sopra è rosso.** L'assenza di integration checklist è stata la causa diretta
+del bug trader-agent (prompt + skill esistevano, routing no).
+
+---
+
+## Fase M — ADR e aggiornamento wiki
 
 ### ADR obbligatorio se cambia uno di questi punti
 - boundary agenti;
@@ -446,22 +523,38 @@ L'implementazione **non può iniziare** finché tutti i gate non sono verdi.
 - [ ] lista ADR/wiki updates definita;
 - [ ] file piano creato in `docs/plans/agents/`.
 
+## 5b. Hard gates post-implementazione (Runtime Integration)
+
+Un agente **non è operativo** finché tutti i gate seguenti non sono verdi.
+Questi gate verificano che l'agente sia effettivamente raggiungibile dal conductor.
+
+- [ ] `.aria/config/agent_capability_matrix.yaml` — entry aggiunta e valida;
+- [ ] conductor `delegation_targets` — include il nuovo agente;
+- [ ] `.aria/kilocode/agents/aria-conductor.md` — dispatch rules per il dominio;
+- [ ] `.aria/kilocode/agents/<agent-name>.md` — prompt canonico creato;
+- [ ] eventuali nuovi backend MCP registrati in `.aria/config/mcp_catalog.yaml`;
+- [ ] test di dispatch conductor passano (routing corretto);
+- [ ] test di prompt contract passano (frontmatter + contenuto);
+- [ ] test di capability matrix loading passano;
+- [ ] wiki aggiornata (index, log, capability matrix snapshot).
+
 ---
 
 ## 6. Template sintetico di esecuzione del protocollo
 
 ```text
 Input utente
-→ Intake e scope
-→ Wiki-first reconstruction
-→ Fit & boundary analysis
-→ Ricerca repo + capability matrix + proxy surface
-→ Eventuale github-discovery / ricerca manuale via ARIA
-→ Decision ladder P8
-→ Boundary/proxy/memory/HITL/test design
-→ Draft piano in docs/plans/agents/
-→ Lista ADR/wiki updates richiesti
-→ Gate approval
+→ Intake e scope (Fase A)
+→ Wiki-first reconstruction (Fase B)
+→ Fit & boundary analysis (Fase C)
+→ Ricerca repo + capability matrix + proxy surface (Fase D)
+→ Eventuale github-discovery / ricerca manuale via ARIA (Fase E)
+→ Decision ladder P8 (Fase F)
+→ Boundary/proxy/memory/HITL/test design (Fasi G-J)
+→ Draft piano in docs/plans/agents/ (Fase K)
+→ Runtime Integration Checklist (Fase L) — TUTTI i touchpoint verificati
+→ ADR + wiki updates (Fase M)
+→ Gate approval (Sez. 5 + 5b)
 → Solo dopo: implementazione
 ```
 
@@ -473,4 +566,6 @@ Ogni esecuzione corretta di questo protocollo deve lasciare:
 1. un piano Markdown in `docs/plans/agents/`;
 2. una decisione esplicita su riuso vs nuovo agente;
 3. una lista chiara di ADR e wiki update richiesti;
-4. una base verificabile per implementare senza deriva architetturale.
+4. una base verificabile per implementare senza deriva architetturale;
+5. **la conferma che tutti i touchpoint runtime (Fase L) sono verdi** — altrimenti
+   l'agente è pianificato ma NON operativo.

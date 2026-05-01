@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-05-01T23:58 (v6.4 — protocollo unico per la creazione di nuovi agenti)
-**Status**: ✅ **v6.4** — Oltre all'hardening definitivo del proxy/runtime, il repository dispone ora di un protocollo unico e prescrittivo per la creazione futura di sub-agenti, skill e tool collegati: `docs/protocols/protocollo_creazione_agenti.md`. Il protocollo integra blueprint, AGENTS.md, wiki.db, proxy MCP, capability matrix, HITL, ricerca via `github-discovery`/ARIA manuale e output obbligatorio in `docs/plans/agents/`.
+**Last Updated**: 2026-05-02T01:30 (v6.5 — trader-agent runtime integration + protocollo Fase L)
+**Status**: ✅ **v6.5** — Il trader-agent è ora completamente integrato nel runtime ARIA: capability matrix, conductor dispatch rules con keyword routing, prompt canonico, e 28 test. Il protocollo di creazione agenti è stato aggiornato con la Fase L (Runtime Integration Checklist) per prevenire future integrazioni parziali.
 
 ## Purpose
 
@@ -117,9 +117,10 @@ docs/llm_wiki/
 ### Agent Prompts
 | Source | Description | Last Updated |
 |--------|-------------|--------------|
-| `.aria/kilocode/agents/aria-conductor.md` | conductor dispatch rules + productivity/workspace boundary | 2026-05-01 |
+| `.aria/kilocode/agents/aria-conductor.md` | conductor dispatch rules + productivity/workspace/trader boundary | 2026-05-02 |
 | `.aria/kilocode/agents/search-agent.md` | **v5.0**: canonical proxy model, no backend wildcards in frontmatter | 2026-05-01 |
 | `.aria/kilocode/agents/productivity-agent.md` | **v5.0**: unified work-domain agent, proxy canonical, direct GW access | 2026-05-01 |
+| `.aria/kilocode/agents/trader-agent.md` | **NEW v6.5**: finance domain agent, proxy canonical, 7 skills, 8 intent categories | 2026-05-02 |
 | `.aria/kilocode/agents/workspace-agent.md` | **TRANSITIONAL**: compatibility stub, to be deprecated | 2026-05-01 |
 
 ### Config & Runtime
@@ -188,6 +189,7 @@ docs/llm_wiki/
 - 2026-05-01: **v6.3d** — Hardened `productivity-agent` and core work-domain skills against host-native helper drift and pseudo-HITL. Added prompt/skill contract tests. Full suite now at 700 passed.
 - 2026-05-01: **v6.3e** — Added definitive proxy/runtime hardening: middleware now extracts nested `_caller_id` for synthetic `call_tool`, stale Kilo-home conductor artifacts were restored, and conductor/productivity prompts now explicitly forbid code edits, config edits, process killing, and runtime self-remediation during ordinary user workflows.
 - 2026-05-01: **v6.4** — Creato `docs/protocols/protocollo_creazione_agenti.md`: workflow unico per nuovi agenti/sub-agenti, con intake, wiki-first reconstruction, ricerca repo + `github-discovery`, branch di ricerca manuale via ARIA, decision ladder P8, guardrail P9/HITL/wiki.db/proxy, e output obbligatorio dei piani in `docs/plans/agents/`.
+- 2026-05-02: **v6.5** — **trader-agent runtime integration**. Il trader-agent (esistente in `.aria/kilo-home/.kilo/agents/` con 7 skill) era invisibile al conductor perché mancava da tutti i touchpoint runtime. Fix: capability matrix entry, conductor dispatch rules con keyword routing per 40+ termini finanziari, prompt canonico in `.aria/kilocode/agents/trader-agent.md`, delegation chain aggiornata. Aggiornato `protocollo_creazione_agenti.md` con **Fase L (Runtime Integration Checklist)** — 8 touchpoint obbligatori per prevenire integrazioni parziali future. 28 nuovi test trader-agent.
 
 ## Git & GitHub Rules
 

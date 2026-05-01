@@ -1,7 +1,7 @@
 # Agent Capability Matrix
 
 **Status**: Active ✅  
-**Updated**: 2026-05-01T18:38+02:00  
+**Updated**: 2026-05-02T01:30+02:00  
 **Source**: `docs/foundation/agent-capability-matrix.md` (canonical), `.aria/config/agent_capability_matrix.yaml`, `.aria/kilocode/agents/*.md`
 
 ## Purpose
@@ -14,16 +14,18 @@ This page summarizes the **post-proxy-remediation** model, where:
 - prompts expose proxy synthetic tools,
 - the capability matrix governs backend reachability,
 - `productivity-agent` is the unified work-domain agent,
-- `workspace-agent` is transitional.
+- `workspace-agent` is transitional,
+- `trader-agent` is the finance-domain agent (added 2026-05-02).
 
-## Effective matrix snapshot (2026-05-01)
+## Effective matrix snapshot (2026-05-02)
 
 | Agent | Type | Prompt surface | Effective backend/policy reach | Delegation Targets | HITL Required |
 |-------|------|----------------|--------------------------------|-------------------|---------------|
-| **aria-conductor** | primary | memory + sequential-thinking + spawn | no direct operational backend usage | `search-agent`, `workspace-agent`, `productivity-agent` | destructive/costly/oauth-sensitive decisions |
+| **aria-conductor** | primary | memory + sequential-thinking + spawn | no direct operational backend usage | `search-agent`, `workspace-agent`, `productivity-agent`, `trader-agent` | destructive/costly/oauth-sensitive decisions |
 | **search-agent** | subagent (research) | proxy synthetic tools + memory | search-domain backends only | none | no |
 | **workspace-agent** | subagent (compatibility) | proxy synthetic tools + memory + hitl | `google_workspace__*` only | none | yes on side effects |
 | **productivity-agent** | subagent (work domain) | proxy synthetic tools + memory + hitl + sequential-thinking + spawn | `markitdown-mcp__*`, `filesystem__*`, `google_workspace__*`, `fetch__*` | `workspace-agent` (compatibility fallback only) | yes on side effects |
+| **trader-agent** | subagent (finance domain) | proxy synthetic tools + memory + sequential-thinking + hitl | `financial-modeling-prep-mcp`, `mcp-fredapi`, `helium-mcp`, `financekit-mcp`, `alpaca-mcp` via proxy | none | yes on formal recommendations + exposure >50k€ |
 
 ## Important interpretation changes
 
@@ -56,6 +58,16 @@ provider ladder and grounding rules.
 | Gmail/Calendar/Drive read/write | `productivity-agent` | `workspace-agent` only as compatibility fallback |
 | Task misti (file → email / file → calendar / drive → brief) | `productivity-agent` | no default 2-hop required anymore |
 | Analisi + report | `search-agent` → `productivity-agent` | domain chain still valid |
+| **Analisi stock/ETF/ticker** | `trader-agent` | finance.stock-analysis intent |
+| **Analisi crypto (BTC, ETH, altcoin, DeFi)** | `trader-agent` | finance.crypto intent |
+| **Analisi tecnica (RSI, MACD, indicatori)** | `trader-agent` | via financekit-mcp proxy |
+| **Analisi fondamentale (earnings, bilanci, DCF)** | `trader-agent` | via financial-modeling-prep-mcp proxy |
+| **Opzioni (strategie, grecs, IV)** | `trader-agent` | finance.options-analysis intent |
+| **Contesto macro (tassi, inflazione, GDP)** | `trader-agent` | finance.macro-analysis intent via mcp-fredapi |
+| **Sentiment di mercato** | `trader-agent` | finance.sentiment intent via helium-mcp |
+| **Confronto multi-asset** | `trader-agent` | finance.comparison intent |
+| **Ricerca opportunità investimento** | `trader-agent` | NOT search-agent |
+| **Commodity/futures** | `trader-agent` | finance.commodity intent |
 
 ## Handoff protocol
 

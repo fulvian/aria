@@ -1,5 +1,47 @@
 # Implementation Log
 
+## 2026-05-02T01:30+02:00 — FIX: trader-agent runtime integration + protocollo Fase L
+
+**Operation**: FIX (trader-agent routing + protocol gap)
+**Branch**: `main` (uncommitted)
+**Trigger**: il conductor dispatchava richieste finanziarie a search-agent invece di trader-agent. Il trader-agent esisteva in `.aria/kilo-home/.kilo/agents/` con 7 skill ma era invisibile al conductor.
+
+### Root cause
+Il trader-agent non era registrato in NESSUN touchpoint runtime:
+1. `.aria/config/agent_capability_matrix.yaml` — entry mancante
+2. `.aria/kilocode/agents/aria-conductor.md` — nessuna regola dispatch finanziaria
+3. `.aria/kilocode/agents/trader-agent.md` — file inesistente (solo in kilo-home)
+4. conductor `delegation_targets` — trader-agent non incluso
+5. test di dispatch — nessun test trader-agent
+
+### Modifiche effettuate
+
+**File modificati:**
+- `.aria/config/agent_capability_matrix.yaml` — aggiunta entry trader-agent (worker, finance domain, 8 intent categories, proxy+memory deps, 0 spawn depth). Aggiornato conductor delegation_targets.
+- `.aria/kilocode/agents/aria-conductor.md` — aggiunte regole dispatch finanziarie con keyword routing, 10 dispatch rules specifiche, regola "NON dispatchare a search-agent per query finanziarie", catena `trader-agent → search-agent`.
+- `docs/protocols/protocollo_creazione_agenti.md` — aggiunta **Fase L (Runtime Integration Checklist)** con 8 touchpoint obbligatori. Aggiunta **Sezione 5b (Hard gates post-implementazione)**. Aggiornato template esecuzione e output finale.
+- `tests/unit/agents/test_conductor_dispatch.py` — aggiunte 3 classi di test: `TestConductorTraderAgentRegistry` (10 test), `TestTraderAgentPromptExists` (12 test), `TestTraderAgentInCapabilityMatrix` (6 test). Totale: 28 nuovi test.
+
+**File creati:**
+- `.aria/kilocode/agents/trader-agent.md` — prompt canonico del trader-agent nella dir agents del progetto
+
+### Gap protocollo identificato e corretto
+Il `protocollo_creazione_agenti.md` v1.0 copriva fasi A-K (design → piano) ma NON includeva una checklist dei touchpoint runtime necessari per rendere un agente visibile al conductor. Il caso trader-agent è l'evidenza perfetta. Aggiunta Fase L con 8 checklist items obbligatori.
+
+### Quality gates
+- `ruff check .` → All checks passed
+- 28/28 nuovi test trader-agent passano
+- 13 test preesistenti già fallivano su HEAD (behavioral remediation incompleta, issue separato)
+
+### Pre-existing failures (non causati da questo lavoro)
+I seguenti test falliscono anche su HEAD prima delle modifiche:
+- `TestConductorNoDirectOperations` (3 failures) — sezioni non aggiunte al conductor
+- `TestConductorWorkspaceAgentNotDirectlyDispatched` (2 failures)
+- `TestConductorGwDispatchesToProductivityAgent` (2 failures)
+- `TestConductorMixedDomainRouting` (3 failures)
+- `TestConductorWikiValidityGuard` (2 failures)
+Questi richiedono un remediation separato delle sezioni mancanti del conductor prompt.
+
 ## 2026-05-01T23:58+02:00 — DOCS: protocollo unico per la creazione futura di agenti/sub-agenti
 
 **Operation**: DOCS  

@@ -87,20 +87,59 @@ Catene di dispatch consentite (max 2 hop):
 - `search-agent → productivity-agent` (ricerca + sintesi)
 - `productivity-agent → workspace-agent` (file + send)
 - `search-agent → productivity-agent → workspace-agent` (ricerca + sintesi + send)
+- `trader-agent → search-agent` (analisi finanziaria + ricerca complementare, solo se serve contesto non finanziario)
 
 ## Sub-agenti disponibili
 - `search-agent`: ricerca web multi-tier, analisi fonti, news, intent classification (general/news, academic, social, deep_scrape)
-- `workspace-agent`: Gmail, Calendar, Drive, Docs, Sheets (operazioni Google Workspace, richiede OAuth già configurato)
-- `productivity-agent`: workflow consulente — ingestion file office (PDF/DOCX/XLSX/PPTX), briefing multi-doc, meeting prep da calendario, bozze email con stile dinamico. Usa markitdown-mcp per conversione file. Boundary: delega Gmail/Calendar/Drive a workspace-agent via spawn-subagent.
+- `workspace-agent`: COMPATIBILITÀ/TRANSITORIO — Gmail, Calendar, Drive, Docs, Sheets (operazioni Google Workspace, richiede OAuth già configurato)
+- `productivity-agent`: agente unificato work-domain — ingestion file office (PDF/DOCX/XLSX/PPTX), briefing multi-doc, meeting prep da calendario, bozze email con stile dinamico, accesso diretto Google Workspace via proxy. Usa markitdown-mcp per conversione file.
+- `trader-agent`: agente di analisi finanziaria — stock, ETF, options, macro, sentiment, crypto, commodity. Consulente di analisi, NON execution bot. Usa backend MCP finanziari via proxy (financial-modeling-prep-mcp, mcp-fredapi, helium-mcp, financekit-mcp, alpaca-mcp). Skills: trading-analysis, fundamental-analysis, technical-analysis, macro-intelligence, sentiment-analysis, options-analysis, crypto-analysis.
 
 ### Regole di dispatch per productivity-agent
 - **File office locali** (PDF/DOCX/XLSX/PPTX/TXT/HTML) → productivity-agent
 - **Briefing/documentazione multi-source** → productivity-agent
 - **Preparazione meeting** (da descrizione o evento calendario) → productivity-agent
 - **Bozze email** (con stile derivato dal recipient context) → productivity-agent
-- **Operazioni Google Workspace** (gmail, calendar, drive) → workspace-agent (anche come delegato da productivity-agent)
+- **Operazioni Google Workspace** (gmail, calendar, drive) → productivity-agent (accesso diretto via proxy)
 - **Ricerca informazioni online** → search-agent
 - **Task misti** (es. "leggi questo PDF e mandalo via email") → productivity-agent, che a sua volta delega workspace-agent per la spedizione
+
+### Regole di dispatch per trader-agent (DOMINIO FINANZIARIO)
+
+Le richieste che coinvolgono analisi finanziaria, mercati, trading, o investimenti
+vanno SEMPRE dispatchate a `trader-agent`, NON a `search-agent`.
+
+**Keyword di routing automatico → trader-agent:**
+- trading, analisi finanziaria, ticker, asset, stock, azioni, ETF, borsa, mercato, quotazione, prezzo
+- crypto, bitcoin, BTC, ETH, ethereum, solana, DeFi, altcoin
+- options, opzioni, strike, call, put, IV, grecs, delta, gamma
+- macro, FRED, tassi, inflazione, CPI, PPI, NFP, GDP, PMI, Treasury, yield, Fed
+- fondamentale, earnings, bilancio, DCF, valuation, EPS
+- tecnica, RSI, MACD, Bollinger, SMA, EMA, support, resistance
+- sentiment, news finanziarie, bias, bull, bear
+- investimento, opportunità di investimento, portfolio, asset allocation
+- commodity, futures, oro, petrolio, gas naturale
+
+**Dispatch rules:**
+- **Analisi stock/ETF/ticker** → trader-agent (intent: `finance.stock-analysis`)
+- **Analisi crypto** (BTC, ETH, altcoin, DeFi) → trader-agent (intent: `finance.crypto`)
+- **Analisi tecnica** (RSI, MACD, indicatori) → trader-agent (intent: `finance.stock-analysis`)
+- **Analisi fondamentale** (earnings, bilanci, DCF) → trader-agent (intent: `finance.stock-analysis`)
+- **Opzioni** (strategie, grecs, IV) → trader-agent (intent: `finance.options-analysis`)
+- **Contesto macro** (tassi, inflazione, GDP) → trader-agent (intent: `finance.macro-analysis`)
+- **Sentiment di mercato** → trader-agent (intent: `finance.sentiment`)
+- **Confronto multi-asset** → trader-agent (intent: `finance.comparison`)
+- **Ricerca opportunità investimento** (azioni, ETF, crypto) → trader-agent
+- **Commodity/futures** → trader-agent (intent: `finance.commodity`)
+
+**NON dispatchare a search-agent quando:**
+- La richiesta menziona ticker, stock, ETF, crypto, o mercati finanziari
+- L'utente chiede analisi, raccomandazioni, o valutazioni di investimento
+- Il contesto è chiaramente finanziario/trading
+
+**Puoi usare search-agent SOLO come complemento** se trader-agent ha bisogno di
+contesto non finanziario (es. notizie generali, eventi geopolitici). In quel caso,
+il trader-agent può spawnare search-agent (max depth 1).
 
 ## Memory contract v3 (wiki)
 

@@ -9,6 +9,12 @@ After behavioral remediation (2026-05-01), also verifies:
 - GW operations route to productivity-agent, NOT workspace-agent
 - conductor cannot dispatch directly to workspace-agent
 - wiki validity guard against architecturally invalid flows
+
+After trader-agent integration (2026-05-02), also verifies:
+- trader-agent is listed in sub-agenti disponibili
+- financial dispatch rules exist with keyword routing
+- trader-agent is in delegation chain
+- financial queries do NOT route to search-agent
 """
 
 from __future__ import annotations
@@ -19,6 +25,8 @@ import pytest
 import yaml
 
 CONDUCTOR_FILE = Path(".aria/kilocode/agents/aria-conductor.md")
+TRADER_AGENT_FILE = Path(".aria/kilocode/agents/trader-agent.md")
+CAPABILITY_MATRIX_FILE = Path(".aria/config/agent_capability_matrix.yaml")
 
 
 @pytest.fixture(scope="module")
@@ -289,3 +297,273 @@ class TestConductorYamlConfig:
                 assert not tool.startswith(prefix), (
                     f"Conductor must NOT have operational tool '{tool}' in allowed-tools"
                 )
+
+
+# === Trader-Agent Integration Tests ===
+
+
+class TestConductorTraderAgentRegistry:
+    """Conductor must declare trader-agent and have financial dispatch rules."""
+
+    def test_trader_agent_listed_in_subagenti(self, conductor_text: str):
+        """Conductor lists trader-agent in sub-agenti disponibili."""
+        assert "trader-agent" in conductor_text
+
+    def test_trader_agent_described_as_finance(self, conductor_text: str):
+        """Trader-agent description mentions finance domain."""
+        # Must have a description line containing both trader-agent and finance keywords
+        found = False
+        for line in conductor_text.splitlines():
+            if "trader-agent" in line and "analisi finanziaria" in line.lower():
+                found = True
+                break
+            if "trader-agent" in line and "stock" in line.lower():
+                found = True
+                break
+            if "trader-agent" in line and "financial" in line.lower():
+                found = True
+                break
+        assert found, "trader-agent must be described as a finance domain agent"
+
+    def test_financial_dispatch_rules_exist(self, conductor_text: str):
+        """Conductor has dispatch rules for trader-agent."""
+        assert "Regole di dispatch per trader-agent" in conductor_text
+
+    def test_financial_keyword_routing_exists(self, conductor_text: str):
+        """Conductor has keyword routing section for finance."""
+        assert "Keyword di routing automatico" in conductor_text or (
+            "keyword" in conductor_text.lower()
+            and "trader-agent" in conductor_text
+        )
+
+    def test_stock_analysis_routes_to_trader(self, conductor_text: str):
+        """Stock analysis dispatches to trader-agent."""
+        found = False
+        for line in conductor_text.splitlines():
+            if "stock" in line.lower() and "trader-agent" in line:
+                found = True
+                break
+            if "Analisi stock" in line and "trader-agent" in line:
+                found = True
+                break
+        assert found, "Stock analysis must route to trader-agent"
+
+    def test_crypto_routes_to_trader(self, conductor_text: str):
+        """Crypto analysis dispatches to trader-agent."""
+        found = False
+        for line in conductor_text.splitlines():
+            if "crypto" in line.lower() and "trader-agent" in line:
+                found = True
+                break
+            if "Analisi crypto" in line and "trader-agent" in line:
+                found = True
+                break
+        assert found, "Crypto analysis must route to trader-agent"
+
+    def test_etf_routes_to_trader(self, conductor_text: str):
+        """ETF analysis dispatches to trader-agent."""
+        found = False
+        for line in conductor_text.splitlines():
+            if "ETF" in line and "trader-agent" in line:
+                found = True
+                break
+        assert found, "ETF analysis must route to trader-agent"
+
+    def test_investment_opportunity_routes_to_trader(self, conductor_text: str):
+        """Investment opportunity research routes to trader-agent."""
+        found = False
+        for line in conductor_text.splitlines():
+            lower = line.lower()
+            if (
+                "opportunit" in lower
+                and "investiment" in lower
+                and "trader-agent" in line
+            ):
+                found = True
+                break
+        assert found, "Investment opportunity research must route to trader-agent"
+
+    def test_trader_agent_in_delegation_chain(self, conductor_text: str):
+        """Trader-agent is in the delegation chains section."""
+        assert "trader-agent" in conductor_text
+        # Must appear in the catene di dispatch section
+        assert "trader-agent → search-agent" in conductor_text or (
+            "trader-agent" in conductor_text.split("Catene di dispatch")[1].split("##")[0]
+            if "Catene di dispatch" in conductor_text
+            else False
+        )
+
+    def test_search_agent_not_primary_for_finance(self, conductor_text: str):
+        """Conductor explicitly says NOT to use search-agent for financial queries."""
+        assert "NON dispatchare a search-agent" in conductor_text or (
+            "NON" in conductor_text
+            and "search-agent" in conductor_text
+            and "finanziari" in conductor_text.lower()
+        )
+
+
+class TestTraderAgentPromptExists:
+    """Trader-agent prompt file exists in canonical location."""
+
+    def test_trader_agent_file_exists(self):
+        """Trader-agent prompt file exists in .aria/kilocode/agents/."""
+        assert TRADER_AGENT_FILE.exists(), (
+            f"trader-agent prompt missing: {TRADER_AGENT_FILE}"
+        )
+
+    @pytest.fixture(scope="class")
+    def trader_text(self) -> str:
+        """Full text content of trader-agent.md."""
+        if not TRADER_AGENT_FILE.exists():
+            pytest.skip("trader-agent.md not found")
+        content = TRADER_AGENT_FILE.read_text(encoding="utf-8")
+        parts = content.split("---", 2)
+        assert len(parts) >= 3, "trader-agent.md: YAML frontmatter not found"
+        return parts[2]
+
+    @pytest.fixture(scope="class")
+    def trader_yaml(self) -> dict:
+        """YAML frontmatter of trader-agent.md."""
+        if not TRADER_AGENT_FILE.exists():
+            pytest.skip("trader-agent.md not found")
+        content = TRADER_AGENT_FILE.read_text(encoding="utf-8")
+        parts = content.split("---", 2)
+        return yaml.safe_load(parts[1])
+
+    def test_trader_agent_type_is_subagent(self, trader_yaml: dict):
+        """Trader-agent type is subagent."""
+        assert trader_yaml.get("type") == "subagent"
+
+    def test_trader_agent_category_is_finance(self, trader_yaml: dict):
+        """Trader-agent category is finance."""
+        assert trader_yaml.get("category") == "finance"
+
+    def test_trader_agent_has_proxy_tools(self, trader_yaml: dict):
+        """Trader-agent has proxy tools in allowed-tools."""
+        tools = trader_yaml.get("allowed-tools", [])
+        assert any("aria-mcp-proxy" in t for t in tools), (
+            "trader-agent must have aria-mcp-proxy tools"
+        )
+
+    def test_trader_agent_has_memory_tools(self, trader_yaml: dict):
+        """Trader-agent has memory tools."""
+        tools = trader_yaml.get("allowed-tools", [])
+        assert any("aria-memory" in t for t in tools), (
+            "trader-agent must have aria-memory tools"
+        )
+
+    def test_trader_agent_has_no_spawn_depth(self, trader_yaml: dict):
+        """Trader-agent has max-spawn-depth 0 (no sub-delegation)."""
+        assert trader_yaml.get("max-spawn-depth") == 0, (
+            "trader-agent must have max-spawn-depth: 0"
+        )
+
+    def test_trader_agent_has_required_skills(self, trader_yaml: dict):
+        """Trader-agent lists all 7 required skills."""
+        skills = trader_yaml.get("required-skills", [])
+        expected_skills = [
+            "trading-analysis",
+            "fundamental-analysis",
+            "technical-analysis",
+            "macro-intelligence",
+            "sentiment-analysis",
+            "options-analysis",
+            "crypto-analysis",
+        ]
+        for skill in expected_skills:
+            assert skill in skills, f"trader-agent missing required skill: {skill}"
+
+    def test_trader_agent_has_intent_categories(self, trader_yaml: dict):
+        """Trader-agent declares finance intent categories."""
+        intents = trader_yaml.get("intent-categories", [])
+        expected_intents = [
+            "finance.stock-analysis",
+            "finance.crypto",
+            "finance.macro-analysis",
+        ]
+        for intent in expected_intents:
+            assert intent in intents, f"trader-agent missing intent category: {intent}"
+
+    def test_trader_agent_has_disclaimer(self, trader_text: str):
+        """Trader-agent prompt contains mandatory disclaimer."""
+        assert "DISCLAIMER" in trader_text
+
+    def test_trader_agent_has_caller_id_rule(self, trader_text: str):
+        """Trader-agent prompt specifies _caller_id rule."""
+        assert "_caller_id" in trader_text
+        assert "trader-agent" in trader_text
+
+    def test_trader_agent_forbids_host_tools(self, trader_text: str):
+        """Trader-agent prompt forbids host-native tools."""
+        assert "NON usare tool nativi" in trader_text or "NON usare" in trader_text
+
+    def test_trader_agent_forbids_trading_execution(self, trader_text: str):
+        """Trader-agent explicitly says it does NOT execute trades."""
+        assert "NON" in trader_text and "trading reale" in trader_text.lower()
+
+
+class TestTraderAgentInCapabilityMatrix:
+    """Trader-agent is registered in the capability matrix."""
+
+    @pytest.fixture(scope="class")
+    def matrix_agents(self) -> list[dict]:
+        """Load agent entries from capability matrix."""
+        if not CAPABILITY_MATRIX_FILE.exists():
+            pytest.skip("capability matrix not found")
+        data = yaml.safe_load(CAPABILITY_MATRIX_FILE.read_text(encoding="utf-8"))
+        return data.get("agents", [])
+
+    def test_trader_agent_in_matrix(self, matrix_agents: list[dict]):
+        """Trader-agent is listed in the capability matrix."""
+        names = [a.get("name") for a in matrix_agents]
+        assert "trader-agent" in names, (
+            "trader-agent not found in agent_capability_matrix.yaml"
+        )
+
+    def test_conductor_delegates_to_trader(self, matrix_agents: list[dict]):
+        """Conductor's delegation_targets includes trader-agent."""
+        conductor = next(
+            (a for a in matrix_agents if a.get("name") == "aria-conductor"), None
+        )
+        assert conductor is not None
+        targets = conductor.get("delegation_targets", [])
+        assert "trader-agent" in targets, (
+            "conductor delegation_targets missing trader-agent"
+        )
+
+    def test_trader_agent_no_sub_delegation(self, matrix_agents: list[dict]):
+        """Trader-agent has empty delegation_targets (no sub-delegation)."""
+        trader = next(
+            (a for a in matrix_agents if a.get("name") == "trader-agent"), None
+        )
+        assert trader is not None
+        assert trader.get("delegation_targets") == [] or trader.get("delegation_targets") is None
+
+    def test_trader_agent_type_is_worker(self, matrix_agents: list[dict]):
+        """Trader-agent is type worker."""
+        trader = next(
+            (a for a in matrix_agents if a.get("name") == "trader-agent"), None
+        )
+        assert trader is not None
+        assert trader.get("type") == "worker"
+
+    def test_trader_agent_has_finance_intents(self, matrix_agents: list[dict]):
+        """Trader-agent has finance intent categories."""
+        trader = next(
+            (a for a in matrix_agents if a.get("name") == "trader-agent"), None
+        )
+        assert trader is not None
+        intents = trader.get("intent_categories", [])
+        assert len(intents) > 0, "trader-agent must have intent categories"
+        assert "finance.stock-analysis" in intents
+        assert "finance.crypto" in intents
+
+    def test_trader_agent_mcp_dependencies(self, matrix_agents: list[dict]):
+        """Trader-agent depends on aria-mcp-proxy and aria-memory."""
+        trader = next(
+            (a for a in matrix_agents if a.get("name") == "trader-agent"), None
+        )
+        assert trader is not None
+        deps = trader.get("mcp_dependencies", [])
+        assert "aria-mcp-proxy" in deps
+        assert "aria-memory" in deps
