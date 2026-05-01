@@ -25,7 +25,11 @@ estimated-cost-eur: 0.10
 Produrre brief executive (1-3 pagine markdown) integrando N documenti + storia wiki.
 
 ## Procedura
-1. Identifica i file in input (path list o glob pattern).
+1. Identifica i file in input.
+   - Se l'utente passa path espliciti, usali direttamente.
+   - Se devi scoprire documenti in una directory, fallo via proxy con backend
+     filesystem (`search_tools` → `call_tool`), cioè tramite backend filesystem
+     e non con tool host tipo `Glob`.
 2. Per ogni file: invoca `office-ingest` skill (nested).
 3. Recupera contesto wiki: `wiki_recall_tool(query=<topic+entità>)`.
 4. Pianifica outline con `planning-with-files`:

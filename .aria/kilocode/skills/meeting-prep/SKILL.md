@@ -46,6 +46,8 @@ stesso proxy — non serve più delegare a workspace-agent per operazioni singol
    → invoca office-ingest per l'estrazione.
 6. wiki_recall su `<participant_name>` e `<keywords>` → eventuali topic/decision storici.
 7. Compone brief: Profilo evento → Partecipanti (storia + tono) → Allegati key → Decisioni pending → Domande aperte.
+8. Se proponi output write verso Google Workspace, apri un vero gate `hitl-queue__ask`
+   prima dell'esecuzione; non sostituirlo con una semplice domanda testuale finale.
 
 ## Output
 - Markdown 1 pagina (≤ 800 parole).

@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 AGENT_FILE = Path(".aria/kilocode/agents/aria-conductor.md")
+TEMPLATE_FILE = Path(".aria/kilo-home/.kilo/agents/_aria-conductor.template.md")
 
 
 @pytest.fixture(scope="module")
@@ -65,3 +66,8 @@ def test_search_grounding_rules_are_explicit(agent_text: str) -> None:
     ]
     for fragment in required_fragments:
         assert fragment in agent_text
+
+
+def test_runtime_template_keeps_memory_placeholder() -> None:
+    template_text = TEMPLATE_FILE.read_text(encoding="utf-8")
+    assert "{{ARIA_MEMORY_BLOCK}}" in template_text

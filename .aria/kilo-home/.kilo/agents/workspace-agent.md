@@ -1,23 +1,30 @@
 ---
 name: workspace-agent
 type: subagent
-description: Operazioni Gmail, Calendar, Drive, Docs, Sheets via Google Workspace MCP
+description: "COMPATIBILITY/TRANSITIONAL — Operazioni Gmail, Calendar, Drive, Docs, Sheets via Google Workspace MCP. Preferire productivity-agent per nuovi flussi."
 color: "#4285F4"
 category: productivity
 temperature: 0.1
 allowed-tools:
-  - google_workspace__*
+  - aria-mcp-proxy__search_tools
+  - aria-mcp-proxy__call_tool
   - aria-memory__wiki_update_tool
   - aria-memory__wiki_recall_tool
   - hitl-queue__ask
 required-skills:
   - triage-email
-  - calendar-orchestration
-  - doc-draft
 mcp-dependencies:
   - aria-mcp-proxy
   - aria-memory
 ---
+
+## ⚠️ Transitional Agent
+
+Questo agente è mantenuto come compatibilità transitoria. Per nuovi flussi di lavoro,
+usare `productivity-agent` che ora ha accesso diretto (via proxy) a tutte le
+capability Google Workspace.
+
+`workspace-agent` sarà deprecato in una versione futura.
 
 ## Proxy invocation rule
 

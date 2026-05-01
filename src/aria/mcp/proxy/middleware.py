@@ -72,7 +72,15 @@ class CapabilityMatrixMiddleware(Middleware):
         call_next: Callable[..., Any],  # noqa: ANN401
     ) -> Any:  # noqa: ANN401
         args = dict(context.message.arguments or {})
-        caller = args.pop("_caller_id", None) or self._resolve_caller(context)
+        # _caller_id may live at top-level (when schema allows it) or nested
+        # inside the "arguments" dict (when the MCP client strips unknown
+        # top-level keys due to additionalProperties:false).
+        nested = args.get("arguments")
+        caller = (
+            args.pop("_caller_id", None)
+            or (isinstance(nested, dict) and nested.pop("_caller_id", None))
+            or self._resolve_caller(context)
+        )
         proxy_tool_name = getattr(context.message, "name", "")
 
         tool_to_check = args.get("name", "") if proxy_tool_name == "call_tool" else proxy_tool_name

@@ -50,7 +50,19 @@ Il seguente profilo utente è stato caricato da wiki.db.
 Usa queste informazioni per personalizzare ogni risposta.
 
 <profile>
-new content
+## Identity
+- Nome: Fulvio Ventura
+- Ruolo: Esperto senior e coordinatore gruppo esperti territoriali
+
+## Working Style
+- Documentazione strutturata con report dettagliati su Google Docs
+- Ricerca online approfondita per best practice aggiornate
+- Approccio analitico con confronto di opzioni e tabelle comparative
+
+## Preferences
+- Preferisce report chiari, discorsivi e completi
+- Utilizza Gmail e Google Drive come strumenti principali
+- Lavora con Formez PA su progetti di pubblica amministrazione
 </profile>
 
 

@@ -47,6 +47,29 @@ async def test_on_call_tool_allows_when_caller_in_matrix() -> None:
 
 
 @pytest.mark.asyncio
+async def test_on_call_tool_extracts_nested_caller_id_for_proxy_call() -> None:
+    reg = _Reg({"productivity-agent": ["google_workspace__create_doc"]})
+    mw = CapabilityMatrixMiddleware(reg)
+    ctx = _ctx(
+        args={
+            "name": "google_workspace__create_doc",
+            "arguments": {
+                "_caller_id": "productivity-agent",
+                "title": "Briefing",
+            },
+        },
+        tool_name="call_tool",
+    )
+    ctx.copy.side_effect = lambda **kwargs: MagicMock(message=kwargs["message"])
+    call_next = AsyncMock(return_value="ok")
+    out = await mw.on_call_tool(ctx, call_next)
+    assert out == "ok"
+    forwarded = call_next.call_args[0][0].message.arguments
+    assert forwarded["name"] == "google_workspace__create_doc"
+    assert "_caller_id" not in forwarded["arguments"]
+
+
+@pytest.mark.asyncio
 async def test_on_call_tool_denies_when_caller_not_in_matrix() -> None:
     reg = _Reg({"search-agent": ["tavily-mcp__search"]})
     mw = CapabilityMatrixMiddleware(reg)

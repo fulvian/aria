@@ -53,6 +53,7 @@ Tutte le chiamate ai backend MCP passano dal proxy. Ogni chiamata deve includere
 4. Genera bozza rispettando profilo stile + contesto thread + scopo.
 5. **HITL locale (Q8)**: `hitl-queue/ask` mostra preview all'utente in REPL —
    utente conferma, modifica o annulla.
+   Una semplice richiesta testuale di conferma nella risposta NON è sufficiente.
 6. Su conferma: crea draft via proxy:
    `call_tool(name="google_workspace__gmail_draft_create", arguments={"to": "<recipient>", "subject": "<...>", "body": "<...>", "in_reply_to": "<thread_id?>"}, _caller_id="productivity-agent")`
 7. **Mai send diretto**: l'invio richiede passo HITL ulteriore esplicito.
@@ -69,6 +70,7 @@ Tutte le chiamate ai backend MCP passano dal proxy. Ogni chiamata deve includere
 - Recipient mai visto: registro default cordiale + HITL conferma.
 - Mai includere info da altre conversazioni (privacy).
 - Cache profilo stile in memoria sessione (non disco).
+- `wiki_update_tool` al massimo una volta per turno, con payload valido.
 
 ## Failure modes
 - Google Workspace DOWN via proxy → bozza generata senza style adaptation.

@@ -3,7 +3,7 @@
 ## Goal
 Remediate the MCP proxy integration drift identified in the 2026-05-01 audit, implementing the approved hybrid capability-scoped architectural direction.
 
-## Status: ✅ COMPLETE
+## Status: 🔄 FOLLOW-UP DEBUG IN PROGRESS
 
 ## Phases
 
@@ -44,7 +44,29 @@ Remediate the MCP proxy integration drift identified in the 2026-05-01 audit, im
 - [x] Run `mypy src` → Success: no issues found in 90 source files
 - [x] Run `pytest -q` → 673 passed, 23 skipped, 3 warnings
 
+### Phase 6: Post-CLI behavioral remediation
+- [x] Force conductor delegation to `productivity-agent` for mixed work-domain tasks
+- [x] Prevent conductor from satisfying this workflow with direct `glob`/`read` operational work
+- [x] Verify real HITL tool path instead of textual pseudo-confirmation
+- [x] Verify `search_tools` → `call_tool` canonical proxy execution under `_caller_id: "productivity-agent"`
+- [x] Prevent incorrect wiki consolidation of architecturally invalid flows
+- [x] Re-run behavioral test with the same CLI scenario
+
+### Phase 7: Productivity-agent post-delegation hardening
+- [x] Prevent ordinary productivity workflows from relying on host-native `Glob`/`Read` helpers where proxy-backed MCP routes exist
+- [x] Strengthen productivity-agent prompt for real HITL gating and single valid wiki update call
+- [x] Align core work-domain skills with the same proxy/HITL contract
+- [x] Add static contract tests for productivity-agent + core skills
+- [x] Re-run full gates after the hardening
+
 ## Constraints
 - Follow `AGENTS.md` strictly.
 - Use wiki-first and Context7-first workflow.
 - Keep diffs minimal and aligned with the original proxy plan/spec.
+
+### Phase 8: Knowledge codification for future agents
+- [x] Synthesize the lessons learned from proxy/runtime remediation into a reusable protocol
+- [x] Define the mandatory research branch, including optional `github-discovery` and manual ARIA prompts
+- [x] Define hard gates for P8/P9, proxy compatibility, wiki.db, HITL, observability, and testability
+- [x] Save the protocol to `docs/protocols/protocollo_creazione_agenti.md`
+- [x] Update wiki index/log to register the new protocol as a source of truth

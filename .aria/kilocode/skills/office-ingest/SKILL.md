@@ -55,6 +55,8 @@ call_tool(name="filesystem__list_directory", arguments={"path": "<path>"}, _call
 
 ## Procedura
 1. Risolvi path: se l'utente fornisce path relativo, espandi rispetto a `${ARIA_HOME}` o cwd.
+   Non usare `Glob` o `Read` nativi host per discovery/lettura ordinaria: usa il
+   backend filesystem via proxy.
 2. Verifica esistenza con `filesystem__read` via proxy (head 1KB) — se manca, errore esplicito.
 3. Costruisci URI `file://<absolute_path>` o `https://...`.
 4. Invoca `markitdown-mcp__convert_to_markdown` via proxy con `_caller_id: "productivity-agent"`.

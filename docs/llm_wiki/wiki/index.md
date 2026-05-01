@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-05-01T18:39 (v6.3a — detailed wiki consolidation after proxy remediation)
-**Status**: ✅ **v6.3a** — Proxy remediation is complete and the wiki is now aligned in detail with the live baseline: fail-closed proxy enforcement, canonical synthetic proxy contract, P9 rewritten as scoped active capabilities, `productivity-agent` as unified work-domain agent, and `workspace-agent` as transitional compatibility-only surface. All quality gates green (ruff, mypy, 673 pytest).
+**Last Updated**: 2026-05-01T23:58 (v6.4 — protocollo unico per la creazione di nuovi agenti)
+**Status**: ✅ **v6.4** — Oltre all'hardening definitivo del proxy/runtime, il repository dispone ora di un protocollo unico e prescrittivo per la creazione futura di sub-agenti, skill e tool collegati: `docs/protocols/protocollo_creazione_agenti.md`. Il protocollo integra blueprint, AGENTS.md, wiki.db, proxy MCP, capability matrix, HITL, ricerca via `github-discovery`/ARIA manuale e output obbligatorio in `docs/plans/agents/`.
 
 ## Purpose
 
@@ -78,6 +78,7 @@ docs/llm_wiki/
 | `docs/plans/stabilizzazione_aria.md` | **Piano stabilizzazione pre-Fase 2** — 6 fasi, rollback-first | 2026-04-30 |
 | `docs/foundation/agent-capability-matrix.md` | Capability Matrix canonica + handoff protocol | 2026-04-30 |
 | `docs/foundation/decisions/ADR-0008-productivity-agent-introduction.md` | ADR productivity-agent austere MVP | 2026-04-29 |
+| `docs/protocols/protocollo_creazione_agenti.md` | **NEW**: protocollo unico per intake → ricerca → decision ladder → piano agenti | 2026-05-01 |
 
 ### Coordination (L1)
 | Source | Description | Last Updated |
@@ -142,6 +143,7 @@ docs/llm_wiki/
 | [[mcp-architecture]] | Active MCP runtime baseline after proxy cutover/remediation | Active ✅ v6.3 |
 | [[agent-capability-matrix]] | Post-remediation capability model: proxy synthetic surface + matrix-governed backend reachability | Active ✅ v6.3 |
 | [[productivity-agent]] | Unified work-domain agent after ADR-0008 amendment | Active ✅ v6.3 |
+| `docs/protocols/protocollo_creazione_agenti.md` | Protocollo unico per la creazione futura di sub-agenti, skill e tool | Active ✅ v1.0 |
 | **[[agent-coordination]]** | **NEW v5.0**: L1 — Handoff Pydantic, ContextEnvelope, Registry, Spawn validator. 86 test | **✅ v1.0** |
 | **[[mcp-refoundation]]** | **NEW v5.0**: L2 — MCP Catalog (14 server), Drift validator, Capability probe, Lazy loader | **✅ v1.0** |
 | **[[observability]]** | **NEW v5.0**: L4 — Logger structured JSON, Prometheus metrics, Events tipati, Trace_id UUIDv7 | **✅ v1.0** |
@@ -181,6 +183,11 @@ docs/llm_wiki/
 - 2026-05-01: **v6.2** — Baseline gate cleanup post-cutover: fixed pytest package/import collisions (`proxy.conftest`, `scripts` visibility), removed stale launcher lazy-loader re-export, added narrow `croniter` mypy override, aligned stale prompt-config tests with proxy wildcard exposure, and scoped Ruff noise down to green gates.
 - 2026-05-01: **v6.3** — Proxy remediation complete: fail-closed middleware, canonical proxy synthetic prompt surface, `productivity-agent` gains direct `google_workspace__*`, `workspace-agent` transitional, ADR-0008 amended.
 - 2026-05-01: **v6.3a** — Detailed wiki consolidation: refreshed `mcp-proxy`, `mcp-architecture`, `mcp-refoundation`, `productivity-agent`, and `agent-capability-matrix` to match the live post-remediation baseline.
+- 2026-05-01: **v6.3b** — Conductor behavioral remediation: hardened prompt with no-direct-ops section, GW→productivity-agent routing fix, mixed-domain dispatch rules, wiki validity guard, workspace-agent dispatch prohibition. 16 new tests (689 total).
+- 2026-05-01: **v6.3c** — Fixed runtime/source-of-truth drift: aligned the actual Kilo-loaded conductor file under `.aria/kilocode/agents/aria-conductor.md`, restored the Kilo-home template placeholder, and fixed `prompt_inject.py` test isolation so test fixtures no longer corrupt the live conductor prompt.
+- 2026-05-01: **v6.3d** — Hardened `productivity-agent` and core work-domain skills against host-native helper drift and pseudo-HITL. Added prompt/skill contract tests. Full suite now at 700 passed.
+- 2026-05-01: **v6.3e** — Added definitive proxy/runtime hardening: middleware now extracts nested `_caller_id` for synthetic `call_tool`, stale Kilo-home conductor artifacts were restored, and conductor/productivity prompts now explicitly forbid code edits, config edits, process killing, and runtime self-remediation during ordinary user workflows.
+- 2026-05-01: **v6.4** — Creato `docs/protocols/protocollo_creazione_agenti.md`: workflow unico per nuovi agenti/sub-agenti, con intake, wiki-first reconstruction, ricerca repo + `github-discovery`, branch di ricerca manuale via ARIA, decision ladder P8, guardrail P9/HITL/wiki.db/proxy, e output obbligatorio dei piani in `docs/plans/agents/`.
 
 ## Git & GitHub Rules
 
@@ -203,4 +210,5 @@ Definite in `AGENTS.md` § "Git & GitHub Workflow Rules". Regole chiave:
 - `docs/llm_wiki/wiki/mcp-proxy.md` — **v6.3**: canonical proxy contract + fail-closed enforcement + work-domain convergence.
 - `pyproject.toml` — **v6.2**: per-file ignores Ruff mirati, pytest bootstrap path, override mypy per `croniter`.
 - `docs/llm_wiki/wiki/agent-capability-matrix.md` — capability matrix
+- `docs/protocols/protocollo_creazione_agenti.md` — protocollo prescrittivo per nuovi agenti/sub-agenti
 - `docs/operations/rollback_matrix.md` — rollback matrix completa

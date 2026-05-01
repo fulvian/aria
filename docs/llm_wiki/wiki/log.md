@@ -1,5 +1,234 @@
 # Implementation Log
 
+## 2026-05-01T23:58+02:00 — DOCS: protocollo unico per la creazione futura di agenti/sub-agenti
+
+**Operation**: DOCS  
+**Branch**: `feat/mcp-tool-search-proxy`  
+**Trigger**: stop ai cicli infiniti di test/remediation e capitalizzazione delle lezioni apprese nel nuovo sistema proxy+wiki.db per guidare la creazione futura di nuovi agenti.
+
+### Output creato
+
+- `docs/protocols/protocollo_creazione_agenti.md`
+
+### Contenuto del protocollo
+
+Il protocollo definisce una procedura unica e prescrittiva che parte da un'idea utente e porta a un piano completo in `docs/plans/agents/`, includendo obbligatoriamente:
+
+1. **Idea intake e scope framing**
+2. **Wiki-first reconstruction** (`index.md`, `log.md`, pagine rilevanti, poi fonti raw)
+3. **Fit & boundary analysis** per capire se serve davvero un nuovo agente
+4. **Ricerca tecnica ed ecosistema** con repo/wiki analysis e, se utile, `github-discovery`
+5. **Branch di ricerca manuale via ARIA**: il protocollo prevede prompt pronti da far eseguire manualmente all'utente, con successiva ingestione delle risposte come input di ricerca
+6. **Decision ladder P8**: MCP esistente → skill → tool Python locale
+7. **Proxy/capability design**: `aria-mcp-proxy`, `_caller_id`, matrix, `server__tool`
+8. **Memory/wiki.db design**: provenance, actor-awareness, no duplicate/invalid wiki writes
+9. **HITL e boundary comportamentali**: niente pseudo-HITL, niente self-remediation durante workflow utente
+10. **Osservabilità e testabilità**
+11. **Output obbligatorio**: piano markdown salvato in `docs/plans/agents/`
+12. **ADR/wiki obligations** per boundary, policy, memoria, proxy o observability changes
+
+### Lezioni codificate nel protocollo
+
+Il protocollo rende esplicite come hard guardrails le lezioni emerse dal ciclo proxy v6.3:
+
+- runtime/source-of-truth drift
+- host-native tool drift
+- pseudo-HITL
+- duplicate wiki updates
+- self-remediation leakage durante workflow utente
+
+### Effetto architetturale
+
+- Ogni futura creazione di sub-agente deve ora passare da questo protocollo prima dell'implementazione.
+- Il protocollo formalizza l'uso della wiki come sorgente di verità operativa e dei piani `docs/plans/agents/` come gate package per l'implementazione.
+
+---
+
+## 2026-05-01T22:48+02:00 — FIX: definitive proxy/runtime hardening after live `_caller_id` failure
+
+**Operation**: FIX  
+**Branch**: `feat/mcp-tool-search-proxy`  
+**Trigger**: a live ARIA CLI run finally delegated to `productivity-agent`, but Google Workspace `call_tool` operations failed because caller identity was not being accepted by the proxy in the shape actually emitted by the client.
+
+### Root causes closed
+
+1. **Nested `_caller_id` acceptance needed** — live `aria-mcp-proxy_call_tool` invocations place `_caller_id` under the synthetic tool's nested `arguments` object; middleware had to support this path reliably.
+2. **Stale conductor artifacts still existed in Kilo-home** — the Kilo-home template and active conductor files still carried old productivity/workspace rules, even though `.aria/kilocode/agents/aria-conductor.md` had been hardened earlier.
+3. **Behavioral boundary too weak for user workflows** — conductor and productivity-agent still needed explicit prohibition against code edits, config edits, process killing, and self-remediation while servicing normal user requests.
+
+### Changes applied
+
+- `src/aria/mcp/proxy/middleware.py`
+  - retained and verified support for nested `_caller_id` extraction from `args["arguments"]`
+- `tests/unit/mcp/proxy/test_middleware.py`
+  - added a direct unit test for `call_tool(name=<backend>, arguments={_caller_id,...})`
+- Restored and aligned all conductor artifacts:
+  - `.aria/kilocode/agents/aria-conductor.md`
+  - `.aria/kilo-home/.kilo/agents/aria-conductor.md`
+  - `.aria/kilo-home/.kilo/agents/_aria-conductor.template.md`
+- Added explicit no-self-remediation rules to conductor and productivity-agent user-workflow prompts
+- Added/updated static prompt contract tests so future regressions are caught earlier
+
+### Quality gates
+
+```text
+ruff check .          → All checks passed  ✅
+ruff format --check . → 203 files already formatted  ✅
+uv run mypy src       → Success: no issues found in 90 source files  ✅
+uv run pytest -q      → 703 passed, 23 skipped, 3 warnings  ✅
+```
+
+### Expected effect for the next manual CLI rerun
+
+- `productivity-agent` should still be the primary worker.
+- `aria-mcp-proxy_call_tool` should now accept caller identity in the nested shape emitted by the client.
+- Conductor/productivity-agent should no longer attempt code edits or process control during ordinary user workflows.
+
+---
+
+## 2026-05-01T20:20+02:00 — FIX: productivity-agent canonical proxy/HITL discipline after successful conductor delegation
+
+**Operation**: FIX  
+**Branch**: `feat/mcp-tool-search-proxy`  
+**Trigger**: after conductor delegation was fixed, the next real CLI transcript showed `productivity-agent` being used but still relying on host-native helpers (`Glob`, `Read`), pseudo-HITL text instead of a real gate, and duplicate/fragile wiki update attempts.
+
+### Changes applied
+
+- Hardened `.aria/kilocode/agents/productivity-agent.md` (and synced Kilo-home copy):
+  - explicit **SOLO proxy** rule for document discovery and file access
+  - explicit prohibition of host-native helpers `Glob`, `Read`, `Write`, `TodoWrite` for ordinary workflows
+  - explicit requirement that Google Workspace write actions must open a real `hitl-queue__ask` gate, not merely ask for confirmation in prose
+  - explicit rule that `wiki_update_tool` must run **exactly once** with a valid payload and must not memorialize non-canonical success paths
+- Normalized core skills to reduce model drift toward host-native tools or pseudo-HITL:
+  - `office-ingest` → clarified proxy-only filesystem discovery/reads
+  - `consultancy-brief` → clarified directory discovery via proxy filesystem, not `Glob`
+  - `email-draft` → strengthened real HITL requirement and single valid wiki update rule
+  - `meeting-prep` → clarified that write outputs need a real `hitl-queue__ask` gate
+- Added new static contract tests:
+  - `tests/unit/agents/productivity/test_prompt_contract.py`
+  - verifies proxy-only productivity prompt contract, no native host helpers, real HITL wording, single valid wiki update rule, and aligned skill fragments
+
+### Quality gates
+
+```text
+ruff check .          → All checks passed  ✅
+ruff format --check . → 203 files already formatted  ✅
+uv run mypy src       → Success: no issues found in 90 source files  ✅
+uv run pytest -q      → 700 passed, 23 skipped, 3 warnings  ✅
+```
+
+### Residual risk
+
+- The remaining enforcement is still primarily prompt/policy driven at sub-agent level; a future runtime guard preventing host-native tool use during productivity workflows would further harden the system.
+
+---
+
+## 2026-05-01T19:49+02:00 — FIX: conductor runtime source-of-truth alignment after failed real CLI validation
+
+**Operation**: FIX  
+**Branch**: `feat/mcp-tool-search-proxy`  
+**Trigger**: the second real ARIA CLI validation still bypassed `productivity-agent`, revealing that the runtime conductor file actually loaded by KiloCode was not aligned with the hardened template tested in isolation.
+
+### Root cause
+
+1. `KILOCODE_CONFIG_DIR` points to `.aria/kilocode`, so the live conductor prompt used by ARIA CLI is `.aria/kilocode/agents/aria-conductor.md`.
+2. Earlier hardening had been applied primarily to Kilo-home runtime files, while the `.aria/kilocode` active conductor file could remain or be reverted to a much shorter stub.
+3. `src/aria/memory/wiki/prompt_inject.py` had a test-isolation bug: when `regenerate_conductor_template(..., agent_dir=<tmp>)` ran in tests, it still wrote the generated active file into the real `.aria/kilocode/agents/aria-conductor.md`, polluting the runtime source-of-truth with the tiny test fixture template.
+
+### Fixes applied
+
+- Restored and aligned **three conductor artifacts**:
+  - `.aria/kilo-home/.kilo/agents/_aria-conductor.template.md` → real template again, with `{{ARIA_MEMORY_BLOCK}}`
+  - `.aria/kilo-home/.kilo/agents/aria-conductor.md` → hardened active runtime version
+  - `.aria/kilocode/agents/aria-conductor.md` → hardened active source actually loaded by KiloCode CLI
+- Kept the stronger orchestration rules:
+  - no direct operational work by conductor
+  - mandatory delegation to `productivity-agent` for mixed work-domain tasks
+  - no direct dispatch to `workspace-agent`
+  - no pseudo-HITL textual confirmation in place of real HITL tool flow
+  - no wiki memorialization of architecturally invalid conductor-side execution paths
+- Fixed `prompt_inject.py` isolation bug:
+  - when `agent_dir` override is provided (tests), the function now writes only inside the overridden directory instead of also mutating the real `.aria/kilocode` prompt file
+- Updated conductor prompt tests to verify the real KiloCode-loaded conductor file under `.aria/kilocode/agents/aria-conductor.md`
+- Added a guard test that the Kilo-home template still contains `{{ARIA_MEMORY_BLOCK}}`
+
+### Quality gates
+
+```text
+ruff check .          → All checks passed  ✅
+ruff format --check . → 202 files already formatted  ✅
+uv run mypy src       → Success: no issues found in 90 source files  ✅
+uv run pytest -q      → 690 passed, 23 skipped, 3 warnings  ✅
+```
+
+### Expected consequence for the next manual CLI validation
+
+- The conductor prompt actually loaded by ARIA CLI should now contain the mandatory `productivity-agent` routing rules and the no-direct-ops constraints.
+- The earlier false-green condition (tests on one file, runtime using another file) is removed.
+
+---
+
+## 2026-05-01T18:52+02:00 — FIX: conductor behavioral remediation — prevent productivity-agent bypass
+
+**Operation**: FIX  
+**Branch**: `feat/mcp-tool-search-proxy`  
+**Trigger**: real ARIA CLI transcript showed conductor completing workflow directly instead of spawning productivity-agent; GW operations routed to workspace-agent instead of productivity-agent; no HITL tool path exercised; wiki memory written describing the direct-conductor path as correct.
+
+### Root causes identified
+
+1. **Stale productivity-agent description** — conductor described productivity-agent as "delega Gmail/Calendar/Drive a workspace-agent", contradicting the post-remediation unified work-domain model.
+2. **GW dispatch to workspace-agent** — dispatch rules routed GW operations to workspace-agent instead of productivity-agent.
+3. **No explicit prohibition** — conductor had "Non esegui mai direttamente task operativi" in the role section but no enumerated list of forbidden operations and no dedicated section.
+4. **Missing mixed-domain routing** — no explicit rules for tasks like "local docs + briefing", "local docs + draft email", "local docs + GW proposal".
+5. **No wiki validity guard** — conductor could write wiki entries memorializing architecturally invalid direct-conductor paths as if correct.
+6. **No test coverage** — no tests for the specific bypass scenarios.
+
+### Changes applied
+
+**A) Conductor prompt hardening** (`.aria/kilocode/agents/aria-conductor.md`):
+- Added dedicated section "Vincolo operativo: NESSUN lavoro diretto" with enumerated forbidden operations (glob, read, filesystem, search, fetch, scrape, email, calendar, drive, office conversion, briefing/report drafting).
+- Fixed productivity-agent description to "agente unificato del dominio lavoro" with direct GW access via proxy.
+- Marked workspace-agent as COMPATIBILITÀ/TRANSITORIO with explicit "mai dispatch diretto dal conductor".
+- Fixed GW dispatch to route to productivity-agent instead of workspace-agent.
+- Added 4 explicit mixed-domain task routing rules.
+- Added "NON dispatchare direttamente a workspace-agent" rule.
+- Added wiki validity guard: "NON scrivere wiki entries che descrivano percorsi architetturalmente invalidi."
+- Updated dispatch chains to reflect compatibility fallback model.
+
+**B) Test suite expansion** (`tests/unit/agents/test_conductor_dispatch.py`):
+- New class `TestConductorNoDirectOperations` (4 tests): verifies explicit prohibition section and enumerated forbidden operations.
+- New class `TestConductorWorkspaceAgentNotDirectlyDispatched` (2 tests): verifies workspace-agent is not a primary dispatch target.
+- New class `TestConductorGwDispatchesToProductivityAgent` (3 tests): verifies GW routes to productivity-agent, unified description, direct access.
+- New class `TestConductorMixedDomainRouting` (4 parametrized tests): verifies each mixed-domain scenario routes to productivity-agent.
+- New class `TestConductorWikiValidityGuard` (2 tests): verifies wiki validity rule exists.
+- New test `test_no_operational_tools_in_allowed` in YAML config class.
+- Total: 12 → 28 tests (+16 net new).
+
+### Quality gates
+
+```text
+ruff check .          → All checks passed  ✅
+ruff format --check . → 202 files already formatted  ✅
+uv run mypy src       → Success: no issues found in 90 source files  ✅
+uv run pytest -q      → 689 passed, 23 skipped, 3 warnings  ✅
+```
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `.aria/kilocode/agents/aria-conductor.md` | Hardened dispatch rules, added no-ops section, wiki validity guard |
+| `tests/unit/agents/test_conductor_dispatch.py` | 16 new tests covering bypass scenarios |
+
+### Residual risks
+
+1. The conductor is a prompt-based agent — prompt rules can still be ignored by a sufficiently confused LLM. The tests enforce that the prompt text is present, not that the LLM obeys it.
+2. No runtime enforcement layer prevents the conductor from calling operational tools directly (KiloCode agents can invoke tools outside their declared `allowed-tools`). The enforcement is prompt-only.
+3. The wiki validity guard is prompt-only — a misbehaving LLM can still write invalid wiki entries. A runtime guard (e.g., wiki_update_tool validation against the dispatch log) would be needed for full coverage.
+4. `workspace-agent` still exists and can be spawned — deprecation timeline not yet defined.
+
+---
+
 ## 2026-05-01T18:39+02:00 — DOCS: detailed LLM wiki consolidation after proxy remediation
 
 **Operation**: DOCS  

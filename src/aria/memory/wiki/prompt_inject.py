@@ -161,7 +161,7 @@ async def regenerate_conductor_template(
         True if template was regenerated, False on error.
     """
     agents_path = agent_dir or _resolve_agent_dir()
-    source_path = _resolve_source_agent_dir()
+    source_path = _resolve_source_agent_dir() if agent_dir is None else agent_dir
     template_path = agents_path / _TEMPLATE_FILENAME
     active_path = agents_path / _ACTIVE_FILENAME
     source_active_path = source_path / _ACTIVE_FILENAME
