@@ -104,6 +104,14 @@
       "args": ["markitdown-mcp"],
       "disabled": false,
       "_comment": "@productivity-mvp Microsoft markitdown — convert office files (PDF/DOCX/XLSX/PPTX/TXT/HTML) to markdown LLM-ready. MIT license, keyless, Context7 Bench 90.05."
+    },
+    "aria-mcp-proxy": {
+      "command": "/home/fulvio/coding/aria/.venv/bin/python",
+      "args": ["-m", "aria.mcp.proxy"],
+      "env": {
+        "ARIA_HOME": "/home/fulvio/coding/aria"
+      },
+      "_comment": "@F2 shadow mode — not yet referenced by any agent prompt"
     }
   }
 }
