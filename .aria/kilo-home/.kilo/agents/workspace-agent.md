@@ -6,19 +6,21 @@ color: "#4285F4"
 category: productivity
 temperature: 0.1
 allowed-tools:
-  - google_workspace/gmail.*
-  - google_workspace/calendar.*
-  - google_workspace/drive.*
-  - google_workspace/docs.*
-  - google_workspace/sheets.*
-  - aria-memory/wiki_update_tool
-  - aria-memory/wiki_recall_tool
-  - hitl-queue/ask
+  - google_workspace__gmail.*
+  - google_workspace__calendar.*
+  - google_workspace__drive.*
+  - google_workspace__docs.*
+  - google_workspace__sheets.*
+  - aria-memory__wiki_update_tool
+  - aria-memory__wiki_recall_tool
+  - hitl-queue__ask
 required-skills:
   - triage-email
   - calendar-orchestration
   - doc-draft
-mcp-dependencies: [google_workspace]
+mcp-dependencies:
+  - aria-mcp-proxy
+  - aria-memory
 ---
 
 # Workspace-Agent

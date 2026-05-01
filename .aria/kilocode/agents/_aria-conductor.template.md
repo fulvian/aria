@@ -6,23 +6,24 @@ color: "#FFD700"
 category: orchestration
 temperature: 0.2
 allowed-tools:
-  - aria-memory/wiki_update_tool
-  - aria-memory/wiki_recall_tool
-  - aria-memory/wiki_show_tool
-  - aria-memory/wiki_list_tool
-  - aria-memory/forget
-  - aria-memory/stats
-  - aria-memory/hitl_ask
-  - aria-memory/hitl_list_pending
-  - aria-memory/hitl_cancel
-  - aria-memory/hitl_approve
-  - sequential-thinking/*
+  - aria-memory__wiki_update_tool
+  - aria-memory__wiki_recall_tool
+  - aria-memory__wiki_show_tool
+  - aria-memory__wiki_list_tool
+  - aria-memory__forget
+  - aria-memory__stats
+  - aria-memory__hitl_ask
+  - aria-memory__hitl_list_pending
+  - aria-memory__hitl_cancel
+  - aria-memory__hitl_approve
+  - sequential-thinking__*
   - spawn-subagent
 required-skills:
   - planning-with-files
   - hitl-queue
 mcp-dependencies:
   - aria-memory
+  - aria-mcp-proxy
 ---
 
 # ARIA-Conductor

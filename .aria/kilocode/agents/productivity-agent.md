@@ -6,16 +6,16 @@ color: "#7C3AED"
 category: productivity
 temperature: 0.2
 allowed-tools:
-  - markitdown-mcp/convert_to_markdown
-  - filesystem/read
-  - filesystem/list_directory
-  - aria-memory/wiki_update_tool
-  - aria-memory/wiki_recall_tool
-  - aria-memory/wiki_show_tool
-  - aria-memory/wiki_list_tool
-  - hitl-queue/ask
-  - fetch/fetch
-  - sequential-thinking/*
+  - markitdown-mcp__convert_to_markdown
+  - filesystem__read
+  - filesystem__list_directory
+  - aria-memory__wiki_update_tool
+  - aria-memory__wiki_recall_tool
+  - aria-memory__wiki_show_tool
+  - aria-memory__wiki_list_tool
+  - hitl-queue__ask
+  - fetch__fetch
+  - sequential-thinking__*
   - spawn-subagent
 required-skills:
   - office-ingest
@@ -24,10 +24,16 @@ required-skills:
   - email-draft
   - planning-with-files
 mcp-dependencies:
-  - markitdown-mcp
+  - aria-mcp-proxy
   - aria-memory
-  - filesystem
 ---
+
+## Proxy invocation rule
+
+Quando chiami `aria-mcp-proxy__search_tools` o `aria-mcp-proxy__call_tool`,
+includi sempre l'argomento `_caller_id: "productivity-agent"`.
+
+Il proxy usa `_caller_id` per applicare la `agent_capability_matrix.yaml`.
 
 # Productivity-Agent
 

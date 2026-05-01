@@ -6,24 +6,33 @@ color: "#FFD700"
 category: orchestration
 temperature: 0.2
 allowed-tools:
-  - aria-memory/wiki_update_tool
-  - aria-memory/wiki_recall_tool
-  - aria-memory/wiki_show_tool
-  - aria-memory/wiki_list_tool
-  - aria-memory/forget
-  - aria-memory/stats
-  - aria-memory/hitl_ask
-  - aria-memory/hitl_list_pending
-  - aria-memory/hitl_cancel
-  - aria-memory/hitl_approve
-  - sequential-thinking/*
+  - aria-memory__wiki_update_tool
+  - aria-memory__wiki_recall_tool
+  - aria-memory__wiki_show_tool
+  - aria-memory__wiki_list_tool
+  - aria-memory__forget
+  - aria-memory__stats
+  - aria-memory__hitl_ask
+  - aria-memory__hitl_list_pending
+  - aria-memory__hitl_cancel
+  - aria-memory__hitl_approve
+  - sequential-thinking__*
   - spawn-subagent
 required-skills:
   - planning-with-files
   - hitl-queue
 mcp-dependencies:
   - aria-memory
+  - aria-mcp-proxy
 ---
+
+## Proxy invocation rule
+
+Quando chiami `aria-mcp-proxy__search_tools` o `aria-mcp-proxy__call_tool`,
+includi sempre l'argomento `_caller_id: "aria-conductor"`.
+
+Il proxy usa `_caller_id` per applicare la `agent_capability_matrix.yaml`.
+Una chiamata senza `_caller_id` viene comunque servita ma è un'anomalia.
 
 # ARIA-Conductor
 
@@ -47,7 +56,19 @@ Il seguente profilo utente è stato caricato da wiki.db.
 Usa queste informazioni per personalizzare ogni risposta.
 
 <profile>
-new content
+## Identity
+- Nome: Fulvio Ventura
+- Ruolo: Esperto senior e coordinatore gruppo esperti territoriali
+
+## Working Style
+- Documentazione strutturata con report dettagliati su Google Docs
+- Ricerca online approfondita per best practice aggiornate
+- Approccio analitico con confronto di opzioni e tabelle comparative
+
+## Preferences
+- Preferisce report chiari, discorsivi e completi
+- Utilizza Gmail e Google Drive come strumenti principali
+- Lavora con Formez PA su progetti di pubblica amministrazione
 </profile>
 
 

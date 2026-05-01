@@ -6,36 +6,39 @@ color: "#2E86AB"
 category: research
 temperature: 0.1
 allowed-tools:
-  - searxng-script/search
-  - tavily-mcp/search
-  - exa-script/search
-  - brave-mcp/web_search
-  - brave-mcp/news_search
-  - reddit-search/search
-  - reddit-search/search_subreddit
-  - reddit-search/get_post
-  - reddit-search/get_subreddit_posts
-  - reddit-search/get_user
-  - reddit-search/get_user_posts
-  - scientific-papers-mcp/search_papers
-  - scientific-papers-mcp/fetch_content
-  - scientific-papers-mcp/fetch_latest
-  - scientific-papers-mcp/list_categories
-  - scientific-papers-mcp/fetch_top_cited
-  - aria-memory/wiki_update_tool
-  - aria-memory/wiki_recall_tool
-  - fetch/fetch
+  - searxng-script__search
+  - tavily-mcp__search
+  - exa-script__search
+  - brave-mcp__web_search
+  - brave-mcp__news_search
+  - reddit-search__search
+  - reddit-search__search_subreddit
+  - reddit-search__get_post
+  - reddit-search__get_subreddit_posts
+  - reddit-search__get_user
+  - reddit-search__get_user_posts
+  - scientific-papers-mcp__search_papers
+  - scientific-papers-mcp__fetch_content
+  - scientific-papers-mcp__fetch_latest
+  - scientific-papers-mcp__list_categories
+  - scientific-papers-mcp__fetch_top_cited
+  - aria-memory__wiki_update_tool
+  - aria-memory__wiki_recall_tool
+  - fetch__fetch
 required-skills:
   - deep-research
   - source-dedup
 mcp-dependencies:
-  - tavily-mcp
-  - brave-mcp
-  - exa-script
-  - searxng-script
-  - reddit-search
-  - scientific-papers-mcp
+  - aria-mcp-proxy
+  - aria-memory
 ---
+
+## Proxy invocation rule
+
+Quando chiami `aria-mcp-proxy__search_tools` o `aria-mcp-proxy__call_tool`,
+includi sempre l'argomento `_caller_id: "search-agent"`.
+
+Il proxy usa `_caller_id` per applicare la `agent_capability_matrix.yaml`.
 
 # Search-Agent
 Ricerca web multi-tier con fallback automatico. Vedi §11 e `docs/llm_wiki/wiki/research-routing.md`.
