@@ -51,8 +51,9 @@ docs/llm_wiki/
 +-----------------------------------------------------------+
 | L2 — MCP Plane / Refoundation v2 (v1.0)                  |
 |   .aria/config/mcp_catalog.yaml (14 server SoT)           |
+|   src/aria/mcp/proxy/ (NEW v6.0) FastMCP-native proxy     |
 |   src/aria/mcp/capability_probe.py (generalizzato)        |
-|   src/aria/launcher/lazy_loader.py (bootstrap per intent) |
+|   src/aria/launcher/lazy_loader.py (da deprecare in F4)   |
 |   scripts/check_mcp_drift.py (drift validator CI)         |
 +-----------------------------------------------------------+
 | L1 — Coordinamento Agenti (v1.0)                          |
@@ -168,6 +169,7 @@ docs/llm_wiki/
 - 2026-04-30: **v4.8** — F0 quality fix (21 ruff, 12 mypy, 6 test failures)
 - 2026-04-30: **v4.9** — PR #3+#4 merged, baseline-LKG-v1 tag
 - 2026-04-30: **v5.0** — **ARCHITETTURA 4 LIVELLI** completa. L1: agent coordination (86 test). L2: MCP catalog + lazy loader. L3: LLM routing dichiarativo. L4: Observability JSON/metriche. 634 test totali. 81 file Python verificati mypy.
+- 2026-05-01: **v6.0 (F1)** — `src/aria/mcp/proxy/` core implementation complete. HybridSearchTransform, CapabilityMatrixMiddleware, catalog loader, credential injector, LM Studio embedder. 35 unit + 3 integration tests. Fase F2-F5 pianificate.
 
 ## Git & GitHub Rules
 
@@ -187,5 +189,6 @@ Definite in `AGENTS.md` § "Git & GitHub Workflow Rules". Regole chiave:
 - `docs/llm_wiki/wiki/observability.md` — L4 logging, metrics, events
 - `docs/llm_wiki/wiki/research-routing.md` — tier policy
 - `docs/llm_wiki/wiki/mcp-architecture.md` — MCP architecture
+- `docs/llm_wiki/wiki/mcp-proxy.md` — **NEW v6.0 (F1)**: FastMCP-native MCP proxy replacing lazy loader
 - `docs/llm_wiki/wiki/agent-capability-matrix.md` — capability matrix
 - `docs/operations/rollback_matrix.md` — rollback matrix completa

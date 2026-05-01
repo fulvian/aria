@@ -2995,3 +2995,50 @@ ruff check src → All checks passed ✅
 mypy src       → 81 files, 0 errors ✅
 pytest -q      → 634 passed, 21 skipped ✅
 ```
+
+### 2026-05-01 — v6.0 (F1) Core implementation: MCP Tool Search Proxy
+
+**Operation**: IMPLEMENT
+**Branch**: `feat/mcp-tool-search-proxy`
+**Piano**: `docs/plans/mcp_search_tool_plan_1.md`
+
+### F0 — Smoke test
+- FastMCP `create_proxy` + `BM25SearchTransform` verified via stdio
+- `tools/list` returns `['search_tools', 'call_tool']`
+- `search_tools(query="read")` returns results
+
+### F1 — Core implementation — COMPLETE
+
+| Task | Modulo | Test |
+|------|--------|------|
+| F1.2 | package skeleton + fixtures | — |
+| F1.3 | `proxy/config.py` — ProxyConfig pydantic | 4 unit |
+| F1.4 | `proxy/catalog.py` — catalog loader | 6 unit |
+| F1.5 | `proxy/credential.py` — CredentialInjector | 6 unit |
+| F1.6 | `proxy/transforms/lmstudio_embedder.py` — LM Studio HTTP client | 6 unit |
+| F1.7 | `proxy/transforms/hybrid.py` — HybridSearchTransform (BM25+semantic) | 4 unit |
+| F1.8 | `proxy/middleware.py` — CapabilityMatrixMiddleware | 6 unit |
+| F1.9 | `proxy/server.py` — build_proxy wiring | 3 unit |
+| F1.10-12 | Integration tests (e2e stdio + capability enforcement) | 3 integration |
+| **Total** | **10 source files** | **35 unit + 3 integration** |
+
+### Quality gate F1
+```
+ruff check src/    → All checks passed ✅
+ruff format --check → 91 files already formatted ✅
+mypy src/aria/mcp/proxy/ → Success: no issues found ✅
+pytest unit + integration → 38 passed ✅
+```
+
+### Files created
+- `src/aria/mcp/proxy/` (10 files: `__init__.py`, `__main__.py`, `config.py`, `catalog.py`, `credential.py`, `middleware.py`, `server.py`, `transforms/__init__.py`, `transforms/hybrid.py`, `transforms/lmstudio_embedder.py`)
+- `tests/unit/mcp/proxy/` (7 files: 6 test modules + conftest)
+- `tests/integration/mcp/proxy/` (4 files: 3 test modules + conftest)
+- `.aria/config/proxy.yaml`
+- `docs/llm_wiki/wiki/mcp-proxy.md`
+
+### Prossime fasi (F2-F5)
+- F2: Shadow mode — add proxy entry to mcp.json alongside existing servers
+- F3: Cutover — reduce mcp.json to 2 entries, update agent prompts
+- F4: Remove lazy_loader.py, write ADR-0015
+- F5: Observability (aria_proxy_* metrics), skills namespacing, wiki finalization
