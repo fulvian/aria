@@ -112,10 +112,22 @@ class CapabilityMatrixMiddleware(Middleware):
             legacy = tool_name.replace("__", "/", 1)
             if legacy in allowed:
                 return True
+        # Real proxy names use single _ but matrix uses __.
+        # Convert first _ to __ and try matching.
+        if "_" in tool_name and "__" not in tool_name:
+            first = tool_name.index("_")
+            double_form = tool_name[:first] + "__" + tool_name[first + 1:]
+            if double_form in allowed:
+                return True
         # wildcard `server/*` or `server__*`
         for entry in allowed:
             if entry.endswith("/*") and tool_name.startswith(entry[:-2].replace("/", "__") + "__"):
                 return True
             if entry.endswith("__*") and tool_name.startswith(entry[:-3] + "__"):
                 return True
+            # Wildcard applies to single-underscore names too
+            if entry.endswith("__*") and "_" in tool_name and "__" not in tool_name:
+                first = tool_name.index("_")
+                if tool_name[:first] == entry[:-3]:
+                    return True
         return False
