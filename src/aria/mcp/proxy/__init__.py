@@ -6,7 +6,3 @@ catalogued MCP server.
 
 See docs/superpowers/specs/2026-05-01-mcp-tool-search-design.md.
 """
-
-from aria.mcp.proxy.server import build_proxy
-
-__all__ = ["build_proxy"]

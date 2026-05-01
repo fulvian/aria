@@ -1,0 +1,16 @@
+# ARIA MCP Proxy runtime configuration
+search:
+  transform: hybrid
+  blend: 0.6
+  embedding:
+    provider: lmstudio
+    endpoint: http://127.0.0.1:1234/v1/embeddings
+    model: mxbai-embed-large-v1
+    dim: 1024
+    max_tokens: 512
+    timeout_s: 5.0
+    fallback: bm25
+  cache:
+    persist: true
+    path: .aria/runtime/proxy/embeddings/
+    invalidate_on: catalog_change
