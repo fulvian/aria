@@ -118,21 +118,12 @@ if modern_path.exists():
         modern = {}
 
 servers = legacy.get("mcpServers", {})
-existing_mcp = modern.get("mcp", {})
-mcp = {}
-if isinstance(existing_mcp, dict):
-    mcp.update(existing_mcp)
-
 DEPRECATED_ALIAS_KEYS = {"tavily", "firecrawl", "brave"}
 REMOVED_PROFILE_KEYS = {"google_workspace_readonly", "playwright"}
 
-# Drop deprecated alias keys when canonical servers are present.
-for deprecated_key in DEPRECATED_ALIAS_KEYS:
-    mcp.pop(deprecated_key, None)
-
-# Drop deprecated/removed ARIA profiles from isolated runtime.
-for removed_key in REMOVED_PROFILE_KEYS:
-    mcp.pop(removed_key, None)
+# Reset mcp to avoid stale entries persisting from old kilo.jsonc.
+# mcp.json is the single source of truth for active MCP servers.
+mcp = {}
 
 for name, cfg in servers.items():
     # Do not re-introduce deprecated aliases / removed profiles from legacy mcp.json.
