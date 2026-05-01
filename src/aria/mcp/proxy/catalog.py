@@ -6,13 +6,16 @@ This module deliberately knows nothing about credentials — it produces
 spec objects with placeholder env vars (${VAR}). The CredentialInjector
 expands them later.
 """
+
 from __future__ import annotations
 
 import hashlib
 import shlex
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 import yaml
 

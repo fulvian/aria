@@ -42,11 +42,11 @@ async def test_blend_combines_bm25_and_semantic() -> None:
 
 @pytest.mark.asyncio
 async def test_degrades_on_embedder_failure_during_search() -> None:
-    from aria.mcp.proxy.transforms.lmstudio_embedder import LMStudioUnavailable
+    from aria.mcp.proxy.transforms.lmstudio_embedder import LMStudioUnavailableError
 
     embedder = MagicMock(spec_set=["probe", "embed"])
     embedder.probe.return_value = True
-    embedder.embed.side_effect = LMStudioUnavailable("offline")
+    embedder.embed.side_effect = LMStudioUnavailableError("offline")
 
     transform = HybridSearchTransform(embedder=embedder)
     tools = [_tool("x", "y")]

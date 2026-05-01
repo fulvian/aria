@@ -4,14 +4,18 @@ Strict mode (default) raises on unresolved keys. Non-strict mode drops the
 backend and returns the survivors — used at proxy boot so a single missing
 key does not take down the entire proxy.
 """
+
 from __future__ import annotations
 
 import os
 import re
-from typing import Iterable, Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from aria.mcp.proxy.catalog import BackendSpec
 from aria.utils.logging import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 logger = get_logger("aria.mcp.proxy.credential")
 
@@ -44,9 +48,7 @@ class CredentialInjector:
             notes=spec.notes,
         )
 
-    def inject_all(
-        self, specs: Iterable[BackendSpec], *, strict: bool = True
-    ) -> list[BackendSpec]:
+    def inject_all(self, specs: Iterable[BackendSpec], *, strict: bool = True) -> list[BackendSpec]:
         out: list[BackendSpec] = []
         for spec in specs:
             try:

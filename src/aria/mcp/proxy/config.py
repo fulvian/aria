@@ -3,6 +3,7 @@
 Defaults are tuned for the local LM Studio embedding endpoint that ARIA
 already runs (mxbai-embed-large-v1).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -59,7 +60,7 @@ class ProxyConfig(BaseModel):
     search: SearchConfig = Field(default_factory=SearchConfig)
 
     @classmethod
-    def load(cls, path: Path) -> "ProxyConfig":
+    def load(cls, path: Path) -> ProxyConfig:
         if not path.exists():
             return cls()
         raw = yaml.safe_load(path.read_text()) or {}

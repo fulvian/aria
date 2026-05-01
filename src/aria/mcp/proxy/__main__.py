@@ -1,4 +1,5 @@
 """Entry point: python -m aria.mcp.proxy"""
+
 from __future__ import annotations
 
 import asyncio

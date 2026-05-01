@@ -4,10 +4,12 @@ into a runnable proxy server.
 `build_proxy()` returns a fully configured `FastMCP` instance. Callers run
 it via `await proxy.run_async(transport="stdio")`.
 """
+
 from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
 
 from fastmcp import FastMCP
 from fastmcp.server import create_proxy
@@ -40,11 +42,10 @@ def build_proxy(
     cfg = ProxyConfig.load(proxy_config_path)
     backends = _load_backends(catalog_path, strict=strict)
     if os.environ.get("ARIA_PROXY_DISABLE_BACKENDS") == "1":
-        # used in unit tests to avoid stdio spawn
         backends = []
 
     if backends:
-        composite = create_proxy(
+        composite: FastMCP = create_proxy(
             {"mcpServers": {b.name: b.to_mcp_entry() for b in backends}},
             name=PROXY_NAME,
         )
@@ -56,7 +57,7 @@ def build_proxy(
     return composite
 
 
-def _load_backends(catalog_path: Path, *, strict: bool) -> list[BackendSpec]:
+def _load_backends(catalog_path: Path, *, strict: bool) -> list[BackendSpec]:  # noqa: ANN202
     if not catalog_path.exists():
         logger.warning(
             "catalog_missing",
@@ -64,27 +65,30 @@ def _load_backends(catalog_path: Path, *, strict: bool) -> list[BackendSpec]:
         )
         return []
     try:
-        from aria.credentials.manager import CredentialManager  # type: ignore
-        manager = CredentialManager()
-    except Exception:  # pragma: no cover — keep proxy bootable without creds
+        from aria.credentials.manager import CredentialManager
+
+        manager: Any = CredentialManager()
+    except Exception:  # pragma: no cover
         manager = None
     raw = load_backends(catalog_path)
     injector = CredentialInjector(manager=manager)
     return injector.inject_all(raw, strict=strict)
 
 
-def _build_transform(cfg: ProxyConfig):
+def _build_transform(cfg: ProxyConfig) -> Any:  # noqa: ANN401
     if cfg.search.transform == "regex":
         try:
             from fastmcp.server.transforms.search.regex import RegexSearchTransform
         except ImportError:
-            from fastmcp.server.transforms.search import RegexSearchTransform  # type: ignore[no-redef]
+            from fastmcp.server.transforms.search import RegexSearchTransform
+
         return RegexSearchTransform()
     if cfg.search.transform == "bm25":
         try:
             from fastmcp.server.transforms.search.bm25 import BM25SearchTransform
         except ImportError:
-            from fastmcp.server.transforms.search import BM25SearchTransform  # type: ignore[no-redef]
+            from fastmcp.server.transforms.search import BM25SearchTransform
+
         return BM25SearchTransform()
     embedder = LMStudioEmbedder(
         endpoint=cfg.search.embedding.endpoint,

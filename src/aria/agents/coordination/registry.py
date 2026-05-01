@@ -57,6 +57,7 @@ class YamlCapabilityRegistry:
 
     def _load(self) -> None:
         import yaml
+
         if not self._path.exists():
             return
         raw = yaml.safe_load(self._path.read_text()) or {}

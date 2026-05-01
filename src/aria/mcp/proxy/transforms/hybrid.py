@@ -5,23 +5,27 @@ unavailable at boot or fails mid-flight, we degrade silently to BM25-only.
 The transform exposes `search_tools` and `call_tool` synthetic tools to
 the client (inherited behaviour from BM25SearchTransform).
 """
+
 from __future__ import annotations
 
 import logging
-from typing import Any, Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 
-from fastmcp.tools import Tool
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from fastmcp.tools import Tool
 
 try:  # FastMCP 3.2+ exposes the transform here
     from fastmcp.server.transforms.search.bm25 import BM25SearchTransform, _BM25Index
 except ImportError:  # pragma: no cover — older FastMCP layouts
-    from fastmcp.server.transforms.search import BM25SearchTransform  # type: ignore[no-redef]
+    from fastmcp.server.transforms.search import BM25SearchTransform
 
 from aria.mcp.proxy.transforms.lmstudio_embedder import (
     LMStudioEmbedder,
-    LMStudioUnavailable,
+    LMStudioUnavailableError,
 )
 
 logger = logging.getLogger("aria.mcp.proxy.transforms.hybrid")
@@ -30,9 +34,8 @@ logger = logging.getLogger("aria.mcp.proxy.transforms.hybrid")
 def _catalog_hash(tools: Sequence[Tool]) -> str:
     """Compute a hash over tool names to detect catalog changes."""
     import hashlib
-    return hashlib.sha256(
-        "-".join(t.name for t in tools).encode()
-    ).hexdigest()
+
+    return hashlib.sha256("-".join(t.name for t in tools).encode()).hexdigest()
 
 
 def _extract_searchable_text(tool: Tool) -> str:
@@ -64,7 +67,11 @@ class HybridSearchTransform(BM25SearchTransform):
         self._tool_vectors: dict[str, np.ndarray] = {}
         self._semantic_enabled = embedder is not None and embedder.probe()
 
-    async def _search(self, tools: Sequence[Tool], query: str) -> Sequence[Tool]:
+    async def _search(  # noqa: PLR0912
+        self,
+        tools: Sequence[Tool],
+        query: str,
+    ) -> Sequence[Tool]:
         """Override _search to blend BM25 with semantic similarity."""
         if not tools:
             return tools
@@ -78,14 +85,6 @@ class HybridSearchTransform(BM25SearchTransform):
             self._index = new_index
             self._indexed_tools = tools
             self._last_hash = current_hash
-
-        # Get BM25 scores for all tools
-        query_tokens = query.lower().split()
-        bm25_scores: list[float] = [0.0] * len(tools)
-        if query_tokens:
-            for i in range(len(tools)):
-                # Approximate BM25 score using position in index query results
-                pass
 
         # Get full BM25 ranking
         indices = self._index.query(query, len(tools))
@@ -102,9 +101,9 @@ class HybridSearchTransform(BM25SearchTransform):
             try:
                 texts = [_tool_text(t) for t in tools]
                 vectors = self._embedder.embed(texts)
-                for tool, vec in zip(tools, vectors):
+                for tool, vec in zip(tools, vectors, strict=False):
                     self._tool_vectors[tool.name] = vec
-            except LMStudioUnavailable:
+            except LMStudioUnavailableError:
                 self._semantic_enabled = False
                 logger.warning("LM Studio unavailable during hybrid — degraded to BM25")
 
@@ -113,13 +112,13 @@ class HybridSearchTransform(BM25SearchTransform):
         if self._semantic_enabled and self._embedder is not None:
             try:
                 qv = self._embedder.embed([query])[0]
-            except LMStudioUnavailable:
+            except LMStudioUnavailableError:
                 self._semantic_enabled = False
                 logger.warning("LM Studio unavailable during scoring — degraded to BM25")
 
         # Score each tool with combined ranking
         scored: list[tuple[float, Tool]] = []
-        for i, tool in enumerate(tools):
+        for _i, tool in enumerate(tools):
             bm25_score = bm25_by_name.get(tool.name, 0.0)
 
             if qv is not None and tool.name in self._tool_vectors:
@@ -134,4 +133,4 @@ class HybridSearchTransform(BM25SearchTransform):
             scored.append((combined, tool))
 
         scored.sort(key=lambda x: x[0], reverse=True)
-        return [t for _, t in scored[:self._max_results]]
+        return [t for _, t in scored[: self._max_results]]

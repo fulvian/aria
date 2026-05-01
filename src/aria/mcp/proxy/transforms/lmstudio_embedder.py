@@ -1,15 +1,16 @@
 """HTTP client for LM Studio's OpenAI-compatible embeddings endpoint.
 
 Returns numpy arrays (shape `(dim,)`, dtype float32). Raises
-LMStudioUnavailable on any failure so callers can degrade gracefully.
+LMStudioUnavailableError on any failure so callers can degrade gracefully.
 """
+
 from __future__ import annotations
 
 import httpx
 import numpy as np
 
 
-class LMStudioUnavailable(RuntimeError):
+class LMStudioUnavailableError(RuntimeError):
     """Raised when the LM Studio endpoint cannot fulfil a request."""
 
 
@@ -40,18 +41,16 @@ class LMStudioEmbedder:
 
     def embed(self, texts: list[str]) -> list[np.ndarray]:
         try:
-            r = self._client.post(
-                self._endpoint, json={"model": self._model, "input": texts}
-            )
+            r = self._client.post(self._endpoint, json={"model": self._model, "input": texts})
             r.raise_for_status()
         except httpx.HTTPError as exc:
-            raise LMStudioUnavailable(str(exc)) from exc
+            raise LMStudioUnavailableError(str(exc)) from exc
         data = r.json().get("data") or []
         out: list[np.ndarray] = []
         for entry in data:
             emb = entry.get("embedding") or []
             if len(emb) != self._dim:
-                raise LMStudioUnavailable(
+                raise LMStudioUnavailableError(
                     f"dimension mismatch: got {len(emb)} expected {self._dim}"
                 )
             arr = np.asarray(emb, dtype=np.float32)

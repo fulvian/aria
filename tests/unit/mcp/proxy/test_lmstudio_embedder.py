@@ -8,7 +8,7 @@ import respx
 
 from aria.mcp.proxy.transforms.lmstudio_embedder import (
     LMStudioEmbedder,
-    LMStudioUnavailable,
+    LMStudioUnavailableError,
 )
 
 ENDPOINT = "http://127.0.0.1:1234/v1/embeddings"
@@ -50,7 +50,7 @@ def test_embed_raises_on_dim_mismatch() -> None:
         return_value=httpx.Response(200, json={"data": [{"embedding": [0.1, 0.2]}]})
     )
     e = LMStudioEmbedder(endpoint=ENDPOINT, model="m", dim=4)
-    with pytest.raises(LMStudioUnavailable, match="dimension mismatch"):
+    with pytest.raises(LMStudioUnavailableError, match="dimension mismatch"):
         e.embed(["a"])
 
 
@@ -58,7 +58,7 @@ def test_embed_raises_on_dim_mismatch() -> None:
 def test_embed_raises_on_http_error() -> None:
     respx.post(ENDPOINT).mock(return_value=httpx.Response(500, text="boom"))
     e = LMStudioEmbedder(endpoint=ENDPOINT, model="m", dim=4)
-    with pytest.raises(LMStudioUnavailable):
+    with pytest.raises(LMStudioUnavailableError):
         e.embed(["a"])
 
 

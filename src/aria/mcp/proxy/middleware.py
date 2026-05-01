@@ -5,21 +5,28 @@ The conventions:
   search_tools / call_tool. The middleware strips it before forwarding.
 - `tools/list` filtering uses the caller hint from a request header
   (`X-ARIA-Caller-Id`) when available, otherwise falls back to the
-  `ARIA_CALLER_ID` env var (set when KiloCode launches the proxy
-  process).
+  `ARIA_CALLER_ID` env var.
 - Synthetic tools (`search_tools`, `call_tool`) are always visible.
 """
+
 from __future__ import annotations
 
 import os
-from typing import Iterable, Protocol, Sequence
+from typing import TYPE_CHECKING, Any, Protocol
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 from fastmcp.exceptions import ToolError
 from fastmcp.server.middleware import Middleware, MiddlewareContext
-from fastmcp.tools import Tool
 from mcp.types import CallToolRequestParams
 
 from aria.utils.logging import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
+
+    from fastmcp.tools import Tool
 
 logger = get_logger("aria.mcp.proxy.middleware")
 
@@ -46,38 +53,44 @@ class CapabilityMatrixMiddleware(Middleware):
     async def on_list_tools(
         self,
         context: MiddlewareContext,
-        call_next,
+        call_next: Callable[..., Any],
     ) -> Sequence[Tool]:
-        tools = await call_next(context)
+        tools: Sequence[Tool] = await call_next(context)
         caller = self._resolve_caller(context)
         if not caller:
             return tools
         allowed = set(self._registry.get_allowed_tools(caller))
-        return [
-            t for t in tools
-            if t.name in ALWAYS_VISIBLE or self._matches(t.name, allowed)
-        ]
+        return [t for t in tools if t.name in ALWAYS_VISIBLE or self._matches(t.name, allowed)]
 
     async def on_call_tool(
         self,
         context: MiddlewareContext[CallToolRequestParams],
-        call_next,
-    ):
+        call_next: Callable[..., Any],  # noqa: ANN401
+    ) -> Any:  # noqa: ANN401
         args = dict(context.message.arguments or {})
         caller = args.pop("_caller_id", None) or self._resolve_caller(context)
-        tool_name = getattr(context.message, "name", "")
+        proxy_tool_name = getattr(context.message, "name", "")
+
+        tool_to_check = args.get("name", "") if proxy_tool_name == "call_tool" else proxy_tool_name
 
         # Forward without _caller_id
-        clean_params = CallToolRequestParams(name=tool_name, arguments=args)
+        clean_params = CallToolRequestParams(name=proxy_tool_name, arguments=args)
         clean_ctx = context.copy(message=clean_params)
 
-        if caller and tool_name not in ALWAYS_VISIBLE:
-            if not self._registry.is_tool_allowed(caller, tool_name):
-                logger.warning(
-                    "proxy.tool_denied",
-                    extra={"agent": caller, "tool": tool_name},
-                )
-                raise ToolError(f"tool {tool_name} not allowed for {caller}")
+        if (
+            caller
+            and tool_to_check not in ALWAYS_VISIBLE
+            and not self._registry.is_tool_allowed(caller, tool_to_check)
+        ):
+            logger.warning(
+                "proxy.tool_denied",
+                extra={
+                    "agent": caller,
+                    "tool": tool_to_check,
+                    "proxy_tool": proxy_tool_name,
+                },
+            )
+            raise ToolError(f"tool {tool_to_check} not allowed for {caller}")
 
         return await call_next(clean_ctx)
 
@@ -101,9 +114,7 @@ class CapabilityMatrixMiddleware(Middleware):
                 return True
         # wildcard `server/*` or `server__*`
         for entry in allowed:
-            if entry.endswith("/*") and tool_name.startswith(
-                entry[:-2].replace("/", "__") + "__"
-            ):
+            if entry.endswith("/*") and tool_name.startswith(entry[:-2].replace("/", "__") + "__"):
                 return True
             if entry.endswith("__*") and tool_name.startswith(entry[:-3] + "__"):
                 return True
