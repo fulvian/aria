@@ -1,78 +1,50 @@
-# Task Plan: Debug real REPL search-agent sessions
+# Task Plan: MCP proxy integration audit → remediation
 
 ## Goal
-Analyze the real `bin/aria repl` cinema-session failures and implement the minimum set of fixes needed to make the research flow reliable, grounded, and session-consistent.
+Remediate the MCP proxy integration drift identified in the 2026-05-01 audit, implementing the approved hybrid capability-scoped architectural direction.
 
-## Scope
-Focus on defects evidenced by the attached session transcript and Kilo logs for 2026-05-01.
-
-## Verified Problem Areas
-1. **Grounding drift / over-synthesis**
-   - Search answers are prompt-driven with no runtime evidence check.
-   - The conductor and search-agent can overstate findings instead of explicitly reporting uncertainty.
-2. **Broken follow-up continuity**
-   - `ConductorBridge` creates a fresh child Kilo session every turn.
-   - Follow-up turns like `continua` are not guaranteed to resume prior grounded context.
-3. **Irrelevant backend startup noise**
-   - Search flows still trigger unrelated proxy backends, including `google_workspace`.
-   - Logs show repeated MCP stdio parse failures and OAuth port-8000 conflicts during search-only work.
-4. **Weak coordination enforcement**
-   - `YamlCapabilityRegistry.validate_delegation()` currently returns true if either agent exists, instead of checking an allowed edge.
-
-## Evidence
-- Transcript session: `ses_21d455d0dffeeWTujS4HWQVNJv`
-- Search subagent session in logs: `ses_21d25c813ffe5QGLVPfITbeU8c`
-- Log file: `.aria/kilo-home/.local/share/kilo/log/2026-05-01T091326.log`
+## Status: ✅ COMPLETE
 
 ## Phases
 
-### Phase 1: Forensic analysis
+### Phase 1: Audit / forensic analysis
 - [x] Read `AGENTS.md`
 - [x] Read LLM wiki index/log first
-- [x] Inspect session transcript and Kilo logs
-- [x] Inspect active prompts, proxy wiring, and gateway bridge
+- [x] Read proxy plan/spec/ADR
+- [x] Inspect current proxy code paths
+- [x] Inspect conductor + 3 sub-agent prompts
+- [x] Inspect current skills inventory and content
 - [x] Verify FastMCP behavior with Context7
 
-### Phase 2: Requirements / debug PRD
-- [ ] Freeze concrete defects to fix
-- [ ] Define acceptance criteria for search grounding, continuity, and backend isolation
+### Phase 2: Requirements / audit PRD
+- [x] Freeze the concrete integration gaps to fix
+- [x] Define expected target contract for prompts, skills, caller propagation, and capability enforcement
+- [x] Separate blocking defects from cleanup/documentation drift
+- [x] Research the deeper architectural question behind agent boundaries and MCP exclusivity
 
 ### Phase 3: Technical design
-- [ ] Design stable child-session reuse for gateway turns
-- [ ] Design caller-aware backend filtering for proxy startup
-- [ ] Design minimal grounding hardening for conductor/search-agent prompts
-- [ ] Design fix for delegation edge validation
+- [x] Design fail-closed caller propagation and enforcement
+- [x] Decide canonical invocation model (synthetic proxy tools vs backend names in frontmatter)
+- [x] Define prompt/skill normalization strategy
+- [x] Define wiki/spec/ADR reconciliation changes
+- [x] Decide future agent-boundary model: strict exclusivity vs shared capability pools vs hybrid
+- [x] Draft blueprint/ADR amendments for P9 and workspace/productivity convergence
 
-### Phase 4: Implementation
-- [ ] Update gateway bridge code + tests
-- [ ] Update proxy server code + tests
-- [ ] Update coordination registry + tests
-- [ ] Update agent prompt files
+### Phase 4: Implementation ✅
+- [x] Apply runtime fixes in middleware (fail-closed enforcement)
+- [x] Update agent prompts (canonical proxy contract + convergence)
+- [x] Update affected skills (deep-research, office-ingest, meeting-prep, email-draft, triage-email)
+- [x] Update capability matrix (productivity-agent gains google_workspace)
+- [x] Update ADR-0008 (amendment for hybrid model)
+- [x] Update wiki docs
 
-### Phase 5: Verification
-- [x] Run targeted pytest for modified areas
-- [x] Run `ruff check` on modified files
-- [ ] Run `ruff check .`
-- [ ] Run `ruff format --check .`
-- [ ] Run `mypy src`
-- [ ] Run broader pytest subset or full suite if practical
-
-### Phase 6: Pre-existing repo failures remediation
-- [x] Diagnose repo-wide `ruff check .` failures
-- [x] Diagnose repo-wide `mypy src` failures
-- [x] Diagnose repo-wide `pytest -q` collection/runtime failures
-- [x] Implement minimal fixes for pre-existing failures without unrelated refactors
-- [x] Re-run full quality gates
-
-### Phase 7: Wiki + state maintenance
-- [ ] Update `docs/llm_wiki/wiki/mcp-proxy.md`
-- [x] Update `docs/llm_wiki/wiki/index.md`
-- [x] Append timestamped entry to `docs/llm_wiki/wiki/log.md`
-- [x] Update `.workflow/state.md`
-- [x] Update `findings.md` and `progress.md`
+### Phase 5: Verification ✅
+- [x] Run `ruff check .` → All checks passed
+- [x] Run `ruff format --check .` → 202 files already formatted
+- [x] Run `mypy src` → Success: no issues found in 90 source files
+- [x] Run `pytest -q` → 673 passed, 23 skipped, 3 warnings
 
 ## Constraints
 - Follow `AGENTS.md` strictly.
-- Keep fixes minimal and reviewable.
-- Do not over-engineer a full coordinator rewrite.
-- Use Context7-verified FastMCP behavior as source of truth before code changes.
+- Use wiki-first and Context7-first workflow.
+- Keep diffs minimal and aligned with the original proxy plan/spec.

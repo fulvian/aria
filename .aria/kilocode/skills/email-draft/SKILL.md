@@ -1,7 +1,7 @@
 ---
 name: email-draft
-version: 1.0.0
-description: Compone bozze email con stile dinamico. Per ogni recipient, analizza runtime le ultime conversazioni via google_workspace e adatta tono/registro/lessico. NESSUN bootstrap di stile fisso, NESSUNA lesson statica.
+version: 2.0.0
+description: Compone bozze email con stile dinamico. Per ogni recipient, analizza runtime le ultime conversazioni via Google Workspace (proxy) e adatta tono/registro/lessico. NESSUN bootstrap di stile fisso, NESSUNA lesson statica.
 trigger-keywords:
   - scrivi email
   - drafta mail
@@ -10,6 +10,8 @@ trigger-keywords:
   - rispondi mail
 user-invocable: true
 allowed-tools:
+  - aria-mcp-proxy__search_tools
+  - aria-mcp-proxy__call_tool
   - aria-memory__wiki_recall_tool
   - hitl-queue__ask
   - spawn-subagent
@@ -24,12 +26,18 @@ Comporre una bozza email coerente con lo stile usato dall'utente in conversazion
 precedenti con lo STESSO recipient (o gruppo). Bozza salvata come Gmail draft
 (no auto-send).
 
+## Proxy invocation rule
+
+Tutte le chiamate ai backend MCP passano dal proxy. Ogni chiamata deve includere
+`_caller_id: "productivity-agent"`. Le operazioni Gmail passano direttamente dal proxy.
+
 ## Procedura
 1. Parsing input: recipient (To), eventuale thread_id o subject di riferimento,
    scopo (rispondere/ proporre/ chiedere).
 2. **Style discovery dinamico (Q7)**:
-   a. Spawn workspace-agent → `gmail.search(to:<recipient> OR from:<recipient>,
-      after:365d)` → ultimi 10-30 thread.
+   a. Cerca email via proxy:
+      `call_tool(name="google_workspace__gmail_search", arguments={"query": "to:<recipient> OR from:<recipient>", "after": "365d"}, _caller_id="productivity-agent")`
+      → ultimi 10-30 thread.
    b. Estrai dai thread usando `email_style.py`:
       - Saluto iniziale (es. "Ciao Mario", "Egregio Dott.", "Hi Mario")
       - Saluto finale (es. "A presto", "Cordiali saluti", "Best")
@@ -38,14 +46,15 @@ precedenti con lo STESSO recipient (o gruppo). Bozza salvata come Gmail draft
       - Registro (formale / cordiale / conciso / tecnico)
    c. Profilo stile **runtime** (NON salvare in wiki — transitorio per-recipient).
 3. Recall contesto thread:
-   a. Se reply: spawn workspace-agent → `gmail.get_thread(thread_id)` →
-      cronologia messaggi.
+   a. Se reply: leggi thread via proxy:
+      `call_tool(name="google_workspace__gmail_get_thread", arguments={"thread_id": "<id>"}, _caller_id="productivity-agent")`
+      → cronologia messaggi.
    b. `wiki_recall` su recipient name → eventuali entity/topic correlati.
 4. Genera bozza rispettando profilo stile + contesto thread + scopo.
 5. **HITL locale (Q8)**: `hitl-queue/ask` mostra preview all'utente in REPL —
    utente conferma, modifica o annulla.
-6. Su conferma: spawn workspace-agent → `gmail.draft_create(to=<recipient>,
-   subject=<...>, body=<...>, in_reply_to=<thread_id?>)`.
+6. Su conferma: crea draft via proxy:
+   `call_tool(name="google_workspace__gmail_draft_create", arguments={"to": "<recipient>", "subject": "<...>", "body": "<...>", "in_reply_to": "<thread_id?>"}, _caller_id="productivity-agent")`
 7. **Mai send diretto**: l'invio richiede passo HITL ulteriore esplicito.
 
 ## Output
@@ -62,6 +71,6 @@ precedenti con lo STESSO recipient (o gruppo). Bozza salvata come Gmail draft
 - Cache profilo stile in memoria sessione (non disco).
 
 ## Failure modes
-- workspace-agent DOWN → bozza generata senza style adaptation.
+- Google Workspace DOWN via proxy → bozza generata senza style adaptation.
 - Thread quote lunghe → tronca history > 5 messaggi recenti.
 - Recipient gruppo → discovery sul gruppo aggregato.

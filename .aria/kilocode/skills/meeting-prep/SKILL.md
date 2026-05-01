@@ -1,7 +1,7 @@
 ---
 name: meeting-prep
-version: 1.0.0
-description: "Briefing pre-meeting da evento calendario. Aggrega: descrizione evento, partecipanti (storia conversazioni), allegati Drive (ingested), contesto wiki."
+version: 2.0.0
+description: "Briefing pre-meeting da evento calendario. Aggrega: descrizione evento, partecipanti (storia conversazioni), allegati Drive (ingested), contesto wiki. Usa il proxy MCP per Google Workspace."
 trigger-keywords:
   - prepara meeting
   - briefing meeting
@@ -10,6 +10,8 @@ trigger-keywords:
   - prep call cliente
 user-invocable: true
 allowed-tools:
+  - aria-mcp-proxy__search_tools
+  - aria-mcp-proxy__call_tool
   - aria-memory__wiki_recall_tool
   - aria-memory__wiki_update_tool
   - office-ingest
@@ -23,14 +25,25 @@ estimated-cost-eur: 0.05
 ## Obiettivo
 Produrre brief 1 pagina markdown per prep meeting/call.
 
+## Proxy invocation rule
+
+Tutte le chiamate ai backend MCP passano dal proxy. Ogni chiamata deve includere
+`_caller_id: "productivity-agent"`. Le chiamate Google Workspace passano dallo
+stesso proxy — non serve più delegare a workspace-agent per operazioni singole.
+
 ## Procedura
 1. Parsing input utente: data/ora evento + parole chiave (cliente, progetto).
-2. Spawn workspace-agent → `calendar.list_events(date_range=<window>, q=<keywords>)` → seleziona evento.
+2. Cerca evento calendario via proxy:
+   `call_tool(name="google_workspace__calendar_list_events", arguments={...}, _caller_id="productivity-agent")`
+   → seleziona evento.
 3. Estrai partecipanti (campo `attendees`).
 4. Per ogni partecipante (esterno, non self):
-   - Spawn workspace-agent → `gmail.search(from:<email> OR to:<email>, after:90d)` → ultime N=20 email
+   - Cerca email via proxy:
+     `call_tool(name="google_workspace__gmail_search", arguments={"query": "from:<email> OR to:<email>", "after": "90d"}, _caller_id="productivity-agent")`
    - Sintetizza topic ricorrenti + tono interlocutore.
-5. Allegati Drive dell'evento → spawn workspace-agent → `drive.read` → URL/path locali; invoca office-ingest.
+5. Allegati Drive dell'evento → leggi via proxy:
+   `call_tool(name="google_workspace__drive_read_file", arguments={...}, _caller_id="productivity-agent")`
+   → invoca office-ingest per l'estrazione.
 6. wiki_recall su `<participant_name>` e `<keywords>` → eventuali topic/decision storici.
 7. Compone brief: Profilo evento → Partecipanti (storia + tono) → Allegati key → Decisioni pending → Domande aperte.
 

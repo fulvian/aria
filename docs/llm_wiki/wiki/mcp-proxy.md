@@ -1,16 +1,15 @@
 # MCP Proxy (aria-mcp-proxy)
 
-**Last Updated**: 2026-05-01
-**Status**: Active (F1 — Core implementation complete)
-**Source**: `src/aria/mcp/proxy/`, `.aria/config/proxy.yaml`,
-`docs/superpowers/specs/2026-05-01-mcp-tool-search-design.md`
+**Last Updated**: 2026-05-01T18:35+02:00
+**Status**: Active ✅ — remediation complete; canonical proxy contract is now the live baseline
+**Source**: `src/aria/mcp/proxy/`, `.aria/config/proxy.yaml`, `.aria/kilocode/mcp.json`, `.aria/config/agent_capability_matrix.yaml`, `docs/superpowers/specs/2026-05-01-mcp-tool-search-design.md`, `docs/foundation/decisions/ADR-0015-fastmcp-native-proxy.md`, `docs/foundation/decisions/ADR-0008-productivity-agent-introduction.md`
 
 ## Purpose
 
-A FastMCP-native multi-server proxy that exposes `search_tools` and
-`call_tool` synthetic tools to KiloCode. Replaces the static
-`lazy_loader.py` and removes per-server tool-definition cost from the
-KiloCode startup context.
+A FastMCP-native multi-server proxy that exposes `search_tools` and `call_tool`
+synthetic tools to KiloCode. It replaced the static `lazy_loader.py` path and
+reduced the MCP surface presented to KiloCode to a stable 2-entry runtime:
+`aria-memory` + `aria-mcp-proxy`.
 
 ## Components
 
@@ -24,19 +23,50 @@ KiloCode startup context.
 | `src/aria/mcp/proxy/transforms/hybrid.py` | BM25 + mxbai-embed-large-v1 blend |
 | `src/aria/mcp/proxy/transforms/lmstudio_embedder.py` | HTTP client for LM Studio embeddings |
 
-## Operational
+## Operational baseline
 
-- mcp.json: 2 entries (`aria-memory`, `aria-mcp-proxy`) — planned for F3
-- Emergency rollback: `bin/aria start --emergency-direct` — planned for F3
-- Backend boot filtering: when `ARIA_CALLER_ID` is set, proxy boot loads only
-  backend servers referenced by that agent's `allowed_tools`; `aria-memory`
-  stays out-of-proxy and remains a separate MCP dependency.
+- `mcp.json`: **2 live entries** (`aria-memory`, `aria-mcp-proxy`)
+- Proxy synthetic entrypoints exposed to KiloCode: `search_tools`, `call_tool`
+- Agent-facing canonical prompt tool names: `aria-mcp-proxy__search_tools`, `aria-mcp-proxy__call_tool`
+- Emergency rollback path: `bin/aria start --emergency-direct`
+- Backend boot filtering: when `ARIA_CALLER_ID` is set, proxy boot loads only backend servers referenced by that agent's `allowed_tools`; `aria-memory` stays out-of-proxy and remains a separate MCP dependency
 - Embeddings cache: `.aria/runtime/proxy/embeddings/`
-- Metrics: `aria_proxy_*` (Prometheus) — planned for F5
-- Events: `proxy.start`, `proxy.shutdown`, `proxy.backend_quarantine`,
-  `proxy.cutover`, `proxy.emergency_rollback`, `proxy.caller_anomaly` — planned for F5
+- Metrics namespace: `aria_proxy_*`
+- Proxy events: `proxy.start`, `proxy.shutdown`, `proxy.backend_quarantine`, `proxy.cutover`, `proxy.emergency_rollback`, `proxy.caller_anomaly`
 
-## Implementation Phases
+## Canonical contract (post-remediation)
+
+### 1. Discovery and execution model
+- Agents do **not** expose backend MCP wildcards in frontmatter anymore.
+- Agents expose only the proxy synthetic tools plus direct non-proxy tools (memory, sequential-thinking, spawn-subagent, HITL where needed).
+- Every proxy call must include `_caller_id` in the arguments.
+- Canonical pattern:
+  1. discovery via `aria-mcp-proxy__search_tools`
+  2. execution via `aria-mcp-proxy__call_tool`
+
+### 2. Enforcement model
+- `on_call_tool`: **fail-closed** for non-synthetic calls when no caller identity is present.
+- `on_list_tools`: synthetic tools are always visible; missing caller identity is logged as anomaly/warning.
+- Capability matrix remains the source of truth for backend reachability.
+- Search transforms improve discovery only; they are **not** factual validation controls.
+
+### 3. Naming model
+- Prompts and matrix use the logical `server__tool` form.
+- Middleware/registry compatibility layer also accepts:
+  - legacy `server/tool`
+  - runtime single-underscore `server_tool`
+- Wildcards in matrix are server-scoped (`server__*`) to absorb upstream tool renames.
+
+### 4. Agent-boundary model
+- `search-agent` remains a separate research-domain agent.
+- `productivity-agent` is now the unified work-domain agent for:
+  - local filesystem
+  - office ingestion
+  - Google Workspace
+  - meeting prep / email drafting
+- `workspace-agent` remains transitional/compatibility-only.
+
+## Implementation phases
 
 | Phase | Status | Description |
 |---|---|---|
@@ -46,53 +76,60 @@ KiloCode startup context.
 | F3 | ✅ | Cutover — mcp.json → 2 entries, agent prompts namespaced, tag `proxy-cutover-v1` |
 | F4 | ✅ | `lazy_loader.py` removed, `mcp_catalog.yaml` stripped of `lazy_load`/`intent_tags`, ADR-0015 |
 | F5 | ✅ | Observability (`proxy.*` events + `aria_proxy_*` metrics), skills namespaced, wiki finalized |
-| **F6** | ✅ | **Debug & stabilizzazione**: stdio filter per server rumorosi, naming fix (single/double underscore), wildcard matrix |
+| F6 | ✅ | Debug & stabilizzazione: stdio filter, naming fix (single/double underscore), wildcard matrix |
+| F7 | ✅ | Search-flow stabilization: caller-aware backend boot filtering |
+| F8 | ✅ | Remediation: fail-closed middleware, canonical proxy contract, productivity/workspace convergence |
 
-## Known Issues & Fixes
+## Known issues and fixes history
 
 ### F6 — server startup noise (2026-05-01)
-**Problema**: I server SearXNG, Scientific Papers, Tavily e Google Workspace stampano
-testo di startup non-JSONRPC su stdout (`"SearXNG MCP server is running..."`,
-`"info: Starting SciHarvester..."`, banner FastMCP, ecc.). FastMCP interpreta ogni
-linea stdout come JSONRPC e fallisce, rompendo la connessione MCP.
+**Problema**: Alcuni backend stampavano testo non-JSONRPC su stdout, rompendo la connessione MCP.
 
-**Fix**: `scripts/mcp-stdio-filter.py` — relay bidirezionale che filtra stdout
-passando solo messaggi JSONRPC validi e reindirizzando il resto a stderr.
-Applicato ai 4 wrapper scripts via `exec uv run mcp-stdio-filter.py -- <cmd>`.
+**Fix**: `scripts/mcp-stdio-filter.py` filtra stdout e inoltra solo payload JSONRPC validi.
 
 ### F6 — naming convention mismatch (2026-05-01)
-**Problema**: Il proxy espone tool con singolo underscore (`server_tool`) dovuto
-al `Namespace` transform di FastMCP, ma la capability matrix e gli agent prompts
-usavano doppio underscore (`server__tool`). Il middleware bloccava chiamate
-legittime per mancato matching.
+**Problema**: Il proxy esponeva nomi runtime `server_tool`, mentre matrix e prompt usavano `server__tool`.
 
-**Fix**: `YamlCapabilityRegistry.is_tool_allowed()` e
-`CapabilityMatrixMiddleware._matches()` ora gestiscono 3 forme:
-- `server__tool` (convenzione matrix/prompts)
-- `server/tool` (legacy pre-F3)
-- `server_tool` (nome reale dal proxy, singolo underscore)
+**Fix**: `YamlCapabilityRegistry.is_tool_allowed()` e `CapabilityMatrixMiddleware._matches()` ora gestiscono `server__tool`, `server/tool` e `server_tool`.
 
 ### F6 — wildcard capability matrix (2026-05-01)
-**Problema**: La matrice elencava nomi di tool specifici che non corrispondevano
-ai nomi reali del proxy (es. `searxng-script__search` vs `searxng-script_search_web`).
+**Problema**: La matrice elencava tool name troppo specifici e fragili.
 
-**Fix**: Sostituiti tutti i nomi esatti con wildcard per server (`server__*`),
-molto più resilienti a cambiamenti dei nomi dei tool nei backend upstream.
+**Fix**: sostituzione con wildcard `server__*`.
 
 ### F7 — caller-aware backend boot filtering (2026-05-01)
-**Problema**: Il proxy bootava tutti i backend enabled dal catalogo anche in
- sessioni search-only. Durante il caso cinema del 2026-05-01 questo avviava
- backend irrilevanti come `google_workspace`, causando rumore JSONRPC e conflitti
- OAuth/porta inutili.
+**Problema**: Il proxy bootava tutti i backend enabled anche in sessioni search-only, avviando server irrilevanti come `google_workspace`.
 
-**Fix**: `build_proxy()` ora deriva i backend ammessi dai prefissi `server__*`
- presenti in `allowed_tools` del caller (`ARIA_CALLER_ID`), esclude i server non
- pertinenti e mantiene `aria-memory` separato dal proxy. Verifica FastMCP:
- le search transforms limitano discovery/listing, non validano l'output fattuale
- dei tool; il filtering va quindi applicato al boot dei backend e alla middleware.
+**Fix**: `build_proxy()` filtra i backend caricati quando `ARIA_CALLER_ID` è presente.
 
-## Spec & ADR
+### F8 — remediation completed (2026-05-01)
+**Runtime/policy hardening**
+- `middleware.py`: `on_call_tool` è ora fail-closed quando manca il caller identity per tool non sintetici.
+- `on_list_tools` emette warning strutturato quando il caller è assente.
+
+**Canonical proxy contract**
+- `search-agent` e `productivity-agent` espongono solo i tool sintetici del proxy nel frontmatter.
+- `workspace-agent` è ridotto a stub transitorio con lo stesso modello canonico.
+- Le skill attive usano `_caller_id` e il pattern `search_tools` → `call_tool`.
+
+**Productivity/workspace convergence**
+- `productivity-agent` ha `google_workspace__*` nella capability matrix.
+- `productivity-agent` è ora il work-domain agent principale.
+- `workspace-agent` è dichiarato compatibilità/transitorio nei prompt e nella governance.
+
+**Docs/governance**
+- ADR-0008 è stato emendato.
+- Blueprint P9 è stato formalmente riscritto come **Scoped Active Capabilities**.
+
+## Residual caveats
+
+1. `ARIA_CALLER_ID` resta utile per boot-time backend filtering, ma il modello condiviso usa `_caller_id` come meccanismo primario di enforcement per request.
+2. `workspace-agent` esiste ancora per compatibilità; non è più il target architetturale di lungo periodo.
+3. Futuri cleanup potranno rimuovere riferimenti residui a percorsi legacy collegati a `workspace-agent`.
+
+## Spec and ADR provenance
 
 - Design: `docs/superpowers/specs/2026-05-01-mcp-tool-search-design.md`
 - ADR: `docs/foundation/decisions/ADR-0015-fastmcp-native-proxy.md`
-- Fixes branch: `feat/mcp-tool-search-proxy` (commit `d08b57b`+)
+- Boundary/governance amendment: `docs/foundation/decisions/ADR-0008-productivity-agent-introduction.md`
+- Runtime source: `src/aria/mcp/proxy/`

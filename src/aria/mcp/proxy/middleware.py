@@ -58,6 +58,10 @@ class CapabilityMatrixMiddleware(Middleware):
         tools: Sequence[Tool] = await call_next(context)
         caller = self._resolve_caller(context)
         if not caller:
+            logger.warning(
+                "proxy.caller_missing_list_tools",
+                extra={"tool_count": len(tools)},
+            )
             return tools
         allowed = set(self._registry.get_allowed_tools(caller))
         return [t for t in tools if t.name in ALWAYS_VISIBLE or self._matches(t.name, allowed)]
@@ -76,6 +80,20 @@ class CapabilityMatrixMiddleware(Middleware):
         # Forward without _caller_id
         clean_params = CallToolRequestParams(name=proxy_tool_name, arguments=args)
         clean_ctx = context.copy(message=clean_params)
+
+        # Fail-closed: deny when caller identity is absent and the target
+        # tool is not a synthetic proxy tool.  Synthetic tools (search_tools,
+        # call_tool) are always allowed since they are the proxy's own
+        # entry-points and perform their own policy checks.
+        if not caller and tool_to_check not in ALWAYS_VISIBLE:
+            logger.warning(
+                "proxy.caller_missing",
+                extra={
+                    "tool": tool_to_check,
+                    "proxy_tool": proxy_tool_name,
+                },
+            )
+            raise ToolError(f"tool {tool_to_check} denied: no caller identity provided")
 
         if (
             caller

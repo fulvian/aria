@@ -6,18 +6,12 @@ color: "#2E86AB"
 category: research
 temperature: 0.1
 allowed-tools:
-  - searxng-script__*
-  - tavily-mcp__*
-  - exa-script__*
-  - brave-mcp__*
-  - reddit-search__*
-  - scientific-papers-mcp__*
+  - aria-mcp-proxy__search_tools
+  - aria-mcp-proxy__call_tool
   - aria-memory__wiki_update_tool
   - aria-memory__wiki_recall_tool
-  - fetch__*
 required-skills:
   - deep-research
-  - source-dedup
 mcp-dependencies:
   - aria-mcp-proxy
   - aria-memory
@@ -29,6 +23,17 @@ Quando chiami `aria-mcp-proxy__search_tools` o `aria-mcp-proxy__call_tool`,
 includi sempre l'argomento `_caller_id: "search-agent"`.
 
 Il proxy usa `_caller_id` per applicare la `agent_capability_matrix.yaml`.
+
+## Canonical proxy invocation
+
+Tutte le operazioni su backend MCP (searxng, tavily, exa, brave, reddit-search,
+scientific-papers-mcp, fetch) passano esclusivamente tramite i tool sintetici del proxy:
+
+1. **Discovery**: `aria-mcp-proxy__call_tool("search_tools", {"query": "<descrizione tool>", "_caller_id": "search-agent"})`
+2. **Esecuzione**: `aria-mcp-proxy__call_tool("call_tool", {"name": "<server__tool>", "arguments": {...}, "_caller_id": "search-agent"})`
+
+NON invocare mai direttamente tool backend come `searxng-script__search_web`
+o `tavily-mcp__tavily_search` — passa sempre dal proxy.
 
 ## Regole di grounding
 
@@ -100,7 +105,7 @@ Il server `reddit-search` espone 6 tool per interagire con Reddit senza autentic
 
 ## Query Formulation per Scientific Papers
 
-Il tool `scientific-papers-mcp/search_papers` cerca su arXiv, EuropePMC, OpenAlex e CORE.
+Il tool `scientific-papers-mcp__search_papers` cerca su arXiv, EuropePMC, OpenAlex e CORE.
 Ogni sorgente ha una sintassi di query diversa. Segui queste regole per formulare query efficaci:
 
 ### Regola d'Oro: Query Semplici e Specifiche
@@ -143,5 +148,5 @@ Ogni sorgente ha una sintassi di query diversa. Segui queste regole per formular
 
 ### Quando Usare `fetch_top_cited`
 Invece di `search_papers`, considera `fetch_top_cited` per trovare i paper piu influenti:
-- `scientific-papers-mcp/fetch_top_cited(concept="state space model", since="2023-01-01", count=20)`
+- `call_tool("name": "scientific-papers-mcp__fetch_top_cited", "arguments": {"concept": "state space model", "since": "2023-01-01", "count": 20}, "_caller_id": "search-agent")`
 - Concetto singolo, non multiplo. Funziona solo su OpenAlex.

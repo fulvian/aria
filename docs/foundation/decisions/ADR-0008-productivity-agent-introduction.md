@@ -1,9 +1,9 @@
 # ADR-0008: Productivity Agent — Austere MVP Introduction
 
-**Status**: Proposed
-**Date**: 2026-04-29
+**Status**: Amended
+**Date**: 2026-04-29 (amended 2026-05-01)
 **Authors**: fulvio
-**Related**: ADR-0006 (P10 divergence template)
+**Related**: ADR-0006 (P10 divergence template), ADR-0015 (FastMCP native proxy)
 
 ## Context
 
@@ -86,3 +86,55 @@ Introduzione `productivity-agent` come 3° sub-agente operativo, scope austero:
 ## Changelog
 
 - 2026-04-29: Initial draft (Proposed)
+- 2026-05-01: **Amendment — Hybrid capability-scoped model**. See §Amendment below.
+
+## Amendment (2026-05-01): Hybrid capability-scoped convergence
+
+### Context
+
+The original ADR-0008 established `productivity-agent` and `workspace-agent` as
+separate agents with strict MCP exclusivity: each MCP backend belongs to exactly
+one agent. The MCP proxy (`aria-mcp-proxy`, ADR-0015) introduces a policy control
+plane that makes this strict separation unnecessary for adjacent work domains.
+
+### Decision
+
+Adopt the **hybrid capability-scoped model**:
+
+1. `productivity-agent` becomes the **single surviving unified work-domain agent**
+   with direct proxy access to:
+   - `markitdown-mcp` (office ingestion)
+   - `filesystem` (local file operations)
+   - `google_workspace` (Gmail, Calendar, Drive, Docs, Sheets, Slides)
+   - `fetch` (URL deep scrape)
+2. `workspace-agent` is downgraded to **transitional/compatibility** status.
+   It will be deprecated and removed once all active flows migrate to
+   `productivity-agent`.
+3. Security is maintained via:
+   - **Proxy fail-closed enforcement**: no caller identity → tool call denied
+   - **Capability matrix scoping**: `google_workspace__*` is explicitly listed
+     in `productivity-agent`'s allowed tools
+   - **HITL**: destructive/external actions still require human approval
+   - **Audit logging**: all proxy calls are logged with caller identity
+4. Blueprint P9 evolves from "static exclusive tool ownership" to
+   "scoped active capabilities per task/session".
+
+### Rationale
+
+- External best practice (Microsoft, IBM, Knostic, arXiv 2601.13671) supports
+  capability-scoped sharing over strict tool exclusivity when a policy control
+  plane exists.
+- The proxy middleware provides per-request enforcement with `_caller_id`,
+  making the original anti-overlap reasoning from ADR-0008 §Alternatives
+  less relevant.
+- The convergence reduces delegation overhead (eliminates 2-hop for common
+  workflows like "read PDF + send via Gmail").
+
+### Consequences
+
+- `workspace-agent`'s original rationale (avoiding overlap with `productivity-agent`)
+  is superseded. ADR-0008 §Alternatives "Opzione A (assorbi workspace)" is
+  effectively adopted, but via policy scoping rather than direct code merge.
+- The capability matrix YAML is the source of truth for which agent can call
+  which backend. Frontmatter `allowed-tools` in agent prompts lists only
+  synthetic proxy tools and direct MCP tools (memory, sequential-thinking).

@@ -1,47 +1,43 @@
 # Project State
 
-## Current Phase: Phase 6/7 — Baseline cleanup verification + state update
-## Started: 2026-05-01T11:35+02:00
+## Current Phase: Phase 5 — Implementation complete, verification complete
+## Started: 2026-05-01T17:14+02:00
 ## Branch: `feat/mcp-tool-search-proxy`
-## PRD: focused debug fix from 2026-05-01 cinema session + baseline repo gate cleanup
-## TDD: targeted runtime fixes plus minimal repo-wide quality-gate remediation
-## Implementation: stable child-session reuse, caller-aware backend filtering, strict delegation validation, grounded search prompt hardening, pytest package/import fixes, launcher re-export cleanup, narrow lint/type config cleanup
-## Tests: full gates green — ruff PASS, mypy PASS, pytest PASS (677 passed, 23 skipped, 3 warnings)
-## Deployment: READY
+## PRD: approved direction — hybrid capability-scoped model, with `productivity-agent` as the surviving unified work-domain agent
+## TDD: implemented — fail-closed middleware, canonical proxy contract, productivity/workspace convergence, P9/ADR-0008 amendments
+## Implementation: runtime, prompts, skills, capability matrix, ADR/wiki/blueprint updated; `productivity-agent` is the surviving unified work-domain agent
+## Tests: ruff PASS, ruff format --check PASS, mypy PASS, pytest PASS (673 passed, 23 skipped, 3 warnings)
+## Deployment: ready for review
 
 ## Agent History
 | Timestamp | Agent | Action | Status |
 |-----------|-------|--------|--------|
-| 2026-05-01T11:35+02:00 | General Manager | Debug cinema session search flow; fixed gateway child-session reuse + `--session` propagation | Done |
-| 2026-05-01T11:35+02:00 | General Manager | Added caller-aware proxy backend filtering; excluded unrelated search-flow backends like `google_workspace` | Done |
-| 2026-05-01T11:35+02:00 | General Manager | Fixed `validate_delegation()` to enforce configured parent→target edges only | Done |
-| 2026-05-01T11:35+02:00 | General Manager | Hardened `aria-conductor` and `search-agent` prompts for grounded search/follow-up behavior | Done |
-| 2026-05-01T11:35+02:00 | General Manager | Ran targeted quality gates; updated LLM wiki + workflow state | Done |
-| 2026-05-01T12:08+02:00 | General Manager | Fixed repo-wide baseline gates: pytest package/import issues, launcher re-export, mypy `croniter`, scoped Ruff cleanup | Done |
-| 2026-04-30T15:51+02:00 | General Manager | Debug wiki_update_tool title field bug — identified 3 root causes (P0/P1/P2) | Done |
-| 2026-04-30T15:51+02:00 | General Manager | Fix P1: schema.py _validate_title_on_create validator implemented (warning on op=create+no title) | Done |
-| 2026-04-30T15:51+02:00 | General Manager | Fix P2: db.py auto-extraction of title from body_md markdown heading | Done |
-| 2026-04-30T15:51+02:00 | General Manager | Fix P0: aria-conductor.md + template — added title column to rules table | Done |
-| 2026-04-30T15:51+02:00 | General Manager | Quality gates: ruff ✅ mypy ✅ 146 wiki tests ✅ 541 full tests ✅ | Done |
-| 2026-04-30T15:51+02:00 | General Manager | Wiki update: log.md, index.md v4.6, memory-v3.md, state.md | Done |
+| 2026-05-01T17:14+02:00 | General Manager | Recovered session context and existing branch state via planning files + git status | Done |
+| 2026-05-01T17:16+02:00 | General Manager | Read LLM wiki index/log/mcp-proxy first per AGENTS.md | Done |
+| 2026-05-01T17:18+02:00 | General Manager | Audited proxy plan/spec/ADR and extracted target F3/F5 contract | Done |
+| 2026-05-01T17:20+02:00 | General Manager | Inspected runtime code, config, active prompts, and skills for proxy integration drift | Done |
+| 2026-05-01T17:22+02:00 | General Manager | Verified FastMCP proxy/search behavior with Context7 | Done |
+| 2026-05-01T17:24+02:00 | General Manager | Froze initial defect set: caller propagation gap, fail-open middleware, prompt/skill drift, missing required skills | Done |
+| 2026-05-01T17:43+02:00 | General Manager | User approved hybrid boundary model; fixed surviving unified agent name as `productivity-agent` | Done |
+| 2026-05-01T17:52+02:00 | Coder | Implemented proxy remediation + productivity/workspace convergence and updated tests/docs | Done |
+| 2026-05-01T17:57+02:00 | General Manager | Applied final blueprint alignment for P9 and unified work-domain agent direction | Done |
 
 ## Skills Invoked
 | Phase | Skill | Outcome |
 |-------|-------|---------|
-| Debug | Context7 docs check | Verified FastMCP search transforms affect discovery, not factual validation |
-| Code | — | 4 focused fixes applied across gateway, proxy, registry, and prompts |
+| Audit | planning-with-files | Rebased stale planning context onto this integration audit |
+| Audit | Context7 docs check | Verified FastMCP search transforms and middleware contract |
+| Design | yagni-enforcement | Kept convergence minimal: `productivity-agent` survives, `workspace-agent` remains transitional |
 
 ## Quality Gates
 | Check | Status |
 |-------|--------|
-| `.venv/bin/ruff check` on modified files | ✅ PASS |
-| `.venv/bin/mypy src/aria/gateway/conductor_bridge.py src/aria/mcp/proxy/server.py src/aria/agents/coordination/registry.py` | ✅ PASS |
-| `.venv/bin/pytest -q` targeted suites (gateway/proxy/registry/prompt) | ✅ 35 PASSED |
 | `ruff check .` | ✅ PASS |
-| `uv run mypy src` | ✅ PASS |
-| `uv run pytest -q` | ✅ 677 passed, 23 skipped, 3 warnings |
+| `ruff format --check .` | ✅ PASS |
+| `mypy src` | ✅ PASS |
+| `pytest -q` | ✅ PASS |
 
 ## GitHub
 - **Branch**: `feat/mcp-tool-search-proxy`
 - **Base**: `main`
-- **Status**: All fixes applied, full quality gates passing, uncommitted changes
+- **Status**: Implementation complete; uncommitted reviewable working-tree changes ready for inspection

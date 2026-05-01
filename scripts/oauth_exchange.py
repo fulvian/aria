@@ -3,6 +3,7 @@
 Self-contained OAuth PKCE flow for Google Workspace MCP.
 Generates verifier, prints URL, starts callback server, exchanges code, saves token.
 """
+
 import base64
 import hashlib
 import json
@@ -22,14 +23,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 TOKEN_DIR = PROJECT_ROOT / ".aria" / "runtime" / "credentials" / "google_workspace_mcp"
 TOKEN_PATH = TOKEN_DIR / "fulviold@gmail.com.json"
 
-CLIENT_ID = os.environ.get(
-    "GOOGLE_OAUTH_CLIENT_ID",
-    "PLACEHOLDER_CLIENT_ID"
-)
-CLIENT_SECRET = os.environ.get(
-    "GOOGLE_OAUTH_CLIENT_SECRET",
-    "PLACEHOLDER_CLIENT_SECRET"
-)
+CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "PLACEHOLDER_CLIENT_ID")
+CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "PLACEHOLDER_CLIENT_SECRET")
 REDIRECT_URI = "http://localhost:8080/callback"
 REDIRECT_HOST = "localhost"
 REDIRECT_PORT = 8080
@@ -49,7 +44,9 @@ SCOPES = [
 
 # Generate PKCE
 code_verifier = base64.urlsafe_b64encode(secrets.token_bytes(64)).decode().rstrip("=")
-code_challenge = base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode()).digest()).decode().rstrip("=")
+code_challenge = (
+    base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode()).digest()).decode().rstrip("=")
+)
 
 # Build auth URL
 params = (
@@ -84,12 +81,16 @@ except Exception:
 print("=" * 60)
 sys.stdout.flush()
 
+
 # Callback handler (use mutable container)
 class CallbackState:
     code = None
 
+
 class Handler(BaseHTTPRequestHandler):
-    def log_message(self, *a): pass
+    def log_message(self, *a):
+        pass
+
     def do_GET(self):
         parsed = urlparse(self.path)
         params = parse_qs(parsed.query)
@@ -111,6 +112,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "text/html")
             self.end_headers()
             self.wfile.write(b"<h1>Waiting...</h1>")
+
 
 server = HTTPServer((REDIRECT_HOST, REDIRECT_PORT), Handler)
 t = threading.Thread(target=server.serve_forever, daemon=True)
@@ -165,8 +167,8 @@ token_data = {
     "client_secret": CLIENT_SECRET,
     "scopes": scope_list,
     "expiry": (
-        datetime.datetime.now(datetime.UTC) +
-        datetime.timedelta(seconds=tokens.get("expires_in", 3600))
+        datetime.datetime.now(datetime.UTC)
+        + datetime.timedelta(seconds=tokens.get("expires_in", 3600))
     ).isoformat(),
 }
 

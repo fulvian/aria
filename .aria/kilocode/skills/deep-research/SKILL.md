@@ -1,23 +1,14 @@
 ---
 name: deep-research
-version: 2.1.0
-description: Ricerca web approfondita multi-provider con deduplica e sintesi
+version: 3.0.0
+description: Ricerca web approfondita multi-provider con deduplica e sintesi. Usa il proxy MCP per tutte le chiamate backend.
 trigger-keywords: [ricerca, search, approfondisci, analizza tema, deep, research, reddit, social]
 user-invocable: true
 allowed-tools:
-  - searxng-script__search
-  - tavily-mcp__search
-  - exa-script__search
-  - brave-mcp__web_search
-  - reddit-search__search
-  - reddit-search__search_subreddit
-  - reddit-search__get_post
-  - reddit-search__get_subreddit_posts
-  - reddit-search__get_user
-  - reddit-search__get_user_posts
+  - aria-mcp-proxy__search_tools
+  - aria-mcp-proxy__call_tool
   - aria-memory__wiki_update_tool
   - aria-memory__wiki_recall_tool
-  - fetch__fetch
 max-tokens: 50000
 estimated-cost-eur: 0.10
 ---
@@ -27,6 +18,30 @@ estimated-cost-eur: 0.10
 ## Obiettivo
 Condurre una ricerca tematica su N query, deduplicare risultati, estrarre
 contenuti, sintetizzare report strutturato.
+
+## Proxy invocation rule
+
+Tutte le chiamate ai backend MCP passano dal proxy. Ogni chiamata deve includere
+`_caller_id: "search-agent"`:
+
+```
+aria-mcp-proxy__call_tool(
+  name="call_tool",
+  arguments={
+    "name": "<server__tool>",
+    "arguments": {<tool params>},
+    "_caller_id": "search-agent"
+  }
+)
+```
+
+Per scoprire tool disponibili:
+```
+aria-mcp-proxy__call_tool(
+  name="search_tools",
+  arguments={"query": "<descrizione>", "_caller_id": "search-agent"}
+)
+```
 
 ## REGOLA FISSA — Dual Tier 1 (gratuiti e illimitati)
 
@@ -69,21 +84,22 @@ da tentare per TUTTI gli intent (eccetto deep_scrape). Entrambi sono **gratuiti 
 PubMed e' coperto da `scientific-papers-mcp` tramite la sorgente `source="europepmc"`.
 Non esiste piu' un MCP server pubmed separato (RIMOSSO 2026-04-30).
 
+Invoca tramite proxy:
 ```
-scientific-papers-mcp__search_papers(source="europepmc", query="machine learning cancer", count=10)
+call_tool(name="scientific-papers-mcp__search_papers", arguments={"source": "europepmc", "query": "machine learning cancer", "count": 10}, _caller_id="search-agent")
 ```
 
 ### Fase 3 — Deduplica e Arricchimento
 1. Deduplica URL (Levenshtein title + URL canonicalization)
-2. Per post Reddit rilevanti: usa `reddit-search/get_post` per ottenere l'albero commenti completo
-3. Per pagine web: usa `fetch__fetch` per estrarre contenuto full-text
+2. Per post Reddit rilevanti: usa `reddit-search__get_post` via proxy per ottenere l'albero commenti completo
+3. Per pagine web: usa `fetch__fetch` via proxy per estrarre contenuto full-text
 4. Classifica per rilevanza e data
 
 ### Fase 4 — Sintesi Report
-1. Sintetizza report con sezioni: TL;DR, Findings, Open Questions, Sources
+1. Sintesi report con sezioni: TL;DR, Findings, Open Questions, Sources
 2. Per fonti Reddit: cita subreddit, autore, punteggio updoot
 3. Salva report in memoria episodica con tag `research_report`
-4. Aggiorna wiki con `aria-memory/wiki_update_tool` per scoperte significative
+4. Aggiorna wiki con `aria-memory__wiki_update_tool` per scoperte significative
 
 ## Invarianti (SOTA April 2026)
 - **Cita SEMPRE le fonti con URL completo** — anche per post Reddit usa permalink

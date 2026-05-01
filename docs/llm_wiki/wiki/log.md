@@ -1,5 +1,188 @@
 # Implementation Log
 
+## 2026-05-01T18:39+02:00 — DOCS: detailed LLM wiki consolidation after proxy remediation
+
+**Operation**: DOCS  
+**Branch**: `feat/mcp-tool-search-proxy`  
+**Trigger**: explicit request to update the LLM wiki in detail before commit/push.
+
+### Pages refreshed in detail
+
+- `docs/llm_wiki/wiki/mcp-proxy.md`
+  - promoted remediation result from “pending drift” to the new live baseline
+  - documented canonical proxy contract, fail-closed enforcement, naming model, and unified `productivity-agent` work-domain role
+- `docs/llm_wiki/wiki/mcp-architecture.md`
+  - replaced the old pre-proxy/flat-runtime framing with the current 2-entry runtime baseline (`aria-memory` + `aria-mcp-proxy`)
+  - documented the two-layer governance model: prompt surface + policy enforcement
+- `docs/llm_wiki/wiki/mcp-refoundation.md`
+  - updated the L2 architecture page from lazy-loader/refoundation language to the proxy-native post-remediation baseline
+  - captured F8 remediation and governance consequences
+- `docs/llm_wiki/wiki/productivity-agent.md`
+  - rewrote the page to reflect the ADR-0008 amendment
+  - documented `productivity-agent` as the surviving unified work-domain agent and `workspace-agent` as transitional
+- `docs/llm_wiki/wiki/agent-capability-matrix.md`
+  - updated the matrix mirror to the post-remediation model where backend reachability is controlled by the capability matrix and the proxy, not by direct backend prompt exposure
+- `docs/llm_wiki/wiki/index.md`
+  - version bumped to `v6.3a`
+  - source tables, page table, bootstrap log, and relevant-files note updated to point to the detailed post-remediation baseline
+
+### Key facts now frozen in the wiki
+
+1. The live MCP runtime surface visible to KiloCode is now 2 entries: `aria-memory` and `aria-mcp-proxy`.
+2. The canonical invocation path for backend MCP operations is `search_tools` → `call_tool` with `_caller_id`.
+3. `productivity-agent` is the surviving unified work-domain agent.
+4. `workspace-agent` is compatibility-only and no longer the long-term target architecture.
+5. Blueprint P9 is now formally described as **Scoped Active Capabilities**, not static exclusive MCP ownership.
+
+---
+
+## 2026-05-01T18:30+02:00 — IMPLEMENT: proxy remediation — fail-closed middleware, canonical contract, productivity/workspace convergence, skills normalization
+
+**Operation**: IMPLEMENT  
+**Branch**: `feat/mcp-tool-search-proxy`  
+**Trigger**: user-approved architectural direction to adopt hybrid capability-scoped model, converge workspace-agent into productivity-agent, and remediate proxy integration drift.
+
+### Changes applied
+
+**A) Runtime/policy hardening**:
+- `src/aria/mcp/proxy/middleware.py`: `on_call_tool` is now **fail-closed** — denies non-synthetic tool calls when no caller identity is present. `on_list_tools` logs a structured warning when caller is absent.
+- No changes needed in `conductor_bridge.py`: caller identity is passed per-request via `_caller_id` in tool arguments, not as an env var.
+
+**B) Canonical proxy contract**:
+- `search-agent.md` frontmatter: removed backend wildcards (`searxng-script__*`, `tavily-mcp__*`, etc.), replaced with canonical `aria-mcp-proxy__search_tools` + `aria-mcp-proxy__call_tool` + memory tools.
+- `productivity-agent.md` frontmatter: same canonical model.
+- `workspace-agent.md` frontmatter: same canonical model, reduced to transitional stub.
+- `aria-conductor.md`: dispatch rules updated — productivity-agent now handles Google Workspace directly.
+
+**C) Productivity/workspace convergence**:
+- `agent_capability_matrix.yaml`: `productivity-agent` now includes `google_workspace__*` in allowed_tools.
+- `productivity-agent.md` prompt: expanded description — unified work-domain agent with direct GW access via proxy.
+- `workspace-agent.md` prompt: marked as COMPATIBILITÀ/TRANSITORIO.
+- `aria-conductor.md` prompt: workspace-agent described as transitional; productivity-agent as primary work agent.
+
+**D) Skills normalization**:
+- `deep-research/SKILL.md` v3.0.0: proxy invocation model, removed direct backend tool references.
+- `office-ingest/SKILL.md` v3.0.0: proxy invocation model.
+- `meeting-prep/SKILL.md` v2.0.0: proxy invocation, removed workspace-agent delegation references.
+- `email-draft/SKILL.md` v2.0.0: proxy invocation, GW tools called via proxy.
+- `triage-email/SKILL.md` v1.0.0: proxy invocation.
+- Missing skills resolved: `source-dedup` removed from search-agent required-skills (YAGNI).
+
+**E) Docs/governance**:
+- ADR-0008: status changed from Proposed → Amended, added Amendment section documenting hybrid capability-scoped model.
+- `docs/llm_wiki/wiki/mcp-proxy.md`: added remediation note.
+- `docs/llm_wiki/wiki/index.md`: updated to v6.3.
+- `docs/llm_wiki/wiki/log.md`: this entry.
+
+**F) Tests**:
+- `test_middleware.py`: added `test_on_call_tool_denies_when_caller_absent` and `test_on_call_tool_allows_synthetic_when_caller_absent`. Legacy `test_on_call_tool_permissive_when_caller_id_absent` now verifies fail-closed behavior.
+- `test_conductor_dispatch.py`: `test_workspace_agent_listed_as_transitional` checks transitional marker; `test_dispatch_rules_for_productivity` checks GW dispatch to productivity-agent.
+- `test_registry.py`: added `test_productivity_agent_has_google_workspace_tools`.
+- `test_config_consistency.py`: rewritten to verify canonical proxy model in frontmatter instead of backend wildcards.
+
+### Quality gates
+
+```text
+ruff check .          → All checks passed  ✅
+ruff format --check . → 202 files already formatted  ✅
+uv run mypy src       → Success: no issues found in 90 source files  ✅
+uv run pytest -q      → 673 passed, 23 skipped, 3 warnings  ✅
+```
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `src/aria/mcp/proxy/middleware.py` | Fail-closed enforcement + caller-anomaly logging |
+| `.aria/config/agent_capability_matrix.yaml` | `productivity-agent` gains `google_workspace__*` |
+| `.aria/kilocode/agents/productivity-agent.md` | Unified work-domain agent, canonical proxy model |
+| `.aria/kilocode/agents/search-agent.md` | Canonical proxy model, no backend wildcards |
+| `.aria/kilocode/agents/workspace-agent.md` | Transitional stub with deprecation notice |
+| `.aria/kilocode/agents/aria-conductor.md` | Updated dispatch rules and sub-agent descriptions |
+| `.aria/kilocode/skills/deep-research/SKILL.md` | v3.0.0: proxy invocation model |
+| `.aria/kilocode/skills/office-ingest/SKILL.md` | v3.0.0: proxy invocation model |
+| `.aria/kilocode/skills/meeting-prep/SKILL.md` | v2.0.0: proxy invocation model |
+| `.aria/kilocode/skills/email-draft/SKILL.md` | v2.0.0: proxy invocation model |
+| `.aria/kilocode/skills/triage-email/SKILL.md` | v1.0.0: proxy invocation model |
+| `tests/unit/mcp/proxy/test_middleware.py` | New fail-closed tests |
+| `tests/unit/agents/coordination/test_registry.py` | New GW tools test |
+| `tests/unit/agents/test_conductor_dispatch.py` | Updated transitional + dispatch tests |
+| `tests/unit/agents/search/test_config_consistency.py` | Rewritten for proxy canonical model |
+| `docs/foundation/decisions/ADR-0008-productivity-agent-introduction.md` | Amended |
+| `docs/llm_wiki/wiki/mcp-proxy.md` | Remediation note |
+| `docs/llm_wiki/wiki/index.md` | v6.3 status |
+| `docs/llm_wiki/wiki/log.md` | This entry |
+
+### Residual risks
+
+1. `workspace-agent` still exists and can be spawned — deprecation timeline not yet defined.
+2. P9 blueprint text not formally rewritten — direction captured in ADR-0008 amendment only.
+3. `ARIA_CALLER_ID` env var is still used for boot-time filtering but the shared proxy model makes per-request `_caller_id` the primary enforcement path. This is correct but could be confusing for future maintainers.
+4. Skills `calendar-orchestration` and `doc-draft` are still referenced in `workspace-agent` required-skills but are not yet created — acceptable since workspace-agent is transitional.
+
+---
+
+## 2026-05-01T17:26+02:00 — AUDIT: MCP proxy integration drift across runtime, prompts, and skills
+
+**Operation**: AUDIT  
+**Branch**: `feat/mcp-tool-search-proxy`  
+**Trigger**: request to verify that the implementation of `docs/plans/mcp_search_tool_plan_1.md` is fully harmonized with the new MCP proxy system across ARIA code, prompts, and skills.
+
+### Audit scope
+
+- LLM wiki first: `index.md`, `log.md`, `mcp-proxy.md`
+- Plan/spec/ADR: `mcp_search_tool_plan_1.md`, `2026-05-01-mcp-tool-search-design.md`, `ADR-0015-fastmcp-native-proxy.md`
+- Runtime/config: `mcp.json`, `agent_capability_matrix.yaml`, `server.py`, `middleware.py`, `registry.py`, `conductor_bridge.py`
+- Prompts: conductor + 3 current sub-agents
+- Skills: active skills inventory and key files (`deep-research`, `office-ingest`, `meeting-prep`, `email-draft`)
+- Context7 verification: `/prefecthq/fastmcp`
+
+### Findings frozen
+
+1. **Prompt contract drift** — F3 plan expects prompt frontmatter to expose only `aria-mcp-proxy__search_tools` / `aria-mcp-proxy__call_tool` (+ memory), but current prompts still expose backend wildcards directly.
+2. **Caller propagation gap** — `server.py` boot filtering depends on `ARIA_CALLER_ID`, but the inspected `mcp.json` and `conductor_bridge.py` do not wire it end-to-end; no `X-ARIA-Caller-Id` propagation was found either.
+3. **Fail-open middleware** — missing caller identity still results in permissive `list_tools` / `call_tool` paths.
+4. **Skill drift** — multiple skills still document direct backend or pseudo-tool invocation patterns instead of the canonical proxy invocation path with `_caller_id`.
+5. **Inventory mismatch** — required skills `source-dedup`, `calendar-orchestration`, and `doc-draft` are referenced by prompts but absent from `.aria/kilocode/skills/`.
+6. **Observability mismatch** — docs/spec describe caller-anomaly accounting stronger than what the inspected middleware currently appears to emit.
+
+### Consequence
+
+- The proxy cutover is only partially normalized. The repository is in a mixed state: the proxy exists and the quality gates are green, but runtime behavior, prompts, skills, and docs are not yet fully aligned to a single canonical contract.
+
+### Next phase
+
+- Freeze a remediation PRD/TDD before making further code changes.
+
+---
+
+## 2026-05-01T17:45+02:00 — DESIGN: relax strict MCP exclusivity; converge work domain into productivity-agent
+
+**Operation**: DESIGN  
+**Branch**: `feat/mcp-tool-search-proxy`  
+**Trigger**: architectural review prompted by the proxy audit and by the growing overlap between `workspace-agent` and `productivity-agent`.
+
+### Decision direction
+
+- ARIA should **not** keep “one MCP belongs to one agent” as the long-term primary boundary rule.
+- ARIA should move to a **hybrid capability-scoped model**:
+  - preserve domain separation where it is real (`search-agent` remains separate),
+  - relax MCP exclusivity for adjacent work domains,
+  - enforce safety through proxy policy, caller identity, least privilege, HITL, and audit logs.
+
+### Specific impact
+
+- `workspace-agent` is now considered **transitional**.
+- The single surviving unified work-domain agent must remain named **`productivity-agent`**.
+- Long-term target is: search domain separate; local-file/office-ingest/Google-Workspace operations converge into `productivity-agent`.
+
+### Blueprint / ADR implications captured
+
+- P9 should evolve from static exclusive ownership to **scoped active capabilities per task/session**.
+- ADR-0008 must be amended or superseded because its anti-overlap rationale predates the proxy-era policy control plane.
+
+---
+
 ## 2026-05-01T12:09+02:00 — FIX: baseline quality-gate cleanup after proxy cutover
 
 **Operation**: FIX  

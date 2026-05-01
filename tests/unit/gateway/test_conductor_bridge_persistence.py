@@ -32,9 +32,7 @@ async def test_handle_user_message_inserts_user_then_assistant(
 
     valid_session = str(uuid.uuid4())
 
-    async def _fake_spawn(
-        *, input_text: str, session_id: str, trace_id: str
-    ) -> dict[str, Any]:
+    async def _fake_spawn(*, input_text: str, session_id: str, trace_id: str) -> dict[str, Any]:
         _ = (input_text, session_id, trace_id)
         return {
             "text": "ok",
@@ -72,9 +70,7 @@ async def test_handle_user_message_reuses_child_session_for_follow_up(
     valid_session = str(uuid.uuid4())
     child_sessions: list[str] = []
 
-    async def _fake_spawn(
-        *, input_text: str, session_id: str, trace_id: str
-    ) -> dict[str, Any]:
+    async def _fake_spawn(*, input_text: str, session_id: str, trace_id: str) -> dict[str, Any]:
         _ = (input_text, trace_id)
         child_session_id = bridge._get_or_create_child_session_id(session_id)
         child_sessions.append(child_session_id)

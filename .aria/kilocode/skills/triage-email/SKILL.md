@@ -1,12 +1,12 @@
 ---
 name: triage-email
-version: 0.9.0
-description: Classificazione inbox Gmail per urgenza con digest
+version: 1.0.0
+description: Classificazione inbox Gmail per urgenza con digest. Usa il proxy MCP per Google Workspace.
 trigger-keywords: [email, inbox, triage, leggi mail, leggi email]
 user-invocable: true
 allowed-tools:
-  - google_workspace__gmail.search
-  - google_workspace__gmail.read
+  - aria-mcp-proxy__search_tools
+  - aria-mcp-proxy__call_tool
   - aria-memory__wiki_update_tool
 max-tokens: 8000
 estimated-cost-eur: 0.05

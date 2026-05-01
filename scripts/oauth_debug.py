@@ -7,9 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-os.environ["GOOGLE_OAUTH_CLIENT_ID"] = (
-    "PLACEHOLDER_CLIENT_ID_OLD"
-)
+os.environ["GOOGLE_OAUTH_CLIENT_ID"] = "PLACEHOLDER_CLIENT_ID_OLD"
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
 

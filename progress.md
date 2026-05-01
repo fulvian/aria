@@ -1,61 +1,68 @@
-# Progress — REPL Search-Agent Debug
+# Progress — MCP Proxy Integration Audit
 
-## 2026-05-01T11:28+02:00 — Session start
-- User request: analyze real `bin/aria repl` failures from cinema-search session and fix them.
-- Constraint: follow `AGENTS.md`, especially LLM wiki and Context7-first rules.
+## 2026-05-01T17:14+02:00 — Session start
+- User request: audit the implementation of `docs/plans/mcp_search_tool_plan_1.md` and verify deep integration of the new MCP proxy across ARIA conductor, the three current sub-agents, and their skills.
+- Constraint: follow `AGENTS.md`, especially LLM wiki-first and Context7-first rules.
 
-## 2026-05-01T11:29+02:00 — Context recovery complete
-- Ran planning-with-files catchup script.
-- Branch detected: `feat/mcp-tool-search-proxy`
-- Existing planning files were stale and replaced with this debug-focused set.
+## 2026-05-01T17:15+02:00 — Context recovery complete
+- Ran `planning-with-files` catchup script.
+- Recovered existing branch context: `feat/mcp-tool-search-proxy`.
+- Detected 2 uncommitted changes already present in conductor prompt files.
 
-## 2026-05-01T11:30+02:00 — Wiki-first read complete
-- Read `docs/llm_wiki/wiki/index.md`
-- Read `docs/llm_wiki/wiki/log.md`
-- Read `docs/llm_wiki/wiki/mcp-proxy.md`
-- Read current `.workflow/state.md` and confirmed it is stale vs current branch/task.
+## 2026-05-01T17:16+02:00 — Wiki-first read complete
+- Read `docs/llm_wiki/wiki/index.md`.
+- Read `docs/llm_wiki/wiki/log.md`.
+- Read `docs/llm_wiki/wiki/mcp-proxy.md`.
+- Read existing planning files and replaced stale task framing with a new audit-focused plan.
 
-## 2026-05-01T11:31+02:00 — Forensic analysis complete
-- Inspected attached transcript behavior.
-- Inspected Kilo logs for session `ses_21d455d0dffeeWTujS4HWQVNJv` and child search session `ses_21d25c813ffe5QGLVPfITbeU8c`.
-- Observed repeated proxy stderr noise and Google OAuth port-8000 errors during search-only flows.
+## 2026-05-01T17:18+02:00 — Plan/spec/ADR audit complete
+- Read the implementation plan sections covering F3 agent prompts and F5 skills normalization.
+- Read the proxy design spec caller identity model and impact-on-agents sections.
+- Read ADR-0015 for the intended proxy contract.
 
-## 2026-05-01T11:33+02:00 — Code-path inspection complete
-- Read active prompts: `aria-conductor.md`, `search-agent.md`
-- Read runtime files: `conductor_bridge.py`, `session_manager.py`, `server.py`, `registry.py`
-- Confirmed follow-up continuity and backend isolation gaps.
+## 2026-05-01T17:20+02:00 — Runtime/prompt/skill inspection complete
+- Inspected current proxy runtime files: `server.py`, `middleware.py`, `registry.py`, `conductor_bridge.py`.
+- Inspected current runtime config: `mcp.json`, `agent_capability_matrix.yaml`.
+- Inspected active prompts for conductor, search-agent, workspace-agent, productivity-agent.
+- Inspected skills inventory and key skill files: `deep-research`, `office-ingest`, `meeting-prep`, `email-draft`.
 
-## 2026-05-01T11:34+02:00 — Context7 verification complete
-- Resolved FastMCP docs and verified search transform behavior.
-- Confirmed FastMCP does not solve factual grounding; ARIA must enforce this.
+## 2026-05-01T17:22+02:00 — Context7 verification complete
+- Resolved FastMCP docs via Context7 (`/prefecthq/fastmcp`).
+- Verified that search transforms expose only `search_tools` and `call_tool` and that middleware hooks are the intended enforcement point.
 
-## 2026-05-01T11:51+02:00 — Focus expanded to pre-existing repo failures
-- User requested remediation of pre-existing repo-wide quality gate failures as well.
-- Full `ruff check .`, full `mypy src`, and full `pytest -q` were executed after targeted fixes.
-- Failures confirmed as pre-existing and now in scope for repair.
+## 2026-05-01T17:24+02:00 — Main audit findings frozen
+- Prompt frontmatter does not match the F3 proxy-only frontmatter design.
+- Caller-aware backend filtering depends on `ARIA_CALLER_ID` but no inspected runtime path actually sets it.
+- Middleware remains permissive when caller identity is missing.
+- Skills still instruct direct backend or pseudo-tool invocation, not the canonical proxy contract.
+- Some required skills referenced by prompts are missing from the skills tree.
+- Observability/docs promise caller-anomaly handling stronger than what the inspected middleware currently appears to perform.
 
-## Open defects queued for remediation
-1. Remaining repo-wide `ruff` violations in untouched tests.
-2. Remaining repo-wide `mypy src` issues (import-untyped / missing stubs).
-3. Remaining `pytest` collection/import failures (`proxy.conftest`, `scripts` import).
-4. Previously fixed search-flow issues must stay green while cleaning the baseline.
+## 2026-05-01T17:26+02:00 — Wiki/state maintenance complete
+- Updated `docs/llm_wiki/wiki/mcp-proxy.md` with an audit note on remaining mixed-state integration drift.
+- Updated `docs/llm_wiki/wiki/index.md` status to reflect the post-cutover audit.
+- Appended a timestamped audit entry to `docs/llm_wiki/wiki/log.md`.
+- Updated `.workflow/state.md`, `task_plan.md`, and `findings.md` for the current analysis phase.
 
-## 2026-05-01T12:08+02:00 — Baseline gate remediation applied
-- Added package markers for `tests/`, `tests/e2e/`, and `tests/*/mcp/` so proxy tests import as fully qualified packages instead of `proxy.conftest` or top-level `mcp`.
-- Added `tests/conftest.py` to restore repo-root import visibility for `scripts.*` under pytest console-script execution.
-- Cleaned `src/aria/launcher/__init__.py` to stop re-exporting removed `lazy_loader` symbols.
-- Added a narrow mypy override for `croniter` stubs.
-- Updated stale proxy-era test expectations in search/conductor config tests.
-- Applied safe `ruff check --fix`, added minimal `Any` imports in wiki tests, and scoped Ruff per-file ignores for test-only/script-only noise.
+## 2026-05-01T17:34+02:00 — Architectural boundary research complete
+- Read the relevant blueprint sections around P9, agent hierarchy, skills, and scoped toolsets.
+- Read ADR-0008 and the canonical capability matrix to understand why `productivity-agent` and `workspace-agent` were originally separated.
+- Performed external best-practice research via web sources (Microsoft, IBM, Knostic, arXiv orchestration paper).
+- Synthesized the result into 3 candidate models:
+  1. strict tool-exclusive agents,
+  2. shared MCP/domain-capability agents,
+  3. hybrid model.
+- Current recommendation from the analysis: adopt the **hybrid** model and plan a controlled convergence of `workspace-agent` + `productivity-agent` toward a unified work-domain agent governed by proxy policy rather than hard MCP exclusivity.
 
-## 2026-05-01T12:09+02:00 — Final gates
-- `ruff check .` → PASS
-- `uv run mypy src` → PASS (`Success: no issues found in 90 source files`)
-- `uv run pytest -q` → PASS (`677 passed, 23 skipped`) with 3 pre-existing `PytestUnhandledThreadExceptionWarning` warnings from `aiosqlite` worker threads during shutdown in memory tests
+## 2026-05-01T17:43+02:00 — User direction applied
+- User approved proceeding with the hybrid architecture direction.
+- Naming constraint fixed: the unified surviving work-domain agent must remain named **`productivity-agent`**.
+- `workspace-agent` is now treated as transitional/deprecation-target in the design, not as the long-term canonical work agent.
 
-## Errors / anomalies observed
-| Time | Issue | Evidence |
-|------|-------|----------|
-| 11:31 | Proxy still emits backend parse noise | `.aria/kilo-home/.local/share/kilo/log/2026-05-01T091326.log` repeated `Failed to parse JSONRPC message from server` |
-| 11:31 | Search flow still triggers Google OAuth backend | same log shows `Port 8000 is already in use` from `google_workspace` during search work |
-| 11:33 | Follow-up turns do not reuse stable Kilo child session | `src/aria/gateway/conductor_bridge.py` creates fresh `child_session_id` every turn |
+## 2026-05-01T17:57+02:00 — Final convergence pass completed
+- Applied the missing blueprint updates for P9 and the workspace/productivity boundary so the governance source of truth now reflects the approved architecture.
+- The work-domain convergence is now documented consistently as: `workspace-agent` transitional, `productivity-agent` surviving unified agent.
+
+## Pending
+- Produce a concise audit PRD / design delta for approval before any code changes.
+- Do not implement until the target canonical contract is explicitly chosen and approved.

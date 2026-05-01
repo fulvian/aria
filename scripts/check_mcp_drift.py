@@ -12,6 +12,7 @@ Usage:
     python scripts/check_mcp_drift.py          # shadow mode (warnings only)
     python scripts/check_mcp_drift.py --enforce  # enforce mode (exit 1 on issues)
 """
+
 from __future__ import annotations
 
 import json
@@ -47,9 +48,7 @@ def check_mcp_json_shape(mcp_json_path: Path) -> list[str]:
     return errors
 
 
-def check_matrix_vs_catalog(
-    matrix_path: Path, catalog_path: Path
-) -> list[str]:
+def check_matrix_vs_catalog(matrix_path: Path, catalog_path: Path) -> list[str]:
     """Check that backend tools in the matrix exist in the catalog."""
     errors: list[str] = []
     if not catalog_path.exists():
@@ -58,9 +57,7 @@ def check_matrix_vs_catalog(
 
     catalog = yaml.safe_load(catalog_path.read_text()) or {}
     enabled_names = {
-        s["name"]
-        for s in (catalog.get("servers") or [])
-        if s.get("lifecycle") == "enabled"
+        s["name"] for s in (catalog.get("servers") or []) if s.get("lifecycle") == "enabled"
     }
 
     matrix = yaml.safe_load(matrix_path.read_text()) or {}

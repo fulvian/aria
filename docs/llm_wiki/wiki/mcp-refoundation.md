@@ -1,11 +1,11 @@
 # MCP Refoundation — Rollback-First
 
 > **Architettura**: L2 — MCP Plane  
-> **Stato**: ✅ v6.0 (2026-05-01) — Proxy-native  
-> **Source**: `.aria/config/mcp_catalog.yaml`, `src/aria/mcp/proxy/`  
-> **Plan**: `docs/plans/mcp_search_tool_plan_1.md`  
+> **Stato**: ✅ v6.3 (2026-05-01) — Proxy-native baseline after remediation  
+> **Source**: `.aria/config/mcp_catalog.yaml`, `.aria/kilocode/mcp.json`, `src/aria/mcp/proxy/`, `docs/foundation/decisions/ADR-0015-fastmcp-native-proxy.md`  
+> **Plan**: `docs/plans/mcp_search_tool_plan_1.md`
 
-> **⚠️ DEPRECATED — Lazy Loader rimosso in F4.**
+> **⚠️ DEPRECATED — Lazy Loader rimosso in F4.**  
 > Il `lazy_loader.py` e i campi `lazy_load`/`intent_tags` nel catalog sono
 > stati sostituiti dal `aria-mcp-proxy` (FastMCP-native). Vedi
 > `docs/llm_wiki/wiki/mcp-proxy.md` e ADR-0015.
@@ -15,132 +15,113 @@
 Il MCP Plane implementa la Refoundation v2 dell'infrastruttura MCP ARIA.
 Principio guida: **rollback-first**, baseline protetta (LKG), config-plane only.
 
-Componenti:
-1. **MCP Catalog YAML** — single source of truth per tutti i server MCP
-2. **Drift Validator** — confronto catalog ↔ mcp.json ↔ agent prompt ↔ router code
-3. **Capability Probe** — generalizzato a tutti i server, snapshot e quarantena
-4. ~~**Lazy Loader**~~ (RIMOSSO in F4) — sostituito da `aria-mcp-proxy`
-5. **NEW: aria-mcp-proxy** — FastMCP-native multi-server proxy (ADR-0015)
+Componenti attivi:
+1. **MCP Catalog YAML** — source of truth per i backend MCP
+2. **Drift Validator** — confronto catalog ↔ prompt ↔ runtime ↔ policy
+3. **Capability Probe** — snapshot e quarantena schema/tool drift
+4. **aria-mcp-proxy** — surface sintetica `search_tools` + `call_tool`
+5. **Capability Matrix** — policy per-agent/per-backend enforcement
+
+## Runtime baseline
+
+### Kilo-visible runtime
+- `aria-memory`
+- `aria-mcp-proxy`
+
+### Proxy-managed backend families
+- search-domain servers
+- productivity-domain servers
+- selected system-domain servers from catalog
+
+### Contract summary
+- prompts/skills call the proxy synthetic tools
+- `_caller_id` is mandatory in proxy requests
+- capability matrix decides backend reachability
+- `workspace-agent` is transitional; `productivity-agent` is the surviving
+  unified work-domain agent
 
 ## MCP Catalog
 
 **File**: `.aria/config/mcp_catalog.yaml`
 
-Catalogo canonico per tutti i 14 server MCP. Schema:
+Il catalogo resta la descrizione canonica dei backend disponibili. Dopo F4:
+- `lazy_load` e `intent_tags` non sono più parte del modello attivo
+- `owner_agent` non implica più esclusività architetturale assoluta del backend
+- la condivisione tra agenti adiacenti è permessa se il proxy/policy layer la
+  restringe correttamente
 
-```yaml
-servers:
-  - name: scientific-papers-mcp
-    domain: search
-    owner_agent: search-agent
-    tier: 2
-    transport: stdio
-    lifecycle: enabled  # enabled | disabled | quarantined
-    auth_mode: keyless
-    statefulness: stateless
-    expected_tools:
-      - search_papers
-      - fetch_content
-      - fetch_latest
-      - list_categories
-      - fetch_top_cited
-    risk_level: low
-    cost_class: free
-    source_of_truth: scripts/wrappers/scientific-papers-wrapper.sh
-    rollback_class: server  # server | domain | session
-    baseline_status: lkg  # lkg | candidate | shadow | disabled
-    intent_tags: [academic]
-    lazy_load: true
-    intent_required: [academic]
-    notes: "patched npm v0.1.40, version pin via wrapper checksum"
-```
-
-### Server classificati (14)
-
-| Server | Domain | Tier | Lazy Load | Baseline |
-|--------|--------|:---:|:---------:|:--------:|
-| filesystem | system | 0 | ❌ | lkg |
-| sequential-thinking | system | 0 | ❌ | lkg |
-| aria-memory | memory | 0 | ❌ | lkg |
-| fetch | search | 3 | ✅ | lkg |
-| searxng-script | search | 1 | ✅ | lkg |
-| reddit-search | search | 1 | ✅ | lkg |
-| scientific-papers-mcp | search | 2 | ✅ | lkg |
-| brave-mcp | search | 4 | ✅ | lkg |
-| exa-script | search | 5 | ✅ | lkg |
-| tavily-mcp | search | 3 | ✅ | lkg |
-| google_workspace | productivity | 0 | ❌ | lkg |
-| playwright | system | 0 | ❌ | lkg |
-| markitdown-mcp | productivity | 0 | ✅ | lkg |
-| github-discovery | search | 0 | ✅ | lkg |
-
-### Cutover Policy
-
-- Tutti i cambi a `mcp.json` passano via catalog → generatore
-- Drift validator in CI come gate bloccante (`make check-drift`)
-- Schema snapshot mismatch → quarantena server (lifecycle=quarantined)
-- Gateway PoC search: dietro flag `ARIA_GATEWAY_SEARCH=1`, bypass = unset
+### Interpretazione aggiornata dei campi
+- `domain`: dominio principale del backend
+- `owner_agent`: ownership logica/operativa, non vincolo assoluto di esclusività
+- `lifecycle`: enabled / disabled / quarantined
+- `expected_tools`: utile per probe/drift validation
+- `source_of_truth`: wrapper/server source
 
 ## Drift Validator
 
 **File**: `scripts/check_mcp_drift.py`
 
 Confronta:
-1. Catalog YAML → `mcp.json` enabled servers
-2. Agent prompts `allowed-tools` → `mcp_dependencies` → `mcp.json`
-3. Router code (Provider enum) → search-agent `allowed-tools`
-4. Wiki index pages ↔ filesystem `wiki/*.md`
+1. Catalog YAML → runtime config / enabled servers
+2. Agent prompts → canonical proxy contract
+3. Capability matrix → effective backend access
+4. Wiki pages ↔ filesystem `wiki/*.md`
 
-Modalità:
-- `--shadow`: warning only (default per F2)
-- `--enforce`: exit 1 su drift (default per F3+)
-- `--baseline-mode`: exit 0 anche con issue P1
+Con il proxy attivo, un drift importante non è più solo “server missing”, ma anche:
+- prompt che espongono backend wildcard dirette invece dei tool sintetici,
+- skill che istruiscono chiamate backend bypassando il proxy,
+- matrix/prompt incoerenti sul boundary `productivity-agent` / `workspace-agent`.
 
 ## Capability Probe
 
 **File**: `src/aria/mcp/capability_probe.py`
 
-Generalizzazione del probe originale (`src/aria/agents/search/capability_probe.py`).
+Funzionalità principali:
+- legge il catalog MCP YAML
+- esegue `initialize` + `tools/list` per ogni server enabled
+- salva snapshot in `.aria/runtime/mcp-schema-snapshots/`
+- confronta `expected_tools` del catalog con i tool reali
+- supporta quarantena operativa su mismatch
 
-Funzionalità:
-- Legge catalog MCP YAML
-- Esegue `initialize` + `tools/list` per ogni server enabled
-- Salva snapshot in `.aria/runtime/mcp-schema-snapshots/{server}-{date}.json`
-- Confronta `expected_tools` del catalog con i tool reali
-- Quarantena automatica su mismatch (lifecycle=quarantined, NON modifica catalog SoT)
-- CLI: `bin/aria probe-mcp` (one-shot) + `bin/aria start --probe` (pre-flight)
+## Proxy-native cutover
 
-## ~~Lazy Loader~~ (RIMOSSO in F4)
+### Completed milestones
+- F0 smoke: proxy stdio verificato
+- F1 core modules: implementati
+- F2 shadow: proxy introdotto accanto al vecchio setup
+- F3 cutover: `mcp.json` ridotto a 2 entry
+- F4 cleanup: lazy loader rimosso
+- F5 observability/skills updates
+- F6 stabilization: stdio filter, naming normalization, matrix wildcards
+- F7 caller-aware backend boot filtering
+- F8 remediation: fail-closed middleware + canonical proxy contract + productivity/workspace convergence
 
-~~**File**: `src/aria/launcher/lazy_loader.py`~~ (rimosso in F4/commit 0457044)
+## Governance updates introduced after remediation
 
-Sostituito da `aria-mcp-proxy` (ADR-0015). I campi `lazy_load` e `intent_tags`
-sono stati rimossi da `.aria/config/mcp_catalog.yaml`.
+- Prompt frontmatter now advertises proxy synthetic tools instead of backend
+  families.
+- The capability matrix, not prompt wildcards, is the effective authorization
+  plane for backend calls.
+- Blueprint P9 is now **Scoped Active Capabilities**, not static exclusive tool
+  ownership.
+- ADR-0008 amendment records the boundary change: `productivity-agent` is the
+  unified work-domain agent; `workspace-agent` is transitional.
 
-## ADR
-
-| ADR | Titolo | Status |
-|-----|--------|:------:|
-| ADR-0009 | MCP catalog as single source of truth | ✅ Accepted |
-| ADR-0010 | Lazy loading per intent enablement | 🗑️ Deprecated (F4) |
-| ADR-0012 | MCP cutover and rollback policy | ✅ Accepted |
-| ADR-0015 | FastMCP-native multi-server proxy | ✅ Implemented (F1-F3) |
-
-## Rollback Matrix
+## Rollback matrix
 
 | Trigger | Rollback | Blast | MTTR |
 |---------|----------|:-----:|:----:|
 | Drift legittimo bloccato | Modalità `--shadow` | server | <5 min |
-| Falso positivo quarantena | lifecycle=enabled forzato | server | <2 min |
+| Falso positivo quarantena | `lifecycle=enabled` forzato | server | <2 min |
 | Proxy fallisce al boot | `bin/aria start --emergency-direct` | proxy | <30 s |
-| Gateway PoC errori | Unset `ARIA_GATEWAY_SEARCH` | domain | <2 min |
+| Canonical proxy contract regression | restore last-known-good prompt/matrix/ADR state | config plane | <10 min |
 
 ## Runbook
 
 **File**: `docs/operations/mcp_cutover_rollback.md`
 
-Procedura:
-1. `git checkout baseline-LKG-v1 -- .aria/config/mcp_catalog.yaml`
-2. `bin/aria start --profile baseline` (ripristina mcp.json originale)
-3. Verifica smoke test dominio
-4. Logga cutover/rollback in `docs/operations/mcp_cutover_rollback.md`
+Procedura base:
+1. restore config/branch baseline as needed
+2. `bin/aria start --profile baseline` or `--emergency-direct`
+3. verify smoke test domain
+4. log cutover/rollback in wiki log + operations docs

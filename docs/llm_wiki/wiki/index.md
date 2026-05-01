@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-05-01T12:09 (v6.2 — baseline quality-gate cleanup after proxy cutover)
-**Status**: ✅ **v6.2** — Runtime proxy/search fixes remain in place and the pre-existing repo-wide gates are green again after minimal cleanup. Current baseline: `ruff check .` PASS, `uv run mypy src` PASS (90 files), `uv run pytest -q` PASS (677 passed, 23 skipped), with 3 non-failing `aiosqlite` shutdown warnings still emitted by memory tests.
+**Last Updated**: 2026-05-01T18:39 (v6.3a — detailed wiki consolidation after proxy remediation)
+**Status**: ✅ **v6.3a** — Proxy remediation is complete and the wiki is now aligned in detail with the live baseline: fail-closed proxy enforcement, canonical synthetic proxy contract, P9 rewritten as scoped active capabilities, `productivity-agent` as unified work-domain agent, and `workspace-agent` as transitional compatibility-only surface. All quality gates green (ruff, mypy, 673 pytest).
 
 ## Purpose
 
@@ -82,7 +82,7 @@ docs/llm_wiki/
 ### Coordination (L1)
 | Source | Description | Last Updated |
 |--------|-------------|--------------|
-| `.aria/config/agent_capability_matrix.yaml` | **NEW**: Capability matrix YAML canonica (4 agenti) | 2026-04-30 |
+| `.aria/config/agent_capability_matrix.yaml` | Capability matrix YAML canonica (4 agenti), now includes direct `google_workspace__*` reach for `productivity-agent` | 2026-05-01 |
 | `src/aria/agents/coordination/handoff.py` | **NEW**: Handoff Pydantic model + validator | 2026-04-30 |
 | `src/aria/agents/coordination/envelope.py` | **NEW**: ContextEnvelope + persistenza + cleanup | 2026-04-30 |
 | `src/aria/agents/coordination/registry.py` | **NEW**: AgentRegistry (loader + validator) | 2026-04-30 |
@@ -116,10 +116,10 @@ docs/llm_wiki/
 ### Agent Prompts
 | Source | Description | Last Updated |
 |--------|-------------|--------------|
-| `.aria/kilocode/agents/aria-conductor.md` | **v4.6**: colonna `title`, auto-estrazione, productivity-agent dispatch | 2026-04-30 |
-| `.aria/kilocode/agents/search-agent.md` | **v4.0**: dual-tier-1, pubmed→scientific-papers, reddit keyless | 2026-04-29 |
-| `.aria/kilocode/agents/productivity-agent.md` | **v4.0**: 11 tool, 4 skill, boundary delega workspace-agent | 2026-04-29 |
-| `.aria/kilocode/agents/workspace-agent.md` | **STUB**: 25 righe, da riscrivere in Phase 2 | 2026-04-30 |
+| `.aria/kilocode/agents/aria-conductor.md` | conductor dispatch rules + productivity/workspace boundary | 2026-05-01 |
+| `.aria/kilocode/agents/search-agent.md` | **v5.0**: canonical proxy model, no backend wildcards in frontmatter | 2026-05-01 |
+| `.aria/kilocode/agents/productivity-agent.md` | **v5.0**: unified work-domain agent, proxy canonical, direct GW access | 2026-05-01 |
+| `.aria/kilocode/agents/workspace-agent.md` | **TRANSITIONAL**: compatibility stub, to be deprecated | 2026-05-01 |
 
 ### Config & Runtime
 | Source | Description | Last Updated |
@@ -139,8 +139,9 @@ docs/llm_wiki/
 | [[google-workspace-mcp-write-reliability]] | GWS MCP: write scopes concessi, single-user, Gmail/Calendar, 10 scopes | Active ✅ |
 | [[mcp-api-key-operations]] | Runbook: 5 provider, 17 keys, multi-account rotation, circuit breaker | Active ✅ |
 | [[aria-launcher-cli-compatibility]] | bin/aria launcher: CLI invocation, hard isolation, MCP migration | Active ✅ |
-| [[mcp-architecture]] | Inventario MCP reale, drift strutturali, direzione refoundation | Active ✅ v2 |
-| [[agent-capability-matrix]] | Capability matrix, handoff protocol e routing policy (3 agenti) | Active ✅ v1.0 |
+| [[mcp-architecture]] | Active MCP runtime baseline after proxy cutover/remediation | Active ✅ v6.3 |
+| [[agent-capability-matrix]] | Post-remediation capability model: proxy synthetic surface + matrix-governed backend reachability | Active ✅ v6.3 |
+| [[productivity-agent]] | Unified work-domain agent after ADR-0008 amendment | Active ✅ v6.3 |
 | **[[agent-coordination]]** | **NEW v5.0**: L1 — Handoff Pydantic, ContextEnvelope, Registry, Spawn validator. 86 test | **✅ v1.0** |
 | **[[mcp-refoundation]]** | **NEW v5.0**: L2 — MCP Catalog (14 server), Drift validator, Capability probe, Lazy loader | **✅ v1.0** |
 | **[[observability]]** | **NEW v5.0**: L4 — Logger structured JSON, Prometheus metrics, Events tipati, Trace_id UUIDv7 | **✅ v1.0** |
@@ -178,6 +179,8 @@ docs/llm_wiki/
 - 2026-05-01: **v6.1** — Fix search-flow cinema session: riuso stabile della child session Kilo nel gateway (`--session` propagato), proxy con caller-aware backend boot filtering per escludere `google_workspace` da search-agent, validator di delega parent→target corretto, prompt di grounding irrigiditi per follow-up `continua`.
 - 2026-05-01: **v6.2** — Baseline cleanup dei quality gate repository-wide: `ruff check .`, `mypy src` e `pytest -q` tutti verdi. Fix minimi su packaging test MCP, import pytest di `scripts.*`, re-export obsoleto del launcher e configurazione lint/type-check per rumore storico dei test/script.
 - 2026-05-01: **v6.2** — Baseline gate cleanup post-cutover: fixed pytest package/import collisions (`proxy.conftest`, `scripts` visibility), removed stale launcher lazy-loader re-export, added narrow `croniter` mypy override, aligned stale prompt-config tests with proxy wildcard exposure, and scoped Ruff noise down to green gates.
+- 2026-05-01: **v6.3** — Proxy remediation complete: fail-closed middleware, canonical proxy synthetic prompt surface, `productivity-agent` gains direct `google_workspace__*`, `workspace-agent` transitional, ADR-0008 amended.
+- 2026-05-01: **v6.3a** — Detailed wiki consolidation: refreshed `mcp-proxy`, `mcp-architecture`, `mcp-refoundation`, `productivity-agent`, and `agent-capability-matrix` to match the live post-remediation baseline.
 
 ## Git & GitHub Rules
 
@@ -197,7 +200,7 @@ Definite in `AGENTS.md` § "Git & GitHub Workflow Rules". Regole chiave:
 - `docs/llm_wiki/wiki/observability.md` — L4 logging, metrics, events
 - `docs/llm_wiki/wiki/research-routing.md` — tier policy
 - `docs/llm_wiki/wiki/mcp-architecture.md` — MCP architecture
-- `docs/llm_wiki/wiki/mcp-proxy.md` — **v6.1**: FastMCP-native MCP proxy + caller-aware backend boot filtering.
+- `docs/llm_wiki/wiki/mcp-proxy.md` — **v6.3**: canonical proxy contract + fail-closed enforcement + work-domain convergence.
 - `pyproject.toml` — **v6.2**: per-file ignores Ruff mirati, pytest bootstrap path, override mypy per `croniter`.
 - `docs/llm_wiki/wiki/agent-capability-matrix.md` — capability matrix
 - `docs/operations/rollback_matrix.md` — rollback matrix completa

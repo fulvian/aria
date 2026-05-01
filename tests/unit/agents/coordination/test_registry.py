@@ -183,10 +183,13 @@ class TestYamlCapabilityRegistry:
 agents:
   - name: aria-conductor
     allowed_tools: [spawn-subagent]
-    delegation_targets: [search-agent]
+    delegation_targets: [search-agent, productivity-agent]
   - name: search-agent
     allowed_tools: [searxng-script__*]
     delegation_targets: []
+  - name: productivity-agent
+    allowed_tools: [markitdown-mcp__*, google_workspace__*]
+    delegation_targets: [workspace-agent]
   - name: workspace-agent
     allowed_tools: [google_workspace__*]
     delegation_targets: []
@@ -196,6 +199,9 @@ agents:
         registry = YamlCapabilityRegistry(path=matrix)
 
         assert registry.validate_delegation("aria-conductor", "search-agent") is True
+        assert registry.validate_delegation("aria-conductor", "productivity-agent") is True
+        assert registry.validate_delegation("productivity-agent", "workspace-agent") is True
+        # workspace-agent cannot delegate
         assert registry.validate_delegation("aria-conductor", "workspace-agent") is False
         assert registry.validate_delegation("search-agent", "workspace-agent") is False
 
@@ -205,7 +211,7 @@ agents:
             """
 agents:
   - name: productivity-agent
-    allowed_tools: [spawn-subagent]
+    allowed_tools: [spawn-subagent, google_workspace__*]
     delegation_targets: [workspace-agent]
   - name: workspace-agent
     allowed_tools: [google_workspace__*]
@@ -217,3 +223,21 @@ agents:
 
         assert registry.get_delegation_targets("productivity-agent") == ["workspace-agent"]
         assert registry.get_delegation_targets("workspace-agent") == []
+
+    def test_productivity_agent_has_google_workspace_tools(self, tmp_path: Path) -> None:
+        matrix = tmp_path / "agent_capability_matrix.yaml"
+        matrix.write_text(
+            """
+agents:
+  - name: productivity-agent
+    allowed_tools: [markitdown-mcp__*, filesystem__*, google_workspace__*]
+    delegation_targets: []
+""".lstrip()
+        )
+
+        registry = YamlCapabilityRegistry(path=matrix)
+        tools = registry.get_allowed_tools("productivity-agent")
+        assert "google_workspace__*" in tools
+        assert (
+            registry.is_tool_allowed("productivity-agent", "google_workspace__gmail_send") is True
+        )

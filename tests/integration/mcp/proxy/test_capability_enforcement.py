@@ -1,4 +1,5 @@
 """Integration: middleware blocks tools not in agent_capability_matrix.yaml."""
+
 from __future__ import annotations
 
 import pytest
@@ -23,7 +24,9 @@ async def test_search_agent_blocked_from_workspace(monkeypatch) -> None:
     monkeypatch.setenv("ARIA_PROXY_DISABLE_BACKENDS", "1")
     proxy = build_proxy(strict=False)
     # replace the registry-backed middleware with our stub
-    proxy.middleware = [m for m in (proxy.middleware or []) if not isinstance(m, CapabilityMatrixMiddleware)]
+    proxy.middleware = [
+        m for m in (proxy.middleware or []) if not isinstance(m, CapabilityMatrixMiddleware)
+    ]
     proxy.add_middleware(CapabilityMatrixMiddleware(_StubReg()))
 
     async with Client(proxy) as client:

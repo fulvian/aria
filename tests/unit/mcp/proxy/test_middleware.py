@@ -1,4 +1,5 @@
 """Unit tests for CapabilityMatrixMiddleware."""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
@@ -57,22 +58,49 @@ async def test_on_call_tool_denies_when_caller_not_in_matrix() -> None:
 
 
 @pytest.mark.asyncio
-async def test_on_call_tool_permissive_when_caller_id_absent() -> None:
+async def test_on_call_tool_denies_when_caller_absent() -> None:
+    """Fail-closed: middleware denies non-synthetic tools when no caller identity is present."""
     reg = _Reg({})
     mw = CapabilityMatrixMiddleware(reg)
     ctx = _ctx(args={"q": "x"}, tool_name="filesystem__read")
+    call_next = AsyncMock(return_value="ok")
+    with pytest.raises(ToolError, match="denied: no caller identity"):
+        await mw.on_call_tool(ctx, call_next)
+    call_next.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_on_call_tool_allows_synthetic_when_caller_absent() -> None:
+    """Synthetic tools (search_tools, call_tool) are allowed even without caller."""
+    reg = _Reg({})
+    mw = CapabilityMatrixMiddleware(reg)
+    ctx = _ctx(args={"query": "test"}, tool_name="search_tools")
     call_next = AsyncMock(return_value="ok")
     out = await mw.on_call_tool(ctx, call_next)
     assert out == "ok"
 
 
 @pytest.mark.asyncio
+async def test_on_call_tool_permissive_when_caller_id_absent() -> None:
+    """Legacy test name — now verifies fail-closed behavior for non-synthetic tools."""
+    reg = _Reg({})
+    mw = CapabilityMatrixMiddleware(reg)
+    ctx = _ctx(args={"q": "x"}, tool_name="filesystem__read")
+    call_next = AsyncMock(return_value="ok")
+    with pytest.raises(ToolError, match="denied: no caller identity"):
+        await mw.on_call_tool(ctx, call_next)
+
+
+@pytest.mark.asyncio
 async def test_on_list_tools_filters_per_caller() -> None:
     reg = _Reg({"search-agent": ["tavily-mcp__search"]})
     mw = CapabilityMatrixMiddleware(reg, default_caller_env="ARIA_CALLER_ID")
-    tool_a = MagicMock(); tool_a.name = "tavily-mcp__search"
-    tool_b = MagicMock(); tool_b.name = "google_workspace__gmail_send"
-    tool_c = MagicMock(); tool_c.name = "search_tools"  # always_visible synthetic
+    tool_a = MagicMock()
+    tool_a.name = "tavily-mcp__search"
+    tool_b = MagicMock()
+    tool_b.name = "google_workspace__gmail_send"
+    tool_c = MagicMock()
+    tool_c.name = "search_tools"  # always_visible synthetic
     call_next = AsyncMock(return_value=[tool_a, tool_b, tool_c])
     ctx = _ctx()
     ctx.fastmcp_context = MagicMock()
@@ -89,7 +117,8 @@ async def test_on_list_tools_filters_per_caller() -> None:
 async def test_on_list_tools_passthrough_when_no_caller() -> None:
     reg = _Reg({})
     mw = CapabilityMatrixMiddleware(reg)
-    tool_a = MagicMock(); tool_a.name = "filesystem__read"
+    tool_a = MagicMock()
+    tool_a.name = "filesystem__read"
     call_next = AsyncMock(return_value=[tool_a])
     ctx = _ctx()
     ctx.fastmcp_context = None  # no caller info
@@ -101,9 +130,12 @@ async def test_on_list_tools_passthrough_when_no_caller() -> None:
 async def test_synthetic_tools_never_filtered() -> None:
     reg = _Reg({"search-agent": []})  # empty allow-list
     mw = CapabilityMatrixMiddleware(reg)
-    sym = MagicMock(); sym.name = "search_tools"
-    call = MagicMock(); call.name = "call_tool"
-    other = MagicMock(); other.name = "filesystem__read"
+    sym = MagicMock()
+    sym.name = "search_tools"
+    call = MagicMock()
+    call.name = "call_tool"
+    other = MagicMock()
+    other.name = "filesystem__read"
     call_next = AsyncMock(return_value=[sym, call, other])
     ctx = _ctx()
     ctx.fastmcp_context = MagicMock()

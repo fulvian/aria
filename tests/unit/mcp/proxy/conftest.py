@@ -1,4 +1,5 @@
 """Shared fixtures for proxy unit tests."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -53,6 +54,7 @@ servers:
 def minimal_mcp_json(tmp_path: Path) -> Path:
     """A JSON file matching the catalog filesystem entry."""
     import json
+
     p = tmp_path / "mcp.json"
     payload: dict[str, Any] = {
         "mcpServers": {

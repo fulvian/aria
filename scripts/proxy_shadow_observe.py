@@ -6,6 +6,7 @@ Uses ARIA_PROXY_DISABLE_BACKENDS to skip real MCP backend startup —
 search_tools operates on tool name/index metadata, not backend data,
 so latency measurements are valid without real backends.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -53,9 +54,7 @@ async def main() -> None:
                         "q": q,
                         "ok": True,
                         "latency_ms": round(latency_ms, 1),
-                        "n_results": (
-                            len(res.content) if hasattr(res, "content") else 0
-                        ),
+                        "n_results": (len(res.content) if hasattr(res, "content") else 0),
                     }
                     f.write(json.dumps(entry) + "\n")
                     print(f"OK  {q:40s} {latency_ms:7.1f}ms")

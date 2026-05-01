@@ -42,10 +42,12 @@ REMOVED_TOOLS: dict[str, str] = {
     "firecrawl": "removed 2026-04-27: all 6 accounts exhausted lifetime credits",
 }
 
-BUILTIN_TOOLS: frozenset[str] = frozenset({
-    "spawn-subagent",
-    "hitl-queue",
-})
+BUILTIN_TOOLS: frozenset[str] = frozenset(
+    {
+        "spawn-subagent",
+        "hitl-queue",
+    }
+)
 
 P0 = "P0"
 P1 = "P1"
@@ -87,9 +89,7 @@ class DriftReport:
         source: str,
         details: str = "",
     ) -> None:
-        self.issues.append(
-            DriftIssue(severity, category, message, source, details)
-        )
+        self.issues.append(DriftIssue(severity, category, message, source, details))
 
     @property
     def by_severity(self) -> dict[str, list[DriftIssue]]:
@@ -263,7 +263,7 @@ def load_router_providers(path: Path) -> list[str]:
             if m:
                 providers.append(m.group(2).lower())
                 continue
-            if re.match(r'^\s*\w+\s*=\s*\(', stripped):
+            if re.match(r"^\s*\w+\s*=\s*\(", stripped):
                 in_multiline = True
             if stripped.startswith("class FailureReason"):
                 break
@@ -371,7 +371,7 @@ def _check_removed_tools(report: DriftReport) -> None:
         except OSError:
             continue
         for tool, reason in REMOVED_TOOLS.items():
-            if re.search(rf'\b{re.escape(tool)}\b', text, re.IGNORECASE):
+            if re.search(rf"\b{re.escape(tool)}\b", text, re.IGNORECASE):
                 report.add(
                     P2,
                     "removed_tool_reference",
@@ -386,7 +386,9 @@ def _check_router_code_consistency(
 ) -> None:
     search_agent = next((a for a in agents if a.name == "search-agent"), None)
     if search_agent is None:
-        report.add(P0, "router_code_mismatch", "search-agent definition not found", str(AGENTS_DIR_PATH))
+        report.add(
+            P0, "router_code_mismatch", "search-agent definition not found", str(AGENTS_DIR_PATH)
+        )
         return
 
     router_providers_raw = load_router_providers(ROUTER_PATH)
@@ -411,7 +413,9 @@ def _check_router_code_consistency(
     agent_providers = {mcp_to_provider.get(s, s) for s in agent_tool_servers}
     skip_router_providers = {"arxiv"}
 
-    missing_in_router = agent_providers - router_providers - {"filesystem", "aria-memory", "markitdown-mcp"}
+    missing_in_router = (
+        agent_providers - router_providers - {"filesystem", "aria-memory", "markitdown-mcp"}
+    )
     for prov in sorted(missing_in_router):
         report.add(
             P1,
@@ -459,7 +463,9 @@ def _print_report(report: DriftReport, mode: str) -> None:
     print(f"\n  {'=' * 68}")
     p1_count = len(by_sev.get(P1, []))
     p2_count = len(by_sev.get(P2, []))
-    print(f"  Summary: {report.total} issue(s) — P0: {report.p0_count}  P1: {p1_count}  P2: {p2_count}")
+    print(
+        f"  Summary: {report.total} issue(s) — P0: {report.p0_count}  P1: {p1_count}  P2: {p2_count}"
+    )
     print(f"  {'=' * 68}")
 
 

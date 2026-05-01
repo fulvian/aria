@@ -27,9 +27,7 @@ BENCHMARK_PATTERN = re.compile(
 BENCHMARK_TAGS = {"benchmark", "test_seed"}
 
 
-async def cleanup_benchmark_entries(
-    store: EpisodicStore, *, dry_run: bool
-) -> dict[str, Any]:
+async def cleanup_benchmark_entries(store: EpisodicStore, *, dry_run: bool) -> dict[str, Any]:
     """Tombstone benchmark entries in the episodic store.
 
     Args:
@@ -53,9 +51,7 @@ async def cleanup_benchmark_entries(
     targets: list[str] = []
     for row in rows:
         tags = json.loads(row["tags"] or "[]")
-        if BENCHMARK_TAGS.intersection(tags) or BENCHMARK_PATTERN.match(
-            row["content"] or ""
-        ):
+        if BENCHMARK_TAGS.intersection(tags) or BENCHMARK_PATTERN.match(row["content"] or ""):
             targets.append(row["id"])
 
     if not dry_run and targets:
@@ -86,9 +82,7 @@ async def _amain(dry_run: bool) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Tombstone benchmark/test rows in episodic.db"
-    )
+    parser = argparse.ArgumentParser(description="Tombstone benchmark/test rows in episodic.db")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
     return asyncio.run(_amain(dry_run=args.dry_run))

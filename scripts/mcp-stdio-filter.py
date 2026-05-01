@@ -14,6 +14,7 @@ Usage:
 Use in wrapper scripts (bash):
     exec uv run /path/to/mcp-stdio-filter.py -- real-server --arg1 --arg2
 """
+
 import json
 import subprocess
 import sys
@@ -26,7 +27,7 @@ def main() -> None:
         sys.exit(1)
 
     idx = sys.argv.index("--")
-    cmd = sys.argv[idx + 1:]
+    cmd = sys.argv[idx + 1 :]
 
     if not cmd:
         print("No command specified.", file=sys.stderr)

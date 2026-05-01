@@ -43,9 +43,19 @@ class TestConductorSubAgentRegistry:
         """Conductor lists search-agent."""
         assert "search-agent" in conductor_text
 
-    def test_workspace_agent_listed(self, conductor_text: str):
-        """Conductor lists workspace-agent."""
+    def test_workspace_agent_listed_as_transitional(self, conductor_text: str):
+        """Conductor lists workspace-agent as transitional/compatibility."""
         assert "workspace-agent" in conductor_text
+        # workspace-agent is transitional
+        transitional_markers = [
+            "COMPATIBILIT",
+            "TRANSITORIO",
+        ]
+        lower_text = conductor_text.lower()
+        assert (
+            any(m in conductor_text or m.lower() in lower_text for m in transitional_markers)
+            or "compatibilità" in lower_text
+        )
 
     def test_dispatch_rules_for_productivity(self, conductor_text: str):
         """Conductor has dispatch rules for productivity-agent."""
@@ -54,6 +64,9 @@ class TestConductorSubAgentRegistry:
         assert "Briefing/documentazione multi-source" in conductor_text
         assert "Preparazione meeting" in conductor_text
         assert "Bozze email" in conductor_text
+        # productivity-agent now handles Google Workspace directly
+        assert "Operazioni Google Workspace" in conductor_text
+        assert "productivity-agent" in conductor_text
 
     def test_capability_matrix_referenced(self, conductor_text: str):
         """Conductor references capability matrix canonical source."""

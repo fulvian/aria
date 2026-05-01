@@ -1,4 +1,5 @@
 """Unit tests for CredentialInjector."""
+
 from __future__ import annotations
 
 import pytest
@@ -65,8 +66,12 @@ def test_inject_all_filters_failures() -> None:
     inj = CredentialInjector(manager=manager)
     ok = _spec({"TAVILY_API_KEY": "${TAVILY_API_KEY}"})
     bad = BackendSpec(
-        name="bad", domain="x", owner_agent="x", transport="stdio",
-        command="bash", args=(),
+        name="bad",
+        domain="x",
+        owner_agent="x",
+        transport="stdio",
+        command="bash",
+        args=(),
         env={"MISSING": "${MISSING}"},
     )
     survived = inj.inject_all([ok, bad], strict=False)
@@ -77,8 +82,12 @@ def test_inject_all_strict_raises() -> None:
     manager = _FakeManager({})
     inj = CredentialInjector(manager=manager)
     bad = BackendSpec(
-        name="bad", domain="x", owner_agent="x", transport="stdio",
-        command="bash", args=(),
+        name="bad",
+        domain="x",
+        owner_agent="x",
+        transport="stdio",
+        command="bash",
+        args=(),
         env={"MISSING": "${MISSING}"},
     )
     with pytest.raises(KeyError):

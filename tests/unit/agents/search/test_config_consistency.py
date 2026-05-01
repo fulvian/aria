@@ -1,10 +1,14 @@
 """Config consistency tests for search-agent.
 
 Verifica che la definizione YAML di search-agent (allowed-tools, mcp-dependencies)
-sia allineata con il router Python (Provider enum, INTENT_TIERS) e con le policy
-documentate nel wiki.
+sia allineata con il modello canonico del proxy.
 
-Questi test garantiscono l'assenza di drift tra config dichiarativa e implementazione.
+Il frontmatter espone solo i tool sintetici del proxy (`aria-mcp-proxy__search_tools`,
+`aria-mcp-proxy__call_tool`) più i tool aria-memory diretti. I backend MCP reali
+(searxng, tavily, exa, etc.) sono gestiti dalla capability matrix YAML
+(`.aria/config/agent_capability_matrix.yaml`), non dal frontmatter.
+
+Questi test garantiscono l'assenza di drift tra il modello canonico e la config.
 """
 
 from __future__ import annotations
@@ -13,8 +17,6 @@ from pathlib import Path
 
 import pytest
 import yaml
-
-from aria.agents.search.router import INTENT_TIERS, Intent, Provider
 
 SEARCH_AGENT_FILE = Path(".aria/kilocode/agents/search-agent.md")
 
@@ -40,46 +42,46 @@ def mcp_deps_set(search_agent_yaml: dict) -> set[str]:
     return set(search_agent_yaml.get("mcp-dependencies", []))
 
 
-class TestSearchAgentExposure:
-    """Search-agent YAML must expose tools for all providers declared in the router."""
+class TestSearchAgentProxyExposure:
+    """Search-agent YAML exposes proxy canonical tools, not backend wildcards."""
 
-    def test_allowed_tools_has_9_entries(self, search_agent_yaml: dict):
-        """search-agent.md declares the current proxy-based wildcard tool set."""
-        tools = search_agent_yaml.get("allowed-tools", [])
-        assert len(tools) == 9, f"Expected 9 allowed-tools, got {len(tools)}"
+    def test_exposes_proxy_search_tools(self, allowed_tools_set: set[str]):
+        """search-agent exposes aria-mcp-proxy__search_tools."""
+        assert "aria-mcp-proxy__search_tools" in allowed_tools_set
 
-    def test_mcp_dependencies_has_2_entries(self, search_agent_yaml: dict):
-        """search-agent.md depends on the proxy plus aria-memory."""
+    def test_exposes_proxy_call_tool(self, allowed_tools_set: set[str]):
+        """search-agent exposes aria-mcp-proxy__call_tool."""
+        assert "aria-mcp-proxy__call_tool" in allowed_tools_set
+
+    def test_exposes_memory_tools(self, allowed_tools_set: set[str]):
+        """search-agent exposes aria-memory tools."""
+        assert "aria-memory__wiki_update_tool" in allowed_tools_set
+        assert "aria-memory__wiki_recall_tool" in allowed_tools_set
+
+    def test_no_backend_wildcards_in_frontmatter(self, allowed_tools_set: set[str]):
+        """Frontmatter does NOT contain backend-specific wildcards (those are in capability matrix)."""
+        backend_wildcards = {
+            "searxng-script__*",
+            "tavily-mcp__*",
+            "exa-script__*",
+            "brave-mcp__*",
+            "reddit-search__*",
+            "scientific-papers-mcp__*",
+        }
+        overlap = backend_wildcards & allowed_tools_set
+        assert overlap == set(), (
+            f"Frontmatter should not contain backend wildcards: {overlap}. "
+            f"Backend access is governed by agent_capability_matrix.yaml."
+        )
+
+
+class TestSearchAgentMcpDeps:
+    """Search-agent depends on proxy + memory."""
+
+    def test_mcp_deps_has_2_entries(self, search_agent_yaml: dict):
+        """search-agent.md depends on proxy plus aria-memory."""
         deps = search_agent_yaml.get("mcp-dependencies", [])
         assert len(deps) == 2, f"Expected 2 mcp-dependencies, got {len(deps)}"
-
-    # --- Provider-level exposure checks ---
-
-    def test_exposes_searxng(self, allowed_tools_set: set[str]):
-        """search-agent exposes searxng via proxy wildcard."""
-        assert "searxng-script__*" in allowed_tools_set
-
-    def test_exposes_tavily(self, allowed_tools_set: set[str]):
-        """search-agent exposes tavily via proxy wildcard."""
-        assert "tavily-mcp__*" in allowed_tools_set
-
-    def test_exposes_exa(self, allowed_tools_set: set[str]):
-        """search-agent exposes exa via proxy wildcard."""
-        assert "exa-script__*" in allowed_tools_set
-
-    def test_exposes_brave(self, allowed_tools_set: set[str]):
-        """search-agent exposes brave via proxy wildcard."""
-        assert "brave-mcp__*" in allowed_tools_set
-
-    def test_exposes_reddit(self, allowed_tools_set: set[str]):
-        """search-agent exposes reddit via proxy wildcard."""
-        assert "reddit-search__*" in allowed_tools_set
-
-    def test_exposes_scientific_papers(self, allowed_tools_set: set[str]):
-        """search-agent exposes scientific-papers via proxy wildcard."""
-        assert "scientific-papers-mcp__*" in allowed_tools_set
-
-    # --- MCP dependencies checks ---
 
     def test_mcp_deps_proxy(self, mcp_deps_set: set[str]):
         """mcp-dependencies includes the shared proxy."""
@@ -89,63 +91,14 @@ class TestSearchAgentExposure:
         """mcp-dependencies includes aria-memory."""
         assert "aria-memory" in mcp_deps_set
 
-    # --- Router-to-YAML alignment ---
 
-    def test_every_router_provider_has_tools(self, allowed_tools_set: set[str]):
-        """Every non-trivially-named provider in INTENT_TIERS has a corresponding tool entry.
+class TestSearchAgentRequiredSkills:
+    """search-agent required-skills should reference existing skills only."""
 
-        Some providers (FETCH, WEBFETCH) don't have MCP tools in allowed-tools
-        because they use implicit tools (fetch/fetch). This test checks that
-        providers with MCP backends are all exposed.
-        """
-        provider_to_mcp_key = {
-            "searxng": "searxng-script",
-            "tavily": "tavily-mcp",
-            "exa": "exa-script",
-            "brave": "brave-mcp",
-            "reddit": "reddit-search",
-            "scientific_papers": "scientific-papers-mcp",
-        }
-        known_implicit = {"fetch", "webfetch"}
-
-        all_providers: set[str] = set()
-        for intent in Intent:
-            tiers = INTENT_TIERS.get(intent)
-            if tiers:
-                for p in tiers:
-                    all_providers.add(p.value)
-
-        for p_name in all_providers:
-            if p_name in known_implicit:
-                continue
-            mcp_key = provider_to_mcp_key.get(p_name)
-            assert mcp_key is not None, f"No MCP key mapping for provider '{p_name}'"
-            has_tool = f"{mcp_key}__*" in allowed_tools_set
-            assert has_tool, (
-                f"Provider '{p_name}' (MCP key: {mcp_key}) declared in INTENT_TIERS "
-                f"but no wildcard '{mcp_key}__*' in search-agent.md allowed-tools"
-            )
-
-    def test_every_router_provider_in_mcp_deps(self, mcp_deps_set: set[str]):
-        """Proxy-based routing keeps provider-specific backends behind aria-mcp-proxy."""
-        assert mcp_deps_set == {"aria-mcp-proxy", "aria-memory"}
-
-
-class TestRouterAcademicExposure:
-    """Router must include SCIENTIFIC_PAPERS in ACADEMIC tiers (pubmed removed)."""
-
-    def test_academic_tiers_include_scientific_papers(self):
-        """ACADEMIC INTENT_TIERS includes Provider.SCIENTIFIC_PAPERS."""
-        assert Provider.SCIENTIFIC_PAPERS in INTENT_TIERS[Intent.ACADEMIC]
-
-    def test_pubmed_string_not_in_academic_tiers(self):
-        """'pubmed' is NOT in ACADEMIC tiers anymore (removed 2026-04-30)."""
-        tier_values = [p.value for p in INTENT_TIERS[Intent.ACADEMIC]]
-        assert "pubmed" not in tier_values
-
-    def test_scientific_papers_is_tier_2_in_academic(self):
-        """SCIENTIFIC_PAPERS is at position 2 (index 2) in ACADEMIC tier list."""
-        tiers = INTENT_TIERS[Intent.ACADEMIC]
-        assert tiers[2] == Provider.SCIENTIFIC_PAPERS, (
-            f"Expected SCIENTIFIC_PAPERS at position 2, got {tiers[2]}"
-        )
+    def test_required_skills_exist(self, search_agent_yaml: dict):
+        """All required-skills reference existing skill directories."""
+        required_skills = search_agent_yaml.get("required-skills", [])
+        skills_dir = Path(".aria/kilocode/skills")
+        for skill_name in required_skills:
+            skill_path = skills_dir / skill_name / "SKILL.md"
+            assert skill_path.exists(), f"Required skill '{skill_name}' not found at {skill_path}"

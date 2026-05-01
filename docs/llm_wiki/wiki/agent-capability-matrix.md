@@ -1,27 +1,65 @@
 # Agent Capability Matrix
 
 **Status**: Active ✅  
-**Source**: `docs/foundation/agent-capability-matrix.md` (canonical)  
-**Created**: 2026-04-29
+**Updated**: 2026-05-01T18:38+02:00  
+**Source**: `docs/foundation/agent-capability-matrix.md` (canonical), `.aria/config/agent_capability_matrix.yaml`, `.aria/kilocode/agents/*.md`
 
 ## Purpose
 
-Wiki mirror della capability matrix canonica. Il canonical source è
-`docs/foundation/agent-capability-matrix.md`; questa pagina è un mirror
-aggiornato per il LLM Wiki.
+Wiki mirror of the active capability model. The canonical governance sources are:
+- `docs/foundation/agent-capability-matrix.md`
+- `.aria/config/agent_capability_matrix.yaml`
 
-## Capability Matrix
+This page summarizes the **post-proxy-remediation** model, where:
+- prompts expose proxy synthetic tools,
+- the capability matrix governs backend reachability,
+- `productivity-agent` is the unified work-domain agent,
+- `workspace-agent` is transitional.
 
-| Agent | Type | Allowed Tools | MCP Dependencies | Delegation Targets | HITL Required |
-|-------|------|--------------|------------------|-------------------|---------------|
-| **aria-conductor** | primary (orchestrator) | 12 | `aria-memory` | search-agent, workspace-agent, productivity-agent | Su decisioni distruttive/costose |
-| **search-agent** | subagent (research) | 23 | `tavily-mcp, brave-mcp, exa-script, searxng-script, reddit-search, scientific-papers-mcp` | Nessuna (leaf agent) | No |
-| **workspace-agent** | subagent (productivity) | 8 | `google_workspace` | Nessuna (leaf agent) | Su write Gmail/Drive |
-| **productivity-agent** | subagent (productivity) | 11 | `markitdown-mcp, aria-memory, filesystem` | workspace-agent (2-hop) | Su write wiki immutable, send mail |
+## Effective matrix snapshot (2026-05-01)
 
-## Handoff Protocol
+| Agent | Type | Prompt surface | Effective backend/policy reach | Delegation Targets | HITL Required |
+|-------|------|----------------|--------------------------------|-------------------|---------------|
+| **aria-conductor** | primary | memory + sequential-thinking + spawn | no direct operational backend usage | `search-agent`, `workspace-agent`, `productivity-agent` | destructive/costly/oauth-sensitive decisions |
+| **search-agent** | subagent (research) | proxy synthetic tools + memory | search-domain backends only | none | no |
+| **workspace-agent** | subagent (compatibility) | proxy synthetic tools + memory + hitl | `google_workspace__*` only | none | yes on side effects |
+| **productivity-agent** | subagent (work domain) | proxy synthetic tools + memory + hitl + sequential-thinking + spawn | `markitdown-mcp__*`, `filesystem__*`, `google_workspace__*`, `fetch__*` | `workspace-agent` (compatibility fallback only) | yes on side effects |
 
-Payload minimo per `spawn-subagent`:
+## Important interpretation changes
+
+### 1. Prompt surface ≠ backend reachability
+Prompts now advertise a narrow synthetic proxy surface. Backend access is resolved
+through:
+1. `_caller_id`
+2. proxy middleware
+3. capability matrix
+
+### 2. Shared backend access is now allowed
+A backend can be reachable by more than one agent when domains are adjacent and
+policy-scoped. This is the architectural change that enabled direct Google
+Workspace access for `productivity-agent`.
+
+### 3. Search stays separate
+The convergence does **not** flatten ARIA into one generalist agent. The search
+boundary remains distinct because it is a genuinely separate domain with its own
+provider ladder and grounding rules.
+
+## Routing policy snapshot
+
+| Condition | Primary agent | Notes |
+|------------|---------------|------|
+| Ricerca informazioni online | `search-agent` | research-domain, proxy canonical model |
+| File office locali | `productivity-agent` | office-ingest / markitdown path |
+| Briefing multi-documento | `productivity-agent` | consultancy-brief |
+| Preparazione meeting | `productivity-agent` | may combine calendar + local/Drive context |
+| Bozze email | `productivity-agent` | direct GW reach via proxy |
+| Gmail/Calendar/Drive read/write | `productivity-agent` | `workspace-agent` only as compatibility fallback |
+| Task misti (file → email / file → calendar / drive → brief) | `productivity-agent` | no default 2-hop required anymore |
+| Analisi + report | `search-agent` → `productivity-agent` | domain chain still valid |
+
+## Handoff protocol
+
+Minimal payload for `spawn-subagent` remains:
 
 ```json
 {
@@ -33,19 +71,9 @@ Payload minimo per `spawn-subagent`:
 }
 ```
 
-Vedi `docs/foundation/agent-capability-matrix.md` §2 per dettagli ed esempi.
+## Residual transition state
 
-## Routing Policy
-
-| Condizione | Agente primario | Note |
-|------------|-----------------|------|
-| Ricerca informazioni online | search-agent | Intent classification automatica |
-| File office locali | productivity-agent | markitdown-mcp |
-| Briefing multi-documento | productivity-agent | consultancy-brief skill |
-| Preparazione meeting | productivity-agent | meeting-prep skill |
-| Bozze email | productivity-agent | email-draft skill |
-| Gmail/Calendar/Drive | workspace-agent | OAuth richiesto |
-| Task misti (file→email) | productivity-agent → workspace-agent | 2-hop delega |
-| Analisi + report | search-agent → productivity-agent | Chain 2-hop |
-
-Vedi `docs/foundation/agent-capability-matrix.md` §3 per dettagli completi.
+- `workspace-agent` still exists because compatibility cleanup is not yet fully complete.
+- `productivity-agent` still lists `workspace-agent` as delegation target in the
+  YAML for a transitional fallback path.
+- Long-term target remains: `productivity-agent` as the only canonical work-domain agent.

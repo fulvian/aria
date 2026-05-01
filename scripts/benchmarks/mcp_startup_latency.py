@@ -61,6 +61,7 @@ ALL_SERVERS.update(PRODUCTIVITY_SERVERS)
 
 # ─── Data structures ─────────────────────────────────────────────────────────
 
+
 @dataclass
 class ServerResult:
     name: str
@@ -88,6 +89,7 @@ class BenchmarkReport:
 
 
 # ─── MCP JSON-RPC helpers ────────────────────────────────────────────────────
+
 
 def _mcp_initialize() -> bytes:
     """Build a JSON-RPC initialize request."""
@@ -177,6 +179,7 @@ def _try_kill(proc: subprocess.Popen[bytes] | None) -> None:
 
 # ─── Benchmark runner ────────────────────────────────────────────────────────
 
+
 def _is_tool_available(name: str) -> bool:
     """Check if a CLI tool is available in PATH."""
     return shutil.which(name) is not None
@@ -195,7 +198,11 @@ def benchmark_server(
 
     # Check if the command's primary tool is available
     primary_tool = cmd[0]
-    if not skip_checks and not _is_tool_available(primary_tool) and not primary_tool.endswith(".sh"):
+    if (
+        not skip_checks
+        and not _is_tool_available(primary_tool)
+        and not primary_tool.endswith(".sh")
+    ):
         # For shell wrappers, check if bash is available
         if not _is_tool_available("bash"):
             result.skipped = True
@@ -211,7 +218,9 @@ def benchmark_server(
         "MCP_LOG_LEVEL": "error",
     }
     # Environment vars for wrappers
-    env["SOPS_AGE_KEY_FILE"] = os.environ.get("SOPS_AGE_KEY_FILE", str(Path.home() / ".config/sops/age/keys.txt"))
+    env["SOPS_AGE_KEY_FILE"] = os.environ.get(
+        "SOPS_AGE_KEY_FILE", str(Path.home() / ".config/sops/age/keys.txt")
+    )
 
     try:
         # ─── COLD START ───
@@ -294,6 +303,7 @@ def benchmark_server(
 
 # ─── Report ──────────────────────────────────────────────────────────────────
 
+
 def _print_markdown(report: BenchmarkReport) -> None:
     """Print benchmark report as markdown table."""
     print()
@@ -313,11 +323,7 @@ def _print_markdown(report: BenchmarkReport) -> None:
         warm = f"{r.warm_start_ms:.0f}" if r.warm_start_ms is not None else "—"
         tlist = f"{r.tools_list_ms:.1f}" if r.tools_list_ms is not None else "—"
         tools = str(r.tool_count) if r.tool_count > 0 else "—"
-        status = (
-            "⏭️ SKIP" if r.skipped else
-            "❌ ERROR" if r.error else
-            "✅"
-        )
+        status = "⏭️ SKIP" if r.skipped else "❌ ERROR" if r.error else "✅"
         print(f"| `{r.name}` | {r.domain} | {cold} | {warm} | {tlist} | {tools} | {status} |")
 
     print()
@@ -335,11 +341,11 @@ def _print_markdown(report: BenchmarkReport) -> None:
     cold_vals = [r.cold_start_ms for r in succeeded if r.cold_start_ms is not None]
     warm_vals = [r.warm_start_ms for r in succeeded if r.warm_start_ms is not None]
     if cold_vals:
-        print(f"- **Total cold start**: {sum(cold_vals):.0f}ms ({sum(cold_vals)/1000:.1f}s)")
-        print(f"- **Avg cold start**: {sum(cold_vals)/len(cold_vals):.0f}ms")
+        print(f"- **Total cold start**: {sum(cold_vals):.0f}ms ({sum(cold_vals) / 1000:.1f}s)")
+        print(f"- **Avg cold start**: {sum(cold_vals) / len(cold_vals):.0f}ms")
     if warm_vals:
-        print(f"- **Total warm start**: {sum(warm_vals):.0f}ms ({sum(warm_vals)/1000:.1f}s)")
-        print(f"- **Avg warm start**: {sum(warm_vals)/len(warm_vals):.0f}ms")
+        print(f"- **Total warm start**: {sum(warm_vals):.0f}ms ({sum(warm_vals) / 1000:.1f}s)")
+        print(f"- **Avg warm start**: {sum(warm_vals) / len(warm_vals):.0f}ms")
     if succeeded:
         tools_total = sum(r.tool_count for r in succeeded)
         print(f"- **Total tools exposed**: {tools_total}")
@@ -382,6 +388,7 @@ def _print_json(report: BenchmarkReport) -> None:
 
 # ─── Main ────────────────────────────────────────────────────────────────────
 
+
 def main() -> None:
     search_only = "--search-only" in sys.argv
     output_json = "--json" in sys.argv
@@ -394,13 +401,15 @@ def main() -> None:
     report = BenchmarkReport()
 
     print("ARIA MCP Startup Latency Benchmark")
-    print(f"{'='*50}")
+    print(f"{'=' * 50}")
     print(f"Servers to test: {len(servers)} ({', '.join(servers.keys())})")
     print()
 
     for name, cmd in servers.items():
-        domain = "core" if name in CORE_SERVERS else (
-            "search" if name in SEARCH_SERVERS else "productivity"
+        domain = (
+            "core"
+            if name in CORE_SERVERS
+            else ("search" if name in SEARCH_SERVERS else "productivity")
         )
         r = benchmark_server(name, cmd, domain)
         report.add(r)

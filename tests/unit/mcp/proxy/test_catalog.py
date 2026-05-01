@@ -1,4 +1,5 @@
 """Unit tests for the catalog → mcpServers loader."""
+
 from __future__ import annotations
 
 from pathlib import Path

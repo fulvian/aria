@@ -163,8 +163,17 @@ Per aggiungere una capability:
 
 **È vietato** aggiungere uno script Python se un MCP maturo copre il caso, ed è vietato aggiungere un MCP se una skill può ottenere lo stesso risultato componendo tool esistenti.
 
-### P9 — Scoped Toolsets
-Nessun sub-agente **PUÒ** avere accesso simultaneo a più di **20 tool MCP**. I toolset sono scoped per sub-agente via config dichiarativo. Il Workspace-Agent non vede il Search-Agent toolset e viceversa.
+### P9 — Scoped Active Capabilities
+Nessun sub-agente **PUÒ** avere accesso simultaneo a più di **20 capability/tool MCP attivi** per task o sessione. Lo scope è definito via config dichiarativo e applicato dal policy/proxy layer.
+
+Un MCP **PUÒ** essere condiviso tra più sub-agenti quando appartiene allo stesso dominio di lavoro o a workflow fortemente adiacenti, purché siano rispettati tutti i seguenti vincoli:
+- least privilege per agente;
+- enforcement runtime con identità del caller;
+- split read/write dove applicabile;
+- audit trail completo;
+- gate HITL per azioni distruttive, costose o esterne non idempotenti.
+
+La separazione tra sub-agenti resta obbligatoria quando i domini sono realmente distinti o quando la condivisione aumenterebbe in modo non giustificato il rischio operativo.
 
 ### P10 — Self-Documenting Evolution
 Ogni divergenza implementativa rispetto al blueprint **DEVE** essere registrata via ADR (§17). La skill `blueprint-keeper` scansiona settimanalmente e propone PR di allineamento. Drift silenzioso è vietato.
@@ -1056,13 +1065,21 @@ Orchestri provider multipli con rotation intelligente. Vedi §11 per la policy m
 
 **File**: `.aria/kilocode/agents/workspace-agent.md`
 
-#### 8.3.3 Productivity-Agent (ADR-0008)
+Agente **transitorio/compatibility-only**. Dopo l'introduzione del proxy MCP
+con capability scoping, il dominio operativo principale per Gmail/Calendar/
+Drive/Docs converge su `productivity-agent`. `workspace-agent` può restare
+temporaneamente come compatibilità o fallback per flussi legacy, ma non è più il
+target architetturale di lungo periodo.
+
+#### 8.3.3 Productivity-Agent (ADR-0008, amended)
 
 **File**: `.aria/kilocode/agents/productivity-agent.md`
 
-Introdotto da ADR-0008 come 3° sub-agente operativo (MVP Sprint 1).
+Introdotto da ADR-0008 come 3° sub-agente operativo (MVP Sprint 1), poi
+ampliato come agente unificato del dominio lavoro.
 Specializzato in workflow consulente: ingestion office files locali,
-briefing multi-documento, meeting prep da calendario.
+briefing multi-documento, meeting prep da calendario, email drafting e
+operazioni Google Workspace governate da policy.
 
 ```markdown
 ---
@@ -1101,7 +1118,8 @@ Workflow consulente: leggi/sintetizza file office locali (PDF/DOCX/XLSX/PPTX/TXT
 componi briefing multi-documento, prepara meeting da eventi calendario.
 
 ## Boundary
-- NON tocca direttamente Gmail/Calendar/Drive — delega a `workspace-agent` via spawn-subagent.
+- Può accedere direttamente (via proxy + policy) a Gmail/Calendar/Drive/Docs/Sheets.
+- Le operazioni write o esterne non idempotenti restano soggette a HITL.
 - NON crea documenti DOCX/PPTX/XLSX in locale.
 ```
 
@@ -1155,8 +1173,8 @@ Invisibili all'utente, invocati in automatico dai flussi interni.
 |--------------------|:-----------:|:----------:|:------:|:---------:|:-----:|:---:|:-------:|:--------:|:----------:|:----------:|:---:|:------:|
 | aria-conductor     | ✅          |            |        |           |       |     |         |          |            |            |     |        |
 | search-agent       | ✅          |            | ✅     | ✅        | ✅    | ✅  | ✅      |          | ✅ @fase2  |            |     |        |
-| workspace-agent    | ✅          |            |        |           |       |     |         | ✅       |            |            |     |        |
-| productivity-agent | ✅          | ✅         |        |           |       |     |         | ⬜ delega |            | ✅ ro      |     |        |
+| workspace-agent    | ✅          |            |        |           |       |     |         | ✅ transitional |            |            |     |        |
+| productivity-agent | ✅          | ✅         |        |           |       |     |         | ✅ policy-scoped |            | ✅ ro/rw via policy |     |        |
 | compaction-agent   | ✅          |            |        |           |       |     |         |          |            |            |     |        |
 | summary-agent      | ✅          |            |        |           |       |     |         |          |            |            |     |        |
 | memory-curator     | ✅          |            |        |           |       |     |         |          |            |            |     |        |
@@ -1314,7 +1332,7 @@ Quando serve una nuova capability:
 
 ### 10.2 Scoped toolsets per sub-agente (MVP)
 
-In KiloCode, ogni agent definisce `allowed-tools` (lista esplicita di `server/tool_name` con wildcard). Il Conductor può leggere la matrice §8.5 per scoprire chi fa cosa ma **non può chiamare direttamente** i tool dei sub-agenti: deve delegare.
+In KiloCode, ogni agent definisce `allowed-tools` e/o capability baseline. Il control plane proxy/policy restringe ulteriormente i tool **attivi** per task/sessione. Il Conductor può leggere la matrice §8.5 per scoprire chi fa cosa ma **non può chiamare direttamente** i tool dei sub-agenti: deve delegare.
 
 ### 10.3 MCP server inclusi in MVP
 

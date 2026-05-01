@@ -1,69 +1,104 @@
 # MCP Architecture
 
-**Last Updated**: 2026-04-29  
-**Status**: Active — rollback-first refoundation direction documented in v2  
-**Primary sources**: `.aria/kilocode/mcp.json`, `docs/plans/gestione_mcp_refoundation_plan.md`, `docs/plans/gestione_mcp_refoundation_plan_v2.md`, `docs/analysis/analisi_sostenibilita_mcp_report.md`
+**Last Updated**: 2026-05-01T18:36+02:00  
+**Status**: Active ✅ — proxy-native architecture is now the runtime baseline  
+**Primary sources**: `.aria/kilocode/mcp.json`, `.aria/config/mcp_catalog.yaml`, `.aria/config/agent_capability_matrix.yaml`, `src/aria/mcp/proxy/`, `docs/foundation/aria_foundation_blueprint.md`, `docs/foundation/decisions/ADR-0015-fastmcp-native-proxy.md`
 
 ## Current state
 
-ARIA currently uses a predominantly flat MCP registry defined in `.aria/kilocode/mcp.json` and mirrored into the isolated runtime under `.aria/kilo-home/.kilo/` by `bin/aria`.
+ARIA no longer runs a flat many-server MCP runtime inside KiloCode. The active
+runtime baseline is now:
 
-### Inventory observed on 2026-04-29
-- Configured servers: 16
-- Enabled servers: 15
-- Domains present: core, search, workspace, productivity, experimental
+- `aria-memory` as a dedicated MCP server
+- `aria-mcp-proxy` as the single MCP aggregation/search/execution surface for the
+  rest of the tool ecosystem
 
-### Structural properties
-- Core orchestration remains delegated: conductor does not directly use search/workspace tools.
-- Tool access is scoped via `allowed-tools` and `mcp-dependencies`.
-- Runtime still depends on per-server stdio/wrapper processes.
-- No canonical MCP catalog, no schema registry, and no gateway layer are currently active.
+### Inventory observed on 2026-05-01
+- Runtime entries in `.aria/kilocode/mcp.json`: **2**
+- Catalog-governed backend inventory: **14 servers**
+- Live architectural split:
+  - **out of proxy**: `aria-memory`
+  - **behind proxy**: search, productivity, system backends from the catalog
 
-## Key issues
+## Structural properties
 
-1. **Inventory drift**: sustainability analysis references 12 servers, live config has 16.
-2. **Exposure drift**: some configured search servers are not consistently exposed in `search-agent` declarations.
-3. **Config duplication**: source config and isolated runtime copy can drift.
-4. **Flat governance**: no explicit domain/tier/lifecycle metadata in config.
-5. **No schema snapshots**: `tools/list` drift is not tracked.
+- Core orchestration remains delegated: conductor still does not directly use
+  search/workspace/productivity operational tools.
+- Tool access is now governed in two layers:
+  1. prompt/frontmatter baseline exposure
+  2. proxy runtime enforcement via capability matrix + `_caller_id`
+- Runtime still depends on stdio/wrapper processes for backend servers, but Kilo
+  itself now sees a compressed MCP surface.
+- MCP governance is now catalog-driven and policy-aware.
 
-## Recommended direction
+## What changed from the refoundation era
 
-The working direction is now split across:
+### Before
+- Flat MCP exposure with many server entries visible to KiloCode
+- Tool ownership effectively coupled to agent boundaries
+- Greater prompt drift risk because backend tool names leaked into prompts/skills
 
-- `docs/plans/gestione_mcp_refoundation_plan.md` — governance/scaling v1
-- `docs/plans/gestione_mcp_refoundation_plan_v2.md` — rollback-first hardening and cutover discipline
+### After
+- Proxy-native surface with synthetic `search_tools` / `call_tool`
+- Capability matrix decides which backend operations each agent may reach
+- Agent boundaries can now be driven by workflow/domain cohesion rather than hard
+  MCP exclusivity
 
-The recommended order is:
+## Architecture snapshot
 
-1. baseline authority;
-2. rollback invariants;
-3. drift elimination;
-4. measured optimization;
-5. selective gatewaying.
+```text
+KiloCode
+ ├─ aria-memory            (direct MCP dependency)
+ └─ aria-mcp-proxy         (synthetic surface)
+      ├─ search_tools
+      └─ call_tool
+           └─ catalog-selected backend MCP servers
+```
 
-### Baseline / candidate / fallback path
-- **Baseline**: the current direct MCP path is treated as last-known-good and must remain runnable.
-- **Candidate**: new catalog-driven, lazy, or gateway-based paths can be enabled only behind explicit gates.
-- **Fallback path**: any new path must preserve direct bypass to the existing provider/tool chain.
+## Governance model
 
-### Immediate priorities
-- Freeze the current architecture as explicit LKG baseline.
-- Introduce a canonical MCP catalog.
-- Align config, prompts, agent exposure, and wiki.
-- Add drift checks and schema snapshots.
-- Measure startup/context/process baselines before adopting lazy loading or a gateway.
-- Keep rollback in the config plane; avoid state migrations in `.aria/runtime` and `.aria/credentials`.
+### Prompt/frontmatter layer
+- `search-agent` and `productivity-agent` expose only:
+  - `aria-mcp-proxy__search_tools`
+  - `aria-mcp-proxy__call_tool`
+  - direct non-proxy tools they truly need (memory, sequential-thinking, spawn)
+- `workspace-agent` follows the same contract but is transitional.
 
-### Deferred priorities
-- Tool search / lazy loading, only after capability probe and metadata cleanup.
-- Search-domain gateway PoC, only if metrics justify it and bypass remains hard-wired.
-- Code execution pattern, deferred to later ADR/R&D.
+### Policy layer
+- `.aria/config/agent_capability_matrix.yaml` is the effective source of truth for
+  which backend families an agent can call.
+- `productivity-agent` now includes `google_workspace__*`.
+- `search-agent` remains isolated to search-domain providers.
+
+### Enforcement layer
+- Missing caller identity on non-synthetic proxy calls is denied.
+- Backend boot filtering may narrow loaded servers when `ARIA_CALLER_ID` is set.
+- Legacy and runtime naming forms are normalized by middleware/registry helpers.
+
+## Architectural consequence for agent boundaries
+
+The architecture no longer assumes “one MCP belongs to one agent.” Instead:
+
+- shared MCP access is allowed when domains are adjacent,
+- active capabilities remain scoped per task/session,
+- least privilege, HITL, and auditability remain mandatory.
+
+This is the control-plane change that allowed convergence of Google Workspace
+operations into `productivity-agent` while keeping `search-agent` separate.
+
+## Known residual edges
+
+1. `workspace-agent` still exists as compatibility-only prompt surface.
+2. `ARIA_CALLER_ID` is still relevant for boot-time filtering, while `_caller_id`
+   is the primary per-request enforcement mechanism.
+3. Some historical wiki pages still describe pre-proxy or pre-convergence states
+   and should be read through the lens of `mcp-proxy.md` and this page.
 
 ## Provenance
-- Source: `.aria/kilocode/mcp.json` (read 2026-04-29)
-- Source: `docs/plans/gestione_mcp_refoundation_plan.md` (created 2026-04-29)
-- Source: `docs/plans/gestione_mcp_refoundation_plan_v2.md` (created 2026-04-29)
-- Source: `docs/analysis/analisi_sostenibilita_mcp_report.md` (updated 2026-04-29)
-- Source: Context7 `/metatool-ai/metamcp`, `/lastmile-ai/mcp-agent`, `/modelcontextprotocol/modelcontextprotocol` (queried 2026-04-29)
-- Source: Anthropic Engineering and Cloudflare enterprise MCP articles (queried 2026-04-29)
+
+- Source: `.aria/kilocode/mcp.json` (read 2026-05-01)
+- Source: `.aria/config/mcp_catalog.yaml` (proxy backend source of truth)
+- Source: `.aria/config/agent_capability_matrix.yaml` (read 2026-05-01)
+- Source: `src/aria/mcp/proxy/` (read 2026-05-01)
+- Source: `docs/foundation/aria_foundation_blueprint.md` (updated 2026-05-01)
+- Source: ADR-0015 + ADR-0008 amendment (read 2026-05-01)

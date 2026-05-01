@@ -1,4 +1,5 @@
 """Unit tests for LMStudioEmbedder using respx mocks."""
+
 from __future__ import annotations
 
 import httpx

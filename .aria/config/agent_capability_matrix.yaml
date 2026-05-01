@@ -75,6 +75,7 @@ agents:
     allowed_tools:
       - markitdown-mcp__*
       - filesystem__*
+      - google_workspace__*
       - aria-memory__wiki_update_tool
       - aria-memory__wiki_recall_tool
       - aria-memory__wiki_show_tool
