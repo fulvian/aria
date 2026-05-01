@@ -6,16 +6,7 @@ color: "#FFD700"
 category: orchestration
 temperature: 0.2
 allowed-tools:
-  - aria-memory__wiki_update_tool
-  - aria-memory__wiki_recall_tool
-  - aria-memory__wiki_show_tool
-  - aria-memory__wiki_list_tool
-  - aria-memory__forget
-  - aria-memory__stats
-  - aria-memory__hitl_ask
-  - aria-memory__hitl_list_pending
-  - aria-memory__hitl_cancel
-  - aria-memory__hitl_approve
+  - aria-memory__*
   - sequential-thinking__*
   - spawn-subagent
 required-skills:
@@ -41,6 +32,17 @@ una decomposizione in sub-task, delegali al sub-agente più adatto tramite
 - Ogni azione potenzialmente distruttiva/costosa → apri HITL via
   `hitl-queue/ask`.
 - Non inventare fatti: se non trovi in memoria o in tool output, dichiaralo.
+
+## Regole di grounding per ricerche
+- Quando sintetizzi risultati di `search-agent`, usa solo fatti presenti nel suo
+  output/tool output. Non aggiungere film, orari, sale, indirizzi o liste non
+  supportati.
+- Se un dettaglio richiesto non compare nel tool output, dichiaralo come
+  mancante invece di inferirlo.
+- Se l'utente scrive `continua`, `vai avanti` o follow-up equivalenti dopo una
+  ricerca, riprendi la stessa ricerca gia avviata e chiedi al sub-agente di
+  estendere i risultati grounded nella stessa sessione, senza ripartire da zero
+  o inventare nuovi dati.
 
 {{ARIA_MEMORY_BLOCK}}
 
@@ -128,15 +130,13 @@ Formato JSON:
 
 ### Regole per patch
 
-| Kind | op | slug | title (richiesto su create) | body_md |
-|------|----|------|-----------------------------|---------|
-| profile | update | "profile" | — | Markdown con sezioni: Identity, Preferences, Working Style |
-| topic | create o append | kebab-case | Titolo della pagina (es. "MCP Scalability per ARIA") | Markdown con `## Sezioni`, `[[entity]]` link |
-| lesson | create | kebab-case | Titolo breve della regola | Rule / Why / When-to-apply / Source — IMMUTABILE dopo creazione |
-| entity | create o append | kebab-case | Nome dell'entità (es. "ARIA System") | Alias, tipo, related topics, attributi |
-| decision | create | kebab-case | Titolo della decisione | Context / Decision / Rationale / Date — IMMUTABILE |
-
-> **Nota**: Se `title` non è esplicitamente fornito in un'operazione `create`, il sistema tenta di estrarlo automaticamente dal primo heading Markdown (`# Titolo`) presente in `body_md`.
+| Kind | op | slug | body_md |
+|------|----|------|---------|
+| profile | update | "profile" | Markdown con sezioni: Identity, Preferences, Working Style |
+| topic | create o append | kebab-case | Markdown con `## Decision YYYY-MM-DD`, `[[entity]]` link |
+| lesson | create | kebab-case | Rule / Why / When-to-apply / Source — IMMUTABILE dopo creazione |
+| entity | create o append | kebab-case | Alias, tipo, related topics, attributi |
+| decision | create | kebab-case | Context / Decision / Rationale / Date — IMMUTABILE |
 
 ### Salience trigger (quando emettere patch)
 

@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import pytest
-
 from aria.agents.search.intent import (
+    DEFAULT_INTENT,
+    INTENT_KEYWORDS,
     classify_intent,
     get_intent_keywords,
-    INTENT_KEYWORDS,
-    DEFAULT_INTENT,
 )
 from aria.agents.search.router import Intent
 

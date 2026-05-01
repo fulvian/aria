@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-import sys, os, time, threading
+import os
+import sys
+import threading
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -8,8 +11,9 @@ os.environ["GOOGLE_OAUTH_CLIENT_ID"] = (
     "PLACEHOLDER_CLIENT_ID_OLD"
 )
 
-from http.server import HTTPServer, BaseHTTPRequestHandler
-from oauth_first_setup import generate_code_verifier, generate_code_challenge
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+from oauth_first_setup import generate_code_challenge, generate_code_verifier
 
 
 class H(BaseHTTPRequestHandler):

@@ -85,7 +85,7 @@ class TestConductorYamlConfig:
 
     def test_allows_sequential_thinking(self, conductor_yaml: dict):
         """Conductor has sequential-thinking in allowed-tools."""
-        assert "sequential-thinking/*" in conductor_yaml.get("allowed-tools", [])
+        assert "sequential-thinking__*" in conductor_yaml.get("allowed-tools", [])
 
     def test_required_skills(self, conductor_yaml: dict):
         """Conductor has required-skills: planning-with-files, hitl-queue."""

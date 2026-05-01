@@ -1,8 +1,6 @@
 """Integration: spawn the proxy via stdio and exercise the synthetic tools."""
 from __future__ import annotations
 
-import os
-
 import pytest
 from fastmcp import Client
 

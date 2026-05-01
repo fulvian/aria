@@ -1,5 +1,40 @@
 # Implementation Log
 
+## 2026-05-01T12:09+02:00 — FIX: baseline quality-gate cleanup after proxy cutover
+
+**Operation**: FIX  
+**Branch**: `feat/mcp-tool-search-proxy`  
+**Trigger**: repo-wide quality gates were failing on pre-existing issues outside the focused runtime fix: pytest collection/import collisions, stale launcher export, `croniter` mypy stubs, and broad test/script Ruff noise.
+
+### Fix applicati
+
+- **Pytest collection/import**
+  - Added package markers: `tests/__init__.py`, `tests/e2e/__init__.py`, `tests/unit/mcp/__init__.py`, `tests/integration/mcp/__init__.py`, `tests/e2e/mcp/__init__.py`
+  - Added `tests/conftest.py` to prepend the repo root so `scripts.*` imports resolve under pytest console-script execution
+  - Updated stale prompt-config tests to assert proxy-era wildcard tool exposure (`server__*`) and proxy-based MCP dependencies
+- **Mypy**
+  - Replaced the broken `src/aria/launcher/__init__.py` lazy-loader re-export with an empty importable package stub
+  - Added narrow `tool.mypy.overrides` coverage for `croniter`
+- **Ruff**
+  - Applied safe `ruff check --fix`
+  - Added missing `typing.Any` imports in wiki tests where names were actually undefined
+  - Added scoped `per-file-ignores` for test-only annotation/type-check/style noise and standalone script lint noise, keeping production `src/` checks strict
+
+### Quality gates
+
+```text
+ruff check .        → All checks passed
+uv run mypy src     → Success: no issues found in 90 source files
+uv run pytest -q    → 677 passed, 23 skipped, 3 warnings
+```
+
+### Residual notes
+
+- `pytest` still emits 3 `PytestUnhandledThreadExceptionWarning` warnings from `aiosqlite` worker-thread shutdown in memory tests.
+- Those warnings are non-failing and were left unchanged because the request was to fix gate failures with minimal repo churn.
+
+---
+
 ## 2026-04-30T15:51+02:00 — FIX: wiki_update_tool title field BUG (P0+P1+P2)
 
 **Operation**: DEBUG + FIX
@@ -3036,6 +3071,96 @@ pytest unit + integration → 38 passed ✅
 - `tests/integration/mcp/proxy/` (4 files: 3 test modules + conftest)
 - `.aria/config/proxy.yaml`
 - `docs/llm_wiki/wiki/mcp-proxy.md`
+
+### 2026-05-01 — v6.1 Cinema session search-flow fixes
+
+**Operation**: DEBUG + FIX
+**Branch**: `feat/mcp-tool-search-proxy`
+
+### Problema 1 — Follow-up continuity gap nel gateway
+`ConductorBridge` creava sempre una child session Kilo nuova e non propagava
+`--session`, quindi follow-up come `continua` perdevano il contesto del child
+search session.
+
+**Fix**: introdotto riuso stabile `ARIA session -> child_session_id` in
+`src/aria/gateway/conductor_bridge.py` e propagazione di `--session` sia nel
+path `npx kilo run` sia nel fallback `kilo|kilocode run`.
+
+### Problema 2 — Backend irrilevanti avviati in search-only flow
+Il proxy caricava tutti i backend enabled da `mcp_catalog.yaml`, inclusi server
+estranei alla sessione come `google_workspace`.
+
+**Fix**: `src/aria/mcp/proxy/server.py` ora deriva i server ammessi dai prefissi
+`server__*` in `allowed_tools` del caller (`ARIA_CALLER_ID`) ed esclude sempre
+`aria-memory`, che resta separato dal proxy.
+
+### Problema 3 — Validator di delega troppo permissivo
+`validate_delegation()` restituiva `True` se esisteva parent O target, quindi
+accettava edge non configurati.
+
+**Fix**: `YamlCapabilityRegistry` ora carica `delegation_targets` e valida solo
+il vero edge parent→target configurato.
+
+### Problema 4 — Prompt di grounding troppo deboli
+Nel caso cinema i modelli potevano sintetizzare fatti non supportati nei
+follow-up di ricerca.
+
+**Fix**: prompt `aria-conductor` e `search-agent` irrigiditi: ogni film/orario/
+lista deve provenire dal tool output; dettagli mancanti vanno dichiarati come
+mancanti; `continua` deve riprendere ed estendere l'ultima ricerca grounded.
+
+### File modificati
+- `src/aria/gateway/conductor_bridge.py`
+- `src/aria/mcp/proxy/server.py`
+- `src/aria/agents/coordination/registry.py`
+- `tests/unit/gateway/test_conductor_bridge.py`
+- `tests/unit/gateway/test_conductor_bridge_persistence.py`
+- `tests/unit/mcp/proxy/test_server.py`
+- `tests/unit/agents/coordination/test_registry.py`
+- `tests/unit/agents/test_aria_conductor_prompt.py`
+- `tests/unit/agents/search/test_prompt_grounding.py`
+- `.aria/kilocode/agents/aria-conductor.md`
+- `.aria/kilocode/agents/_aria-conductor.template.md`
+- `.aria/kilocode/agents/search-agent.md`
+- `docs/llm_wiki/wiki/mcp-proxy.md`
+- `docs/llm_wiki/wiki/index.md`
+- `docs/llm_wiki/wiki/log.md`
+- `.workflow/state.md`
+
+### Quality gate
+```
+.venv/bin/ruff check <modified files>  → All checks passed ✅
+.venv/bin/mypy src/aria/gateway/conductor_bridge.py src/aria/mcp/proxy/server.py src/aria/agents/coordination/registry.py → Success ✅
+.venv/bin/pytest -q tests/unit/gateway/test_conductor_bridge.py tests/unit/gateway/test_conductor_bridge_persistence.py tests/unit/mcp/proxy/test_server.py tests/unit/agents/coordination/test_registry.py tests/unit/agents/test_aria_conductor_prompt.py tests/unit/agents/search/test_prompt_grounding.py → 35 passed ✅
+```
+
+### 2026-05-01 — v6.2 Baseline quality-gate cleanup
+
+**Operation**: CLEANUP + VERIFY
+**Branch**: `feat/mcp-tool-search-proxy`
+
+#### Scope
+Ripristino dei quality gate repository-wide dopo i fix della sessione cinema, senza refactor ampio:
+- `ruff check .`
+- `mypy src`
+- `pytest -q`
+
+#### Fix minimi applicati
+- packaging marker aggiunti per evitare collisione `proxy.conftest` nei tree `tests/*/mcp/`
+- `tests/conftest.py` aggiunto per inserire il repo root in `sys.path` e rendere importabile `scripts.*` sotto `pytest`
+- `src/aria/launcher/__init__.py` ripulito dal re-export obsoleto di `lazy_loader`
+- `pyproject.toml` aggiornato con override mirato per `croniter` in mypy e per-file ignores Ruff strettamente limitati a rumore storico di test/script
+- piccoli fix puntuali nei test per allineamento a wildcard proxy exposure e import mancanti
+
+#### Quality gate finale
+```bash
+.venv/bin/ruff check .     # ✅ PASS
+.venv/bin/mypy src         # ✅ PASS (90 source files)
+.venv/bin/pytest -q        # ✅ 677 passed, 23 skipped, 3 warnings
+```
+
+#### Note residue
+- Restano 3 warning `PytestUnhandledThreadExceptionWarning` legati ad `aiosqlite` durante la chiusura dell'event loop nei test memory; non bloccano i gate.
 
 ### 2026-05-01 — F6 Debug & stabilizzazione runtime proxy
 

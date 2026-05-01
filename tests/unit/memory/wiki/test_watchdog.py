@@ -11,7 +11,6 @@ import pytest
 
 from aria.memory.wiki.db import WikiStore
 from aria.memory.wiki.kilo_reader import KiloReader
-from aria.memory.wiki.schema import PageKind, PagePatch
 from aria.memory.wiki.watchdog import (
     GAP_THRESHOLD_SECONDS,
     MIN_MESSAGES_FOR_CATCHUP,

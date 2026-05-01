@@ -54,3 +54,14 @@ def test_mcp_dependency_declared(agent_text: str) -> None:
     lines = after.splitlines()
     found = any("aria-memory" in line for line in lines[:3])
     assert found, "aria-memory must be listed in mcp-dependencies"
+
+
+def test_search_grounding_rules_are_explicit(agent_text: str) -> None:
+    required_fragments = [
+        "film, orari, sale, indirizzi o liste",
+        "dichiaralo come",
+        "mancante invece di inferirlo",
+        "stessa sessione",
+    ]
+    for fragment in required_fragments:
+        assert fragment in agent_text

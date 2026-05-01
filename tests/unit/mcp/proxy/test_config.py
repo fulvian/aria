@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from aria.mcp.proxy.config import EmbeddingConfig, ProxyConfig, SearchConfig
+from aria.mcp.proxy.config import ProxyConfig
 
 
 def test_defaults_when_file_missing(tmp_path: Path) -> None:

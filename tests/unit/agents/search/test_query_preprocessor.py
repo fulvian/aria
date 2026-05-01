@@ -6,8 +6,6 @@ inclusi i fix per i 3 bug npm di scientific-papers-mcp v0.1.40.
 
 from __future__ import annotations
 
-import pytest
-
 from aria.agents.search.query_preprocessor import (
     ACADEMIC_SOURCES,
     SOURCE_FORMATTERS,
@@ -140,7 +138,7 @@ class TestAvailableSources:
     def test_academic_sources_defined(self):
         """ACADEMIC_SOURCES includes all expected sources (pubmed removed)."""
         expected = {"arxiv", "europepmc", "openalex", "core", "biorxiv", "generic"}
-        assert ACADEMIC_SOURCES == expected
+        assert expected == ACADEMIC_SOURCES
 
     def test_all_sources_have_formatters(self):
         """Every source has a registered formatter."""

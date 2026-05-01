@@ -21,7 +21,6 @@ import shutil
 import subprocess
 import sys
 import time
-import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -394,7 +393,7 @@ def main() -> None:
 
     report = BenchmarkReport()
 
-    print(f"ARIA MCP Startup Latency Benchmark")
+    print("ARIA MCP Startup Latency Benchmark")
     print(f"{'='*50}")
     print(f"Servers to test: {len(servers)} ({', '.join(servers.keys())})")
     print()

@@ -44,6 +44,7 @@ class YamlCapabilityRegistry:
             path = Path(".aria/config/agent_capability_matrix.yaml")
         self._path = Path(path)
         self._data: dict[str, list[str]] = {}
+        self._delegations: dict[str, list[str]] = {}
         self._load()
 
     def _load(self) -> None:
@@ -54,16 +55,21 @@ class YamlCapabilityRegistry:
         raw = yaml.safe_load(self._path.read_text()) or {}
         agents = raw.get("agents", []) or []
         self._data = {}
+        self._delegations = {}
         for entry in agents:
             name = entry.get("name", "")
             tools = entry.get("allowed_tools", []) or []
             if name:
                 self._data[name] = list(tools)
+                self._delegations[name] = list(entry.get("delegation_targets", []) or [])
 
     def validate_delegation(self, parent_agent: str, target_agent: str) -> bool:
         """Return True if *parent_agent* is allowed to delegate to *target_agent*."""
-        # Simple check: agents can delegate if both exist in the registry
-        return parent_agent in self._data or target_agent in self._data
+        return target_agent in self._delegations.get(parent_agent, [])
+
+    def get_delegation_targets(self, agent: str) -> list[str]:
+        """Return the configured delegation targets for *agent*."""
+        return self._delegations.get(agent, [])
 
     def get_allowed_tools(self, agent: str) -> list[str]:
         """Return the list of tool names the agent is allowed to invoke."""

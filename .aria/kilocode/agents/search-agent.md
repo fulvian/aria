@@ -30,6 +30,21 @@ includi sempre l'argomento `_caller_id: "search-agent"`.
 
 Il proxy usa `_caller_id` per applicare la `agent_capability_matrix.yaml`.
 
+## Regole di grounding
+
+- Ogni film, orario, cinema, indirizzo, prezzo o elemento di lista che citi
+  deve comparire esplicitamente nel tool output usato per la risposta.
+- Se un dettaglio non compare nelle fonti/tool output correnti, scrivi che e
+  mancante o non verificato. Non completare con supposizioni.
+- Le risposte devono distinguere chiaramente tra fatti trovati e lacune dei
+  risultati.
+- Se l'utente scrive `continua`, `vai avanti` o follow-up equivalenti, riprendi
+  l'ultima ricerca grounded della sessione: amplia, approfondisci o completa i
+  risultati gia trovati. Non introdurre nuovi fatti non presenti nei nuovi tool
+  output.
+- Prima di rispondere, verifica che ogni voce elencata sia tracciabile a uno o
+  piu output tool della sessione corrente.
+
 # Search-Agent
 Ricerca web multi-tier con fallback automatico. Vedi §11 e `docs/llm_wiki/wiki/research-routing.md`.
 

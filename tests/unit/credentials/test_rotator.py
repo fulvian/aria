@@ -29,7 +29,7 @@ class _FakeSops:
 async def test_rotator_acquire_and_success(tmp_path: Path) -> None:
     sops = _FakeSops()
     state_path = tmp_path / "providers_state.enc.yaml"
-    rotator = Rotator(sops=cast(Any, sops), state_path=state_path)
+    rotator = Rotator(sops=cast("Any", sops), state_path=state_path)
     rotator.sync_provider_keys(
         "tavily",
         [{"key_id": "tvly-1", "credits_total": 100}, {"key_id": "tvly-2", "credits_total": 100}],
@@ -53,7 +53,7 @@ async def test_circuit_breaker_transitions(tmp_path: Path) -> None:
         return clock["value"]
 
     sops = _FakeSops()
-    rotator = Rotator(sops=cast(Any, sops), state_path=tmp_path / "state.enc.yaml", clock=now)
+    rotator = Rotator(sops=cast("Any", sops), state_path=tmp_path / "state.enc.yaml", clock=now)
     rotator.sync_provider_keys("tavily", [{"key_id": "tvly-1", "credits_total": 10}])
 
     for _ in range(3):
@@ -77,7 +77,7 @@ async def test_circuit_breaker_transitions(tmp_path: Path) -> None:
 async def test_flush_persists_runtime(tmp_path: Path) -> None:
     sops = _FakeSops()
     state_path = tmp_path / "runtime.enc.yaml"
-    rotator = Rotator(sops=cast(Any, sops), state_path=state_path)
+    rotator = Rotator(sops=cast("Any", sops), state_path=state_path)
     rotator.sync_provider_keys("brave", [{"key_id": "brv-1"}])
 
     await rotator.flush()
@@ -88,7 +88,7 @@ async def test_flush_persists_runtime(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_no_candidate_and_status_all(tmp_path: Path) -> None:
     sops = _FakeSops()
-    rotator = Rotator(sops=cast(Any, sops), state_path=tmp_path / "state.enc.yaml")
+    rotator = Rotator(sops=cast("Any", sops), state_path=tmp_path / "state.enc.yaml")
     rotator.sync_provider_keys("none", [{"key_id": "k1", "credits_total": 0}])
     assert await rotator.acquire("none") is None
     all_status = rotator.status()
@@ -97,7 +97,7 @@ async def test_no_candidate_and_status_all(tmp_path: Path) -> None:
 
 def test_recover_from_corruption(tmp_path: Path) -> None:
     sops = _FakeSops()
-    rotator = Rotator(sops=cast(Any, sops), state_path=tmp_path / "state.enc.yaml")
+    rotator = Rotator(sops=cast("Any", sops), state_path=tmp_path / "state.enc.yaml")
     rotator.recover_from_corruption("bad yaml")
     assert rotator.status() == {}
 
@@ -134,7 +134,7 @@ async def test_load_state_from_list_and_strategy_paths(tmp_path: Path) -> None:
 
     state_path = tmp_path / "state.enc.yaml"
     state_path.write_text("enc", encoding="utf-8")
-    rotator = Rotator(sops=cast(Any, _StateSops()), state_path=state_path)
+    rotator = Rotator(sops=cast("Any", _StateSops()), state_path=state_path)
 
     key_rr = await rotator.acquire("tavily", strategy="round_robin")
     assert key_rr is not None
@@ -150,5 +150,5 @@ def test_load_state_corruption_fallback(tmp_path: Path) -> None:
 
     state_path = tmp_path / "state.enc.yaml"
     state_path.write_text("enc", encoding="utf-8")
-    rotator = Rotator(sops=cast(Any, _BrokenSops()), state_path=state_path)
+    rotator = Rotator(sops=cast("Any", _BrokenSops()), state_path=state_path)
     assert rotator.status() == {}

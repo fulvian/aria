@@ -6,25 +6,15 @@ color: "#2E86AB"
 category: research
 temperature: 0.1
 allowed-tools:
-  - searxng-script__search
-  - tavily-mcp__search
-  - exa-script__search
-  - brave-mcp__web_search
-  - brave-mcp__news_search
-  - reddit-search__search
-  - reddit-search__search_subreddit
-  - reddit-search__get_post
-  - reddit-search__get_subreddit_posts
-  - reddit-search__get_user
-  - reddit-search__get_user_posts
-  - scientific-papers-mcp__search_papers
-  - scientific-papers-mcp__fetch_content
-  - scientific-papers-mcp__fetch_latest
-  - scientific-papers-mcp__list_categories
-  - scientific-papers-mcp__fetch_top_cited
+  - searxng-script__*
+  - tavily-mcp__*
+  - exa-script__*
+  - brave-mcp__*
+  - reddit-search__*
+  - scientific-papers-mcp__*
   - aria-memory__wiki_update_tool
   - aria-memory__wiki_recall_tool
-  - fetch__fetch
+  - fetch__*
 required-skills:
   - deep-research
   - source-dedup
@@ -32,6 +22,28 @@ mcp-dependencies:
   - aria-mcp-proxy
   - aria-memory
 ---
+
+## Proxy invocation rule
+
+Quando chiami `aria-mcp-proxy__search_tools` o `aria-mcp-proxy__call_tool`,
+includi sempre l'argomento `_caller_id: "search-agent"`.
+
+Il proxy usa `_caller_id` per applicare la `agent_capability_matrix.yaml`.
+
+## Regole di grounding
+
+- Ogni film, orario, cinema, indirizzo, prezzo o elemento di lista che citi
+  deve comparire esplicitamente nel tool output usato per la risposta.
+- Se un dettaglio non compare nelle fonti/tool output correnti, scrivi che e
+  mancante o non verificato. Non completare con supposizioni.
+- Le risposte devono distinguere chiaramente tra fatti trovati e lacune dei
+  risultati.
+- Se l'utente scrive `continua`, `vai avanti` o follow-up equivalenti, riprendi
+  l'ultima ricerca grounded della sessione: amplia, approfondisci o completa i
+  risultati gia trovati. Non introdurre nuovi fatti non presenti nei nuovi tool
+  output.
+- Prima di rispondere, verifica che ogni voce elencata sia tracciabile a uno o
+  piu output tool della sessione corrente.
 
 # Search-Agent
 Ricerca web multi-tier con fallback automatico. Vedi §11 e `docs/llm_wiki/wiki/research-routing.md`.

@@ -1,30 +1,9 @@
-# ARIA launcher module
-#
-# MCP bootstrap and lazy-loading infrastructure per stabilization plan §F3.
-#
-# Usage:
-#   from aria.launcher.lazy_loader import (
-#       build_mcp_config,
-#       generate_mcp_json,
-#       LazyLoaderConfig,
-#       Profile,
-#       run_with_profile,
-#   )
+"""Launcher package.
+
+The legacy lazy-loader module was removed during the proxy cutover.
+Keep the package importable while leaving re-exports empty.
+"""
 
 from __future__ import annotations
 
-from aria.launcher.lazy_loader import (
-    LazyLoaderConfig,
-    Profile,
-    build_mcp_config,
-    generate_mcp_json,
-    run_with_profile,
-)
-
-__all__ = [
-    "LazyLoaderConfig",
-    "Profile",
-    "build_mcp_config",
-    "generate_mcp_json",
-    "run_with_profile",
-]
+__all__: list[str] = []

@@ -28,6 +28,9 @@ KiloCode startup context.
 
 - mcp.json: 2 entries (`aria-memory`, `aria-mcp-proxy`) — planned for F3
 - Emergency rollback: `bin/aria start --emergency-direct` — planned for F3
+- Backend boot filtering: when `ARIA_CALLER_ID` is set, proxy boot loads only
+  backend servers referenced by that agent's `allowed_tools`; `aria-memory`
+  stays out-of-proxy and remains a separate MCP dependency.
 - Embeddings cache: `.aria/runtime/proxy/embeddings/`
 - Metrics: `aria_proxy_*` (Prometheus) — planned for F5
 - Events: `proxy.start`, `proxy.shutdown`, `proxy.backend_quarantine`,
@@ -75,6 +78,18 @@ ai nomi reali del proxy (es. `searxng-script__search` vs `searxng-script_search_
 
 **Fix**: Sostituiti tutti i nomi esatti con wildcard per server (`server__*`),
 molto più resilienti a cambiamenti dei nomi dei tool nei backend upstream.
+
+### F7 — caller-aware backend boot filtering (2026-05-01)
+**Problema**: Il proxy bootava tutti i backend enabled dal catalogo anche in
+ sessioni search-only. Durante il caso cinema del 2026-05-01 questo avviava
+ backend irrilevanti come `google_workspace`, causando rumore JSONRPC e conflitti
+ OAuth/porta inutili.
+
+**Fix**: `build_proxy()` ora deriva i backend ammessi dai prefissi `server__*`
+ presenti in `allowed_tools` del caller (`ARIA_CALLER_ID`), esclude i server non
+ pertinenti e mantiene `aria-memory` separato dal proxy. Verifica FastMCP:
+ le search transforms limitano discovery/listing, non validano l'output fattuale
+ dei tool; il filtering va quindi applicato al boot dei backend e alla middleware.
 
 ## Spec & ADR
 

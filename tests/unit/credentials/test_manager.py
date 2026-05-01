@@ -140,7 +140,7 @@ def manager_factory(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     )
     (config.paths.credentials / "secrets").mkdir(parents=True, exist_ok=True)
     (config.paths.credentials / "secrets" / "api-keys.enc.yaml").write_text("x", encoding="utf-8")
-    return lambda: (CredentialManager(config=cast(Any, config)), fake_audit)
+    return lambda: (CredentialManager(config=cast("Any", config)), fake_audit)
 
 
 @pytest.mark.asyncio

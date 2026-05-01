@@ -28,6 +28,9 @@ logger = get_logger("aria.mcp.proxy.server")
 DEFAULT_CATALOG = Path(".aria/config/mcp_catalog.yaml")
 DEFAULT_PROXY_CONFIG = Path(".aria/config/proxy.yaml")
 PROXY_NAME = "aria-mcp-proxy"
+CALLER_ENV = "ARIA_CALLER_ID"
+DIRECT_SERVER_ALLOWLIST = frozenset({"spawn-subagent"})
+SEPARATE_SERVERS = frozenset({"aria-memory"})
 
 
 def build_proxy(
@@ -40,7 +43,9 @@ def build_proxy(
     proxy_config_path = proxy_config_path or DEFAULT_PROXY_CONFIG
 
     cfg = ProxyConfig.load(proxy_config_path)
-    backends = _load_backends(catalog_path, strict=strict)
+    registry = YamlCapabilityRegistry()
+    caller = _proxy_caller()
+    backends = _load_backends(catalog_path, strict=strict, registry=registry, caller=caller)
     if os.environ.get("ARIA_PROXY_DISABLE_BACKENDS") == "1":
         backends = []
 
@@ -53,11 +58,22 @@ def build_proxy(
         composite = FastMCP(name=PROXY_NAME)
 
     composite.add_transform(_build_transform(cfg))
-    composite.add_middleware(CapabilityMatrixMiddleware(YamlCapabilityRegistry()))
+    composite.add_middleware(CapabilityMatrixMiddleware(registry))
     return composite
 
 
-def _load_backends(catalog_path: Path, *, strict: bool) -> list[BackendSpec]:  # noqa: ANN202
+def _proxy_caller() -> str | None:
+    caller = os.environ.get(CALLER_ENV, "").strip()
+    return caller or None
+
+
+def _load_backends(
+    catalog_path: Path,
+    *,
+    strict: bool,
+    registry: YamlCapabilityRegistry | None = None,
+    caller: str | None = None,
+) -> list[BackendSpec]:  # noqa: ANN202
     if not catalog_path.exists():
         logger.warning(
             "catalog_missing",
@@ -72,7 +88,55 @@ def _load_backends(catalog_path: Path, *, strict: bool) -> list[BackendSpec]:  #
         manager = None
     raw = load_backends(catalog_path)
     injector = CredentialInjector(manager=manager)
-    return injector.inject_all(raw, strict=strict)
+    backends = injector.inject_all(raw, strict=strict)
+    return _filter_backends_for_caller(backends, registry=registry, caller=caller)
+
+
+def _filter_backends_for_caller(
+    backends: list[BackendSpec],
+    *,
+    registry: YamlCapabilityRegistry | None,
+    caller: str | None,
+) -> list[BackendSpec]:
+    allowed_server_names = _allowed_server_names(registry, caller)
+    filtered: list[BackendSpec] = []
+    for backend in backends:
+        if backend.name in SEPARATE_SERVERS:
+            continue
+        if allowed_server_names is not None and backend.name not in allowed_server_names:
+            continue
+        filtered.append(backend)
+    return filtered
+
+
+def _allowed_server_names(
+    registry: YamlCapabilityRegistry | None,
+    caller: str | None,
+) -> set[str] | None:
+    if registry is None or not caller:
+        return None
+
+    allowed_tools = registry.get_allowed_tools(caller)
+    if not allowed_tools:
+        return set()
+
+    server_names: set[str] = set()
+    for tool_name in allowed_tools:
+        server_name = _tool_server_name(tool_name)
+        if server_name is not None:
+            server_names.add(server_name)
+    return server_names
+
+
+def _tool_server_name(tool_name: str) -> str | None:
+    cleaned = tool_name.strip()
+    if not cleaned or cleaned in DIRECT_SERVER_ALLOWLIST:
+        return None
+    if "__" in cleaned:
+        return cleaned.split("__", 1)[0] or None
+    if "/" in cleaned:
+        return cleaned.split("/", 1)[0] or None
+    return None
 
 
 def _build_transform(cfg: ProxyConfig) -> Any:  # noqa: ANN401

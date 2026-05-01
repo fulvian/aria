@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-import pytest
-
 from aria.agents.search.router import (
     FailureReason,
     HealthState,
     Intent,
     Provider,
-    ResearchRouter,
     SearchResult,
 )
 

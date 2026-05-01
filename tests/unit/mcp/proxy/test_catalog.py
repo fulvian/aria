@@ -6,7 +6,6 @@ from pathlib import Path
 import pytest
 
 from aria.mcp.proxy.catalog import (
-    BackendSpec,
     catalog_hash,
     load_backends,
 )

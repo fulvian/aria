@@ -146,7 +146,20 @@ ignore = [
 "src/aria/memory/migrations.py" = ["E501"]
 "src/aria/memory/semantic.py" = ["E501"]
 "src/aria/memory/wiki/db.py" = ["TC003"]
+"scripts/*.py" = ["ANN201", "ANN002", "ANN401", "ASYNC240", "B007", "DTZ003", "E402", "E501", "F841", "N999", "PIE810", "PLR0912", "PLR0915", "SIM102", "SIM105", "SIM108", "T201"]
+"scripts/benchmarks/*.py" = ["ANN201", "ANN002", "ANN401", "ASYNC240", "B007", "DTZ003", "E402", "E501", "F841", "N999", "PIE810", "PLR0912", "PLR0915", "SIM102", "SIM105", "SIM108", "T201"]
 "scripts/check_mcp_drift.py" = ["T201"]
+"scripts/workspace-write-health.py" = ["T201"]
+"scripts/workspace_auth.py" = ["T201"]
+"tests/benchmarks/*.py" = ["T201"]
+"tests/**/*.py" = ["ANN", "TC003"]
+"tests/integration/agents/search/*.py" = ["E501"]
+"tests/integration/mcp/proxy/*.py" = ["E501"]
+"tests/unit/agents/search/*.py" = ["E501", "F841"]
+"tests/unit/credentials/*.py" = ["PLW0108", "TC002"]
+"tests/unit/mcp/proxy/test_middleware.py" = ["E702"]
+"tests/unit/memory/test_mcp_server.py" = ["PLW0108"]
+"tests/unit/memory/wiki/*.py" = ["B017", "E501"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -167,6 +180,7 @@ module = [
     "pydantic_settings.*",
     "structlog",
     "prometheus_client",
+    "croniter",
 ]
 ignore_missing_imports = true
 

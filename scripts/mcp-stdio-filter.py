@@ -15,7 +15,6 @@ Use in wrapper scripts (bash):
     exec uv run /path/to/mcp-stdio-filter.py -- real-server --arg1 --arg2
 """
 import json
-import os
 import subprocess
 import sys
 import threading

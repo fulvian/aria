@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-04-30T20:26 (v5.0 — Stabilizzazione completa: architettura a 4 livelli)
-**Status**: ✅ **v5.0** — Stabilizzazione ARIA pre-Fase 2 completa. Architettura ibrida a 4 livelli implementata: L1 (coordinamento agenti Pydantic v2), L2 (MCP catalog + lazy loader), L3 (LLM routing dichiarativo), L4 (observability JSON/metriche). Tutti i quality gate verdi: ruff 0, mypy 0 (81 files), pytest 634/634 pass. Tag `baseline-LKG-v1` su `main`.
+**Last Updated**: 2026-05-01T12:09 (v6.2 — baseline quality-gate cleanup after proxy cutover)
+**Status**: ✅ **v6.2** — Runtime proxy/search fixes remain in place and the pre-existing repo-wide gates are green again after minimal cleanup. Current baseline: `ruff check .` PASS, `uv run mypy src` PASS (90 files), `uv run pytest -q` PASS (677 passed, 23 skipped), with 3 non-failing `aiosqlite` shutdown warnings still emitted by memory tests.
 
 ## Purpose
 
@@ -175,6 +175,9 @@ docs/llm_wiki/
 - 2026-05-01: **v6.0 (F4)** — Lazy loader removed (`src/aria/launcher/lazy_loader.py`). `lazy_load`/`intent_tags` stripped from catalog. ADR-0015 written.
 - 2026-05-01: **v6.0 (F5)** — `proxy.*` events + `aria_proxy_*` metrics in observability. All skill files updated to namespaced tool names. Wiki finalized.
 - 2026-05-01: **v6.0 (F6)** — **Debug & stabilizzazione runtime**. Scoperti 3 problemi critici: (1) server rumorosi — creato `mcp-stdio-filter.py` per 4 wrapper; (2) naming mismatch — middleware ora gestisce single/double underscore; (3) capability matrix ora usa wildcard `server__*` invece di nomi esatti.
+- 2026-05-01: **v6.1** — Fix search-flow cinema session: riuso stabile della child session Kilo nel gateway (`--session` propagato), proxy con caller-aware backend boot filtering per escludere `google_workspace` da search-agent, validator di delega parent→target corretto, prompt di grounding irrigiditi per follow-up `continua`.
+- 2026-05-01: **v6.2** — Baseline cleanup dei quality gate repository-wide: `ruff check .`, `mypy src` e `pytest -q` tutti verdi. Fix minimi su packaging test MCP, import pytest di `scripts.*`, re-export obsoleto del launcher e configurazione lint/type-check per rumore storico dei test/script.
+- 2026-05-01: **v6.2** — Baseline gate cleanup post-cutover: fixed pytest package/import collisions (`proxy.conftest`, `scripts` visibility), removed stale launcher lazy-loader re-export, added narrow `croniter` mypy override, aligned stale prompt-config tests with proxy wildcard exposure, and scoped Ruff noise down to green gates.
 
 ## Git & GitHub Rules
 
@@ -194,6 +197,7 @@ Definite in `AGENTS.md` § "Git & GitHub Workflow Rules". Regole chiave:
 - `docs/llm_wiki/wiki/observability.md` — L4 logging, metrics, events
 - `docs/llm_wiki/wiki/research-routing.md` — tier policy
 - `docs/llm_wiki/wiki/mcp-architecture.md` — MCP architecture
-- `docs/llm_wiki/wiki/mcp-proxy.md` — **v6.0 (F1-F5)**: FastMCP-native MCP proxy. Full implementation complete (cutover, lazy loader removal, observability, skills).
+- `docs/llm_wiki/wiki/mcp-proxy.md` — **v6.1**: FastMCP-native MCP proxy + caller-aware backend boot filtering.
+- `pyproject.toml` — **v6.2**: per-file ignores Ruff mirati, pytest bootstrap path, override mypy per `croniter`.
 - `docs/llm_wiki/wiki/agent-capability-matrix.md` — capability matrix
 - `docs/operations/rollback_matrix.md` — rollback matrix completa

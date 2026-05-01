@@ -114,7 +114,16 @@ class ConductorBridge:
         )
         self._children_dir = self._sessions_dir / "children"
         self._timeout_s = timeout_s
+        self._child_sessions: dict[str, str] = {}
         self._children_dir.mkdir(parents=True, exist_ok=True)
+
+    def _get_or_create_child_session_id(self, session_id: str) -> str:
+        """Reuse one Kilo child session per ARIA session."""
+        child_session_id = self._child_sessions.get(session_id)
+        if child_session_id is None:
+            child_session_id = _new_kilo_session_id()
+            self._child_sessions[session_id] = child_session_id
+        return child_session_id
 
     async def handle_user_message(self, payload: dict[str, Any]) -> None:
         """Handle gateway.user_message event payload.
@@ -267,7 +276,7 @@ class ConductorBridge:
         Raises:
             RuntimeError: If subprocess fails.
         """
-        child_session_id = _new_kilo_session_id()
+        child_session_id = self._get_or_create_child_session_id(session_id)
 
         # Prepare subprocess
         env = {
@@ -304,6 +313,8 @@ class ConductorBridge:
                     kilo_package,
                     "kilo",
                     "run",
+                    "--session",
+                    child_session_id,
                     "--agent",
                     "aria-conductor",
                     "--format",
@@ -402,7 +413,7 @@ class ConductorBridge:
         Returns:
             Dict with result.
         """
-        child_session_id = _new_kilo_session_id()
+        child_session_id = self._get_or_create_child_session_id(session_id)
 
         env = {
             "HOME": os.environ.get("ARIA_KILO_HOME", "/home/fulvio/coding/aria/.aria/kilo-home"),
@@ -428,6 +439,8 @@ class ConductorBridge:
             cmd = [
                 executable,
                 "run",
+                "--session",
+                child_session_id,
                 "--agent",
                 "aria-conductor",
                 "--format",

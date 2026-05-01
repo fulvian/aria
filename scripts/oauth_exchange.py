@@ -3,10 +3,18 @@
 Self-contained OAuth PKCE flow for Google Workspace MCP.
 Generates verifier, prints URL, starts callback server, exchanges code, saves token.
 """
-import base64, hashlib, json, os, secrets, sys, threading, time, webbrowser
-from http.server import HTTPServer, BaseHTTPRequestHandler
+import base64
+import hashlib
+import json
+import os
+import secrets
+import sys
+import threading
+import time
+import webbrowser
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from urllib.parse import urlparse, parse_qs, quote
+from urllib.parse import parse_qs, quote, urlparse
 
 import httpx
 
@@ -120,7 +128,7 @@ if not CallbackState.code:
     print("TIMEOUT: No authorization code received.")
     sys.exit(1)
 
-print(f"Authorization code received. Exchanging...")
+print("Authorization code received. Exchanging...")
 sys.stdout.flush()
 
 # Exchange code for tokens (WITH PKCE code_verifier)
@@ -147,6 +155,7 @@ print(f"Token exchange: HTTP {resp.status_code} ✅")
 
 # Build token JSON for workspace-mcp
 import datetime
+
 scope_list = tokens.get("scope", "").split()
 token_data = {
     "token": tokens.get("access_token", ""),
@@ -156,7 +165,7 @@ token_data = {
     "client_secret": CLIENT_SECRET,
     "scopes": scope_list,
     "expiry": (
-        datetime.datetime.now(datetime.UTC) + 
+        datetime.datetime.now(datetime.UTC) +
         datetime.timedelta(seconds=tokens.get("expires_in", 3600))
     ).isoformat(),
 }

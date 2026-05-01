@@ -9,7 +9,7 @@ from typing import Any
 
 import pytest
 
-from aria.memory.wiki.kilo_reader import KiloReader, KiloSessionInfo
+from aria.memory.wiki.kilo_reader import KiloReader
 
 
 def _create_kilo_db(db_path: Path, messages: list[dict] | None = None) -> None:

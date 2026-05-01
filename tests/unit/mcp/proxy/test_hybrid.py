@@ -5,7 +5,6 @@ from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
-
 from fastmcp.tools import Tool
 
 from aria.mcp.proxy.transforms.hybrid import HybridSearchTransform

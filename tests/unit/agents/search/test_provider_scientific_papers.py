@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from aria.agents.search.router import HealthState, Intent, Provider
+from aria.agents.search.router import Intent, Provider
 
 
 class TestScientificPapersProviderEnum:

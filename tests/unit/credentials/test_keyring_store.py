@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 import keyring.backends.fail
-from keyring.errors import KeyringError
 import pytest
+from keyring.errors import KeyringError
 
 from aria.credentials.keyring_store import KeyringStore
 
@@ -57,7 +57,7 @@ def test_fallback_encrypted_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     monkeypatch.setenv("ARIA_KEYRING_FALLBACK_KEY", str(key_file))
 
     store = KeyringStore()
-    monkeypatch.setattr(store, "_encrypt_age", lambda data, _key: f"enc:{data}".encode("utf-8"))
+    monkeypatch.setattr(store, "_encrypt_age", lambda data, _key: f"enc:{data}".encode())
     monkeypatch.setattr(
         store, "_decrypt_age", lambda data, _key: data.decode("utf-8").replace("enc:", "")
     )
@@ -168,6 +168,6 @@ def test_put_oauth_keyring_error_fallback(monkeypatch: pytest.MonkeyPatch, tmp_p
     monkeypatch.setenv("ARIA_KEYRING_FALLBACK_KEY", str(key_file))
 
     store = KeyringStore()
-    monkeypatch.setattr(store, "_encrypt_age", lambda data, _key: f"enc:{data}".encode("utf-8"))
+    monkeypatch.setattr(store, "_encrypt_age", lambda data, _key: f"enc:{data}".encode())
     store.put_oauth("svc", "acc", "token")
     assert (tmp_path / "keyring-fallback" / "svc-acc.age").exists()

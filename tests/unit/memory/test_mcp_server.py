@@ -245,13 +245,12 @@ async def test_hitl_cancel(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.asyncio
 async def test_hitl_approve_forget_episodic_tombstones_entry(tmp_path, monkeypatch) -> None:
     """hitl_approve resolves forget_episodic by tombstoning the entry."""
-    import aria.memory.mcp_server as srv
-    from aria.memory.episodic import create_episodic_store
-    from aria.memory.schema import Actor, EpisodicEntry, content_hash
-
     from datetime import UTC, datetime
-    from uuid import uuid4
     from unittest.mock import MagicMock
+    from uuid import uuid4
+
+    import aria.memory.mcp_server as srv
+    from aria.memory.schema import Actor, EpisodicEntry, content_hash
 
     config = MagicMock()
     config.paths.runtime = tmp_path

@@ -43,74 +43,51 @@ def mcp_deps_set(search_agent_yaml: dict) -> set[str]:
 class TestSearchAgentExposure:
     """Search-agent YAML must expose tools for all providers declared in the router."""
 
-    def test_allowed_tools_has_19_entries(self, search_agent_yaml: dict):
-        """search-agent.md declares exactly 19 allowed-tools (pubmed-mcp removed)."""
+    def test_allowed_tools_has_9_entries(self, search_agent_yaml: dict):
+        """search-agent.md declares the current proxy-based wildcard tool set."""
         tools = search_agent_yaml.get("allowed-tools", [])
-        assert len(tools) == 19, f"Expected 19 allowed-tools, got {len(tools)}"
+        assert len(tools) == 9, f"Expected 9 allowed-tools, got {len(tools)}"
 
-    def test_mcp_dependencies_has_6_entries(self, search_agent_yaml: dict):
-        """search-agent.md declares exactly 6 mcp-dependencies (pubmed-mcp removed)."""
+    def test_mcp_dependencies_has_2_entries(self, search_agent_yaml: dict):
+        """search-agent.md depends on the proxy plus aria-memory."""
         deps = search_agent_yaml.get("mcp-dependencies", [])
-        assert len(deps) == 6, f"Expected 6 mcp-dependencies, got {len(deps)}"
+        assert len(deps) == 2, f"Expected 2 mcp-dependencies, got {len(deps)}"
 
     # --- Provider-level exposure checks ---
 
     def test_exposes_searxng(self, allowed_tools_set: set[str]):
-        """search-agent exposes searxng-script/search."""
-        assert "searxng-script/search" in allowed_tools_set
+        """search-agent exposes searxng via proxy wildcard."""
+        assert "searxng-script__*" in allowed_tools_set
 
     def test_exposes_tavily(self, allowed_tools_set: set[str]):
-        """search-agent exposes tavily-mcp/search."""
-        assert "tavily-mcp/search" in allowed_tools_set
+        """search-agent exposes tavily via proxy wildcard."""
+        assert "tavily-mcp__*" in allowed_tools_set
 
     def test_exposes_exa(self, allowed_tools_set: set[str]):
-        """search-agent exposes exa-script/search."""
-        assert "exa-script/search" in allowed_tools_set
+        """search-agent exposes exa via proxy wildcard."""
+        assert "exa-script__*" in allowed_tools_set
 
     def test_exposes_brave(self, allowed_tools_set: set[str]):
-        """search-agent exposes both brave-mcp tools."""
-        assert "brave-mcp/web_search" in allowed_tools_set
-        assert "brave-mcp/news_search" in allowed_tools_set
+        """search-agent exposes brave via proxy wildcard."""
+        assert "brave-mcp__*" in allowed_tools_set
 
     def test_exposes_reddit(self, allowed_tools_set: set[str]):
-        """search-agent exposes all 6 reddit-search tools."""
-        reddit_tools = {t for t in allowed_tools_set if t.startswith("reddit-search/")}
-        assert len(reddit_tools) == 6, (
-            f"Expected 6 reddit-search tools, got {len(reddit_tools)}: {reddit_tools}"
-        )
+        """search-agent exposes reddit via proxy wildcard."""
+        assert "reddit-search__*" in allowed_tools_set
 
     def test_exposes_scientific_papers(self, allowed_tools_set: set[str]):
-        """search-agent exposes all 5 scientific-papers-mcp tools."""
-        sci_tools = {t for t in allowed_tools_set if t.startswith("scientific-papers-mcp/")}
-        assert len(sci_tools) == 5, (
-            f"Expected 5 scientific-papers-mcp tools, got {len(sci_tools)}: {sci_tools}"
-        )
+        """search-agent exposes scientific-papers via proxy wildcard."""
+        assert "scientific-papers-mcp__*" in allowed_tools_set
 
     # --- MCP dependencies checks ---
 
-    def test_mcp_deps_scientific_papers(self, mcp_deps_set: set[str]):
-        """mcp-dependencies includes scientific-papers-mcp."""
-        assert "scientific-papers-mcp" in mcp_deps_set
+    def test_mcp_deps_proxy(self, mcp_deps_set: set[str]):
+        """mcp-dependencies includes the shared proxy."""
+        assert "aria-mcp-proxy" in mcp_deps_set
 
-    def test_mcp_deps_reddit(self, mcp_deps_set: set[str]):
-        """mcp-dependencies includes reddit-search."""
-        assert "reddit-search" in mcp_deps_set
-
-    def test_mcp_deps_tavily(self, mcp_deps_set: set[str]):
-        """mcp-dependencies includes tavily-mcp."""
-        assert "tavily-mcp" in mcp_deps_set
-
-    def test_mcp_deps_brave(self, mcp_deps_set: set[str]):
-        """mcp-dependencies includes brave-mcp."""
-        assert "brave-mcp" in mcp_deps_set
-
-    def test_mcp_deps_exa(self, mcp_deps_set: set[str]):
-        """mcp-dependencies includes exa-script."""
-        assert "exa-script" in mcp_deps_set
-
-    def test_mcp_deps_searxng(self, mcp_deps_set: set[str]):
-        """mcp-dependencies includes searxng-script."""
-        assert "searxng-script" in mcp_deps_set
+    def test_mcp_deps_memory(self, mcp_deps_set: set[str]):
+        """mcp-dependencies includes aria-memory."""
+        assert "aria-memory" in mcp_deps_set
 
     # --- Router-to-YAML alignment ---
 
@@ -143,29 +120,15 @@ class TestSearchAgentExposure:
                 continue
             mcp_key = provider_to_mcp_key.get(p_name)
             assert mcp_key is not None, f"No MCP key mapping for provider '{p_name}'"
-            has_tool = any(t.startswith(f"{mcp_key}/") for t in allowed_tools_set)
+            has_tool = f"{mcp_key}__*" in allowed_tools_set
             assert has_tool, (
                 f"Provider '{p_name}' (MCP key: {mcp_key}) declared in INTENT_TIERS "
-                f"but no tool starting with '{mcp_key}/' in search-agent.md allowed-tools"
+                f"but no wildcard '{mcp_key}__*' in search-agent.md allowed-tools"
             )
 
     def test_every_router_provider_in_mcp_deps(self, mcp_deps_set: set[str]):
-        """Every provider with an MCP server backend is in mcp-dependencies."""
-        # Map provider values to their MCP dependency keys
-        provider_to_dep = {
-            "searxng": "searxng-script",
-            "tavily": "tavily-mcp",
-            "exa": "exa-script",
-            "brave": "brave-mcp",
-            "reddit": "reddit-search",
-            "scientific_papers": "scientific-papers-mcp",
-        }
-
-        for p_value, dep_key in provider_to_dep.items():
-            assert dep_key in mcp_deps_set, (
-                f"Provider '{p_value}' mapped to dependency '{dep_key}' "
-                f"but not found in search-agent.md mcp-dependencies"
-            )
+        """Proxy-based routing keeps provider-specific backends behind aria-mcp-proxy."""
+        assert mcp_deps_set == {"aria-mcp-proxy", "aria-memory"}
 
 
 class TestRouterAcademicExposure:

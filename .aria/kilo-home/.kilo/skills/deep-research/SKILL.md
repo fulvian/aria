@@ -5,19 +5,19 @@ description: Ricerca web approfondita multi-provider con deduplica e sintesi
 trigger-keywords: [ricerca, search, approfondisci, analizza tema, deep, research, reddit, social]
 user-invocable: true
 allowed-tools:
-  - searxng-script/search
-  - tavily-mcp/search
-  - exa-script/search
-  - brave-mcp/web_search
-  - reddit-search/search
-  - reddit-search/search_subreddit
-  - reddit-search/get_post
-  - reddit-search/get_subreddit_posts
-  - reddit-search/get_user
-  - reddit-search/get_user_posts
-  - aria-memory/wiki_update_tool
-  - aria-memory/wiki_recall_tool
-  - fetch/fetch
+  - searxng-script__search
+  - tavily-mcp__search
+  - exa-script__search
+  - brave-mcp__web_search
+  - reddit-search__search
+  - reddit-search__search_subreddit
+  - reddit-search__get_post
+  - reddit-search__get_subreddit_posts
+  - reddit-search__get_user
+  - reddit-search__get_user_posts
+  - aria-memory__wiki_update_tool
+  - aria-memory__wiki_recall_tool
+  - fetch__fetch
 max-tokens: 50000
 estimated-cost-eur: 0.10
 ---
@@ -70,13 +70,13 @@ PubMed e' coperto da `scientific-papers-mcp` tramite la sorgente `source="europe
 Non esiste piu' un MCP server pubmed separato (RIMOSSO 2026-04-30).
 
 ```
-scientific-papers-mcp/search_papers(source="europepmc", query="machine learning cancer", count=10)
+scientific-papers-mcp__search_papers(source="europepmc", query="machine learning cancer", count=10)
 ```
 
 ### Fase 3 — Deduplica e Arricchimento
 1. Deduplica URL (Levenshtein title + URL canonicalization)
 2. Per post Reddit rilevanti: usa `reddit-search/get_post` per ottenere l'albero commenti completo
-3. Per pagine web: usa `fetch/fetch` per estrarre contenuto full-text
+3. Per pagine web: usa `fetch__fetch` per estrarre contenuto full-text
 4. Classifica per rilevanza e data
 
 ### Fase 4 — Sintesi Report

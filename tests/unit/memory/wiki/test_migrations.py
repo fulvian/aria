@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from aria.memory.wiki.migrations import WIKI_SCHEMA_DDL, WikiMigrationRunner

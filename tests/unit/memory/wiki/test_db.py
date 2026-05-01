@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from aria.memory.wiki.db import WikiStore, slugify
-from aria.memory.wiki.schema import Page, PageKind, PagePatch
+from aria.memory.wiki.schema import PageKind, PagePatch
 
 
 @pytest.fixture

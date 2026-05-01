@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-import pytest
-import pytest_asyncio
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
 from uuid import uuid4
+
+import pytest
+import pytest_asyncio
 
 from aria.memory.clm import CLM
 from aria.memory.episodic import EpisodicStore

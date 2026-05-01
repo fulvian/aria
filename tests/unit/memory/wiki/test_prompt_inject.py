@@ -15,7 +15,6 @@ from aria.memory.wiki.prompt_inject import (
 )
 from aria.memory.wiki.schema import PageKind, PagePatch
 
-
 # === Template content for testing ===
 
 TEMPLATE_SOURCE = """\

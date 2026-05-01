@@ -1,10 +1,14 @@
 from __future__ import annotations
 
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 import pytest
 
 from aria.agents.coordination import AgentRegistry
+from aria.agents.coordination.registry import YamlCapabilityRegistry
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class AgentSpec:
@@ -169,3 +173,47 @@ class TestGetDelegationTargets:
     def test_returns_empty_for_unknown(self, registry: InMemoryAgentRegistry) -> None:
         targets = registry.get_delegation_targets("unknown_agent")
         assert targets == []
+
+
+class TestYamlCapabilityRegistry:
+    def test_validate_delegation_enforces_configured_edge(self, tmp_path: Path) -> None:
+        matrix = tmp_path / "agent_capability_matrix.yaml"
+        matrix.write_text(
+            """
+agents:
+  - name: aria-conductor
+    allowed_tools: [spawn-subagent]
+    delegation_targets: [search-agent]
+  - name: search-agent
+    allowed_tools: [searxng-script__*]
+    delegation_targets: []
+  - name: workspace-agent
+    allowed_tools: [google_workspace__*]
+    delegation_targets: []
+""".lstrip()
+        )
+
+        registry = YamlCapabilityRegistry(path=matrix)
+
+        assert registry.validate_delegation("aria-conductor", "search-agent") is True
+        assert registry.validate_delegation("aria-conductor", "workspace-agent") is False
+        assert registry.validate_delegation("search-agent", "workspace-agent") is False
+
+    def test_get_delegation_targets_returns_configured_list(self, tmp_path: Path) -> None:
+        matrix = tmp_path / "agent_capability_matrix.yaml"
+        matrix.write_text(
+            """
+agents:
+  - name: productivity-agent
+    allowed_tools: [spawn-subagent]
+    delegation_targets: [workspace-agent]
+  - name: workspace-agent
+    allowed_tools: [google_workspace__*]
+    delegation_targets: []
+""".lstrip()
+        )
+
+        registry = YamlCapabilityRegistry(path=matrix)
+
+        assert registry.get_delegation_targets("productivity-agent") == ["workspace-agent"]
+        assert registry.get_delegation_targets("workspace-agent") == []

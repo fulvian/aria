@@ -4,7 +4,6 @@ This test is environment-conditional. It runs only when ARIA_E2E_KILOCODE=1.
 """
 from __future__ import annotations
 
-import asyncio
 import os
 
 import pytest
