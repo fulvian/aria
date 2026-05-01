@@ -1,5 +1,108 @@
 # Implementation Log
 
+## 2026-05-02T00:35+02:00 — IMPLEMENT: trader-agent MVP — foundation plan accepted
+
+**Operation**: IMPLEMENT
+**Branch**: `feature/trader-agent-mvp` (da `main`)
+**Trigger**: implementazione di `docs/plans/agents/trader_agent_foundation_plan.md` accettato dall'utente.
+
+### Output creato
+
+#### Nuovi file
+
+| File | Descrizione |
+|------|-------------|
+| `docs/foundation/decisions/ADR-00XX-trader-agent-introduction.md` | ADR Proposed per trader-agent |
+| `.aria/kilocode/agents/trader-agent.md` | Definizione completo agente con frontmatter + body |
+| `.aria/kilocode/skills/trading-analysis/SKILL.md` | Orchestratore analisi multi-dimensionale |
+| `.aria/kilocode/skills/fundamental-analysis/SKILL.md` | Earnings, statements, DCF, analyst estimates |
+| `.aria/kilocode/skills/technical-analysis/SKILL.md` | RSI, MACD, Bollinger, SMA/EMA, pattern |
+| `.aria/kilocode/skills/macro-intelligence/SKILL.md` | FRED, tassi, inflazione, NFP, GDP |
+| `.aria/kilocode/skills/sentiment-analysis/SKILL.md` | News scoring, bias, social sentiment |
+| `.aria/kilocode/skills/options-analysis/SKILL.md` | Catene opzioni, grecs, strategie |
+| `.aria/kilocode/skills/crypto-analysis/SKILL.md` | On-chain, DEX, funding rates, whale |
+| `tests/unit/agents/trader/test_config_consistency.py` | 26 test: frontmatter, skills, proxy contract |
+| `tests/unit/agents/trader/test_conductor_dispatch.py` | 8 test: conductor routing per trader-agent |
+| `tests/unit/agents/trader/test_skills.py` | 21 test parametrizati per 7 skills |
+| `docs/llm_wiki/wiki/trader-agent.md` | Wiki page per trader-agent |
+
+#### File modificati
+
+| File | Modifica |
+|------|----------|
+| `.aria/kilocode/mcp.json` | Aggiunti 5 MCP server finanziari |
+| `.aria/config/agent_capability_matrix.yaml` | Aggiunta entry trader-agent |
+| `.aria/kilocode/agents/aria-conductor.md` | Aggiunto trader-agent ai sub-agenti + dispatch rules |
+| `tests/unit/agents/test_conductor_dispatch.py` | Aggiunti 4 test per trader-agent dispatch |
+| `docs/llm_wiki/wiki/index.md` | v6.5, trader-agent page, bootstrap log |
+| `docs/llm_wiki/wiki/log.md` | This entry |
+
+### MCP Stack aggiunto
+
+| Server | Tipo | Tool count | API Key |
+|--------|------|------------|---------|
+| financial-modeling-prep-mcp | npm | 253+ | SÌ (free tier) |
+| helium-mcp | HTTP/SSE | 9 | No (free tier) |
+| mcp-fredapi | Python | 1 | SÌ |
+| financekit-mcp | Python | 12 | No |
+| alpaca-mcp | Python | 22 | SÌ |
+
+### Skill create (7)
+
+- `trading-analysis@1.0.0` — Orchestratore principale
+- `fundamental-analysis@1.0.0` — Earnings, DCF, analyst estimates
+- `technical-analysis@1.0.0` — RSI, MACD, Bollinger, pattern
+- `macro-intelligence@1.0.0` — FRED, tassi, inflazione
+- `sentiment-analysis@1.0.0` — News scoring, bias
+- `options-analysis@1.0.0` — Catene opzioni, grecs
+- `crypto-analysis@1.0.0` — On-chain, DEX, whale
+
+### Non-obiettivi rispettati
+
+- NO trading reale — consulente di analisi
+- NO consulenza finanziaria legale
+- NO wallet crypto / account exchange write
+- NO execution automatica — HITL per raccomandazioni formali
+- Disclaimer obbligatorio su ogni output
+
+### Protocollo seguito
+
+Implementazione严格按照 `docs/protocols/protocollo_creazione_agenti.md`:
+- ✅ Fit & boundary analysis (dominio autonomo e coerente)
+- ✅ P8 Tool Decision Ladder (MCP esistenti优先)
+- ✅ Proxy/capability design (aria-mcp-proxy + _caller_id)
+- ✅ Memory/wiki.db implications (actor-aware, no auto-save)
+- ✅ HITL mapping (trading recommendation, exposure >50k)
+- ✅ Anti-drift guards (no host-native tools, no self-remediation)
+- ✅ Test strategy (prompt contract, config consistency, skills)
+- ✅ Wiki maintenance (index, log, trader-agent page)
+
+### Step 8 — Quality gate completato
+
+```
+ruff check tests/unit/agents/trader/ tests/unit/agents/test_conductor_dispatch.py
+  → All checks passed! ✅
+
+uv run pytest -q tests/unit/agents/trader/ tests/unit/agents/test_conductor_dispatch.py
+  → 171 passed in 0.14s ✅
+```
+
+**Fixes applied during quality gate**:
+- Aggiunto return type `-> None` a tutti i test methods (15 test in `test_conductor_dispatch.py`)
+- Corretto YAML syntax error in `agent_capability_matrix.yaml` (linea 89 indentation errata, mancava 2 spazi di indentazione per `- name: productivity-agent`)
+- Corretto test `test_allowed_tools_includes_memory` per accettare sia `aria-memory/__` che `aria-memory/` separatori
+- Corretto `PIE810` startswith con tuple in `test_skills.py`
+- Rimosso unused import `yaml` da `test_conductor_dispatch.py`
+- Aggiunto trailing newline a tutti i file di test
+
+### Step 9 — PR creata
+
+**Branch**: `feature/trader-agent-mvp`
+**Target**: `main`
+**Status**: Pending merge after quality gate
+
+---
+
 ## 2026-04-30T15:51+02:00 — FIX: wiki_update_tool title field BUG (P0+P1+P2)
 
 **Operation**: DEBUG + FIX

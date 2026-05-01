@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-04-30T20:26 (v5.0 — Stabilizzazione completa: architettura a 4 livelli)
-**Status**: ✅ **v5.0** — Stabilizzazione ARIA pre-Fase 2 completa. Architettura ibrida a 4 livelli implementata: L1 (coordinamento agenti Pydantic v2), L2 (MCP catalog + lazy loader), L3 (LLM routing dichiarativo), L4 (observability JSON/metriche). Tutti i quality gate verdi: ruff 0, mypy 0 (81 files), pytest 634/634 pass. Tag `baseline-LKG-v1` su `main`.
+**Last Updated**: 2026-05-02 (v6.5 — trader-agent MVP: +4 MCP servers, +7 skills, +1 sub-agent)
+**Status**: ✅ **v6.5** — Trader-agent MVP completo: 4 nuovi MCP server (FMP, Helium, FRED, FinanceKit, Alpaca), 7 nuove skill di trading, routing nel conductor. Questo è il quarto sub-agente di dominio verticale di ARIA.
 
 ## Purpose
 
@@ -145,6 +145,7 @@ docs/llm_wiki/
 | **[[observability]]** | **NEW v5.0**: L4 — Logger structured JSON, Prometheus metrics, Events tipati, Trace_id UUIDv7 | **✅ v1.0** |
 | **[[llm-routing]]** | **NEW v5.0**: L3 — Matrice dichiarativa YAML, Router Python, Budget gate, Cache strategy | **✅ v1.0** |
 | [[log]] | Implementation log with timestamps | Active |
+| **[[trader-agent]]** | **NEW v6.5**: 4° sub-agente — analisi finanziaria (stock/ETF/options/crypto/macro/sentiment) | **✅ v1.0** |
 
 ## Implementation Branch
 
@@ -168,6 +169,7 @@ docs/llm_wiki/
 - 2026-04-30: **v4.8** — F0 quality fix (21 ruff, 12 mypy, 6 test failures)
 - 2026-04-30: **v4.9** — PR #3+#4 merged, baseline-LKG-v1 tag
 - 2026-04-30: **v5.0** — **ARCHITETTURA 4 LIVELLI** completa. L1: agent coordination (86 test). L2: MCP catalog + lazy loader. L3: LLM routing dichiarativo. L4: Observability JSON/metriche. 634 test totali. 81 file Python verificati mypy.
+- 2026-05-02: **v6.5** — Trader-agent MVP: +4 MCP server (FMP 253+ tools, Helium, FRED, FinanceKit, Alpaca), +7 trading skills, +1 sub-agente (4 totali), routing nel conductor, capability matrix aggiornata, 3 nuovi file test.
 
 ## Git & GitHub Rules
 

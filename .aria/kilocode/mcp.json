@@ -104,6 +104,49 @@
       "args": ["markitdown-mcp"],
       "disabled": false,
       "_comment": "@productivity-mvp Microsoft markitdown — convert office files (PDF/DOCX/XLSX/PPTX/TXT/HTML) to markdown LLM-ready. MIT license, keyless, Context7 Bench 90.05."
+    },
+
+    "financial-modeling-prep-mcp": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/imbenrabi/Financial-Modeling-Prep-MCP-Server", "server"],
+      "disabled": false,
+      "env": {
+        "FMP_API_KEY": "${FMP_API_KEY}"
+      },
+      "_comment": "@trader-agent-v1 Financial Modeling Prep MCP — 253+ tools covering stocks, ETF, options, futures, crypto, forex, commodities, macro, fundamentals, technicals, news, SEC, analyst estimates. PRIMARY cornerstone."
+    },
+    "helium-mcp": {
+      "url": "https://heliumtrades.com/mcp",
+      "type": "streamable-http",
+      "disabled": false,
+      "_comment": "@trader-agent-v1 Helium MCP — news intelligence + bias scoring + live market data + AI options pricing. 9 tools, 5000+ sources, free tier. PRIMARY."
+    },
+    "mcp-fredapi": {
+      "command": "uvx",
+      "args": ["--from", "mcp-fredapi", "--with", "httpx", "mcp", "run", "server.py"],
+      "disabled": false,
+      "env": {
+        "FRED_API_KEY": "${FRED_API_KEY}"
+      },
+      "_comment": "@trader-agent-v1 FRED API MCP (Jaldekoa/mcp-fredapi) — macroeconomic data (rates, GDP, inflation, NFP). Gold standard macro. PRIMARY."
+    },
+    "financekit-mcp": {
+      "command": "uvx",
+      "args": ["--from", "financekit-mcp", "financekit"],
+      "disabled": false,
+      "_comment": "@trader-agent-v1 FinanceKit MCP — stock quotes, technical analysis (RSI, MACD, Bollinger, SMA/EMA), crypto data, portfolio analysis. 12 tools, no API key. SECONDARY."
+    },
+    "alpaca-mcp": {
+      "command": "python3",
+      "args": ["/home/fulvio/coding/aria/scripts/mcp-servers/alpaca-mcp-server/mcp_server.py"],
+      "disabled": false,
+      "env": {
+        "ALPACA_API_KEY": "${ALPACA_API_KEY}",
+        "ALPACA_API_SECRET": "${ALPACA_API_SECRET}",
+        "ALPACA_BASE_URL": "https://paper-api.alpaca.markets",
+        "POLYGON_API_KEY": "${POLYGON_API_KEY}"
+      },
+      "_comment": "@trader-agent-v1 Alpaca MCP (dtony47/alpaca-mcp-server) — market data + paper trading execution (no real money). 22 tools. EXECUTION-ONLY READ."
     }
   }
 }

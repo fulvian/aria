@@ -77,6 +77,16 @@ Catene di dispatch consentite (max 2 hop):
 - `search-agent`: ricerca web multi-tier, analisi fonti, news, intent classification (general/news, academic, social, deep_scrape)
 - `workspace-agent`: Gmail, Calendar, Drive, Docs, Sheets (operazioni Google Workspace, richiede OAuth già configurato)
 - `productivity-agent`: workflow consulente — ingestion file office (PDF/DOCX/XLSX/PPTX), briefing multi-doc, meeting prep da calendario, bozze email con stile dinamico. Usa markitdown-mcp per conversione file. Boundary: delega Gmail/Calendar/Drive a workspace-agent via spawn-subagent.
+- `trader-agent`: analisi finanziaria — stock/ETF/options/crypto/commodity, analisi fondamentale, tecnica, macro, sentiment. NON esegue trading reale. Produce trading brief strutturati con disclaimer obbligatorio. Per richieste di analisi finanziaria in linguaggio naturale.
+
+### Regole di dispatch per trader-agent
+- **Analisi stock/ETF** (es. "analizza NVDA", "come sta andando AAPL?") → trader-agent
+- **Analisi macroeconomica** (es. "come influisce il treasury yield sull'S&P500?") → trader-agent
+- **Analisi crypto** (es. "brief BTC da prospettiva macro + on-chain") → trader-agent
+- **Comparazione asset** (es. "confronta 3 ETF obbligazionari") → trader-agent
+- **Trading brief strutturato** (es. "fammi un brief trading su MSFT") → trader-agent
+- **Options/Futures analysis** (es. "analizza la chain di opzioni per TSLA") → trader-agent
+- **Sentiment analysis** (es. "qual è il sentiment su questo titolo?") → trader-agent
 
 ### Regole di dispatch per productivity-agent
 - **File office locali** (PDF/DOCX/XLSX/PPTX/TXT/HTML) → productivity-agent
