@@ -3037,11 +3037,59 @@ pytest unit + integration → 38 passed ✅
 - `.aria/config/proxy.yaml`
 - `docs/llm_wiki/wiki/mcp-proxy.md`
 
-### Prossime fasi (F2-F5)
-- F2: Shadow mode — add proxy entry to mcp.json alongside existing servers
-- F3: Cutover — reduce mcp.json to 2 entries, update agent prompts
-- F4: Remove lazy_loader.py, write ADR-0015
-- F5: Observability (aria_proxy_* metrics), skills namespacing, wiki finalization
+### 2026-05-01 — F6 Debug & stabilizzazione runtime proxy
+
+**Operation**: DEBUG + FIX
+**Branch**: `feat/mcp-tool-search-proxy`
+
+### Problema 1 — Server rumorosi su stdout
+SearXNG, Scientific Papers, Tavily e Google Workspace stampano testo non-JSONRPC
+su stdout prima di iniziare il protocollo MCP. FastMCP interpreta come JSONRPC
+e fallisce.
+
+**Fix**: Creato `scripts/mcp-stdio-filter.py` — relay bidirezionale che filtra
+stdout passando solo messaggi JSONRPC validi. Applicato a 4 wrapper scripts.
+
+### Problema 2 — Naming mismatch single/double underscore
+FastMCP Namespace transform produce tool names con singolo underscore
+(`server_tool`). Capability matrix e agent prompts usano doppio underscore
+(`server__tool`). Middleware bloccava chiamate legittime.
+
+**Fix**: `is_tool_allowed()` e `_matches()` ora gestiscono tutte 3 le forme:
+`server__tool`, `server/tool`, `server_tool`.
+
+### Problema 3 — Nomi esatti vs wildcard
+La matrice elencava nomi di tool specifici non corrispondenti ai nomi reali
+del proxy.
+
+**Fix**: Sostituiti con wildcard `server__*` in capability matrix e in tutti
+i 5 agent prompts. Molto più resilienti.
+
+### File creati
+- `scripts/mcp-stdio-filter.py` (MCP stdio relay + jsonrpc filter)
+
+### File modificati
+- `scripts/wrappers/searxng-wrapper.sh` — stdio filter
+- `scripts/wrappers/scientific-papers-wrapper.sh` — stdio filter
+- `scripts/wrappers/tavily-wrapper.sh` — stdio filter
+- `scripts/wrappers/google-workspace-wrapper.sh` — stdio filter
+- `src/aria/mcp/proxy/middleware.py` — _matches() single/double underscore
+- `src/aria/agents/coordination/registry.py` — is_tool_allowed() 3 forme
+- `.aria/config/agent_capability_matrix.yaml` — wildcard server__*
+- `.aria/kilocode/agents/search-agent.md` — wildcard
+- `.aria/kilocode/agents/workspace-agent.md` — wildcard
+- `.aria/kilocode/agents/productivity-agent.md` — wildcard
+- `.aria/kilocode/agents/_aria-conductor.template.md` — wildcard
+
+### Quality gate
+```
+ruff check       → All checks passed ✅
+ruff format      → 2 files reformatted ✅
+mypy             → 15 source files, 0 errors ✅
+pytest unit      → 35 passed ✅
+pytest int       → 3 passed ✅
+Drift validator  → All checks passed ✅
+```
 
 ### 2026-05-01 — v6.0 (F2-F5) Proxy rollout completo
 

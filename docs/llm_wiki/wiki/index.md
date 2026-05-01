@@ -174,6 +174,7 @@ docs/llm_wiki/
 - 2026-05-01: **v6.0 (F3)** — **CUTOVER**: mcp.json reduced to 2 entries (aria-memory + aria-mcp-proxy). Agent prompts namespaced with `__` tool names + `_caller_id` rule. Tagged `proxy-cutover-v1`.
 - 2026-05-01: **v6.0 (F4)** — Lazy loader removed (`src/aria/launcher/lazy_loader.py`). `lazy_load`/`intent_tags` stripped from catalog. ADR-0015 written.
 - 2026-05-01: **v6.0 (F5)** — `proxy.*` events + `aria_proxy_*` metrics in observability. All skill files updated to namespaced tool names. Wiki finalized.
+- 2026-05-01: **v6.0 (F6)** — **Debug & stabilizzazione runtime**. Scoperti 3 problemi critici: (1) server rumorosi — creato `mcp-stdio-filter.py` per 4 wrapper; (2) naming mismatch — middleware ora gestisce single/double underscore; (3) capability matrix ora usa wildcard `server__*` invece di nomi esatti.
 
 ## Git & GitHub Rules
 
