@@ -10,8 +10,8 @@ trigger-keywords:
   - prep call cliente
 user-invocable: true
 allowed-tools:
-  - aria-memory/wiki_recall_tool
-  - aria-memory/wiki_update_tool
+  - aria-memory__wiki_recall_tool
+  - aria-memory__wiki_update_tool
   - office-ingest
   - spawn-subagent
 max-tokens: 10000

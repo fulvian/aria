@@ -5,8 +5,8 @@ description: Estrazione testo e metadata da PDF documents
 trigger-keywords: [pdf, documento, leggi, estrai, extract]
 user-invocable: true
 allowed-tools:
-  - filesystem/read
-  - aria-memory/wiki_update_tool
+  - filesystem__read
+  - aria-memory__wiki_update_tool
 max-tokens: 5000
 estimated-cost-eur: 0.01
 ---

@@ -10,8 +10,8 @@ trigger-keywords:
   - rispondi mail
 user-invocable: true
 allowed-tools:
-  - aria-memory/wiki_recall_tool
-  - hitl-queue/ask
+  - aria-memory__wiki_recall_tool
+  - hitl-queue__ask
   - spawn-subagent
 max-tokens: 6000
 estimated-cost-eur: 0.04

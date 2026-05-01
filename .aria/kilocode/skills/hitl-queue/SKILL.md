@@ -5,7 +5,7 @@ description: Interfaccia gate HITL verso Telegram
 trigger-keywords: [approva, conferma, HITL, human, aspetta]
 user-invocable: false
 allowed-tools:
-  - aria-memory/stats
+  - aria-memory__stats
 max-tokens: 1000
 estimated-cost-eur: 0.00
 ---

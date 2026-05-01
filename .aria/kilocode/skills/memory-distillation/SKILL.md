@@ -5,8 +5,8 @@ description: Invoca CLM su range temporale o sessione specifica
 trigger-keywords: [distilla, compatt, consolidate, memory, memoria]
 user-invocable: false
 allowed-tools:
-  - aria-memory/recall_episodic
-  - aria-memory/distill
+  - aria-memory__recall_episodic
+  - aria-memory__distill
 max-tokens: 15000
 estimated-cost-eur: 0.03
 ---

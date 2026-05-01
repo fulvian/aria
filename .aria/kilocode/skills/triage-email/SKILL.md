@@ -5,9 +5,9 @@ description: Classificazione inbox Gmail per urgenza con digest
 trigger-keywords: [email, inbox, triage, leggi mail, leggi email]
 user-invocable: true
 allowed-tools:
-  - google_workspace/gmail.search
-  - google_workspace/gmail.read
-  - aria-memory/wiki_update_tool
+  - google_workspace__gmail.search
+  - google_workspace__gmail.read
+  - aria-memory__wiki_update_tool
 max-tokens: 8000
 estimated-cost-eur: 0.05
 ---
