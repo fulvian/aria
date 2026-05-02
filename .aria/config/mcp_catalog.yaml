@@ -351,6 +351,8 @@ servers:
   lifecycle: enabled
   auth_mode: api_key
   statefulness: stateless
+  env:
+    FRED_API_KEY: ${FRED_API_KEY}
   expected_tools:
   - get_fred_series_observations
   - get_fred_series_search
@@ -372,6 +374,9 @@ servers:
   lifecycle: enabled
   auth_mode: api_key
   statefulness: stateless
+  env:
+    ALPACA_API_KEY: ${ALPACA_API_KEY}
+    ALPACA_API_SECRET: ${ALPACA_API_SECRET}
   expected_tools:
   - get_stock_bars
   - get_stock_quote

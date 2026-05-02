@@ -87,7 +87,7 @@ def _parse_entry(entry: dict[str, Any]) -> BackendSpec | None:
         transport=str(entry.get("transport", "stdio")),
         command=command,
         args=args,
-        env={},  # populated later by CredentialInjector
+        env={k: str(v) for k, v in entry.get("env", {}).items()},
         expected_tools=tuple(str(t) for t in entry.get("expected_tools", [])),
         notes=str(entry.get("notes", "")),
     )
