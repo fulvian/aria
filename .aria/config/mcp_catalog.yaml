@@ -311,3 +311,139 @@ servers:
   baseline_status: lkg
   notes: KiloOrg github-discovery MCP, uses GitHub PAT (GHDISC_GITHUB_TOKEN), stateful
     via pools.db + sessions.db, 16 tools
+
+# --- Financial MCP backends (owner: trader-agent) ---
+
+- name: financekit-mcp
+  domain: finance
+  owner_agent: trader-agent
+  tier: 1
+  transport: stdio
+  lifecycle: enabled
+  auth_mode: keyless
+  statefulness: stateless
+  expected_tools:
+  - stock_price
+  - stock_quote
+  - stock_historical
+  - technical_analysis
+  - crypto_price
+  - crypto_trending
+  - crypto_search
+  - crypto_top_coins
+  - etf_info
+  - market_indices
+  - sector_performance
+  - treasury_rates
+  risk_level: low
+  cost_class: free
+  source_of_truth: uvx --from financekit-mcp financekit
+  rollback_class: server
+  baseline_status: lkg
+  notes: FinanceKit MCP — free financial data, 12+ tools, no API key required.
+    Primary source for stock quotes, technicals, crypto prices, ETF data.
+
+- name: mcp-fredapi
+  domain: finance
+  owner_agent: trader-agent
+  tier: 1
+  transport: stdio
+  lifecycle: enabled
+  auth_mode: api_key
+  statefulness: stateless
+  expected_tools:
+  - get_fred_series_observations
+  - get_fred_series_search
+  - get_fred_series_info
+  risk_level: low
+  cost_class: free
+  source_of_truth: /home/fulvio/coding/mcp-fredapi/.venv/bin/python /home/fulvio/coding/mcp-fredapi/server.py
+  rollback_class: server
+  baseline_status: lkg
+  notes: FRED API MCP — Federal Reserve Economic Data. Free API key required
+    (FRED_API_KEY). Treasury yields, CPI, NFP, GDP, unemployment. Gold standard
+    for macro data.
+
+- name: alpaca-mcp
+  domain: finance
+  owner_agent: trader-agent
+  tier: 1
+  transport: stdio
+  lifecycle: enabled
+  auth_mode: api_key
+  statefulness: stateless
+  expected_tools:
+  - get_stock_bars
+  - get_stock_quote
+  - get_stock_snapshot
+  - get_option_chain
+  - get_option_snapshot
+  - get_crypto_bars
+  - get_crypto_quote
+  - get_crypto_snapshot
+  - get_news
+  - get_corporate_actions
+  - get_asset_info
+  - get_watchlist
+  - list_positions
+  - list_orders
+  - get_account
+  risk_level: low
+  cost_class: free
+  source_of_truth: /home/fulvio/coding/alpaca-mcp/.venv/bin/python /home/fulvio/coding/alpaca-mcp/mcp_server.py
+  rollback_class: server
+  baseline_status: lkg
+  notes: Alpaca Markets MCP — free paper trading API. ALPACA_API_KEY + ALPACA_API_SECRET
+    required. 22+ tools. Stock/crypto quotes, option chains, market data.
+    Paper trading only (no real execution).
+
+- name: financial-modeling-prep-mcp
+  domain: finance
+  owner_agent: trader-agent
+  tier: 2
+  transport: http
+  lifecycle: disabled
+  auth_mode: api_key
+  statefulness: stateless
+  expected_tools:
+  - get_stock_data
+  - get_financial_statement
+  - get_dcf_valuation
+  - get_analyst_estimates
+  - get_price_target
+  - get_rating
+  - get_stock_screener
+  risk_level: low
+  cost_class: freemium
+  source_of_truth: npx fmp-mcp
+  rollback_class: server
+  baseline_status: disabled
+  notes: "Financial Modeling Prep MCP — 253+ tools, HTTP/SSE transport only.
+    DISABLED: proxy does not support HTTP transport yet. Requires proxy extension
+    for SSE/HTTP backends. Phase 2 target."
+
+- name: helium-mcp
+  domain: finance
+  owner_agent: trader-agent
+  tier: 2
+  transport: http
+  lifecycle: disabled
+  auth_mode: api_key
+  statefulness: stateless
+  expected_tools:
+  - get_ticker
+  - get_top_trading_strategies
+  - get_option_price
+  - search_news
+  - search_balanced_news
+  - get_source_bias
+  - get_bias_from_url
+  - get_all_source_biases
+  risk_level: low
+  cost_class: freemium
+  source_of_truth: https://app.heliumtrades.com/mcp
+  rollback_class: server
+  baseline_status: disabled
+  notes: "Helium MCP — AI-powered options pricing, news sentiment, bias analysis.
+    HTTP/streamable transport. DISABLED: proxy HTTP support required.
+    50 free queries/month. Phase 2 target after proxy HTTP extension."
