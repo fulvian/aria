@@ -63,6 +63,9 @@ Calcola e interpreta:
 
 ## Esempio proxy call
 
+Nel runtime Kilo i tool del proxy possono apparire come alias
+`aria-mcp-proxy_search_tools` / `aria-mcp-proxy_call_tool`.
+
 ```python
 # Discovery
 aria-mcp-proxy__search_tools({"query": "financial statement earnings data", "_caller_id": "trader-agent"})

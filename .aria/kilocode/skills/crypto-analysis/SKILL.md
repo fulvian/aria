@@ -65,6 +65,9 @@ funding rates, whale activity.
 
 ## Esempio proxy call
 
+Nel runtime Kilo i tool del proxy possono apparire come alias
+`aria-mcp-proxy_search_tools` / `aria-mcp-proxy_call_tool`.
+
 ```python
 # Discovery
 aria-mcp-proxy__search_tools({"query": "crypto price bitcoin ethereum market data", "_caller_id": "trader-agent"})

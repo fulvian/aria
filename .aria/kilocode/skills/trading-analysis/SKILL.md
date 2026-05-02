@@ -112,6 +112,8 @@ qualificato prima di prendere decisioni di investimento.
 
 1. **Usa SEMPRE il proxy** (`aria-mcp-proxy__search_tools` / `aria-mcp-proxy__call_tool`)
    con `_caller_id: "trader-agent"`
+   - Nel runtime Kilo questi tool possono apparire come alias `aria-mcp-proxy_search_tools`
+     / `aria-mcp-proxy_call_tool`; se compaiono così nella tool list, usa l'alias visibile.
 2. **Nessun tool nativo host** (`Read`, `Write`, `Glob`) per operazioni finanziarie
 3. **HITL** per raccomandazioni formali o analisi > 50k token
 4. **Disclaimer obbligatorio** su ogni output con raccomandazione

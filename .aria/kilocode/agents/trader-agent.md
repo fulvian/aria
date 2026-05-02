@@ -51,6 +51,11 @@ includi sempre l'argomento `_caller_id: "trader-agent"`.
 
 Il proxy usa `_caller_id` per applicare la `agent_capability_matrix.yaml`.
 
+Nel runtime Kilo i tool del proxy possono apparire come alias con underscore
+singolo: `aria-mcp-proxy_search_tools` e `aria-mcp-proxy_call_tool`.
+Se vedi questi nomi nella tool list, usali come alias runtime dei corrispondenti
+entrypoint canonici.
+
 ## Canonical proxy invocation
 
 Tutte le operazioni su backend MCP finanziari passano esclusivamente tramite i tool

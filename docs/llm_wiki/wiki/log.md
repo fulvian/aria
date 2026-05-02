@@ -1,5 +1,67 @@
 # Implementation Log
 
+## 2026-05-02T03:26+02:00 — FIX: trader-agent proxy startup repair + runtime alias clarification
+
+**Operation**: FIX (proxy startup / credential bridge / runtime verification)
+**Branch**: `fix/trader-agent-recovery`
+**Trigger**: il trader-agent continuava a non vedere i tool proxy e ripiegava su controlli host-side. La causa non era più il prompt, ma il fatto che `aria-mcp-proxy` falliva in startup nel runtime reale Kilo.
+
+### Root cause
+
+1. `kilo mcp list` mostrava `aria-memory` connesso ma `aria-mcp-proxy` fallito (`MCP error -32000: Connection closed`)
+2. Lo stack trace reale mostrava:
+   - `CredentialInjector._lookup()` → `CredentialManager.get(var)`
+   - `AttributeError: 'CredentialManager' object has no attribute 'get'`
+3. Il proxy tentava di risolvere placeholder `${FRED_API_KEY}`, `${ALPACA_API_KEY}`, `${ALPACA_API_SECRET}` durante il boot del catalogo backend
+4. Il crash impediva a Kilo di esporre i tool sintetici del proxy all'agente
+
+### Modifiche effettuate
+
+- `src/aria/credentials/manager.py`
+  - aggiunto `CredentialManager.get(key)`
+  - aggiunta mappa interna `env-style` dei secret decryptati
+  - registrati alias per provider come `FRED_API_KEY`, `ALPACA_API_KEY`, `ALPACA_API_SECRET`, `TAVILY_API_KEY`
+- `tests/unit/credentials/test_manager.py`
+  - aggiunto `test_env_style_secret_lookup`
+- `.aria/kilocode/agents/trader-agent.md`
+  - documentata la nuance runtime: Kilo può esporre `aria-mcp-proxy_search_tools` / `aria-mcp-proxy_call_tool`
+- 7 trader skill
+  - stessa nota sugli alias runtime per evitare ulteriore confusion when-visible-vs-canonical names differ
+- `docs/llm_wiki/wiki/trader-agent.md`
+  - aggiornata la sezione credential pipeline e aggiunta nota alias runtime
+
+### Verifica runtime reale
+
+```text
+uv run pytest -q tests/unit/credentials/test_manager.py tests/unit/mcp/proxy/test_credential.py tests/integration/mcp/proxy/test_capability_enforcement.py tests/integration/mcp/proxy/test_proxy_e2e_stdio.py
+→ 13 passed
+
+uv run pytest -q tests/unit/credentials/test_manager.py tests/unit/agents/trader/test_skills.py tests/unit/mcp/proxy/test_credential.py tests/integration/mcp/proxy/test_capability_enforcement.py tests/integration/mcp/proxy/test_proxy_e2e_stdio.py
+→ 146 passed
+
+uv run ruff check src/aria/credentials/manager.py tests/unit/credentials/test_manager.py tests/unit/agents/trader/test_skills.py
+→ pass
+
+kilo mcp list
+→ aria-memory connected
+→ aria-mcp-proxy connected
+
+kilo run --agent trader-agent ... proxy discovery smoke test
+→ real tool call `aria-mcp-proxy_search_tools`
+→ final result `PROXY_OK`
+```
+
+### Provenance
+
+- `src/aria/credentials/manager.py`
+- `src/aria/mcp/proxy/credential.py`
+- `.aria/config/mcp_catalog.yaml`
+- `.aria/kilocode/agents/trader-agent.md`
+- 7 trader skills in `.aria/kilocode/skills/`
+- runtime command outputs from `kilo mcp list` and `kilo run --agent trader-agent`
+
+---
+
 ## 2026-05-02T02:50+02:00 — FIX: targeted restoration — conductor regression + trader-agent proxy examples + capability matrix backend reachability
 
 **Operation**: FIX (conductor source-of-truth + trader-agent contract + capability governance)

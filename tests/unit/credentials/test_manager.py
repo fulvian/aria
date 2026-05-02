@@ -117,6 +117,20 @@ def manager_factory(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
                 "keys": [
                     {"key_id": "tvly-1", "key": "tvly-secret", "credits_total": 1000},
                 ]
+            },
+            "fred": {
+                "keys": [
+                    {"key_id": "fred-1", "api_key": "fred-secret"},
+                ]
+            },
+            "alpaca": {
+                "keys": [
+                    {
+                        "key_id": "alpaca-1",
+                        "api_key": "alpaca-key",
+                        "secret": "alpaca-secret",
+                    },
+                ]
             }
         }
     }
@@ -171,3 +185,12 @@ def test_oauth_roundtrip(manager_factory) -> None:
     assert bundle.refresh_token == "refresh"
     manager.revoke_oauth("google_workspace", "primary")
     assert manager.get_oauth("google_workspace", "primary") is None
+
+
+def test_env_style_secret_lookup(manager_factory) -> None:
+    manager, _audit = manager_factory()
+    assert manager.get("TAVILY_API_KEY") == "tvly-secret"
+    assert manager.get("FRED_API_KEY") == "fred-secret"
+    assert manager.get("ALPACA_API_KEY") == "alpaca-key"
+    assert manager.get("ALPACA_API_SECRET") == "alpaca-secret"
+    assert manager.get("MISSING_KEY") is None

@@ -85,12 +85,14 @@ class CredentialManager:
 
         # Load API keys (decrypted once at startup)
         self._api_keys: dict[str, list[dict[str, str | int | None]]] = {}
+        self._secret_env_map: dict[str, str] = {}
         self._load_api_keys()
 
     def _load_api_keys(self) -> None:
         """Load API keys from encrypted storage."""
         api_keys_path = self._config.paths.credentials / "secrets" / "api-keys.enc.yaml"
         self._api_keys = {}
+        self._secret_env_map = {}
         if api_keys_path.exists():
             try:
                 data = self._sops.decrypt(api_keys_path)
@@ -101,6 +103,7 @@ class CredentialManager:
                 for provider, provider_config in providers.items():
                     if not isinstance(provider_config, dict):
                         continue
+                    provider_env_prefix = provider.upper().replace("-", "_")
                     raw_keys = provider_config.get("keys", [])
                     if not isinstance(raw_keys, list):
                         continue
@@ -128,6 +131,7 @@ class CredentialManager:
                                 ),
                             }
                         )
+                        self._register_secret_aliases(provider_env_prefix, item, str(key_value))
 
                     self._api_keys[provider] = normalized
             except SopsError as e:
@@ -145,6 +149,41 @@ class CredentialManager:
             if str(item.get("key_id")) == key_id and isinstance(item.get("key"), str):
                 return SecretStr(str(item["key"]))
         return None
+
+    def _register_secret_aliases(
+        self,
+        provider_env_prefix: str,
+        item: dict[str, object],
+        normalized_key_value: str,
+    ) -> None:
+        """Register env-style aliases for decrypted provider secrets.
+
+        The proxy catalog uses placeholders like ``${FRED_API_KEY}`` and
+        ``${ALPACA_API_SECRET}``, while the encrypted credential file stores
+        provider-centric records. This bridge keeps the credential storage model
+        intact while exposing a simple ``get(VAR)`` lookup API for the proxy.
+        """
+
+        def _set(name: str, value: object | None) -> None:
+            if isinstance(value, str) and value:
+                self._secret_env_map.setdefault(name, value)
+
+        _set(f"{provider_env_prefix}_API_KEY", normalized_key_value)
+        _set(f"{provider_env_prefix}_KEY", normalized_key_value)
+        _set(f"{provider_env_prefix}_TOKEN", normalized_key_value)
+
+        _set(f"{provider_env_prefix}_API_SECRET", item.get("secret"))
+        _set(f"{provider_env_prefix}_SECRET", item.get("secret"))
+        _set(f"{provider_env_prefix}_CLIENT_SECRET", item.get("client_secret"))
+
+    def get(self, key: str) -> str | None:
+        """Return a decrypted secret by env-style key name.
+
+        This supports proxy placeholder resolution for values like
+        ``${FRED_API_KEY}`` and ``${ALPACA_API_SECRET}``.
+        """
+
+        return self._secret_env_map.get(key)
 
     # === API Key Rotation ===
 

@@ -1,7 +1,7 @@
 # Trader-Agent
 
-**Status**: Active ✅ v1.2
-**Last Updated**: 2026-05-02T02:50
+**Status**: Active ✅ v1.3
+**Last Updated**: 2026-05-02T03:26
 **Branch**: current working tree
 
 ## Overview
@@ -41,12 +41,13 @@ Tutti i backend passano attraverso `aria-mcp-proxy` (NON in `mcp.json`).
 ### Credential Pipeline
 
 ```
-SOPS api-keys.enc.yaml → .env (gitignored) → CredentialInjector (${VAR}) → subprocess env
+SOPS api-keys.enc.yaml → CredentialManager.get(${VAR}) / .env fallback → CredentialInjector → subprocess env
 ```
 
 - `FRED_API_KEY`: SOPS provider `fred` + `.env` fallback
 - `ALPACA_API_KEY` + `ALPACA_API_SECRET`: SOPS provider `alpaca` (mode: paper) + `.env` fallback
 - `financekit-mcp`: keyless, nessuna credenziale
+- **Fix 2026-05-02**: il proxy crashava in boot perché `CredentialInjector` chiamava `CredentialManager.get(var)` ma il facade non esponeva `get()`. Ora il bridge esiste e registra alias env-style per i secret decryptati.
 
 ## Capability Matrix
 
@@ -87,6 +88,14 @@ hitl_triggers:
 
 Tutte le operazioni passano tramite `aria-mcp-proxy` con `_caller_id: "trader-agent"`.
 Usa SEMPRE il formato `server__tool` (doppio underscore).
+
+### Nota runtime Kilo
+
+Nel runtime Kilo i tool del proxy possono apparire nella tool list come alias a underscore singolo:
+- `aria-mcp-proxy_search_tools`
+- `aria-mcp-proxy_call_tool`
+
+Sono alias runtime dei nomi canonici documentati nel prompt/config (`aria-mcp-proxy__search_tools` / `aria-mcp-proxy__call_tool`).
 
 ```python
 # Discovery

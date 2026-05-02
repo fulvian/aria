@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-05-02T02:50 (v6.7 — targeted restoration: conductor regression + trader proxy examples + capability matrix backend reachability)
-**Status**: ✅ **v6.7** — Conductor source-of-truth restaurato con trader-agent, no-direct-ops, wiki validity guard, finance dispatch. Kilo-home template coerente. 7 trader skill con esempi proxy canonici (`aria-mcp-proxy__search_tools` / `aria-mcp-proxy__call_tool` con `server__tool`). Capability matrix con 5 backend wildcard finance. 913 test passanti.
+**Last Updated**: 2026-05-02T03:26 (v6.8 — proxy startup repair: credential bridge + runtime alias clarification)
+**Status**: ✅ **v6.8** — `aria-mcp-proxy` torna connesso nel runtime reale dopo la riparazione del credential bridge (`CredentialManager.get()` per placeholder `${VAR}`). Il trader-agent vede e usa di nuovo i tool proxy; in runtime Kilo compaiono come alias `aria-mcp-proxy_search_tools` / `aria-mcp-proxy_call_tool`. Smoke test reale `PROXY_OK`, 146 test di regressione passanti sul pacchetto proxy/credential/trader.
 
 ## Purpose
 
