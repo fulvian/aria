@@ -65,7 +65,8 @@ Added wiki memory contract per plan §5.2:
 ## Profile Auto-Inject (Phase C)
 
 - **Template source**: `_aria-conductor.template.md` contains `{{ARIA_MEMORY_BLOCK}}` placeholder
-- **Active template**: `aria-conductor.md` is regenerated from source with profile substituted
+- **Canonical source**: `.aria/kilocode/agents/_aria-conductor.template.md` is the ONLY canonical template (`CANONICAL_TEMPLATE_REL` in `prompt_inject.py`). Runtime Kilo-home copy is derived and synced on regeneration.
+- **Active template**: `aria-conductor.md` is regenerated from canonical source with profile substituted
 - **Boot hook**: MCP server `main()` runs regeneration before `mcp.run()`
 - **Update hook**: `wiki_update` with profile patch triggers immediate regeneration
 - **Budget**: Profile body truncated to ~300 tokens (1200 chars)

@@ -37,6 +37,18 @@ PLACEHOLDER = "{{ARIA_MEMORY_BLOCK}}"
 _TEMPLATE_FILENAME = "_aria-conductor.template.md"
 _ACTIVE_FILENAME = "aria-conductor.md"
 
+# === Source-of-Truth Contract ===
+# The ONLY canonical source template is:
+#   .aria/kilocode/agents/_aria-conductor.template.md
+#
+# All other copies (runtime Kilo-home template + active files) are DERIVED
+# and are synced during regenerate_conductor_template(). No process should
+# edit the runtime template directly — it will be overwritten on next
+# regeneration.
+#
+# Canonical path (relative to ARIA_HOME):
+CANONICAL_TEMPLATE_REL = ".aria/kilocode/agents/_aria-conductor.template.md"
+
 # Token budget for profile block (plan §6.1: ~300 tokens)
 _PROFILE_MAX_CHARS = 1200  # ~300 tokens at 4 chars/token
 
@@ -150,28 +162,39 @@ async def regenerate_conductor_template(
 
     Per plan §6.1:
     1. Read template source (_aria-conductor.template.md) with {{ARIA_MEMORY_BLOCK}}
+       — prefers the versioned source template as canonical source-of-truth
     2. Build memory block from wiki.db profile
     3. Substitute placeholder → write active agent file (aria-conductor.md)
+       — writes to BOTH the Kilo-home runtime active file AND the versioned active file
+    4. Sync Kilo-home runtime template from versioned source template
 
     Args:
         store: WikiStore instance for profile access.
         agent_dir: Optional override for agents directory (testing).
+            When provided, all reads/writes use this directory only.
 
     Returns:
         True if template was regenerated, False on error.
     """
-    agents_path = agent_dir or _resolve_agent_dir()
-    source_path = _resolve_source_agent_dir() if agent_dir is None else agent_dir
-    template_path = agents_path / _TEMPLATE_FILENAME
-    active_path = agents_path / _ACTIVE_FILENAME
-    source_active_path = source_path / _ACTIVE_FILENAME
+    # In production (agent_dir is None): use versioned source as canonical template
+    # In testing (agent_dir is provided): use the provided directory for both
+    source_agents_path = _resolve_source_agent_dir() if agent_dir is None else agent_dir
+    runtime_agents_path = _resolve_agent_dir() if agent_dir is None else agent_dir
+
+    # Canonical template: always read from versioned source directory
+    template_path = source_agents_path / _TEMPLATE_FILENAME
+
+    # Active files: write to BOTH versioned and runtime locations
+    source_active_path = source_agents_path / _ACTIVE_FILENAME
+    runtime_active_path = runtime_agents_path / _ACTIVE_FILENAME
+    runtime_template_path = runtime_agents_path / _TEMPLATE_FILENAME
 
     if not template_path.exists():  # noqa: ASYNC240
         logger.warning("Template source not found: %s", template_path)
         return False
 
     try:
-        # Read template source
+        # Read template source (canonical: versioned source template)
         template_content = template_path.read_text(encoding="utf-8")
 
         if PLACEHOLDER not in template_content:
@@ -188,13 +211,23 @@ async def regenerate_conductor_template(
         # Substitute
         active_content = template_content.replace(PLACEHOLDER, memory_block)
 
-        # Write active agent file (isolated runtime)
-        active_path.write_text(active_content, encoding="utf-8")
-
-        # ALSO write to source-of-truth so bin/aria bootstrap carries profile forward
+        # Write active agent to versioned source-of-truth location
         source_active_path.write_text(active_content, encoding="utf-8")
 
-        logger.info("Regenerated conductor template: %s (and %s)", active_path, source_active_path)
+        # Write active agent to Kilo-home runtime location
+        if runtime_active_path != source_active_path:
+            runtime_active_path.write_text(active_content, encoding="utf-8")
+
+        # Sync runtime template from versioned source template to prevent drift
+        if runtime_template_path != template_path:
+            runtime_template_path.write_text(template_content, encoding="utf-8")
+
+        logger.info(
+            "Regenerated conductor template from %s → %s (and %s)",
+            template_path,
+            source_active_path,
+            runtime_active_path,
+        )
         return True
 
     except Exception as exc:

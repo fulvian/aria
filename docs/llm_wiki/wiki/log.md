@@ -3910,3 +3910,14 @@ pytest unit        → 35 passed ✅
 pytest integration → 3 passed ✅
 Drift validator    → All checks passed ✅
 ```
+
+### 2026-05-02b: Conductor regression hardening pass
+
+**Source**: hardening follow-up to stale conductor template fix
+**Changes**:
+- `prompt_inject.py`: added `CANONICAL_TEMPLATE_REL` constant documenting `.aria/kilocode/agents/_aria-conductor.template.md` as sole canonical source. Module docstring expanded with source-of-truth contract.
+- `test_prompt_inject.py`: added `TestConductorDriftAudit` — parametrized cross-file structural coherence test across all 4 conductor artifacts (canonical template, versioned active, runtime template, runtime active). Catches divergence of trader-agent, no-direct-ops, wiki validity guard, finance routing.
+- `test_conductor_dispatch.py` (trader): added `TestSemanticFinanceRouting` — covers ETF allocation review, ribilanciare/ribilanciamento, exposure/overlap via keywords, investment/trading prohibition in DIVIETO section.
+- `memory-v3.md` wiki: documented `CANONICAL_TEMPLATE_REL` and canonical source path.
+
+**Test count**: 979 passed (up from 966 before hardening)
