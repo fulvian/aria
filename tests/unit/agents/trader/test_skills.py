@@ -222,3 +222,47 @@ class TestTradingSkillsBody:
             ln for ln in lines if ln.startswith(("#", "##"))
         ]
         assert len(header_lines) > 0
+
+
+class TestTradingSkillsProxyExamples:
+    """Proxy examples in skills must use canonical patterns.
+
+    Regression test: catches invalid call_tool("search_tools", ...) and
+    legacy server/tool naming with single slash.
+    """
+
+    def test_no_call_tool_with_search_tools_arg(self, skill_text: str) -> None:
+        """Example code must NOT use call_tool('search_tools', ...) pattern.
+
+        Discovery should use aria-mcp-proxy__search_tools directly, not
+        aria-mcp-proxy__call_tool("search_tools", ...).
+        """
+        # This anti-pattern was in the original recovery commit
+        assert 'call_tool("search_tools"' not in skill_text
+        assert "call_tool('search_tools'" not in skill_text
+
+    def test_no_legacy_slash_tool_names(self, skill_text: str) -> None:
+        """Example code must NOT use server/tool slash naming.
+
+        Canonical form is server__tool (double underscore).
+        """
+        import re
+
+        # Find proxy call examples and check they don't use slash
+        # Match patterns like "server-name/tool_name" inside proxy call blocks
+        proxy_blocks = re.findall(
+            r'aria-mcp-proxy__call_tool\([^)]*"name":\s*"([^"]+)"',
+            skill_text,
+        )
+        for tool_name in proxy_blocks:
+            assert "/" not in tool_name, (
+                f"Tool name '{tool_name}' uses legacy slash separator. "
+                f"Use double underscore: '{tool_name.replace('/', '__')}'"
+            )
+
+    def test_examples_use_caller_id(self, skill_text: str) -> None:
+        """All proxy examples must include _caller_id."""
+        if "aria-mcp-proxy__" in skill_text:
+            assert '"_caller_id": "trader-agent"' in skill_text or (
+                '"_caller_id":"trader-agent"' in skill_text
+            )

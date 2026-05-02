@@ -99,6 +99,11 @@ agents:
     type: worker
     description: Agente di analisi finanziaria — stock, ETF, options, macro, sentiment, crypto, commodity. Consulente di analisi, NON execution bot.
     allowed_tools:
+      - financekit-mcp__*
+      - mcp-fredapi__*
+      - alpaca-mcp__*
+      - financial-modeling-prep-mcp__*
+      - helium-mcp__*
       - aria-mcp-proxy__search_tools
       - aria-mcp-proxy__call_tool
       - aria-memory__wiki_update_tool

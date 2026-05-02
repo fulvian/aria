@@ -121,12 +121,16 @@ qualificato prima di prendere decisioni di investimento.
 
 ```python
 # Discovery
-aria-mcp-proxy__call_tool("search_tools", {"query": "stock quote financial data", "_caller_id": "trader-agent"})
+aria-mcp-proxy__search_tools({"query": "stock quote financial data", "_caller_id": "trader-agent"})
 
 # Esecuzione
-aria-mcp-proxy__call_tool("call_tool", {
-    "name": "financial-modeling-prep-mcp/get_stock_data",
+aria-mcp-proxy__call_tool({
+    "name": "financekit-mcp__get_stock_data",
     "arguments": {"symbol": "AAPL"},
     "_caller_id": "trader-agent"
 })
 ```
+
+> **Nota backend**: I backend attualmente abilitati via proxy sono `financekit-mcp`, `mcp-fredapi` e `alpaca-mcp` (stdio).
+> `financial-modeling-prep-mcp` e `helium-mcp` sono HTTP/SSE, attualmente disabilitati (Phase 2).
+> Quando disponibile, usa `financial-modeling-prep-mcp__<tool>` per dati fondamentali estesi.

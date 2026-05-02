@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-05-02T02:22 (v6.6 — trader-agent backend MCP registration + credential pipeline)
-**Status**: ✅ **v6.6** — Il trader-agent ora ha 5 backend MCP finanziari registrati nel catalogo proxy (3 enabled stdio, 2 disabled HTTP/SSE in attesa di estensione proxy). Credenziali FRED e Alpaca configurate via SOPS+age + `.env` + CredentialInjector con placeholder `${VAR}`. 7 skill recuperate dal commit perduto `41e0ef3`. 157 test trader-agent. 877 test totali passanti.
+**Last Updated**: 2026-05-02T02:50 (v6.7 — targeted restoration: conductor regression + trader proxy examples + capability matrix backend reachability)
+**Status**: ✅ **v6.7** — Conductor source-of-truth restaurato con trader-agent, no-direct-ops, wiki validity guard, finance dispatch. Kilo-home template coerente. 7 trader skill con esempi proxy canonici (`aria-mcp-proxy__search_tools` / `aria-mcp-proxy__call_tool` con `server__tool`). Capability matrix con 5 backend wildcard finance. 913 test passanti.
 
 ## Purpose
 
@@ -192,6 +192,7 @@ docs/llm_wiki/
 - 2026-05-01: **v6.3e** — Added definitive proxy/runtime hardening: middleware now extracts nested `_caller_id` for synthetic `call_tool`, stale Kilo-home conductor artifacts were restored, and conductor/productivity prompts now explicitly forbid code edits, config edits, process killing, and runtime self-remediation during ordinary user workflows.
 - 2026-05-01: **v6.4** — Creato `docs/protocols/protocollo_creazione_agenti.md`: workflow unico per nuovi agenti/sub-agenti, con intake, wiki-first reconstruction, ricerca repo + `github-discovery`, branch di ricerca manuale via ARIA, decision ladder P8, guardrail P9/HITL/wiki.db/proxy, e output obbligatorio dei piani in `docs/plans/agents/`.
 - 2026-05-02: **v6.5** — **trader-agent runtime integration**. Il trader-agent (esistente in `.aria/kilo-home/.kilo/agents/` con 7 skill) era invisibile al conductor perché mancava da tutti i touchpoint runtime. Fix: capability matrix entry, conductor dispatch rules con keyword routing per 40+ termini finanziari, prompt canonico in `.aria/kilocode/agents/trader-agent.md`, delegation chain aggiornata. Aggiornato `protocollo_creazione_agenti.md` con **Fase L (Runtime Integration Checklist)** — 8 touchpoint obbligatori per prevenire integrazioni parziali future. 28 nuovi test trader-agent.
+- 2026-05-02: **v6.7** — **targeted restoration**: conductor prompt regressed → restaurato con trader-agent, no-direct-ops, wiki validity guard, finance dispatch. Kilo-home template coerente con `{{ARIA_MEMORY_BLOCK}}`. 7 trader skill fixate con esempi proxy canonici `server__tool`. Capability matrix con backend finance wildcard per boot-time filtering. 913 test passanti.
 - 2026-05-02: **v6.6** — **trader-agent backend MCP registration + credential pipeline**. Scoperto che il commit `41e0ef3` su `feature/trader-agent-mvp` (mai mergiato) conteneva il lavoro completo (20 file, +1957 linee). Recuperato selettivamente: 7 skill, ADR, wiki, 157 test. Registrati 5 backend MCP finanziari nel `mcp_catalog.yaml` (3 stdio enabled, 2 HTTP disabled Phase 2). Setup repos esterni: mcp-fredapi + alpaca-mcp clonati con venv. Credential pipeline: SOPS + .env + CredentialInjector `${VAR}` placeholders. Catalog parser esteso per leggere campo `env`. 877 test passanti.
 
 ## Git & GitHub Rules

@@ -64,12 +64,20 @@ Calcola e interpreta:
 ## Esempio proxy call
 
 ```python
-aria-mcp-proxy__call_tool("call_tool", {
-    "name": "financial-modeling-prep-mcp/get_financial_statement",
+# Discovery
+aria-mcp-proxy__search_tools({"query": "financial statement earnings data", "_caller_id": "trader-agent"})
+
+# Esecuzione — usa financekit-mcp (enabled) per fundamentals base
+aria-mcp-proxy__call_tool({
+    "name": "financekit-mcp__get_financial_statement",
     "arguments": {"symbol": "AAPL", "statement_type": "income", "period": "annual"},
     "_caller_id": "trader-agent"
 })
 ```
+
+> **Nota backend**: `financekit-mcp` è il backend fondamentale attualmente abilitato.
+> `financial-modeling-prep-mcp` (253+ tools fondamentali) è HTTP/SSE, disabilitato (Phase 2).
+> Quando disponibile, preferisci `financial-modeling-prep-mcp__<tool>` per copertura estesa.
 
 ## Output strutturato
 

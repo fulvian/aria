@@ -1,72 +1,60 @@
-# Task Plan: MCP proxy integration audit → remediation
+# Task Plan: trader-agent forensic debug → remediation
 
 ## Goal
-Remediate the MCP proxy integration drift identified in the 2026-05-01 audit, implementing the approved hybrid capability-scoped architectural direction.
+Diagnose and remediate the trader-agent regression cluster reported on 2026-05-02:
+- missing/unclear original implementation plan provenance;
+- routing drift causing finance requests to miss trader-agent;
+- MCP proxy/tool-surface regressions preventing financial backends from being used reliably;
+- source-of-truth drift between wiki, active prompts, generated prompts, and tests.
 
-## Status: 🔄 FOLLOW-UP DEBUG IN PROGRESS
+## Status: 🔄 FORENSIC ANALYSIS IN PROGRESS
 
 ## Phases
 
-### Phase 1: Audit / forensic analysis
+### Phase 1: Wiki-first reconstruction
 - [x] Read `AGENTS.md`
-- [x] Read LLM wiki index/log first
-- [x] Read proxy plan/spec/ADR
-- [x] Inspect current proxy code paths
-- [x] Inspect conductor + 3 sub-agent prompts
-- [x] Inspect current skills inventory and content
-- [x] Verify FastMCP behavior with Context7
+- [x] Read `docs/llm_wiki/wiki/index.md`
+- [x] Read `docs/llm_wiki/wiki/log.md`
+- [x] Read `docs/llm_wiki/wiki/trader-agent.md`
+- [x] Read `docs/llm_wiki/wiki/mcp-proxy.md`
+- [x] Read `docs/llm_wiki/wiki/agent-capability-matrix.md`
+- [x] Read `docs/protocols/protocollo_creazione_agenti.md`
 
-### Phase 2: Requirements / audit PRD
-- [x] Freeze the concrete integration gaps to fix
-- [x] Define expected target contract for prompts, skills, caller propagation, and capability enforcement
-- [x] Separate blocking defects from cleanup/documentation drift
-- [x] Research the deeper architectural question behind agent boundaries and MCP exclusivity
+### Phase 2: Forensic diagnosis / PRD
+- [x] Recover branch and commit lineage for trader-agent
+- [x] Verify whether the original trader plan exists in the working tree or git history
+- [x] Inspect active conductor/trader prompts, proxy config, and trader skills
+- [x] Verify FastMCP middleware/search behavior with Context7
+- [x] Run targeted tests to validate suspected runtime/source-of-truth drift
+- [ ] Freeze final defect inventory and remediation scope
 
 ### Phase 3: Technical design
-- [x] Design fail-closed caller propagation and enforcement
-- [x] Decide canonical invocation model (synthetic proxy tools vs backend names in frontmatter)
-- [x] Define prompt/skill normalization strategy
-- [x] Define wiki/spec/ADR reconciliation changes
-- [x] Decide future agent-boundary model: strict exclusivity vs shared capability pools vs hybrid
-- [x] Draft blueprint/ADR amendments for P9 and workspace/productivity convergence
+- [ ] Define canonical conductor source-of-truth regeneration model
+- [ ] Define trader-agent prompt/skill contract corrections
+- [ ] Define capability-matrix / boot-filter fix for finance backends
+- [ ] Define missing-plan recovery and wiki provenance corrections
 
-### Phase 4: Implementation ✅
-- [x] Apply runtime fixes in middleware (fail-closed enforcement)
-- [x] Update agent prompts (canonical proxy contract + convergence)
-- [x] Update affected skills (deep-research, office-ingest, meeting-prep, email-draft, triage-email)
-- [x] Update capability matrix (productivity-agent gains google_workspace)
-- [x] Update ADR-0008 (amendment for hybrid model)
-- [x] Update wiki docs
+### Phase 4: Implementation
+- [ ] Apply selected fixes
+- [ ] Add/extend regression tests
+- [ ] Update wiki + state + provenance docs
 
-### Phase 5: Verification ✅
-- [x] Run `ruff check .` → All checks passed
-- [x] Run `ruff format --check .` → 202 files already formatted
-- [x] Run `mypy src` → Success: no issues found in 90 source files
-- [x] Run `pytest -q` → 673 passed, 23 skipped, 3 warnings
-
-### Phase 6: Post-CLI behavioral remediation
-- [x] Force conductor delegation to `productivity-agent` for mixed work-domain tasks
-- [x] Prevent conductor from satisfying this workflow with direct `glob`/`read` operational work
-- [x] Verify real HITL tool path instead of textual pseudo-confirmation
-- [x] Verify `search_tools` → `call_tool` canonical proxy execution under `_caller_id: "productivity-agent"`
-- [x] Prevent incorrect wiki consolidation of architecturally invalid flows
-- [x] Re-run behavioral test with the same CLI scenario
-
-### Phase 7: Productivity-agent post-delegation hardening
-- [x] Prevent ordinary productivity workflows from relying on host-native `Glob`/`Read` helpers where proxy-backed MCP routes exist
-- [x] Strengthen productivity-agent prompt for real HITL gating and single valid wiki update call
-- [x] Align core work-domain skills with the same proxy/HITL contract
-- [x] Add static contract tests for productivity-agent + core skills
-- [x] Re-run full gates after the hardening
+### Phase 5: Verification
+- [ ] Run targeted regression tests
+- [ ] Run `ruff check .`
+- [ ] Run `mypy src`
+- [ ] Run `pytest -q` or constrained subset if full suite is noisy
 
 ## Constraints
 - Follow `AGENTS.md` strictly.
 - Use wiki-first and Context7-first workflow.
-- Keep diffs minimal and aligned with the original proxy plan/spec.
+- Do not perform destructive git recovery without explicit approval.
+- Keep fixes minimal and aligned with the proxy architecture and trader-agent protocol.
 
-### Phase 8: Knowledge codification for future agents
-- [x] Synthesize the lessons learned from proxy/runtime remediation into a reusable protocol
-- [x] Define the mandatory research branch, including optional `github-discovery` and manual ARIA prompts
-- [x] Define hard gates for P8/P9, proxy compatibility, wiki.db, HITL, observability, and testability
-- [x] Save the protocol to `docs/protocols/protocollo_creazione_agenti.md`
-- [x] Update wiki index/log to register the new protocol as a source of truth
+## Current suspected root causes
+- Generated conductor prompt drift: `.aria/kilocode/agents/aria-conductor.md` has been overwritten from a stale Kilo-home template missing trader-agent and prior hardening.
+- Trader-agent docs/wiki point to `docs/plans/agents/trader_agent_foundation_plan.md`, but no such file exists in the worktree or recovered trader commit.
+- Trader-agent prompt/skills still contain invalid proxy examples (`call_tool("search_tools", ...)`) and legacy slash-form backend names.
+- Trader-agent prompt/skills reference disabled HTTP finance backends (`financial-modeling-prep-mcp`, `helium-mcp`) as if they were primary live paths.
+- Capability boot filtering by `ARIA_CALLER_ID` would load zero finance backends for `trader-agent` because its matrix entry contains only synthetic proxy tools, not backend wildcard reach.
+- HITL tool naming is inconsistent (`hitl-queue__ask` in prompts/tests vs live `aria-memory__hitl_*` tool surface in this environment).

@@ -76,8 +76,12 @@ Analizza la curva dei rendimenti:
 ## Esempio proxy call
 
 ```python
-aria-mcp-proxy__call_tool("call_tool", {
-    "name": "mcp-fredapi/get_fred_series_observations",
+# Discovery
+aria-mcp-proxy__search_tools({"query": "FRED treasury yield CPI GDP macro", "_caller_id": "trader-agent"})
+
+# Esecuzione — mcp-fredapi è enabled (stdio)
+aria-mcp-proxy__call_tool({
+    "name": "mcp-fredapi__get_fred_series_observations",
     "arguments": {"series_id": "DGS10", "sort_order": "desc", "limit": 30},
     "_caller_id": "trader-agent"
 })

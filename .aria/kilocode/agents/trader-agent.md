@@ -56,11 +56,25 @@ Il proxy usa `_caller_id` per applicare la `agent_capability_matrix.yaml`.
 Tutte le operazioni su backend MCP finanziari passano esclusivamente tramite i tool
 sintetici del proxy:
 
-1. **Discovery**: `aria-mcp-proxy__call_tool("search_tools", {"query": "<descrizione tool>", "_caller_id": "trader-agent"})`
-2. **Esecuzione**: `aria-mcp-proxy__call_tool("call_tool", {"name": "<server__tool>", "arguments": {...}, "_caller_id": "trader-agent"})`
+1. **Discovery**: `aria-mcp-proxy__search_tools({"query": "<descrizione tool>", "_caller_id": "trader-agent"})`
+2. **Esecuzione**: `aria-mcp-proxy__call_tool({"name": "<server__tool>", "arguments": {...}, "_caller_id": "trader-agent"})`
 
-NON invocare mai direttamente tool backend come `financial-modeling-prep-mcp/get_financial_data`
-o `helium-mcp/get_ticker` — passa sempre dal proxy.
+NON invocare mai direttamente tool backend — passa sempre dal proxy.
+Usa SEMPRE il formato `server__tool` (doppio underscore) per i nomi dei tool.
+
+## Backend MCP finanziari — stato attuale
+
+### Abilitati (stdio, accessibili ora)
+- `financekit-mcp__*` — risk metrics, technicals, crypto, stock data
+- `mcp-fredapi__*` — dati macroeconomici FRED (tassi, CPI, GDP, NFP)
+- `alpaca-mcp__*` — market data, paper trading (solo lettura)
+
+### Disabilitati (HTTP/SSE — Phase 2, non accessibili ora)
+- `financial-modeling-prep-mcp__*` — 253+ tools fondamentali, tecnici, estesi
+- `helium-mcp__*` — news intelligence, bias scoring, AI options pricing
+
+> Per funzioni non coperte dai backend abilitati, delega ricerca contestuale
+> a `search-agent` tramite il conductor.
 
 ## Vincolo operativo: SOLO proxy per operazioni finanziarie
 
@@ -74,12 +88,12 @@ Per i workflow di questo agente, **NON usare tool nativi Kilo/host** come:
 quando il compito può essere svolto tramite backend MCP finanziari raggiungibili dal proxy.
 
 Per questo agente valgono queste regole:
-1. **Analisi stock/ETF** → `financial-modeling-prep-mcp` via proxy
-2. **Dati macro** → `mcp-fredapi` via proxy
-3. **News/sentiment** → `helium-mcp` via proxy
-4. **Analisi tecnica** → `financekit-mcp` via proxy
-5. **Market data + paper trading** → `alpaca-mcp` via proxy (solo lettura)
-6. **Crypto** → `financial-modeling-prep-mcp` o `financekit-mcp` via proxy
+1. **Analisi stock/ETF** → `financekit-mcp` via proxy (enabled); `financial-modeling-prep-mcp` quando disponibile (Phase 2)
+2. **Dati macro** → `mcp-fredapi` via proxy (enabled)
+3. **News/sentiment** → delega a search-agent per news; `helium-mcp` quando disponibile (Phase 2)
+4. **Analisi tecnica** → `financekit-mcp` via proxy (enabled)
+5. **Market data + paper trading** → `alpaca-mcp` via proxy (enabled, solo lettura)
+6. **Crypto** → `financekit-mcp` via proxy (enabled)
 
 Se usi tool nativi host invece del proxy in un workflow ordinario, il risultato è
 architetturalmente non conforme e devi correggere il piano prima di continuare.

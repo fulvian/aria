@@ -67,12 +67,19 @@ IV rank, volatility surface.
 ## Esempio proxy call
 
 ```python
-aria-mcp-proxy__call_tool("call_tool", {
-    "name": "helium-mcp/get_ticker",
-    "arguments": {"ticker": "AAPL"},
+# Discovery
+aria-mcp-proxy__search_tools({"query": "options chain greeks IV analysis", "_caller_id": "trader-agent"})
+
+# Esecuzione — alpaca-mcp per market data opzioni
+aria-mcp-proxy__call_tool({
+    "name": "alpaca-mcp__get_option_chain",
+    "arguments": {"symbol": "AAPL"},
     "_caller_id": "trader-agent"
 })
 ```
+
+> **Nota backend**: `alpaca-mcp` (enabled, solo lettura) fornisce market data opzioni.
+> `helium-mcp` (AI options pricing) è HTTP/SSE, disabilitato (Phase 2).
 
 ## Output strutturato
 

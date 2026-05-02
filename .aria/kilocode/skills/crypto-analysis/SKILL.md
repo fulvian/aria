@@ -66,8 +66,12 @@ funding rates, whale activity.
 ## Esempio proxy call
 
 ```python
-aria-mcp-proxy__call_tool("call_tool", {
-    "name": "financekit-mcp/crypto_price",
+# Discovery
+aria-mcp-proxy__search_tools({"query": "crypto price bitcoin ethereum market data", "_caller_id": "trader-agent"})
+
+# Esecuzione
+aria-mcp-proxy__call_tool({
+    "name": "financekit-mcp__crypto_price",
     "arguments": {"symbol": "BTC"},
     "_caller_id": "trader-agent"
 })

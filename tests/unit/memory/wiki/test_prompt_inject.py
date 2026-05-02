@@ -233,3 +233,80 @@ class TestRegenerateConductorTemplate:
         after = template_path.read_text(encoding="utf-8")
         assert original == after
         assert PLACEHOLDER in after
+
+
+class TestTemplateConductorCoherence:
+    """Regression test: Kilo-home template must not silently diverge from
+    the active conductor contract.
+
+    This catches the root cause where prompt_inject regenerates the active
+    conductor from a stale template, losing trader-agent, no-direct-ops, etc.
+    """
+
+    def test_kilo_home_template_has_placeholder(self) -> None:
+        """Kilo-home template must contain {{ARIA_MEMORY_BLOCK}}."""
+        from pathlib import Path
+
+        template = Path(".aria/kilo-home/.kilo/agents/_aria-conductor.template.md")
+        assert template.exists(), "Kilo-home template missing"
+        content = template.read_text(encoding="utf-8")
+        assert PLACEHOLDER in content
+
+    def test_kilo_home_template_has_trader_agent(self) -> None:
+        """Kilo-home template must list trader-agent in sub-agenti."""
+        from pathlib import Path
+
+        template = Path(".aria/kilo-home/.kilo/agents/_aria-conductor.template.md")
+        content = template.read_text(encoding="utf-8")
+        assert "trader-agent" in content
+
+    def test_kilo_home_template_has_no_direct_ops(self) -> None:
+        """Kilo-home template must contain no-direct-ops section."""
+        from pathlib import Path
+
+        template = Path(".aria/kilo-home/.kilo/agents/_aria-conductor.template.md")
+        content = template.read_text(encoding="utf-8")
+        assert "NESSUN lavoro diretto" in content or "Non eseguire MAI" in content
+
+    def test_kilo_home_template_has_wiki_validity_guard(self) -> None:
+        """Kilo-home template must have wiki validity guard."""
+        from pathlib import Path
+
+        template = Path(".aria/kilo-home/.kilo/agents/_aria-conductor.template.md")
+        content = template.read_text(encoding="utf-8")
+        assert "NON scrivere wiki entries" in content
+
+    def test_kilo_home_template_has_finance_dispatch(self) -> None:
+        """Kilo-home template must have finance dispatch rules."""
+        from pathlib import Path
+
+        template = Path(".aria/kilo-home/.kilo/agents/_aria-conductor.template.md")
+        content = template.read_text(encoding="utf-8")
+        assert "Regole di dispatch per trader-agent" in content
+
+    def test_active_conductor_matches_template_structure(self) -> None:
+        """Active conductor must have same structural sections as template.
+
+        The active file is generated from the template + memory block, so
+        all structural sections from the template must be present.
+        """
+        from pathlib import Path
+
+        template = Path(".aria/kilo-home/.kilo/agents/_aria-conductor.template.md")
+        active = Path(".aria/kilocode/agents/aria-conductor.md")
+
+        template_text = template.read_text(encoding="utf-8")
+        active_text = active.read_text(encoding="utf-8")
+
+        # Key structural markers that must appear in both
+        structural_markers = [
+            "trader-agent",
+            "NESSUN lavoro diretto",
+            "NON scrivere wiki entries",
+            "Regole di dispatch per trader-agent",
+            "workspace-agent",
+            "productivity-agent",
+        ]
+        for marker in structural_markers:
+            assert marker in template_text, f"Template missing: {marker}"
+            assert marker in active_text, f"Active conductor missing: {marker}"

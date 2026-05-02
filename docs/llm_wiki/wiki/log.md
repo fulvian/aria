@@ -1,5 +1,60 @@
 # Implementation Log
 
+## 2026-05-02T02:50+02:00 — FIX: targeted restoration — conductor regression + trader-agent proxy examples + capability matrix backend reachability
+
+**Operation**: FIX (conductor source-of-truth + trader-agent contract + capability governance)
+**Branch**: working tree (no commit per instructions)
+**Trigger**: conductor prompt regressed in working tree — missing trader-agent, no-direct-ops, wiki validity guard, finance dispatch. Kilo-home template/runtime stale. Trader skills used invalid proxy patterns. Capability matrix only listed synthetic proxy tools without finance backend wildcards, breaking boot-time filtering.
+
+### Root causes addressed
+
+1. `.aria/kilocode/agents/aria-conductor.md` regressed — lost trader-agent, no-direct-ops, wiki guard, finance routing
+2. `.aria/kilo-home/.kilo/agents/` template + runtime stale — prompt_inject regenerates from stale template
+3. All 7 trader skills used legacy `server/tool` slash naming and `call_tool("search_tools")` anti-pattern
+4. Capability matrix listed only synthetic proxy tools — no finance backend wildcards for boot-time filtering
+5. Trader prompt implied HTTP backends (financial-modeling-prep-mcp, helium-mcp) were primary live paths
+
+### Changes applied
+
+**A. Conductor source-of-truth restored** (3 files):
+- `.aria/kilocode/agents/aria-conductor.md` — full hardening: no-direct-ops, GW→productivity, wiki validity guard, finance dispatch rules with 50+ keyword routing, trader-agent in sub-agenti, delegation chains
+- `.aria/kilo-home/.kilo/agents/_aria-conductor.template.md` — same content with `{{ARIA_MEMORY_BLOCK}}`
+- `.aria/kilo-home/.kilo/agents/aria-conductor.md` — synced from kilocode active
+
+**B. Trader-agent contract fixed** (8 files):
+- `.aria/kilocode/agents/trader-agent.md` — proxy examples now use `aria-mcp-proxy__search_tools` for discovery, `aria-mcp-proxy__call_tool` with `server__tool` canonical names; backend state accurately described (3 enabled stdio, 2 disabled HTTP/SSE)
+- All 7 skills: fixed proxy examples to canonical `server__tool` (double underscore), added backend state notes, fixed discovery to use `aria-mcp-proxy__search_tools` directly
+
+**C. Capability governance fixed** (1 file):
+- `.aria/config/agent_capability_matrix.yaml` — trader-agent now lists 5 finance backend wildcards (`financekit-mcp__*`, `mcp-fredapi__*`, `alpaca-mcp__*`, `financial-modeling-prep-mcp__*`, `helium-mcp__*`) alongside proxy synthetic tools (14 entries total, ≤20)
+
+**D. Regression tests added** (2 files):
+- `tests/unit/agents/trader/test_skills.py` — 3 new tests per skill: `test_no_call_tool_with_search_tools_arg`, `test_no_legacy_slash_tool_names`, `test_examples_use_caller_id`
+- `tests/unit/memory/wiki/test_prompt_inject.py` — 6 new tests: template placeholder, trader-agent, no-direct-ops, wiki guard, finance dispatch, active-conductor-matches-template structure
+
+**E. Wiki updated** (3 files):
+- `docs/llm_wiki/wiki/trader-agent.md` — backend state accurate, proxy examples canonical
+- `docs/llm_wiki/wiki/agent-capability-matrix.md` — trader-agent backend reachability with wildcard form
+- `docs/llm_wiki/wiki/log.md` — this entry
+
+### Quality gates
+
+```
+ruff check .          → All checks passed  ✅
+mypy src              → Success: no issues found in 90 source files  ✅
+pytest -q             → 913 passed, 23 skipped, 2 failed (pre-existing integration), 3 warnings  ✅
+```
+
+### Provenance
+
+- `.aria/kilocode/agents/aria-conductor.md` (conductor source-of-truth)
+- `.aria/kilo-home/.kilo/agents/_aria-conductor.template.md` (regeneration template)
+- `.aria/config/agent_capability_matrix.yaml` (capability governance)
+- `docs/plans/agents/trader_agent_foundation_plan.md` (canonical plan)
+- 23 prior conductor dispatch tests (all now passing)
+
+---
+
 ## 2026-05-02T02:22+02:00 — FIX: trader-agent backend MCP registration + credential pipeline
 
 **Operation**: FIX (trader-agent ghost agent — backend MCP mancanti)

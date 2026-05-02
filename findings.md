@@ -1,5 +1,89 @@
 # Findings — MCP Proxy Integration Audit (2026-05-01)
 
+## Trader-agent forensic addendum (2026-05-02)
+
+### 1) Missing original implementation plan is real, not user error
+- `docs/llm_wiki/wiki/trader-agent.md` and `docs/foundation/decisions/ADR-00XX-trader-agent-introduction.md`
+  both cite `docs/plans/agents/trader_agent_foundation_plan.md` as the source plan.
+- Filesystem glob/search found **no such file** in the repo.
+- `git show 41e0ef3 --name-only` (the recovered trader-agent foundation commit) also shows
+  **no plan file** ever committed in that branch snapshot.
+- Conclusion: the wiki/ADR currently reference a non-existent artifact. This is a provenance bug,
+  not merely a misplaced file.
+
+### 2) Active conductor prompt is currently regressed by template drift
+- Current uncommitted diff in `.aria/kilocode/agents/aria-conductor.md` removes:
+  - trader-agent listing and finance dispatch rules;
+  - prior productivity/workspace hardening;
+  - no-direct-ops / no-self-remediation / wiki-validity sections.
+- The same stale content exists in `.aria/kilo-home/.kilo/agents/aria-conductor.md` and
+  `.aria/kilo-home/.kilo/agents/_aria-conductor.template.md`.
+- `src/aria/memory/wiki/prompt_inject.py` regenerates the active conductor file from the
+  Kilo-home template and also writes it into `.aria/kilocode/agents/aria-conductor.md`.
+- Conclusion: any wiki/profile regeneration can silently overwrite the live conductor prompt
+  with a stale template, reintroducing old routing behavior.
+
+### 3) This regression is test-visible right now
+- `uv run pytest -q tests/unit/agents/test_conductor_dispatch.py tests/unit/agents/trader/test_config_consistency.py tests/unit/agents/trader/test_skills.py`
+  currently yields **23 failures / 180 passes**.
+- All failures are concentrated in `tests/unit/agents/test_conductor_dispatch.py` and match the
+  stale-conductor symptoms (missing trader-agent rules, missing no-direct-ops, workspace/productivity
+  regression, missing wiki validity guard).
+- `uv run pytest -q tests/unit/mcp/proxy/test_server.py tests/unit/memory/wiki/test_prompt_inject.py`
+  yields **16 passed**, meaning the existing prompt-injection tests do not currently detect template
+  content staleness against the active/runtime contract.
+
+### 4) Trader-agent prompt/skill proxy examples are internally wrong
+- `.aria/kilocode/agents/trader-agent.md` and `.aria/kilocode/skills/trading-analysis/SKILL.md`
+  instruct discovery via:
+  - `aria-mcp-proxy__call_tool("search_tools", ...)`
+  instead of direct `aria-mcp-proxy__search_tools(...)`.
+- They also show legacy slash-form tool names like `financial-modeling-prep-mcp/get_stock_data`
+  despite the documented canonical naming model being `server__tool`.
+- The same invalid example pattern appears in `search-agent.md` and `productivity-agent.md`, so
+  this is systemic prompt drift, not trader-only.
+
+### 5) Trader-agent guidance assumes disabled backends are live
+- `financial-modeling-prep-mcp` and `helium-mcp` are marked `lifecycle: disabled` in
+  `.aria/config/mcp_catalog.yaml` because HTTP transport is not yet supported by the proxy.
+- Yet trader-agent prompt/skills/wiki still present them as primary paths for:
+  - stock/fundamental analysis,
+  - options,
+  - sentiment/news.
+- Currently enabled finance backends are only:
+  - `financekit-mcp`
+  - `mcp-fredapi`
+  - `alpaca-mcp`
+- Conclusion: live trader workflows are under-specified for the actually enabled backend set.
+
+### 6) Trader-agent is incompatible with boot-time backend filtering as currently modeled
+- `src/aria/mcp/proxy/server.py::_allowed_server_names()` derives allowed backend server names
+  from the caller's `allowed_tools` list.
+- `trader-agent` capability matrix entry currently lists only:
+  - `aria-mcp-proxy__search_tools`
+  - `aria-mcp-proxy__call_tool`
+  - memory/HITL/sequential-thinking tools
+- Therefore, if `ARIA_CALLER_ID=trader-agent` is ever used at proxy boot time,
+  `_filter_backends_for_caller()` would load **zero finance backends**.
+- Search/productivity still work with this design because their matrix entries still include
+  backend wildcards (`searxng-script__*`, `filesystem__*`, etc.). Trader-agent does not.
+
+### 7) HITL tool naming remains inconsistent across the stack
+- Prompts/tests/skills use `hitl-queue__ask`.
+- The live directly available memory MCP tools in this environment are `aria-memory__hitl_*`.
+- `agent_capability_matrix.yaml` mixes both conventions: conductor uses `aria-memory__hitl_*`,
+  while workspace/productivity/trader use `hitl-queue__ask`.
+- This is a separate contract drift that can break side-effect gating even after routing is fixed.
+
+### 8) User transcript evidence is consistent with tool-surface drift
+- The failing trader transcript shows the agent falling back to filesystem/bash inspection of
+  Kilo config instead of using proxy tools.
+- That behavior is consistent with one or both of:
+  1. stale prompt/skill instructions; and/or
+  2. a session where the expected proxy tool surface was not actually available.
+- Additional important detail: the transcript inspected `kilo.json` paths, while the repo's live
+  runtime MCP definitions are currently in `.aria/kilocode/mcp.json` and `.aria/kilo-home/.config/kilo/kilo.jsonc`.
+
 ## Wiki-first context
 - Read first: `docs/llm_wiki/wiki/index.md`, `docs/llm_wiki/wiki/log.md`, `docs/llm_wiki/wiki/mcp-proxy.md`
 - Relevant source documents:

@@ -1,8 +1,8 @@
 # Trader-Agent
 
-**Status**: Active ✅ v1.1
-**Last Updated**: 2026-05-02T02:22
-**Branch**: `fix/trader-agent-recovery`
+**Status**: Active ✅ v1.2
+**Last Updated**: 2026-05-02T02:50
+**Branch**: current working tree
 
 ## Overview
 
@@ -23,13 +23,20 @@ utente
 
 Tutti i backend passano attraverso `aria-mcp-proxy` (NON in `mcp.json`).
 
-| MCP Server | Transport | Stato | Auth | Tool Count | Source |
-|------------|-----------|-------|------|------------|--------|
-| **financekit-mcp** | stdio (uvx) | ✅ enabled | keyless | 12+ | `uvx --from financekit-mcp financekit` |
-| **mcp-fredapi** | stdio (Python) | ✅ enabled | FRED_API_KEY | 3 | `/home/fulvio/coding/mcp-fredapi/` |
-| **alpaca-mcp** | stdio (Python) | ✅ enabled | ALPACA_API_KEY/SECRET | 22+ | `/home/fulvio/coding/alpaca-mcp/` |
-| **financial-modeling-prep-mcp** | HTTP/SSE | ❌ disabled | API key | 253+ | Phase 2 (proxy HTTP extension) |
-| **helium-mcp** | HTTP/streamable | ❌ disabled | API key | 9 | Phase 2 (proxy HTTP extension) |
+### Backend abilitati (stdio — accessibili ora)
+
+| MCP Server | Transport | Auth | Tool Count | Source |
+|------------|-----------|------|------------|--------|
+| **financekit-mcp** | stdio (uvx) | keyless | 12+ | `uvx --from financekit-mcp financekit` |
+| **mcp-fredapi** | stdio (Python) | FRED_API_KEY | 3 | `/home/fulvio/coding/mcp-fredapi/` |
+| **alpaca-mcp** | stdio (Python) | ALPACA_API_KEY/SECRET | 22+ | `/home/fulvio/coding/alpaca-mcp/` |
+
+### Backend disabilitati (HTTP/SSE — Phase 2)
+
+| MCP Server | Transport | Auth | Tool Count | Note |
+|------------|-----------|------|------------|------|
+| **financial-modeling-prep-mcp** | HTTP/SSE | API key | 253+ | Disabilitato — richiede estensione proxy HTTP |
+| **helium-mcp** | HTTP/streamable | API key | 9 | Disabilitato — richiede estensione proxy HTTP |
 
 ### Credential Pipeline
 
@@ -78,15 +85,16 @@ hitl_triggers:
 
 ## Proxy Invocation
 
-Tutte le operazioni passano tramite `aria-mcp-proxy` con `_caller_id: "trader-agent"`:
+Tutte le operazioni passano tramite `aria-mcp-proxy` con `_caller_id: "trader-agent"`.
+Usa SEMPRE il formato `server__tool` (doppio underscore).
 
 ```python
 # Discovery
-aria-mcp-proxy__call_tool("search_tools", {"query": "stock quote", "_caller_id": "trader-agent"})
+aria-mcp-proxy__search_tools({"query": "stock quote", "_caller_id": "trader-agent"})
 
 # Esecuzione
-aria-mcp-proxy__call_tool("call_tool", {
-    "name": "financial-modeling-prep-mcp/get_stock_data",
+aria-mcp-proxy__call_tool({
+    "name": "financekit-mcp__get_stock_data",
     "arguments": {"symbol": "AAPL"},
     "_caller_id": "trader-agent"
 })

@@ -65,12 +65,20 @@ Per le fonti più rilevanti:
 ## Esempio proxy call
 
 ```python
-aria-mcp-proxy__call_tool("call_tool", {
-    "name": "helium-mcp/search_news",
-    "arguments": {"query": "AAPL earnings", "limit": 10, "category": "markets"},
+# Discovery
+aria-mcp-proxy__search_tools({"query": "news sentiment analysis scoring", "_caller_id": "trader-agent"})
+
+# Esecuzione — helium-mcp è HTTP/SSE, attualmente disabilitato (Phase 2)
+# Usa search-agent per news come fallback, o financekit-mcp per dati di mercato
+aria-mcp-proxy__call_tool({
+    "name": "financekit-mcp__search_news",
+    "arguments": {"query": "AAPL earnings", "limit": 10},
     "_caller_id": "trader-agent"
 })
 ```
+
+> **Nota backend**: `helium-mcp` (news intelligence + bias scoring) è HTTP/SSE, attualmente disabilitato (Phase 2).
+> Per sentiment news, delega tramite `trader-agent → search-agent` o usa `financekit-mcp` per dati di mercato disponibili.
 
 ## Output strutturato
 

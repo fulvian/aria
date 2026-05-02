@@ -1,48 +1,37 @@
 # Project State
 
-## Current Phase: Phase 5 — Definitive proxy/runtime hardening complete, ready for re-test
-## Started: 2026-05-01T17:14+02:00
-## Branch: `feat/mcp-tool-search-proxy`
-## PRD: approved direction — hybrid capability-scoped model, with `productivity-agent` as the surviving unified work-domain agent
-## TDD: implemented — conductor delegation discipline, runtime/source-of-truth alignment, nested `_caller_id` proxy handling, productivity-agent proxy-only discipline, real HITL wording, single valid wiki update rule, no self-remediation during user workflows
-## Implementation: proxy convergence landed; conductor/productivity prompts, skills, prompt injection, and proxy middleware are aligned for the next CLI re-test
-## Tests: ruff PASS, ruff format --check PASS, mypy PASS, pytest PASS (703 passed, 23 skipped, 3 warnings)
-## Deployment: ready for user-driven CLI re-test
+## Current Phase: Phase 2 — Trader-agent forensic diagnosis / PRD
+## Started: 2026-05-02T02:31+02:00
+## Branch: `fix/trader-agent-recovery`
+## PRD: in progress — freeze defect inventory for trader-agent provenance, routing, prompt/template drift, and proxy/backend contract
+## TDD: pending approval — planned fixes include conductor template source-of-truth repair, trader prompt/skill contract cleanup, and proxy backend-filter alignment
+## Implementation: not started for this debug cycle
+## Tests: targeted regression run complete — `tests/unit/agents/test_conductor_dispatch.py` currently failing 23 assertions; proxy server + prompt injection unit subset passes
+## Deployment: blocked pending PRD/TDD approval
 
 ## Agent History
 | Timestamp | Agent | Action | Status |
 |-----------|-------|--------|--------|
-| 2026-05-01T17:14+02:00 | General Manager | Recovered session context and existing branch state via planning files + git status | Done |
-| 2026-05-01T17:16+02:00 | General Manager | Read LLM wiki index/log/mcp-proxy first per AGENTS.md | Done |
-| 2026-05-01T17:18+02:00 | General Manager | Audited proxy plan/spec/ADR and extracted target F3/F5 contract | Done |
-| 2026-05-01T17:20+02:00 | General Manager | Inspected runtime code, config, active prompts, and skills for proxy integration drift | Done |
-| 2026-05-01T17:22+02:00 | General Manager | Verified FastMCP proxy/search behavior with Context7 | Done |
-| 2026-05-01T17:24+02:00 | General Manager | Froze initial defect set: caller propagation gap, fail-open middleware, prompt/skill drift, missing required skills | Done |
-| 2026-05-01T17:43+02:00 | General Manager | User approved hybrid boundary model; fixed surviving unified agent name as `productivity-agent` | Done |
-| 2026-05-01T17:52+02:00 | Coder | Implemented proxy remediation + productivity/workspace convergence and updated tests/docs | Done |
-| 2026-05-01T17:57+02:00 | General Manager | Applied final blueprint alignment for P9 and unified work-domain agent direction | Done |
-| 2026-05-01T18:51+02:00 | General Manager | Analyzed real CLI transcript; identified conductor bypass, pseudo-HITL, and invalid wiki-write behavior | Done |
-| 2026-05-01T19:02+02:00 | Coder | Hardened runtime conductor template/tests to force productivity-agent delegation and forbid direct conductor work | Done |
-| 2026-05-01T19:50+02:00 | General Manager | Fixed runtime/source-of-truth drift and prompt-injection test pollution of the live conductor file | Done |
-| 2026-05-01T20:20+02:00 | General Manager | Hardened productivity-agent and work-domain skills against host-native helper drift and pseudo-HITL | Done |
-| 2026-05-01T22:48+02:00 | General Manager | Applied definitive nested `_caller_id` proxy fix and restored all stale conductor artifacts | Done |
+| 2026-05-02T02:31+02:00 | General Manager | Recovered current branch, planning files, and wiki-first trader-agent context | Done |
+| 2026-05-02T02:35+02:00 | General Manager | Performed git forensics on `feature/trader-agent-mvp` and confirmed missing plan artifact | Done |
+| 2026-05-02T02:39+02:00 | General Manager | Audited trader-agent prompt, skills, proxy config, capability matrix, and finance catalog | Done |
+| 2026-05-02T02:43+02:00 | General Manager | Identified conductor source-of-truth regression via stale Kilo-home template overwrite path | Done |
+| 2026-05-02T02:47+02:00 | General Manager | Verified FastMCP synthetic-tool and middleware behavior with Context7 | Done |
+| 2026-05-02T02:50+02:00 | General Manager | Ran targeted regression tests; 23 failures confirm stale conductor/runtime drift | Done |
 
 ## Skills Invoked
 | Phase | Skill | Outcome |
 |-------|-------|---------|
-| Audit | planning-with-files | Rebased stale planning context onto this integration audit |
-| Audit | Context7 docs check | Verified FastMCP search transforms and middleware contract |
-| Design | yagni-enforcement | Kept convergence minimal: `productivity-agent` survives, `workspace-agent` remains transitional |
+| Analysis | planning-with-files | Session recovered and forensic notes persisted to project files |
+| Analysis | Context7 docs check | Verified FastMCP synthetic tools and middleware contract |
 
 ## Quality Gates
 | Check | Status |
 |-------|--------|
-| `ruff check .` | ✅ PASS |
-| `ruff format --check .` | ✅ PASS |
-| `mypy src` | ✅ PASS |
-| `pytest -q` | ✅ PASS |
+| `uv run pytest -q tests/unit/agents/test_conductor_dispatch.py tests/unit/agents/trader/test_config_consistency.py tests/unit/agents/trader/test_skills.py` | ❌ 23 failed / 180 passed |
+| `uv run pytest -q tests/unit/mcp/proxy/test_server.py tests/unit/memory/wiki/test_prompt_inject.py` | ✅ 16 passed |
 
 ## GitHub
-- **Branch**: `feat/mcp-tool-search-proxy`
+- **Branch**: `fix/trader-agent-recovery`
 - **Base**: `main`
-- **Status**: Implementation complete; uncommitted reviewable working-tree changes ready for inspection
+- **Status**: forensic analysis complete; implementation blocked pending approval of defect inventory and fix plan

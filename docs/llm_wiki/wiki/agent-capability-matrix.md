@@ -25,7 +25,7 @@ This page summarizes the **post-proxy-remediation** model, where:
 | **search-agent** | subagent (research) | proxy synthetic tools + memory | search-domain backends only | none | no |
 | **workspace-agent** | subagent (compatibility) | proxy synthetic tools + memory + hitl | `google_workspace__*` only | none | yes on side effects |
 | **productivity-agent** | subagent (work domain) | proxy synthetic tools + memory + hitl + sequential-thinking + spawn | `markitdown-mcp__*`, `filesystem__*`, `google_workspace__*`, `fetch__*` | `workspace-agent` (compatibility fallback only) | yes on side effects |
-| **trader-agent** | subagent (finance domain) | proxy synthetic tools + memory + sequential-thinking + hitl | `financial-modeling-prep-mcp`, `mcp-fredapi`, `helium-mcp`, `financekit-mcp`, `alpaca-mcp` via proxy | none | yes on formal recommendations + exposure >50k€ |
+| **trader-agent** | subagent (finance domain) | proxy synthetic tools + memory + sequential-thinking + hitl | `financekit-mcp__*`, `mcp-fredapi__*`, `alpaca-mcp__*`, `financial-modeling-prep-mcp__*` (Phase 2), `helium-mcp__*` (Phase 2) via proxy | none | yes on formal recommendations + exposure >50k€ |
 
 ## Important interpretation changes
 

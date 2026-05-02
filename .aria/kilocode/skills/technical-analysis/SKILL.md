@@ -70,8 +70,12 @@ Identifica livelli critici:
 ## Esempio proxy call
 
 ```python
-aria-mcp-proxy__call_tool("call_tool", {
-    "name": "financekit-mcp/technical_analysis",
+# Discovery
+aria-mcp-proxy__search_tools({"query": "technical analysis RSI MACD indicators", "_caller_id": "trader-agent"})
+
+# Esecuzione
+aria-mcp-proxy__call_tool({
+    "name": "financekit-mcp__technical_analysis",
     "arguments": {"symbol": "AAPL"},
     "_caller_id": "trader-agent"
 })

@@ -1,5 +1,42 @@
 # Progress — MCP Proxy Integration Audit
 
+## 2026-05-02T02:31+02:00 — Trader-agent forensic debug started
+- User reported trader-agent issues across git provenance, routing, and proxy/tool recovery.
+- Constraint reaffirmed: follow `AGENTS.md`, wiki-first, Context7-first, no destructive git recovery.
+
+## 2026-05-02T02:33+02:00 — Wiki/state reconstruction completed
+- Read wiki `index.md`, `log.md`, `trader-agent.md`, `mcp-proxy.md`, `agent-capability-matrix.md`, `mcp-architecture.md`.
+- Read current `.workflow/state.md`, `task_plan.md`, `findings.md`, `progress.md` for session recovery.
+- Confirmed repo branch is `fix/trader-agent-recovery` with 2 uncommitted files already present.
+
+## 2026-05-02T02:35+02:00 — Git forensics completed
+- `git branch -a --verbose --no-abbrev` confirmed `origin/feature/trader-agent-mvp` still points to recovered commit `41e0ef3`.
+- `git show --stat --name-only 41e0ef3` proved the recovered trader foundation commit never contained `docs/plans/agents/trader_agent_foundation_plan.md`.
+- Conclusion: the missing plan is a real missing artifact / false wiki-ADR reference, not merely a misplaced file.
+
+## 2026-05-02T02:39+02:00 — Runtime/config/prompt audit completed
+- Inspected `.aria/kilocode/agents/trader-agent.md`, `.aria/config/agent_capability_matrix.yaml`, `.aria/config/mcp_catalog.yaml`, `.aria/kilocode/mcp.json`, and `trading-analysis` skill.
+- Found contract drift in proxy examples (`call_tool("search_tools", ...)`) and legacy slash-form backend names.
+- Found enabled-vs-disabled finance backend mismatch: prompts assume `financial-modeling-prep-mcp` and `helium-mcp` are live, but catalog marks them disabled.
+
+## 2026-05-02T02:43+02:00 — Template-drift root cause identified
+- Inspected `.aria/kilo-home/.kilo/agents/aria-conductor.md` and `_aria-conductor.template.md`.
+- Both files are stale and missing trader-agent + prior productivity/workspace hardening.
+- `src/aria/memory/wiki/prompt_inject.py` still regenerates `.aria/kilocode/agents/aria-conductor.md` from that stale template, so memory/profile regeneration can silently revert the live conductor prompt.
+
+## 2026-05-02T02:47+02:00 — Context7 verification completed
+- Verified FastMCP docs via Context7 `/prefecthq/fastmcp`.
+- Confirmed synthetic `search_tools` / `call_tool` behavior and middleware enforcement model.
+- This reinforces that prompt examples should call `aria-mcp-proxy__search_tools` directly for discovery, not `call_tool("search_tools", ...)`.
+
+## 2026-05-02T02:50+02:00 — Targeted regression tests executed
+- `uv run pytest -q tests/unit/agents/test_conductor_dispatch.py tests/unit/agents/trader/test_config_consistency.py tests/unit/agents/trader/test_skills.py`
+  → **23 failed, 180 passed**.
+- Failures are concentrated in conductor dispatch contract tests and match the stale-conductor regression.
+- `uv run pytest -q tests/unit/mcp/proxy/test_server.py tests/unit/memory/wiki/test_prompt_inject.py`
+  → **16 passed**.
+- Existing prompt-injection tests currently miss template-content drift; they validate substitution mechanics only.
+
 ## 2026-05-01T17:14+02:00 — Session start
 - User request: audit the implementation of `docs/plans/mcp_search_tool_plan_1.md` and verify deep integration of the new MCP proxy across ARIA conductor, the three current sub-agents, and their skills.
 - Constraint: follow `AGENTS.md`, especially LLM wiki-first and Context7-first rules.
