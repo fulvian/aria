@@ -1,5 +1,26 @@
 # Implementation Log
 
+## 2026-05-02T08:06+02:00 — DOCS: finalize wiki after proxy startup restoration push
+
+**Operation**: DOCS (LLM wiki finalization)
+**Branch**: `fix/trader-agent-recovery`
+**Trigger**: dopo la validazione runtime e il push del fix proxy/trader-agent, la wiki viene riallineata allo stato effettivamente consolidato sul branch remoto.
+
+### Consolidated state
+
+1. `aria-mcp-proxy` risulta connesso nel runtime Kilo reale
+2. Il trader-agent vede i tool proxy in tool list e li usa con successo
+3. Il nuance runtime sugli alias single-underscore è documentato nei prompt/skill/wiki
+4. Il fix del credential bridge è stato già commitato e pushato sul branch di recovery
+
+### Provenance
+
+- `docs/llm_wiki/wiki/index.md`
+- `docs/llm_wiki/wiki/log.md`
+- branch state `fix/trader-agent-recovery`
+
+---
+
 ## 2026-05-02T03:26+02:00 — FIX: trader-agent proxy startup repair + runtime alias clarification
 
 **Operation**: FIX (proxy startup / credential bridge / runtime verification)

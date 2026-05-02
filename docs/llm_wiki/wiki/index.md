@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-05-02T03:26 (v6.8 — proxy startup repair: credential bridge + runtime alias clarification)
-**Status**: ✅ **v6.8** — `aria-mcp-proxy` torna connesso nel runtime reale dopo la riparazione del credential bridge (`CredentialManager.get()` per placeholder `${VAR}`). Il trader-agent vede e usa di nuovo i tool proxy; in runtime Kilo compaiono come alias `aria-mcp-proxy_search_tools` / `aria-mcp-proxy_call_tool`. Smoke test reale `PROXY_OK`, 146 test di regressione passanti sul pacchetto proxy/credential/trader.
+**Last Updated**: 2026-05-02T08:06 (v6.8.1 — proxy startup repair committed and pushed)
+**Status**: ✅ **v6.8.1** — `aria-mcp-proxy` è nuovamente operativo nel runtime reale e il fix è stato consolidato sul branch `fix/trader-agent-recovery`. Il trader-agent vede e usa i tool proxy; in runtime Kilo compaiono come alias `aria-mcp-proxy_search_tools` / `aria-mcp-proxy_call_tool`. Smoke test reale `PROXY_OK`, 146 test di regressione passanti sul pacchetto proxy/credential/trader.
 
 ## Purpose
 
