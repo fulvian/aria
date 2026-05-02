@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-05-02T01:30 (v6.5 — trader-agent runtime integration + protocollo Fase L)
-**Status**: ✅ **v6.5** — Il trader-agent è ora completamente integrato nel runtime ARIA: capability matrix, conductor dispatch rules con keyword routing, prompt canonico, e 28 test. Il protocollo di creazione agenti è stato aggiornato con la Fase L (Runtime Integration Checklist) per prevenire future integrazioni parziali.
+**Last Updated**: 2026-05-02T02:22 (v6.6 — trader-agent backend MCP registration + credential pipeline)
+**Status**: ✅ **v6.6** — Il trader-agent ora ha 5 backend MCP finanziari registrati nel catalogo proxy (3 enabled stdio, 2 disabled HTTP/SSE in attesa di estensione proxy). Credenziali FRED e Alpaca configurate via SOPS+age + `.env` + CredentialInjector con placeholder `${VAR}`. 7 skill recuperate dal commit perduto `41e0ef3`. 157 test trader-agent. 877 test totali passanti.
 
 ## Purpose
 
@@ -50,7 +50,7 @@ docs/llm_wiki/
 |   prompt caching strategy per agente                      |
 +-----------------------------------------------------------+
 | L2 — MCP Plane / Refoundation v2 (v1.0)                  |
-|   .aria/config/mcp_catalog.yaml (14 server SoT)           |
+|   .aria/config/mcp_catalog.yaml (19 server SoT)           |
 |   src/aria/mcp/proxy/ (NEW v6.0) FastMCP-native proxy     |
 |   src/aria/mcp/capability_probe.py (generalizzato)        |
 |   src/aria/launcher/lazy_loader.py (da deprecare in F4)   |
@@ -94,7 +94,7 @@ docs/llm_wiki/
 ### MCP Plane (L2)
 | Source | Description | Last Updated |
 |--------|-------------|--------------|
-| `.aria/config/mcp_catalog.yaml` | **NEW**: Catalogo MCP canonico (14 server, metadata completi) | 2026-04-30 |
+| `.aria/config/mcp_catalog.yaml` | **NEW**: Catalogo MCP canonico (19 server, metadata completi) | 2026-05-02 |
 | `src/aria/mcp/capability_probe.py` | **NEW**: Probe generalizzato per tutti i server MCP | 2026-04-30 |
 | `src/aria/launcher/lazy_loader.py` | **NEW**: Lazy bootstrap per intent (baseline/candidate/shadow) | 2026-04-30 |
 | `scripts/check_mcp_drift.py` | **NEW**: Drift validator CI (shadow/enforce/baseline) | 2026-04-30 |
@@ -122,6 +122,8 @@ docs/llm_wiki/
 | `.aria/kilocode/agents/productivity-agent.md` | **v5.0**: unified work-domain agent, proxy canonical, direct GW access | 2026-05-01 |
 | `.aria/kilocode/agents/trader-agent.md` | **NEW v6.5**: finance domain agent, proxy canonical, 7 skills, 8 intent categories | 2026-05-02 |
 | `.aria/kilocode/agents/workspace-agent.md` | **TRANSITIONAL**: compatibility stub, to be deprecated | 2026-05-01 |
+| `.aria/kilocode/skills/trading-analysis/SKILL.md` | **NEW v6.6**: trading brief orchestrator skill | 2026-05-02 |
+| `.aria/kilocode/skills/{fundamental,technical,macro,sentiment,options,crypto}-analysis/SKILL.md` | **NEW v6.6**: 6 domain-specific trader skills | 2026-05-02 |
 
 ### Config & Runtime
 | Source | Description | Last Updated |
@@ -139,7 +141,7 @@ docs/llm_wiki/
 | [[memory-v3]] | Memory v3 Kilo+Wiki Fusion: wiki.db, 4 wiki MCP tools, profile auto-inject | Active |
 | [[research-routing]] | Ricerca multi-tier: dual-tier-1, academic 6 tier, keyless Reddit | Active ✅ v4.0 |
 | [[google-workspace-mcp-write-reliability]] | GWS MCP: write scopes concessi, single-user, Gmail/Calendar, 10 scopes | Active ✅ |
-| [[mcp-api-key-operations]] | Runbook: 5 provider, 17 keys, multi-account rotation, circuit breaker | Active ✅ |
+| [[mcp-api-key-operations]] | Runbook: 7 provider (incl. fred, alpaca), 19+ keys, multi-account rotation, circuit breaker | Active ✅ |
 | [[aria-launcher-cli-compatibility]] | bin/aria launcher: CLI invocation, hard isolation, MCP migration | Active ✅ |
 | [[mcp-architecture]] | Active MCP runtime baseline after proxy cutover/remediation | Active ✅ v6.3 |
 | [[agent-capability-matrix]] | Post-remediation capability model: proxy synthetic surface + matrix-governed backend reachability | Active ✅ v6.3 |
@@ -190,6 +192,7 @@ docs/llm_wiki/
 - 2026-05-01: **v6.3e** — Added definitive proxy/runtime hardening: middleware now extracts nested `_caller_id` for synthetic `call_tool`, stale Kilo-home conductor artifacts were restored, and conductor/productivity prompts now explicitly forbid code edits, config edits, process killing, and runtime self-remediation during ordinary user workflows.
 - 2026-05-01: **v6.4** — Creato `docs/protocols/protocollo_creazione_agenti.md`: workflow unico per nuovi agenti/sub-agenti, con intake, wiki-first reconstruction, ricerca repo + `github-discovery`, branch di ricerca manuale via ARIA, decision ladder P8, guardrail P9/HITL/wiki.db/proxy, e output obbligatorio dei piani in `docs/plans/agents/`.
 - 2026-05-02: **v6.5** — **trader-agent runtime integration**. Il trader-agent (esistente in `.aria/kilo-home/.kilo/agents/` con 7 skill) era invisibile al conductor perché mancava da tutti i touchpoint runtime. Fix: capability matrix entry, conductor dispatch rules con keyword routing per 40+ termini finanziari, prompt canonico in `.aria/kilocode/agents/trader-agent.md`, delegation chain aggiornata. Aggiornato `protocollo_creazione_agenti.md` con **Fase L (Runtime Integration Checklist)** — 8 touchpoint obbligatori per prevenire integrazioni parziali future. 28 nuovi test trader-agent.
+- 2026-05-02: **v6.6** — **trader-agent backend MCP registration + credential pipeline**. Scoperto che il commit `41e0ef3` su `feature/trader-agent-mvp` (mai mergiato) conteneva il lavoro completo (20 file, +1957 linee). Recuperato selettivamente: 7 skill, ADR, wiki, 157 test. Registrati 5 backend MCP finanziari nel `mcp_catalog.yaml` (3 stdio enabled, 2 HTTP disabled Phase 2). Setup repos esterni: mcp-fredapi + alpaca-mcp clonati con venv. Credential pipeline: SOPS + .env + CredentialInjector `${VAR}` placeholders. Catalog parser esteso per leggere campo `env`. 877 test passanti.
 
 ## Git & GitHub Rules
 

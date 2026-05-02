@@ -1,5 +1,69 @@
 # Implementation Log
 
+## 2026-05-02T02:22+02:00 — FIX: trader-agent backend MCP registration + credential pipeline
+
+**Operation**: FIX (trader-agent ghost agent — backend MCP mancanti)
+**Branch**: `fix/trader-agent-recovery`
+**Trigger**: il trader-agent era stato integrato nel commit `944a856` su main con prompt, dispatch rules, capability matrix e 28 test, MA nessun backend MCP finanziario era accessibile. Il `mcp_catalog.yaml` aveva 14 server, 0 finanziari. Il lavoro completo era stato fatto nel commit `41e0ef3` su branch `feature/trader-agent-mvp` (mai mergiato) e perso.
+
+### Root cause
+1. Commit `41e0ef3` su `feature/trader-agent-mvp` (20 file, +1957 linee) **mai mergiato in main** — perso nel reflog
+2. Commit `944a856` su main era una versione **parziale** — senza 7 skill, senza ADR, senza backend MCP, senza wiki
+3. `mcp_catalog.yaml`: 14 server, 0 finanziari
+4. `mcp.json`: solo aria-memory + aria-mcp-proxy — corretto per architettura proxy, MA il catalogo non aveva i backend
+5. 7 skill esistevano solo in `.aria/kilo-home/.kilo/skills/` (posizione Kilo), non in `.aria/kilocode/skills/` (posizione progetto)
+6. Nessuna credenziale configurata per FRED e Alpaca
+
+### Modifiche effettuate (commit `9b24c67`)
+
+**Recupero selettivo dal commit `41e0ef3`:**
+- 7 skill in `.aria/kilocode/skills/`: trading-analysis, fundamental-analysis, technical-analysis, macro-intelligence, sentiment-analysis, options-analysis, crypto-analysis (già compatibili con proxy — usano `aria-mcp-proxy__search_tools` / `aria-mcp-proxy__call_tool`)
+- ADR: `docs/foundation/decisions/ADR-00XX-trader-agent-introduction.md`
+- Wiki: `docs/llm_wiki/wiki/trader-agent.md`
+- 4 file test: `tests/unit/agents/trader/__init__.py`, `test_conductor_dispatch.py`, `test_config_consistency.py`, `test_skills.py`
+
+**Registrazione backend MCP finanziari in `mcp_catalog.yaml`:**
+| Backend | Transport | Auth | Stato | Tools |
+|---------|-----------|------|-------|-------|
+| `financekit-mcp` | stdio (uvx) | keyless | enabled | 12+ |
+| `mcp-fredapi` | stdio (Python) | FRED_API_KEY | enabled | 3 |
+| `alpaca-mcp` | stdio (Python) | ALPACA_API_KEY/SECRET | enabled | 22+ |
+| `financial-modeling-prep-mcp` | HTTP/SSE | API key | disabled (Phase 2) | 253+ |
+| `helium-mcp` | HTTP/streamable | API key | disabled (Phase 2) | 9 |
+
+**Setup repos esterni:**
+- `/home/fulvio/coding/mcp-fredapi/` clonato + venv
+- `/home/fulvio/coding/alpaca-mcp/` clonato + venv
+- `financekit-mcp` disponibile via uvx
+
+### Modifiche effettuate (commit `1516ab3`)
+
+**Credential pipeline completa:**
+- `api-keys.enc.yaml` (SOPS+age): aggiunti provider `fred` e `alpaca` con keys
+- `.env` (gitignored): aggiunte FRED_API_KEY, ALPACA_API_KEY, ALPACA_API_SECRET
+- `.env.example`: documentate 3 env var finanziarie
+- `mcp_catalog.yaml`: aggiunto campo `env:` con placeholder `${VAR}` per FRED e Alpaca
+- `src/aria/mcp/proxy/catalog.py`: esteso `_parse_entry` per leggere campo `env` dal YAML
+
+**Flusso credenziali:** SOPS store → `.env` fallback → `CredentialInjector` risolve `${VAR}` → passato come env al subprocess MCP
+
+### Test
+- **877 passed, 11 failed** (11 preesistenti su main, non legati al trader)
+- 157 nuovi test trader-specifici (tutti passanti)
+- 45 test config consistency (tutti passanti)
+- Proxy carica correttamente 16 backend enabled (14 + 3 finanziari)
+- CredentialInjector risolve correttamente `${VAR}` placeholder
+
+### Provenance
+- `.aria/config/mcp_catalog.yaml` (19 server, 16 enabled, 3 disabled)
+- `.aria/credentials/secrets/api-keys.enc.yaml` (SOPS+age, 5 provider)
+- `src/aria/mcp/proxy/catalog.py` (env field parsing)
+- `src/aria/mcp/proxy/credential.py` (CredentialInjector)
+- Commit `41e0ef3` (work recuperato)
+- `.env`, `.env.example`
+
+---
+
 ## 2026-05-02T01:30+02:00 — FIX: trader-agent runtime integration + protocollo Fase L
 
 **Operation**: FIX (trader-agent routing + protocol gap)

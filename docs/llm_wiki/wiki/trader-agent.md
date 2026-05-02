@@ -1,8 +1,8 @@
 # Trader-Agent
 
-**Status**: Active ✅ v1.0
-**Last Updated**: 2026-05-02
-**Branch**: `feature/trader-agent-mvp`
+**Status**: Active ✅ v1.1
+**Last Updated**: 2026-05-02T02:22
+**Branch**: `fix/trader-agent-recovery`
 
 ## Overview
 
@@ -21,15 +21,25 @@ utente
 
 ## MCP Stack
 
-| MCP Server | Tipo | Priorità | API Key | Tool Count |
-|------------|------|----------|---------|------------|
-| **Financial Modeling Prep MCP** | npm | PRIMARY | SÌ (free tier) | 253+ |
-| **Helium MCP** | HTTP/SSE | PRIMARY | No | 9 |
-| **mcp-fredapi (FRED)** | Python | PRIMARY | SÌ (richiede key) | 1 |
-| **financekit-mcp** | Python | SECONDARY | No | 12 |
-| **Alpaca MCP** | Python | EXECUTION-only (lettura) | SÌ | 22 |
+Tutti i backend passano attraverso `aria-mcp-proxy` (NON in `mcp.json`).
 
-**Nessun Python locale necessario** — tutti i requirement coperti dai MCP.
+| MCP Server | Transport | Stato | Auth | Tool Count | Source |
+|------------|-----------|-------|------|------------|--------|
+| **financekit-mcp** | stdio (uvx) | ✅ enabled | keyless | 12+ | `uvx --from financekit-mcp financekit` |
+| **mcp-fredapi** | stdio (Python) | ✅ enabled | FRED_API_KEY | 3 | `/home/fulvio/coding/mcp-fredapi/` |
+| **alpaca-mcp** | stdio (Python) | ✅ enabled | ALPACA_API_KEY/SECRET | 22+ | `/home/fulvio/coding/alpaca-mcp/` |
+| **financial-modeling-prep-mcp** | HTTP/SSE | ❌ disabled | API key | 253+ | Phase 2 (proxy HTTP extension) |
+| **helium-mcp** | HTTP/streamable | ❌ disabled | API key | 9 | Phase 2 (proxy HTTP extension) |
+
+### Credential Pipeline
+
+```
+SOPS api-keys.enc.yaml → .env (gitignored) → CredentialInjector (${VAR}) → subprocess env
+```
+
+- `FRED_API_KEY`: SOPS provider `fred` + `.env` fallback
+- `ALPACA_API_KEY` + `ALPACA_API_SECRET`: SOPS provider `alpaca` (mode: paper) + `.env` fallback
+- `financekit-mcp`: keyless, nessuna credenziale
 
 ## Capability Matrix
 
