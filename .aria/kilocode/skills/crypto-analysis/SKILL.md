@@ -23,16 +23,32 @@ funding rates, whale activity.
 
 ## Tool disponibili
 
-| Fonte | Tool | Dati |
-|-------|------|------|
-| financekit-mcp | `crypto_price` | Price, market cap, 24h change, ATH |
-| financekit-mcp | `crypto_trending` | Top trending coins |
-| financekit-mcp | `crypto_search` | Find coins by name/symbol |
-| financekit-mcp | `crypto_top_coins` | Top N by market cap |
-| helium-mcp | `get_ticker` | BTC, ETH con bull/bear case |
-| financial-modeling-prep-mcp | Crypto data | Extended crypto coverage |
+| Fonte | Tool | Dati | Parametri chiave |
+|-------|------|------|-------------------|
+| financekit-mcp | `crypto_search` | Cerca coin per nome/symbol → restituisce CoinGecko ID | `query` (nome o simbolo) |
+| financekit-mcp | `crypto_price` | Price, market cap, 24h change, ATH | `coin` (CoinGecko ID, es. "bitcoin") |
+| financekit-mcp | `crypto_trending` | Top trending coins | — |
+| financekit-mcp | `crypto_top_coins` | Top N by market cap | `limit` |
+| financekit-mcp | `crypto_technical_analysis` | RSI, MACD, Bollinger su crypto | `symbol` (ticker: `BTC-USD`, `ETH-USD`) |
+| helium-mcp | `get_ticker` | BTC, ETH con bull/bear case | — |
+| financial-modeling-prep-mcp | Crypto data | Extended crypto coverage | — |
+
+> **⚠️ IMPORTANTE**: I nomi dei tool nel runtime usano underscore singolo
+> (es. `financekit-mcp_crypto_price`), non doppio. Controlla sempre `search_tools`
+> per i nomi effettivi disponibili e usa il formato restituito dalla discovery.
 
 ## Pipeline
+
+### Fase 0 — Symbol Resolution (OBBLIGATORIO)
+**NON passare direttamente un symbol/ticker a `crypto_price`.** Il parametro `coin`
+richiede il **CoinGecko ID** (es. "bitcoin", "ethereum"), NON il simbolo ("BTC").
+
+```
+Se l'input è un symbol/nome (es. "BTC", "bitcoin", "ethereum"):
+  1. search_tools("crypto search", _caller_id="trader-agent")
+  2. call_tool("financekit-mcp_crypto_search", {query: "BTC"}, _caller_id="trader-agent")
+  3. Estrai il campo `id` dal risultato → questo è il `coin` per crypto_price
+```
 
 ### Fase 1 — Price & Market Data
 1. Recupera price attuale e metriche base
@@ -62,6 +78,14 @@ funding rates, whale activity.
 3. Usa `helium-mcp` per BTC/ETH analysis
 4. Usa `financial-modeling-prep-mcp` per crypto extended data
 5. **Disclaimer obbligatorio** su ogni output
+6. **Schema-first**: usa SEMPRE `search_tools` per verificare i parametri
+   effettivi dei tool backend. NON assumere parametri basandoti su vecchie
+   versioni o supposizioni. Il campo `inputSchema` restituito da search_tools
+   è la source of truth.
+7. **crypto_price** richiede `coin` (CoinGecko ID, es. "bitcoin"), NON `symbol`.
+   Se hai solo il simbolo, usa `crypto_search` prima per ottenere l'ID.
+8. **crypto_technical_analysis** accetta ticker in formato Yahoo Finance
+   (es. `BTC-USD`, `ETH-USD`), NON CoinGecko ID.
 
 ## Esempio proxy call
 
@@ -69,13 +93,28 @@ Nel runtime Kilo i tool del proxy possono apparire come alias
 `aria-mcp-proxy_search_tools` / `aria-mcp-proxy_call_tool`.
 
 ```python
-# Discovery
-aria-mcp-proxy__search_tools({"query": "crypto price bitcoin ethereum market data", "_caller_id": "trader-agent"})
+# Discovery — verifica sempre i nomi effettivi dei tool
+aria-mcp-proxy__search_tools({"query": "crypto price search technical analysis", "_caller_id": "trader-agent"})
 
-# Esecuzione
+# Step 1: Risolvi symbol → CoinGecko ID (OBBLIGATORIO prima di crypto_price)
 aria-mcp-proxy__call_tool({
-    "name": "financekit-mcp__crypto_price",
-    "arguments": {"symbol": "BTC"},
+    "name": "financekit-mcp_crypto_search",
+    "arguments": {"query": "BTC"},
+    "_caller_id": "trader-agent"
+})
+# Risultato contiene id="bitcoin" → usare come parametro `coin`
+
+# Step 2: Prezzo con CoinGecko ID (NON symbol)
+aria-mcp-proxy__call_tool({
+    "name": "financekit-mcp_crypto_price",
+    "arguments": {"coin": "bitcoin"},
+    "_caller_id": "trader-agent"
+})
+
+# Step 3: Analisi tecnica con ticker formato Yahoo (BTC-USD, ETH-USD)
+aria-mcp-proxy__call_tool({
+    "name": "financekit-mcp_technical_analysis",
+    "arguments": {"symbol": "BTC-USD"},
     "_caller_id": "trader-agent"
 })
 ```

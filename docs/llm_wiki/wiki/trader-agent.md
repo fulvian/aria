@@ -1,7 +1,7 @@
 # Trader-Agent
 
-**Status**: Active ✅ v1.3
-**Last Updated**: 2026-05-02T03:26
+**Status**: Active ✅ v1.4
+**Last Updated**: 2026-05-02T09:18
 **Branch**: current working tree
 
 ## Overview
@@ -96,6 +96,23 @@ Nel runtime Kilo i tool del proxy possono apparire nella tool list come alias a 
 - `aria-mcp-proxy_call_tool`
 
 Sono alias runtime dei nomi canonici documentati nel prompt/config (`aria-mcp-proxy__search_tools` / `aria-mcp-proxy__call_tool`).
+
+### Nota `call_tool` / caller identity
+
+Il proxy effettua due passaggi middleware quando un agente usa `call_tool`:
+1. passaggio sintetico su `call_tool`
+2. passaggio reale sul tool backend selezionato
+
+Per questo `_caller_id` deve sopravvivere al passaggio 1 e venire rimosso solo
+immediatamente prima della chiamata finale al backend. Questo bug è stato corretto
+in v1.4 dopo una regressione reale sul trader-agent.
+
+### Nota schema crypto
+
+- `financekit-mcp_crypto_search` → risolve nome/simbolo in CoinGecko ID
+- `financekit-mcp_crypto_price` → richiede `coin` (es. `bitcoin`, `ethereum`), **non** `symbol`
+- `financekit-mcp_technical_analysis` → per crypto usa ticker stile Yahoo Finance (`BTC-USD`, `ETH-USD`)
+- In caso di dubbio, la source of truth dei parametri è sempre `search_tools` → `inputSchema`
 
 ```python
 # Discovery

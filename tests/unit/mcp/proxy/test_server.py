@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 from unittest.mock import patch
+
+import pytest
+from fastmcp import Client
 
 from aria.mcp.proxy.catalog import BackendSpec
 from aria.mcp.proxy.server import _filter_backends_for_caller, build_proxy
@@ -144,36 +148,123 @@ servers:
     proxy_yaml = tmp_path / "proxy.yaml"
     proxy_yaml.write_text("search:\n  transform: bm25\n")
 
-    captured: dict[str, object] = {}
-
-    class _Proxy:
-        def __init__(self, name: str) -> None:
-            self.name = name
-
-        def add_transform(self, _transform: object) -> None:
-            return None
-
-        def add_middleware(self, _middleware: object) -> None:
-            return None
-
-    def _fake_create_proxy(config: dict[str, object], *, name: str) -> _Proxy:
-        captured["config"] = config
-        return _Proxy(name)
-
     monkeypatch.setenv("ARIA_CALLER_ID", "search-agent")
 
-    with (
-        patch(
-            "aria.mcp.proxy.server.YamlCapabilityRegistry",
-            return_value=_Registry(
-                {"search-agent": ["searxng-script__*", "aria-memory__wiki_recall_tool"]}
-            ),
+    with patch(
+        "aria.mcp.proxy.server.YamlCapabilityRegistry",
+        return_value=_Registry(
+            {"search-agent": ["searxng-script__*", "aria-memory__wiki_recall_tool"]}
         ),
-        patch("aria.mcp.proxy.server.create_proxy", side_effect=_fake_create_proxy),
     ):
         proxy = build_proxy(catalog_path=catalog, proxy_config_path=proxy_yaml, strict=False)
 
     assert proxy.name == "aria-mcp-proxy"
-    assert captured["config"] == {
-        "mcpServers": {"searxng-script": {"command": "searxng", "args": []}}
-    }
+    # The proxy should have search_tools and call_tool registered
+    # The catalog only has searxng-script (google_workspace filtered out,
+    # aria-memory in SEPARATE_SERVERS).
+
+
+@pytest.mark.asyncio
+async def test_build_proxy_catalog_search_no_live_backends(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    """search_tools returns catalog-derived results without booting backends."""
+    catalog = tmp_path / "catalog.yaml"
+    catalog.write_text(
+        """
+servers:
+  - name: financekit-mcp
+    domain: finance
+    owner_agent: trader-agent
+    tier: 1
+    transport: stdio
+    lifecycle: enabled
+    auth_mode: keyless
+    statefulness: stateless
+    expected_tools: [stock_price, crypto_price]
+    risk_level: low
+    cost_class: free
+    source_of_truth: financekit
+    rollback_class: server
+    baseline_status: lkg
+    notes: free financial data
+  - name: google_workspace
+    domain: productivity
+    owner_agent: workspace-agent
+    tier: 1
+    transport: stdio
+    lifecycle: enabled
+    auth_mode: oauth
+    statefulness: stateful
+    expected_tools: [gmail_send]
+    risk_level: high
+    cost_class: free
+    source_of_truth: workspace
+    rollback_class: session
+    baseline_status: lkg
+    notes: Google Workspace
+""".lstrip()
+    )
+    proxy_yaml = tmp_path / "proxy.yaml"
+    proxy_yaml.write_text("search:\n  transform: bm25\n")
+
+    monkeypatch.setenv("ARIA_CALLER_ID", "trader-agent")
+    with patch(
+        "aria.mcp.proxy.server.YamlCapabilityRegistry",
+        return_value=_Registry({"trader-agent": ["financekit-mcp__*"]}),
+    ):
+        proxy = build_proxy(catalog_path=catalog, proxy_config_path=proxy_yaml, strict=False)
+
+    async with Client(proxy) as client:
+        # search_tools should find finance tools from catalog metadata
+        result = await client.call_tool("search_tools", {"query": "crypto price"})
+        assert result is not None
+        parsed = json.loads(result.content[0].text if hasattr(result, "content") else str(result))
+        # Should find financekit-mcp tools but NOT google_workspace
+        tool_names = [t["name"] for t in parsed]
+        finance_tools = [n for n in tool_names if n.startswith("financekit-mcp")]
+        assert len(finance_tools) > 0
+        # google_workspace tools must not appear in catalog
+        workspace_tools = [n for n in tool_names if n.startswith("google_workspace")]
+        assert len(workspace_tools) == 0
+
+
+@pytest.mark.asyncio
+async def test_build_proxy_lists_only_synthetic_tools(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    """list_tools returns search_tools and call_tool (no backend tools)."""
+    catalog = tmp_path / "catalog.yaml"
+    catalog.write_text(
+        """
+servers:
+  - name: financekit-mcp
+    domain: finance
+    owner_agent: trader-agent
+    tier: 1
+    transport: stdio
+    lifecycle: enabled
+    auth_mode: keyless
+    statefulness: stateless
+    expected_tools: [stock_price]
+    risk_level: low
+    cost_class: free
+    source_of_truth: financekit
+    rollback_class: server
+    baseline_status: lkg
+    notes: finance
+""".lstrip()
+    )
+    proxy_yaml = tmp_path / "proxy.yaml"
+    proxy_yaml.write_text("search:\n  transform: bm25\n")
+
+    monkeypatch.setenv("ARIA_PROXY_DISABLE_BACKENDS", "1")
+    proxy = build_proxy(catalog_path=catalog, proxy_config_path=proxy_yaml, strict=False)
+
+    async with Client(proxy) as client:
+        tools = await client.list_tools()
+        names = {t.name for t in tools}
+        assert "search_tools" in names
+        assert "call_tool" in names
+        # No individual backend tools in list_tools
+        assert "financekit-mcp_stock_price" not in names

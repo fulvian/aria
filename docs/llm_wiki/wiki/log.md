@@ -1,5 +1,114 @@
 # Implementation Log
 
+## 2026-05-02T09:50+02:00 — FIX: catalog-driven proxy search + lazy backend broker
+
+**Operation**: ARCHITECTURE FIX (proxy core)
+**Branch**: `fix/trader-agent-recovery`
+**Trigger**: `search_tools` for trader-agent still triggered startup/log chatter from unrelated backends (google_workspace, filesystem) because `create_proxy(all_backends)` enumerated ALL backends during tool listing.
+
+### Root cause
+
+1. `build_proxy()` used `create_proxy({"mcpServers": all_backends})` which eagerly contacts all backends during `list_tools`.
+2. The search transform's `search_tools` calls `list_tools` internally, triggering enumeration of all backend sessions.
+3. Build-time filtering by `ARIA_CALLER_ID` was ineffective at runtime because the proxy process doesn't have per-request caller state.
+4. For trader-agent, this meant google_workspace OAuth bind attempts, filesystem stdout noise, etc. despite only needing finance backends.
+
+### Fix applied
+
+- **New module**: `src/aria/mcp/proxy/broker.py` — `LazyBackendBroker` class
+  - `catalog_tools()` builds lightweight `Tool` objects from `mcp_catalog.yaml` metadata (expected_tools + domain + notes). Zero live backends contacted.
+  - `call(server_name, tool_name, args)` creates a single-backend proxy on demand via `create_proxy` (one backend only), caches it for reuse.
+  - `resolve_tool()` maps namespaced tool names to `(server, tool)` pairs with longest-prefix matching for underscore-containing server names.
+- **Modified**: `src/aria/mcp/proxy/server.py`
+  - Replaced `create_proxy(all_backends)` with plain `FastMCP` server.
+  - `search_tools` registered as a custom tool that indexes `broker.catalog_tools()` via the search transform.
+  - `call_tool` registered as a custom tool that resolves and invokes via the broker.
+  - `_strip_caller_id()` removes `_caller_id` from nested arguments before forwarding to backend (single-pass broker routing).
+  - All existing helpers (`_filter_backends_for_caller`, `_build_transform`, etc.) preserved unchanged.
+- **Tests**: 18 new broker unit tests + 3 new server integration tests. All 1003 tests pass.
+
+### Files changed
+
+- `src/aria/mcp/proxy/broker.py` (NEW)
+- `src/aria/mcp/proxy/server.py` (REFACTORED)
+- `src/aria/mcp/proxy/__init__.py` (DOCSTRING)
+- `tests/unit/mcp/proxy/test_broker.py` (NEW)
+- `tests/unit/mcp/proxy/test_server.py` (UPDATED)
+- `tests/integration/mcp/proxy/test_proxy_e2e_stdio.py` (UPDATED)
+- `docs/llm_wiki/wiki/mcp-proxy.md` (UPDATED)
+
+### Verification
+
+- `uv run pytest tests/unit/mcp/proxy/ tests/integration/mcp/proxy/ -q` → 67 passed
+- `uv run pytest tests/ -q` → 1003 passed, 23 skipped
+- `ruff check .` → All checks passed
+- `ruff format --check .` → All formatted
+- `mypy src/aria/mcp/proxy/` → Success
+
+### Residual risks
+
+1. Catalog tool descriptions are generic (`[domain] tool_name — server_notes`). Specific parameter schemas are only available after the first backend call. Acceptable for discovery; agents use `call_tool` for actual invocation.
+2. `list_tools` now returns only `search_tools` + `call_tool` (no individual backend tools). Agents discover tools via `search_tools` and invoke via `call_tool`. Direct tool calls (bypassing `call_tool`) are not supported in the new architecture. This is consistent with the canonical proxy contract.
+
+## 2026-05-02T09:18+02:00 — FIX: trader proxy call_tool caller propagation + crypto schema hardening
+
+**Operation**: FIX (proxy middleware + trader-agent contract)
+**Branch**: `fix/trader-agent-recovery`
+**Trigger**: nelle richieste crypto del trader-agent `search_tools` funzionava, ma `call_tool` sui backend finance falliva con `ToolError: denied: no caller identity provided` anche quando `_caller_id` era presente nei nested arguments.
+
+### Root cause
+
+1. `CapabilityMatrixMiddleware.on_call_tool()` veniva eseguito due volte:
+   - pass 1 sul tool sintetico `call_tool`
+   - pass 2 sul tool backend reale (`financekit-mcp_crypto_price`, ecc.)
+2. Nel pass 1 il middleware estraeva e rimuoveva `_caller_id` dai nested arguments
+3. Quando il proxy inoltrava la chiamata al backend, il pass 2 riceveva args puliti ma senza caller identity
+4. Il middleware quindi falliva correttamente in modalità fail-closed con `denied: no caller identity provided`
+5. In più, `on_call_tool()` usava `registry.is_tool_allowed()` per il controllo permessi, ma i nomi runtime dei tool usano underscore singolo (`financekit-mcp_crypto_price`) mentre la capability matrix usa il formato canonico con doppio underscore (`financekit-mcp__crypto_price`)
+
+### Fix applicato
+
+- `src/aria/mcp/proxy/middleware.py`
+  - reinietta `_caller_id` nei nested arguments durante il pass 1 di `call_tool`
+  - il pass 2 backend lo vede, lo usa per enforcement e lo stripppa prima della chiamata finale
+  - sostituito il controllo exact-match con `_matches()` anche in `on_call_tool`, così i nomi runtime single-underscore e i wildcard matrix continuano a funzionare
+- `tests/unit/mcp/proxy/test_middleware.py`
+  - aggiornato il test nested caller
+  - aggiunti regression test espliciti sul two-pass flow
+  - aggiunto test sul mapping single-underscore runtime → double-underscore matrix
+- `.aria/kilocode/skills/crypto-analysis/SKILL.md`
+  - corretto il contratto live dei tool crypto:
+    - `crypto_search` prima di `crypto_price`
+    - `crypto_price` usa `coin`, non `symbol`
+    - `technical_analysis` su crypto usa `BTC-USD` / `ETH-USD`
+    - `search_tools.inputSchema` è la source of truth dei parametri
+
+### Verification
+
+```text
+uv run pytest -q tests/unit/mcp/proxy/test_middleware.py tests/unit/agents/trader/test_skills.py
+→ 145 passed
+
+uv run pytest -q tests/unit/mcp/proxy
+→ 43 passed
+
+Runtime reproduction script:
+client.call_tool('call_tool', {
+  'name': 'financekit-mcp_crypto_price',
+  'arguments': {'coin': 'bitcoin', '_caller_id': 'trader-agent'}
+})
+→ success after fix
+```
+
+### Provenance
+
+- `src/aria/mcp/proxy/middleware.py`
+- `tests/unit/mcp/proxy/test_middleware.py`
+- `.aria/kilocode/skills/crypto-analysis/SKILL.md`
+- runtime reproduction against `build_proxy(strict=False)` with real enabled finance backends
+
+---
+
 ## 2026-05-02T08:06+02:00 — DOCS: finalize wiki after proxy startup restoration push
 
 **Operation**: DOCS (LLM wiki finalization)

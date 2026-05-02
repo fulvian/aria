@@ -15,7 +15,8 @@ reduced the MCP surface presented to KiloCode to a stable 2-entry runtime:
 
 | File | Responsibility |
 |---|---|
-| `src/aria/mcp/proxy/server.py` | wires catalog + transform + middleware |
+| `src/aria/mcp/proxy/server.py` | wires catalog + broker + transform + middleware |
+| `src/aria/mcp/proxy/broker.py` | lazy backend session management + catalog tool metadata |
 | `src/aria/mcp/proxy/catalog.py` | loads `mcp_catalog.yaml`, yields `BackendSpec`s |
 | `src/aria/mcp/proxy/credential.py` | resolves `${VAR}` placeholders via `CredentialManager` |
 | `src/aria/mcp/proxy/config.py` | `ProxyConfig` pydantic model (search/embedding/cache config) |
@@ -30,6 +31,7 @@ reduced the MCP surface presented to KiloCode to a stable 2-entry runtime:
 - Agent-facing canonical prompt tool names: `aria-mcp-proxy__search_tools`, `aria-mcp-proxy__call_tool`
 - Emergency rollback path: `bin/aria start --emergency-direct`
 - Backend boot filtering: when `ARIA_CALLER_ID` is set, proxy boot loads only backend servers referenced by that agent's `allowed_tools`; `aria-memory` stays out-of-proxy and remains a separate MCP dependency
+- **Catalog-driven discovery** (since F9): `search_tools` indexes `expected_tools` metadata from `mcp_catalog.yaml` without contacting any live backend; actual backend sessions are created on demand by `LazyBackendBroker` only when `call_tool` is invoked
 - Embeddings cache: `.aria/runtime/proxy/embeddings/`
 - Metrics namespace: `aria_proxy_*`
 - Proxy events: `proxy.start`, `proxy.shutdown`, `proxy.backend_quarantine`, `proxy.cutover`, `proxy.emergency_rollback`, `proxy.caller_anomaly`
@@ -79,6 +81,7 @@ reduced the MCP surface presented to KiloCode to a stable 2-entry runtime:
 | F6 | ✅ | Debug & stabilizzazione: stdio filter, naming fix (single/double underscore), wildcard matrix |
 | F7 | ✅ | Search-flow stabilization: caller-aware backend boot filtering |
 | F8 | ✅ | Remediation: fail-closed middleware, canonical proxy contract, productivity/workspace convergence |
+| F9 | ✅ | Catalog-driven search + lazy backend broker: `search_tools` uses catalog metadata only, `call_tool` creates single-backend sessions on demand |
 
 ## Known issues and fixes history
 
@@ -101,6 +104,16 @@ reduced the MCP surface presented to KiloCode to a stable 2-entry runtime:
 **Problema**: Il proxy bootava tutti i backend enabled anche in sessioni search-only, avviando server irrilevanti come `google_workspace`.
 
 **Fix**: `build_proxy()` filtra i backend caricati quando `ARIA_CALLER_ID` è presente.
+
+### F9 — catalog-driven search + lazy backend broker (2026-05-02)
+**Problema**: `search_tools` enumerava tutti i backend live (tramite `create_proxy(all_backends)`), causando boot di server irrilevanti (google_workspace, filesystem) durante workflow trader-agent.
+
+**Fix**:
+- Rimosso `create_proxy(all_backends)` da `build_proxy()`.
+- `search_tools` usa `LazyBackendBroker.catalog_tools()` — tool metadata da `mcp_catalog.yaml`, zero live backend.
+- `call_tool` usa `LazyBackendBroker.call()` — singola sessione backend creata on demand e cachata.
+- `resolve_server_from_tool()` gestisce tutti e tre i formati (double-underscore, single-underscore, slash) con longest-prefix matching per server con underscore nel nome (e.g. `google_workspace`).
+- Nuovo modulo: `src/aria/mcp/proxy/broker.py`.
 
 ### F8 — remediation completed (2026-05-01)
 **Runtime/policy hardening**
@@ -126,6 +139,7 @@ reduced the MCP surface presented to KiloCode to a stable 2-entry runtime:
 1. `ARIA_CALLER_ID` resta utile per boot-time backend filtering, ma il modello condiviso usa `_caller_id` come meccanismo primario di enforcement per request.
 2. `workspace-agent` esiste ancora per compatibilità; non è più il target architetturale di lungo periodo.
 3. Futuri cleanup potranno rimuovere riferimenti residui a percorsi legacy collegati a `workspace-agent`.
+4. Catalog-driven tool descriptions derivano da `expected_tools` + `notes` in `mcp_catalog.yaml`; i tool description specifici per tool (parametri, ecc.) sono disponibili solo dopo la prima chiamata al backend.
 
 ## Spec and ADR provenance
 

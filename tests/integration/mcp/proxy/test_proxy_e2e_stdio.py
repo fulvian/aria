@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 from fastmcp import Client
 
@@ -28,3 +30,27 @@ async def test_proxy_search_finds_tool(monkeypatch, minimal_catalog, tmp_path) -
     async with Client(proxy) as client:
         result = await client.call_tool("search_tools", {"query": "read"})
         assert result is not None
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_proxy_search_returns_catalog_tools_json(
+    monkeypatch, minimal_catalog, tmp_path
+) -> None:
+    """search_tools returns JSON with tool names from catalog metadata."""
+    proxy_yaml = tmp_path / "proxy.yaml"
+    proxy_yaml.write_text("search:\n  transform: bm25\n")
+    # Do NOT disable backends — we want catalog tools from minimal_catalog
+    monkeypatch.delenv("ARIA_CALLER_ID", raising=False)
+    proxy = build_proxy(
+        catalog_path=minimal_catalog,
+        proxy_config_path=proxy_yaml,
+        strict=False,
+    )
+    async with Client(proxy) as client:
+        result = await client.call_tool("search_tools", {"query": "read"})
+        text = result.content[0].text if hasattr(result, "content") else str(result)
+        parsed = json.loads(text)
+        tool_names = [t["name"] for t in parsed]
+        # minimal_catalog has filesystem with read/write
+        assert any("filesystem" in n for n in tool_names)

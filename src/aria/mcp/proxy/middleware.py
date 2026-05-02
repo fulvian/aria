@@ -85,7 +85,14 @@ class CapabilityMatrixMiddleware(Middleware):
 
         tool_to_check = args.get("name", "") if proxy_tool_name == "call_tool" else proxy_tool_name
 
-        # Forward without _caller_id
+        # When processing the synthetic call_tool (pass 1), re-inject
+        # _caller_id into the nested arguments dict so it survives into the
+        # second middleware pass that fires when the proxy forwards to the
+        # actual backend tool.  Without this, pass 2 has no caller identity
+        # and the middleware fail-closes incorrectly.
+        if proxy_tool_name == "call_tool" and caller and isinstance(nested, dict):
+            nested["_caller_id"] = caller
+
         clean_params = CallToolRequestParams(name=proxy_tool_name, arguments=args)
         clean_ctx = context.copy(message=clean_params)
 
@@ -103,20 +110,18 @@ class CapabilityMatrixMiddleware(Middleware):
             )
             raise ToolError(f"tool {tool_to_check} denied: no caller identity provided")
 
-        if (
-            caller
-            and tool_to_check not in ALWAYS_VISIBLE
-            and not self._registry.is_tool_allowed(caller, tool_to_check)
-        ):
-            logger.warning(
-                "proxy.tool_denied",
-                extra={
-                    "agent": caller,
-                    "tool": tool_to_check,
-                    "proxy_tool": proxy_tool_name,
-                },
-            )
-            raise ToolError(f"tool {tool_to_check} not allowed for {caller}")
+        if caller and tool_to_check not in ALWAYS_VISIBLE:
+            allowed = set(self._registry.get_allowed_tools(caller))
+            if not self._matches(tool_to_check, allowed):
+                logger.warning(
+                    "proxy.tool_denied",
+                    extra={
+                        "agent": caller,
+                        "tool": tool_to_check,
+                        "proxy_tool": proxy_tool_name,
+                    },
+                )
+                raise ToolError(f"tool {tool_to_check} not allowed for {caller}")
 
         return await call_next(clean_ctx)
 

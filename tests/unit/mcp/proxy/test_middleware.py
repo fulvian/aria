@@ -66,7 +66,105 @@ async def test_on_call_tool_extracts_nested_caller_id_for_proxy_call() -> None:
     assert out == "ok"
     forwarded = call_next.call_args[0][0].message.arguments
     assert forwarded["name"] == "google_workspace__create_doc"
-    assert "_caller_id" not in forwarded["arguments"]
+    # _caller_id is re-injected into nested args so it survives pass 2
+    assert forwarded["arguments"]["_caller_id"] == "productivity-agent"
+
+
+@pytest.mark.asyncio
+async def test_two_pass_call_tool_preserves_caller_into_backend_pass() -> None:
+    """Regression: nested _caller_id must survive into the second middleware
+    pass (backend tool invocation) and be stripped before the real backend call.
+
+    Simulates the two-pass flow:
+      Pass 1: synthetic call_tool with nested _caller_id
+      Pass 2: backend tool receives _caller_id at top-level, strips it
+    """
+    reg = _Reg({"trader-agent": ["financekit-mcp_crypto_price"]})
+    mw = CapabilityMatrixMiddleware(reg)
+
+    # --- Pass 1: synthetic call_tool ---
+    ctx_pass1 = _ctx(
+        args={
+            "name": "financekit-mcp_crypto_price",
+            "arguments": {
+                "coin": "bitcoin",
+                "_caller_id": "trader-agent",
+            },
+        },
+        tool_name="call_tool",
+    )
+    ctx_pass1.copy.side_effect = lambda **kwargs: MagicMock(message=kwargs["message"])
+    call_next_pass1 = AsyncMock(return_value="ok")
+    out1 = await mw.on_call_tool(ctx_pass1, call_next_pass1)
+    assert out1 == "ok"
+
+    # Verify _caller_id was re-injected into nested args
+    forwarded_args = call_next_pass1.call_args[0][0].message.arguments
+    assert forwarded_args["arguments"]["_caller_id"] == "trader-agent"
+
+    # --- Pass 2: backend tool (as the proxy would forward) ---
+    backend_args = dict(forwarded_args["arguments"])
+    ctx_pass2 = _ctx(args=backend_args, tool_name="financekit-mcp_crypto_price")
+    ctx_pass2.copy.side_effect = lambda **kwargs: MagicMock(message=kwargs["message"])
+    call_next_pass2 = AsyncMock(return_value="backend_result")
+    out2 = await mw.on_call_tool(ctx_pass2, call_next_pass2)
+    assert out2 == "backend_result"
+
+    # Verify _caller_id was stripped before the actual backend invocation
+    final_args = call_next_pass2.call_args[0][0].message.arguments
+    assert "_caller_id" not in final_args
+    assert final_args["coin"] == "bitcoin"
+
+
+@pytest.mark.asyncio
+async def test_two_pass_call_tool_denies_backend_without_caller() -> None:
+    """If caller identity is truly absent in pass 2 (e.g. re-injection was
+    somehow skipped), the middleware must still fail-closed."""
+    reg = _Reg({"trader-agent": ["financekit-mcp_crypto_price"]})
+    mw = CapabilityMatrixMiddleware(reg)
+
+    # Simulate pass 2 with no _caller_id (as would happen without the fix)
+    ctx = _ctx(args={"coin": "bitcoin"}, tool_name="financekit-mcp_crypto_price")
+    call_next = AsyncMock(return_value="ok")
+    with pytest.raises(ToolError, match="denied: no caller identity"):
+        await mw.on_call_tool(ctx, call_next)
+
+
+@pytest.mark.asyncio
+async def test_two_pass_single_underscore_runtime_name() -> None:
+    """Regression for runtime names like financekit-mcp_crypto_price
+    (single underscore). The _matches helper must map these to the
+    double-underscore entries in the capability matrix."""
+    reg = _Reg({"trader-agent": ["financekit-mcp__crypto_price"]})
+    mw = CapabilityMatrixMiddleware(reg)
+
+    # Pass 1: synthetic call_tool with runtime-style single-underscore name
+    ctx = _ctx(
+        args={
+            "name": "financekit-mcp_crypto_price",
+            "arguments": {
+                "coin": "bitcoin",
+                "_caller_id": "trader-agent",
+            },
+        },
+        tool_name="call_tool",
+    )
+    ctx.copy.side_effect = lambda **kwargs: MagicMock(message=kwargs["message"])
+    call_next = AsyncMock(return_value="ok")
+    out = await mw.on_call_tool(ctx, call_next)
+    assert out == "ok"
+
+    # Pass 2: backend tool with single-underscore runtime name + _caller_id
+    ctx2 = _ctx(
+        args={"coin": "bitcoin", "_caller_id": "trader-agent"},
+        tool_name="financekit-mcp_crypto_price",
+    )
+    ctx2.copy.side_effect = lambda **kwargs: MagicMock(message=kwargs["message"])
+    call_next2 = AsyncMock(return_value="result")
+    out2 = await mw.on_call_tool(ctx2, call_next2)
+    assert out2 == "result"
+    final_args = call_next2.call_args[0][0].message.arguments
+    assert "_caller_id" not in final_args
 
 
 @pytest.mark.asyncio

@@ -1,20 +1,42 @@
 """Wire FastMCP, the catalog loader, the search transform, and the middleware
 into a runnable proxy server.
 
-`build_proxy()` returns a fully configured `FastMCP` instance. Callers run
-it via `await proxy.run_async(transport="stdio")`.
+`build_proxy()` returns a fully configured `FastMCP` instance.  Callers run
+it via ``await proxy.run_async(transport="stdio")``.
+
+Architecture
+------------
+The proxy uses a **catalog-driven** approach for tool discovery and a
+**lazy backend broker** for tool invocation:
+
+* ``search_tools`` — indexes catalog metadata (``expected_tools`` from
+  ``mcp_catalog.yaml``) via the configured search transform (BM25 / hybrid).
+  No live backend sessions are created during search.
+* ``call_tool`` — resolves the target backend from the tool name and
+  creates a single-backend proxy on demand via
+  :class:`~aria.mcp.proxy.broker.LazyBackendBroker`.  Only the requested
+  backend is contacted.
+* :class:`~aria.mcp.proxy.middleware.CapabilityMatrixMiddleware` enforces
+  per-agent tool allow-lists at runtime.
+
+This design avoids the latency and stdout noise from booting unrelated
+backends (e.g. ``google_workspace``, ``filesystem``) during
+``search_tools`` for domain-specific agents like ``trader-agent``.
 """
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from typing import Any
 
 from fastmcp import FastMCP
-from fastmcp.server import create_proxy
+from fastmcp.exceptions import ToolError
+from fastmcp.tools import Tool
 
 from aria.agents.coordination.registry import YamlCapabilityRegistry
+from aria.mcp.proxy.broker import LazyBackendBroker
 from aria.mcp.proxy.catalog import BackendSpec, load_backends
 from aria.mcp.proxy.config import ProxyConfig
 from aria.mcp.proxy.credential import CredentialInjector
@@ -39,6 +61,11 @@ def build_proxy(
     proxy_config_path: Path | None = None,
     strict: bool = False,
 ) -> FastMCP:
+    """Build and return a fully configured proxy ``FastMCP`` server.
+
+    Uses catalog-driven tool discovery and lazy backend invocation
+    instead of eagerly connecting to all backends at boot time.
+    """
     catalog_path = catalog_path or DEFAULT_CATALOG
     proxy_config_path = proxy_config_path or DEFAULT_PROXY_CONFIG
 
@@ -49,17 +76,87 @@ def build_proxy(
     if os.environ.get("ARIA_PROXY_DISABLE_BACKENDS") == "1":
         backends = []
 
-    if backends:
-        composite: FastMCP = create_proxy(
-            {"mcpServers": {b.name: b.to_mcp_entry() for b in backends}},
-            name=PROXY_NAME,
-        )
-    else:
-        composite = FastMCP(name=PROXY_NAME)
+    broker = LazyBackendBroker(backends) if backends else None
+    server = FastMCP(name=PROXY_NAME)
 
-    composite.add_transform(_build_transform(cfg))
-    composite.add_middleware(CapabilityMatrixMiddleware(registry))
-    return composite
+    _register_proxy_tools(server, broker, cfg)
+    server.add_middleware(CapabilityMatrixMiddleware(registry))
+    return server
+
+
+# ---------------------------------------------------------------------------
+# Tool registration
+# ---------------------------------------------------------------------------
+
+
+def _register_proxy_tools(
+    server: FastMCP,
+    broker: LazyBackendBroker | None,
+    cfg: ProxyConfig,
+) -> None:
+    """Register ``search_tools`` and ``call_tool`` on the proxy server."""
+    transform = _build_transform(cfg)
+    catalog = broker.catalog_tools() if broker else []
+
+    async def _search_tools(query: str) -> str:
+        """Search available tools by natural language query."""
+        if not catalog:
+            return json.dumps([])
+        results = await transform._search(catalog, query)
+        return json.dumps(
+            [
+                {
+                    "name": t.name,
+                    "description": getattr(t, "description", ""),
+                }
+                for t in results
+            ]
+        )
+
+    async def _call_tool(name: str, arguments: dict | None = None) -> Any:  # noqa: ANN401
+        """Call a backend tool by name with the given arguments."""
+        if broker is None:
+            raise ToolError("No backends configured")
+        resolved = broker.resolve_tool(name)
+        if resolved is None:
+            raise ToolError(f"Cannot resolve backend for tool: {name}")
+        server_name, tool_name = resolved
+        # Strip _caller_id from nested arguments (re-injected by middleware
+        # for the original two-pass proxy architecture).  Since we route
+        # directly through the broker (single-pass), it must be removed.
+        clean_args = _strip_caller_id(arguments or {})
+        return await broker.call(server_name, tool_name, clean_args)
+
+    # Register both tools on the server
+    server.add_tool(
+        Tool.from_function(
+            _search_tools,
+            name="search_tools",
+            description="Search available MCP tools by natural language query.",
+        )
+    )
+    server.add_tool(
+        Tool.from_function(
+            _call_tool,
+            name="call_tool",
+            description="Call an MCP tool by namespaced name.",
+        )
+    )
+
+
+def _strip_caller_id(arguments: dict) -> dict:
+    """Remove ``_caller_id`` from arguments dict (and nested dicts)."""
+    cleaned = {k: v for k, v in arguments.items() if k != "_caller_id"}
+    # Also strip from nested "arguments" dict if present
+    nested = cleaned.get("arguments")
+    if isinstance(nested, dict):
+        cleaned["arguments"] = {k: v for k, v in nested.items() if k != "_caller_id"}
+    return cleaned
+
+
+# ---------------------------------------------------------------------------
+# Backend loading helpers (unchanged)
+# ---------------------------------------------------------------------------
 
 
 def _proxy_caller() -> str | None:
@@ -73,7 +170,7 @@ def _load_backends(
     strict: bool,
     registry: YamlCapabilityRegistry | None = None,
     caller: str | None = None,
-) -> list[BackendSpec]:  # noqa: ANN202
+) -> list[BackendSpec]:
     if not catalog_path.exists():
         logger.warning(
             "catalog_missing",

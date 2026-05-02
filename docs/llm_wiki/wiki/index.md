@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-05-02T08:06 (v6.8.1 — proxy startup repair committed and pushed)
-**Status**: ✅ **v6.8.1** — `aria-mcp-proxy` è nuovamente operativo nel runtime reale e il fix è stato consolidato sul branch `fix/trader-agent-recovery`. Il trader-agent vede e usa i tool proxy; in runtime Kilo compaiono come alias `aria-mcp-proxy_search_tools` / `aria-mcp-proxy_call_tool`. Smoke test reale `PROXY_OK`, 146 test di regressione passanti sul pacchetto proxy/credential/trader.
+**Last Updated**: 2026-05-02T09:18 (v6.9 — trader proxy call_tool two-pass fix + crypto schema hardening)
+**Status**: ✅ **v6.9** — corretto il bug strutturale del proxy per cui `call_tool` perdeva `_caller_id` nel passaggio sintetico → backend e falliva con `denied: no caller identity provided`. Il middleware ora preserva l'identità tra i due passaggi e continua a stripparla prima della chiamata reale al backend. Rafforzati i test di regressione middleware e corretta la guidance crypto del trader-agent (`crypto_search` → `coin`, `technical_analysis` con `BTC-USD`).
 
 ## Purpose
 
