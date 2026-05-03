@@ -98,7 +98,10 @@ def _register_proxy_tools(
     transform = _build_transform(cfg)
     catalog = broker.catalog_tools() if broker else []
 
-    async def _search_tools(query: str) -> str:
+    async def _search_tools(
+        query: str,
+        _caller_id: str | None = None,  # noqa: ASYNC109  # kept for middleware schema
+    ) -> str:
         """Search available tools by natural language query."""
         if not catalog:
             return json.dumps([])
@@ -113,8 +116,18 @@ def _register_proxy_tools(
             ]
         )
 
-    async def _call_tool(name: str, arguments: dict | None = None) -> Any:  # noqa: ANN401
-        """Call a backend tool by name with the given arguments."""
+    async def _call_tool(
+        name: str,
+        arguments: dict | None = None,
+        _caller_id: str | None = None,  # noqa: ASYNC109  # kept for middleware schema
+    ) -> Any:  # noqa: ANN401
+        """Call a backend tool by name with the given arguments.
+
+        The ``_caller_id`` parameter is consumed by the middleware layer for
+        capability-matrix enforcement.  It is listed in the function signature
+        solely so the MCP client includes it in the tool-call schema — without
+        it, strict clients strip the key before the request reaches the server.
+        """
         if broker is None:
             raise ToolError("No backends configured")
         resolved = broker.resolve_tool(name)

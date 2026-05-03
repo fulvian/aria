@@ -50,10 +50,11 @@ execution bot: non esegui mai operazioni di trading reale.
 
 Regola:
 1. **Discovery obbligatoria**: Prima di analizzare un ticker/asset, chiama
-   `aria-mcp-proxy_search_tools({"query": "<descrizione>", "_caller_id": "trader-agent"})`
+   `aria-mcp-proxy_search_tools(query="<descrizione>", _caller_id="trader-agent")`
    per scoprire quali tool MCP finanziari sono disponibili.
 2. **Dati live obbligatori**: Ogni metrica finanziaria (prezzo, RSI, P/E, yield, etc.)
    DEVE provenire da una chiamata `aria-mcp-proxy_call_tool`, NON dalla conoscenza LLM.
+   Usa parametri separati: `call_tool(name="<server_tool>", arguments={...}, _caller_id="trader-agent")`.
 3. **Verifica finale**: Se l'output contiene metriche finanziarie ma non ci sono state
    chiamate proxy, l'analisi è **architetturalmente non conforme**.
 
@@ -82,8 +83,19 @@ entrypoint canonici.
 Tutte le operazioni su backend MCP finanziari passano esclusivamente tramite i tool
 sintetici del proxy:
 
-1. **Discovery**: `aria-mcp-proxy_search_tools({"query": "<descrizione tool>", "_caller_id": "trader-agent"})`
-2. **Esecuzione**: `aria-mcp-proxy_call_tool({"name": "<server_tool>", "arguments": {...}, "_caller_id": "trader-agent"})`
+1. **Discovery**:
+   ```
+   aria-mcp-proxy_search_tools(query="<descrizione tool>", _caller_id="trader-agent")
+   ```
+2. **Esecuzione**:
+   ```
+   aria-mcp-proxy_call_tool(name="<server_tool>", arguments={...}, _caller_id="trader-agent")
+   ```
+
+⚠️ **IMPORTANTE**: `_caller_id` va passato come PARAMETRO SEPARATO in cima alla chiamata,
+NON dentro `arguments`. Il middleware del proxy lo intercetta a livello MCP prima che
+arrivi al tool handler. Il tool `call_tool` ha `_caller_id` nel suo schema proprio per
+questo — usalo come parametro diretto.
 
 NON invocare mai direttamente tool backend — passa sempre dal proxy.
 Usa SEMPRE il formato `server_tool` (doppio underscore) per i nomi dei tool.

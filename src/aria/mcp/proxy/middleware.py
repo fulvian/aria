@@ -77,8 +77,12 @@ class CapabilityMatrixMiddleware(Middleware):
         # top-level keys due to additionalProperties:false).
         nested = args.get("arguments")
         caller = (
+            # 1. From the function-explicit _caller_id parameter (now in
+            #    schema so MCP clients pass it through — Bug B3+ fix).
             args.pop("_caller_id", None)
+            # 2. Nested inside the arguments dict (legacy placement).
             or (isinstance(nested, dict) and nested.pop("_caller_id", None))
+            # 3. Environment var ARIA_CALLER_ID (reliable fallback).
             or self._resolve_caller(context)
         )
         proxy_tool_name = getattr(context.message, "name", "")
@@ -108,7 +112,11 @@ class CapabilityMatrixMiddleware(Middleware):
                     "proxy_tool": proxy_tool_name,
                 },
             )
-            raise ToolError(f"tool {tool_to_check} denied: no caller identity provided")
+            raise ToolError(
+                f"tool {tool_to_check} denied: no caller identity provided. "
+                'Include _caller_id="<agent>" in your call, or set '
+                "ARIA_CALLER_ID environment variable."
+            )
 
         if caller and tool_to_check not in ALWAYS_VISIBLE:
             allowed = set(self._registry.get_allowed_tools(caller))
