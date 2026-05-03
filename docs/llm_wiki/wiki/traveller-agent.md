@@ -19,7 +19,7 @@ Sub-agente ARIA domain-primary per pianificazione e assistenza viaggi. Copre l'i
 | Fase 3 — `aria-amadeus-mcp` (FastMCP wrapper) | ✅ Completa (v7.8) |
 | Fase 4 — skill core (destination + accommodation + transport) | ✅ Completa (v7.9) |
 | Fase 5 — skill complementari + booking gated | ✅ Completa (v8.0) |
-| Fase 6 — export integration via productivity-agent | ⏳ Pending |
+| Fase 6 — export integration via productivity-agent | ✅ Completa (v8.1) |
 | Fase 7 — observability + cost circuit breaker | ⏳ Pending |
 | Fase 8 — ADR-0017 + ADR-0018 + wiki sync | ⏳ Pending |
 | Fase 9 — smoke E2E | ⏳ Pending |
@@ -34,7 +34,25 @@ Sub-agente ARIA domain-primary per pianificazione e assistenza viaggi. Copre l'i
 
 **Nota**: Google Maps Platform (`@cablate/mcp-google-map`) **escluso** — richiedeva billing account Google Cloud non attivabile. Sostituito con `osm-mcp-server` basato su OpenStreetMap (100% free, no API key, no billing).
 
-## Skill implementate (Fase 4 completata)
+## Handoff chain (Fase 6 completata)
+
+La catena di delega per export è configurata su 3 livelli:
+
+```
+traveller-agent  ──spawn-subagent──▶  productivity-agent  ──proxy──▶  workspace-agent
+    │                                       │
+    │   export Drive/Calendar/email          │  Gmail/Calendar/Drive API
+    │                                       │
+    └──search-agent (solo contesto non travel, max depth 1)
+```
+
+- **Prompt**: sezione `## Delega` con regole esplicite
+- **Conductor**: catene `traveller → productivity` e `traveller → search`
+- **HITL**: tutte le write esterne passano per `hitl-queue__ask`
+- **Depth guard**: `max_spawn_depth: 1` (traveller → productivity → workspace = 2 hop OK)
+- **19 test integrazione** per handoff chain
+
+## Skill implementate (Fase 4 + 5 completata)
 
 | Skill | SKILL.md | Tool MCP usati |
 |-------|----------|---------------|
