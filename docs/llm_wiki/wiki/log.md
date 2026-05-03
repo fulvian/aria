@@ -1,6 +1,6 @@
 # Implementation Log
 
-## 2026-05-03T23:52+02:00 — FIX: capability matrix — travel backend tools autorizzati
+## 2026-05-03T23:56+02:00 — FIX: capability matrix — travel backend tools autorizzati
 
 **Operation**: FIX (capability matrix + middleware call_tool bypass)
 **Branch**: `feature/traveller-agent-f1`
