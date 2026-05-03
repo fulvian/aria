@@ -1,5 +1,75 @@
 # Progress — MCP Proxy Integration Audit
 
+## 2026-05-02T13:20+02:00 — Productivity-agent / Google Workspace deep debug started
+- User reported that `productivity-agent` cannot correctly query Google Workspace MCP tools.
+- Constraint reaffirmed: follow `AGENTS.md`, wiki-first, Context7-first, robust root-cause analysis.
+
+## 2026-05-02T13:23+02:00 — Wiki-first reconstruction completed
+- Re-read `docs/llm_wiki/wiki/index.md`, `log.md`, `productivity-agent.md`,
+  `google-workspace-mcp-write-reliability.md` and planning/state files.
+- Confirmed the repo already documents a canonical proxy architecture and an upstream-verified
+  Google Workspace tool map.
+
+## 2026-05-02T13:27+02:00 — Prompt / catalog / skill audit completed
+- Inspected:
+  - `.aria/kilocode/agents/productivity-agent.md`
+  - `.aria/kilo-home/.kilo/agents/productivity-agent.md`
+  - `.aria/config/mcp_catalog.yaml`
+  - `.aria/kilocode/skills/meeting-prep/SKILL.md`
+  - `.aria/kilocode/skills/email-draft/SKILL.md`
+- Found two structural contract drifts:
+  1. malformed proxy invocation examples (`call_tool("search_tools")`, `call_tool("call_tool")`)
+  2. stale Google Workspace tool names (`drive_list`, `gmail_search`, `docs_create`, ...)
+
+## 2026-05-02T13:31+02:00 — Context7 verification completed
+- Queried `/taylorwilsdon/google_workspace_mcp` via Context7.
+- Verified current upstream tool names across Gmail, Calendar, Drive, Docs, Sheets, Slides.
+- Confirmed these do not match the names currently advertised in `mcp_catalog.yaml` and skills.
+
+## 2026-05-02T13:35+02:00 — Runtime log correlation completed
+- Inspected `.aria/kilo-home/.local/share/kilo/log/2026-05-02T105845.log`.
+- Matched two live production failures to the audited drift:
+  - `ToolError: Cannot resolve backend for tool: call_tool`
+  - `ToolError: Unknown tool: 'drive_list'`
+- This proves the failures are not hypothetical; they map directly to prompt/catalog mismatches.
+
+## 2026-05-02T13:38+02:00 — Test-gap audit completed
+- Inspected:
+  - `tests/unit/agents/productivity/test_prompt_contract.py`
+  - `tests/unit/mcp/proxy/test_broker.py`
+  - `tests/unit/mcp/proxy/test_server.py`
+  - `tests/integration/productivity/test_email_draft_e2e.py`
+- Confirmed that current tests either:
+  - preserve stale names (`gmail_send`, etc.), or
+  - validate only broad policy shape, not correct proxy invocation syntax / live GW contract.
+
+## 2026-05-02T13:40+02:00 — PRD defect inventory frozen
+- Primary defect class is now clear: **contract drift**, not core proxy failure.
+- Required remediation scope:
+  1. fix canonical proxy usage examples in prompts/runtime copies,
+  2. align Google Workspace tool names across catalog/skills/tests/docs with upstream,
+  3. add regression coverage for real productivity-agent → proxy → google_workspace semantics.
+
+## 2026-05-02T13:47+02:00 — Implementation completed
+- Added legacy Google Workspace alias normalization in `src/aria/mcp/proxy/broker.py` as a defensive compatibility backstop.
+- Updated `.aria/config/mcp_catalog.yaml` to the upstream `workspace-mcp` canonical tool names.
+- Corrected malformed synthetic proxy examples in active/runtime copies of `productivity-agent` and `search-agent`.
+- Corrected `meeting-prep` and `email-draft` active/runtime skill copies to the live Google Workspace tool names.
+- Updated affected wiki pages (`index`, `log`, `mcp-proxy`, `productivity-agent`, `google-workspace-mcp-write-reliability`).
+
+## 2026-05-02T13:50+02:00 — Verification completed
+- `uv run pytest -q tests/unit/agents/productivity/test_prompt_contract.py tests/unit/mcp/proxy/test_broker.py tests/unit/mcp/proxy/test_server.py tests/unit/mcp/proxy/test_middleware.py tests/unit/agents/coordination/test_registry.py tests/integration/mcp/proxy/test_capability_enforcement.py`
+  → **68 passed**.
+- `ruff check .`
+  → **pass**.
+- `ruff format --check` on changed Python files
+  → **pass**.
+- `uv run mypy src`
+  → **Success: no issues found in 91 source files**.
+- `uv run pytest -q`
+  → **1005 passed, 23 skipped, 3 warnings**.
+- Note: repository-wide `ruff format --check .` still reports pre-existing unrelated formatting drift in files not touched by this remediation.
+
 ## 2026-05-02T02:31+02:00 — Trader-agent forensic debug started
 - User reported trader-agent issues across git provenance, routing, and proxy/tool recovery.
 - Constraint reaffirmed: follow `AGENTS.md`, wiki-first, Context7-first, no destructive git recovery.
@@ -36,6 +106,53 @@
 - `uv run pytest -q tests/unit/mcp/proxy/test_server.py tests/unit/memory/wiki/test_prompt_inject.py`
   → **16 passed**.
 - Existing prompt-injection tests currently miss template-content drift; they validate substitution mechanics only.
+
+## 2026-05-02T03:16+02:00 — Proxy startup root cause isolated
+- Reproduced the user-facing symptom with the real Kilo runtime:
+  `kilo run --agent trader-agent ...` exposed only built-in tools + `aria-memory_*`, but no `aria-mcp-proxy_*` tools.
+- Verified with `kilo mcp list` under the same runtime env:
+  - `aria-memory` = connected
+  - `aria-mcp-proxy` = failed (`MCP error -32000: Connection closed`)
+- Captured the actual proxy crash stack trace.
+- Root cause: `src/aria/mcp/proxy/credential.py` expects `CredentialManager.get(var)`, but
+  `CredentialManager` had no `get()` method, so proxy boot crashed while resolving `${FRED_API_KEY}` / `${ALPACA_API_KEY}` / `${ALPACA_API_SECRET}`.
+
+## 2026-05-02T03:22+02:00 — Credential bridge fix applied
+- Added `CredentialManager.get(key)` support for env-style secret lookup used by the proxy credential injector.
+- Implemented alias registration for decrypted secrets such as:
+  - `FRED_API_KEY`
+  - `ALPACA_API_KEY`
+  - `ALPACA_API_SECRET`
+  - `TAVILY_API_KEY`
+- Added unit coverage in `tests/unit/credentials/test_manager.py` for env-style secret lookup.
+
+## 2026-05-02T03:26+02:00 — Proxy runtime revalidated end-to-end
+- `uv run pytest -q tests/unit/credentials/test_manager.py tests/unit/mcp/proxy/test_credential.py tests/integration/mcp/proxy/test_capability_enforcement.py tests/integration/mcp/proxy/test_proxy_e2e_stdio.py`
+  → **13 passed**.
+- `kilo mcp list` in the real ARIA runtime env now shows:
+  - `aria-memory` connected
+  - `aria-mcp-proxy` connected
+- `kilo run --agent trader-agent ...` now exposes proxy tools in the live tool list:
+  - `aria-mcp-proxy_search_tools`
+  - `aria-mcp-proxy_call_tool`
+- Added prompt/skill notes clarifying that Kilo may expose single-underscore runtime aliases for the canonical proxy entrypoints.
+- Smoke test succeeded: trader-agent executed real proxy discovery and returned `PROXY_OK`.
+
+## 2026-05-02T09:18+02:00 — Deep debug on trader MCP failures completed
+- Reproduced the user-facing crypto failure against the real proxy runtime with direct `call_tool` invocations.
+- Identified a real two-pass middleware bug: nested `_caller_id` was stripped during synthetic `call_tool` pass and missing on backend pass.
+- Applied fix in `src/aria/mcp/proxy/middleware.py`:
+  - re-inject `_caller_id` for the backend pass
+  - keep fail-closed behavior
+  - use `_matches()` for runtime single-underscore vs matrix double-underscore permission matching
+- Corrected live crypto skill contract drift:
+  - `crypto_search` before `crypto_price`
+  - `crypto_price` uses `coin`, not `symbol`
+  - crypto technicals use `BTC-USD` / `ETH-USD`
+- Verification reported by targeted runtime/debug suite:
+  - middleware unit regressions pass
+  - trader skill regressions pass
+  - direct reproduction script for `financekit-mcp_crypto_price` succeeds after fix
 
 ## 2026-05-01T17:14+02:00 — Session start
 - User request: audit the implementation of `docs/plans/mcp_search_tool_plan_1.md` and verify deep integration of the new MCP proxy across ARIA conductor, the three current sub-agents, and their skills.

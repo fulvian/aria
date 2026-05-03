@@ -2,7 +2,7 @@
 
 **Status**: Active ✅
 **Created**: 2026-04-29
-**Updated**: 2026-05-01T18:37+02:00
+**Updated**: 2026-05-02T13:45+02:00
 **Source**: `docs/foundation/decisions/ADR-0008-productivity-agent-introduction.md`, `docs/foundation/aria_foundation_blueprint.md`, `.aria/config/agent_capability_matrix.yaml`, `.aria/kilocode/agents/productivity-agent.md`
 **Branch**: `feat/mcp-tool-search-proxy`
 
@@ -51,6 +51,22 @@ It uses the proxy synthetic tools and always passes:
 Canonical sequence:
 1. discover with `aria-mcp-proxy__search_tools`
 2. execute with `aria-mcp-proxy__call_tool`
+
+### Google Workspace naming contract
+
+Per i workflow Gmail / Calendar / Drive / Docs / Sheets / Slides, il naming canonico
+segue i tool upstream `workspace-mcp` (Context7 verified), ad esempio:
+
+- `google_workspace__search_gmail_messages`
+- `google_workspace__get_events`
+- `google_workspace__get_drive_file_content`
+- `google_workspace__create_doc`
+- `google_workspace__create_spreadsheet`
+- `google_workspace__create_presentation`
+
+I vecchi alias interni (`gmail_search`, `drive_list`, `docs_create`, ecc.) non sono più
+la contract source of truth, anche se il proxy mantiene compatibilità limitata per
+alcuni casi legacy.
 
 ## Capability scope
 

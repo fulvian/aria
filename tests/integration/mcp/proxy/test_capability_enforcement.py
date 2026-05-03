@@ -35,7 +35,7 @@ async def test_search_agent_blocked_from_workspace(monkeypatch) -> None:
                 "call_tool",
                 {
                     "_caller_id": "search-agent",
-                    "name": "google_workspace__gmail_send",
+                    "name": "google_workspace__send_gmail_message",
                     "arguments": {"to": "x"},
                 },
             )

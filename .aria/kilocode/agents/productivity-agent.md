@@ -38,8 +38,8 @@ Il proxy usa `_caller_id` per applicare la `agent_capability_matrix.yaml`.
 Tutte le operazioni su backend MCP (markitdown, filesystem, google_workspace, fetch)
 passano esclusivamente tramite i tool sintetici del proxy:
 
-1. **Discovery**: `aria-mcp-proxy__call_tool("search_tools", {"query": "<descrizione tool>", "_caller_id": "productivity-agent"})`
-2. **Esecuzione**: `aria-mcp-proxy__call_tool("call_tool", {"name": "<server__tool>", "arguments": {...}, "_caller_id": "productivity-agent"})`
+1. **Discovery**: `aria-mcp-proxy__search_tools({"query": "<descrizione tool>", "_caller_id": "productivity-agent"})`
+2. **Esecuzione**: `aria-mcp-proxy__call_tool({"name": "<server__tool>", "arguments": {...}, "_caller_id": "productivity-agent"})`
 
 NON invocare mai direttamente tool backend come `markitdown-mcp__convert_to_markdown`
 o `filesystem__read` — passa sempre dal proxy.

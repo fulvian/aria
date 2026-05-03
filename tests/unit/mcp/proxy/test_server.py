@@ -121,7 +121,7 @@ servers:
     lifecycle: enabled
     auth_mode: oauth
     statefulness: stateful
-    expected_tools: [gmail_send]
+    expected_tools: [search_gmail_messages]
     risk_level: high
     cost_class: free
     source_of_truth: workspace
@@ -196,7 +196,7 @@ servers:
     lifecycle: enabled
     auth_mode: oauth
     statefulness: stateful
-    expected_tools: [gmail_send]
+    expected_tools: [search_gmail_messages]
     risk_level: high
     cost_class: free
     source_of_truth: workspace

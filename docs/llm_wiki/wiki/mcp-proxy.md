@@ -1,7 +1,7 @@
 # MCP Proxy (aria-mcp-proxy)
 
-**Last Updated**: 2026-05-01T18:35+02:00
-**Status**: Active ✅ — remediation complete; canonical proxy contract is now the live baseline
+**Last Updated**: 2026-05-02T13:45+02:00
+**Status**: Active ✅ — canonical proxy contract enforced; Google Workspace alias compatibility added
 **Source**: `src/aria/mcp/proxy/`, `.aria/config/proxy.yaml`, `.aria/kilocode/mcp.json`, `.aria/config/agent_capability_matrix.yaml`, `docs/superpowers/specs/2026-05-01-mcp-tool-search-design.md`, `docs/foundation/decisions/ADR-0015-fastmcp-native-proxy.md`, `docs/foundation/decisions/ADR-0008-productivity-agent-introduction.md`
 
 ## Purpose
@@ -114,6 +114,20 @@ reduced the MCP surface presented to KiloCode to a stable 2-entry runtime:
 - `call_tool` usa `LazyBackendBroker.call()` — singola sessione backend creata on demand e cachata.
 - `resolve_server_from_tool()` gestisce tutti e tre i formati (double-underscore, single-underscore, slash) con longest-prefix matching per server con underscore nel nome (e.g. `google_workspace`).
 - Nuovo modulo: `src/aria/mcp/proxy/broker.py`.
+
+### F10 — Google Workspace contract reconciliation (2026-05-02)
+**Problema**: prompt/skill/catalog usavano una combinazione incoerente di:
+- invocazione errata dei tool sintetici (`call_tool("search_tools")`, `call_tool("call_tool")`)
+- vecchi nomi `google_workspace` (`drive_list`, `gmail_search`, `docs_create`, ...)
+
+**Fix**:
+- prompt e runtime copy riallineati al pattern corretto:
+  1. `aria-mcp-proxy__search_tools({...})`
+  2. `aria-mcp-proxy__call_tool({...})`
+- `mcp_catalog.yaml` ora usa i nomi canonici upstream di `workspace-mcp`
+- `LazyBackendBroker` normalizza gli alias legacy `google_workspace` più comuni
+  verso i nomi live backend per robustezza retrocompatibile
+  (es. `drive_list` → `list_drive_items`, `gmail_search` → `search_gmail_messages`)
 
 ### F8 — remediation completed (2026-05-01)
 **Runtime/policy hardening**

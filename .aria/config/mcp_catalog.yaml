@@ -208,28 +208,54 @@ servers:
   auth_mode: oauth
   statefulness: stateful
   expected_tools:
-  - gmail_send
-  - gmail_search
-  - gmail_list
-  - gmail_get
-  - calendar_list_events
-  - calendar_create_event
-  - calendar_get_event
-  - drive_list
-  - drive_read_file
-  - docs_create
-  - docs_get
-  - sheets_create
-  - sheets_get_values
-  - sheets_update_values
-  - slides_create
+  - search_gmail_messages
+  - get_gmail_message_content
+  - send_gmail_message
+  - draft_gmail_message
+  - list_calendars
+  - get_events
+  - get_event
+  - create_event
+  - modify_event
+  - delete_event
+  - search_drive_files
+  - get_drive_file_content
+  - list_drive_items
+  - create_drive_file
+  - search_docs
+  - get_doc_content
+  - list_docs_in_folder
+  - create_doc
+  - read_doc_comments
+  - create_doc_comment
+  - reply_to_comment
+  - resolve_comment
+  - list_spreadsheets
+  - get_spreadsheet_info
+  - read_sheet_values
+  - modify_sheet_values
+  - create_spreadsheet
+  - create_sheet
+  - read_sheet_comments
+  - create_sheet_comment
+  - reply_to_sheet_comment
+  - resolve_sheet_comment
+  - create_presentation
+  - get_presentation
+  - batch_update_presentation
+  - get_page
+  - get_page_thumbnail
+  - read_presentation_comments
+  - create_presentation_comment
+  - reply_to_presentation_comment
+  - resolve_presentation_comment
   risk_level: high
   cost_class: free
   source_of_truth: scripts/wrappers/google-workspace-wrapper.sh
   rollback_class: session
   baseline_status: lkg
   notes: Google Workspace OAuth PKCE, single-user, Gmail+Calendar+Drive+Docs+Sheets+Slides,
-    20+ tools
+    catalog aligned to upstream workspace-mcp canonical tool names
 - name: playwright
   domain: browser
   owner_agent: aria-conductor

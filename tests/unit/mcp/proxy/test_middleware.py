@@ -171,7 +171,10 @@ async def test_two_pass_single_underscore_runtime_name() -> None:
 async def test_on_call_tool_denies_when_caller_not_in_matrix() -> None:
     reg = _Reg({"search-agent": ["tavily-mcp__search"]})
     mw = CapabilityMatrixMiddleware(reg)
-    ctx = _ctx(args={"_caller_id": "search-agent"}, tool_name="google_workspace__gmail_send")
+    ctx = _ctx(
+        args={"_caller_id": "search-agent"},
+        tool_name="google_workspace__send_gmail_message",
+    )
     call_next = AsyncMock()
     with pytest.raises(ToolError, match="not allowed"):
         await mw.on_call_tool(ctx, call_next)
@@ -219,7 +222,7 @@ async def test_on_list_tools_filters_per_caller() -> None:
     tool_a = MagicMock()
     tool_a.name = "tavily-mcp__search"
     tool_b = MagicMock()
-    tool_b.name = "google_workspace__gmail_send"
+    tool_b.name = "google_workspace__send_gmail_message"
     tool_c = MagicMock()
     tool_c.name = "search_tools"  # always_visible synthetic
     call_next = AsyncMock(return_value=[tool_a, tool_b, tool_c])
@@ -229,7 +232,7 @@ async def test_on_list_tools_filters_per_caller() -> None:
     out = await mw.on_list_tools(ctx, call_next)
     names = [t.name for t in out]
     assert "tavily-mcp__search" in names
-    assert "google_workspace__gmail_send" not in names
+    assert "google_workspace__send_gmail_message" not in names
     # synthetic tools are always visible
     assert "search_tools" in names
 

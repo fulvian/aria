@@ -56,8 +56,8 @@ class TestResolveServerFromTool:
 
     def test_server_with_underscore_name(self) -> None:
         """Server 'google_workspace' contains underscore."""
-        result = resolve_server_from_tool("google_workspace_gmail_send", self.NAMES)
-        assert result == ("google_workspace", "gmail_send")
+        result = resolve_server_from_tool("google_workspace_send_gmail_message", self.NAMES)
+        assert result == ("google_workspace", "send_gmail_message")
 
     def test_hyphenated_server_name(self) -> None:
         result = resolve_server_from_tool("mcp-fredapi_get_series", self.NAMES)
@@ -131,6 +131,26 @@ class TestLazyBackendBroker:
         )
         assert broker.resolve_tool("unknown_tool") is None
 
+    def test_resolve_tool_normalizes_legacy_google_workspace_aliases(self) -> None:
+        broker = LazyBackendBroker(
+            [
+                _spec(
+                    "google_workspace",
+                    domain="productivity",
+                    owner_agent="productivity-agent",
+                    expected_tools=("search_gmail_messages", "list_drive_items"),
+                )
+            ]
+        )
+        assert broker.resolve_tool("google_workspace__gmail_search") == (
+            "google_workspace",
+            "search_gmail_messages",
+        )
+        assert broker.resolve_tool("google_workspace_drive_list") == (
+            "google_workspace",
+            "list_drive_items",
+        )
+
     @pytest.mark.asyncio
     async def test_call_raises_on_unknown_backend(self) -> None:
         broker = LazyBackendBroker([_spec("financekit-mcp")])
@@ -188,7 +208,7 @@ class TestLazyBackendBroker:
         workspace = _spec(
             "google_workspace",
             domain="productivity",
-            expected_tools=("gmail_send",),
+            expected_tools=("send_gmail_message",),
         )
         broker = LazyBackendBroker([finance, workspace])
         tools = broker.catalog_tools()

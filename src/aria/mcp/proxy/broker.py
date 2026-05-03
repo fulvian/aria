@@ -33,6 +33,36 @@ if TYPE_CHECKING:
 logger = get_logger("aria.mcp.proxy.broker")
 
 
+LEGACY_GOOGLE_WORKSPACE_TOOL_ALIASES: dict[str, str] = {
+    "gmail_send": "send_gmail_message",
+    "gmail_search": "search_gmail_messages",
+    "gmail_get": "get_gmail_message_content",
+    "gmail_draft_create": "draft_gmail_message",
+    "calendar_list_events": "get_events",
+    "calendar_create_event": "create_event",
+    "calendar_get_event": "get_event",
+    "drive_list": "list_drive_items",
+    "drive_read_file": "get_drive_file_content",
+    "docs_create": "create_doc",
+    "docs_get": "get_doc_content",
+    "sheets_create": "create_spreadsheet",
+    "sheets_get_values": "read_sheet_values",
+    "sheets_update_values": "modify_sheet_values",
+    "slides_create": "create_presentation",
+}
+
+
+def _normalize_tool_name(server_name: str, tool_name: str) -> str:
+    """Normalize legacy tool aliases to the live backend tool names.
+
+    This preserves compatibility for stale prompt/wiki/runtime examples while the
+    canonical catalog and skills are aligned to the upstream contract.
+    """
+    if server_name == "google_workspace":
+        return LEGACY_GOOGLE_WORKSPACE_TOOL_ALIASES.get(tool_name, tool_name)
+    return tool_name
+
+
 def resolve_server_from_tool(
     namespaced_name: str,
     backend_names: set[str],
@@ -140,7 +170,11 @@ class LazyBackendBroker:
 
     def resolve_tool(self, namespaced_name: str) -> tuple[str, str] | None:
         """Resolve a namespaced tool name to ``(server_name, tool_name)``."""
-        return resolve_server_from_tool(namespaced_name, self.backend_names)
+        resolved = resolve_server_from_tool(namespaced_name, self.backend_names)
+        if resolved is None:
+            return None
+        server_name, tool_name = resolved
+        return server_name, _normalize_tool_name(server_name, tool_name)
 
     # ------------------------------------------------------------------
     # Internal helpers

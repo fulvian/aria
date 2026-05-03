@@ -1,7 +1,7 @@
 # Google Workspace MCP Write Reliability
 
-**Last Updated**: 2026-04-27T15:36
-**Status**: ✅ WRITE-ENABLED — OAuth re-auth completata, 10 scopes write concessi
+**Last Updated**: 2026-05-02T13:45+02:00
+**Status**: ✅ WRITE-ENABLED — OAuth re-auth completata, catalog/prompt/skill contract riallineato ai tool upstream
 **Branch**: `fix/memory-recovery`
 
 ## Purpose
@@ -143,6 +143,21 @@ Il server `workspace-mcp` in `--single-user` mode:
 - Sheets write: `create_spreadsheet`, `modify_sheet_values`
 - Slides write: `create_presentation`, `batch_update_presentation`
 - Drive: `search_drive_files`, `get_drive_file`, `create_drive_file`
+
+## Repo Contract Alignment (2026-05-02)
+
+È stato corretto un drift interno tra wiki/docs e runtime ARIA:
+
+- **Prompt synthetic tools**: il pattern corretto è
+  1. `aria-mcp-proxy__search_tools({...})`
+  2. `aria-mcp-proxy__call_tool({...})`
+- **Catalog/skill naming**: i nomi legacy interni come
+  `gmail_search`, `drive_list`, `docs_create`, `sheets_create`, `slides_create`
+  non sono più la source of truth.
+- La source of truth applicativa è ora allineata al naming upstream `workspace-mcp`
+  riportato sopra.
+- Il proxy mantiene una compatibilità retroattiva limitata per alcuni alias legacy
+  `google_workspace`, ma i prompt e le skill devono usare i nomi canonici upstream.
 
 ## Robustness Principles (implementati)
 

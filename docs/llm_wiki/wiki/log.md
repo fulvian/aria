@@ -1,5 +1,60 @@
 # Implementation Log
 
+## 2026-05-02T13:45+02:00 — FIX: productivity-agent / Google Workspace contract reconciliation
+
+**Operation**: FIX (prompt contract + catalog + broker compatibility + regressions)
+**Branch**: `fix/trader-agent-recovery`
+**Trigger**: il `productivity-agent` non riusciva a interrogare in modo affidabile tutti i tool `google_workspace` MCP nel runtime reale Kilo.
+
+### Root cause
+
+1. I prompt di `productivity-agent` (e `search-agent`) documentavano un uso errato dei tool sintetici:
+   - `aria-mcp-proxy__call_tool("search_tools", ...)`
+   - `aria-mcp-proxy__call_tool("call_tool", ...)`
+   invece delle due entrypoint separate `aria-mcp-proxy__search_tools(...)` e
+   `aria-mcp-proxy__call_tool(...)`
+2. `mcp_catalog.yaml` e le skill work-domain usavano nomi legacy/non-upstream per
+   `google_workspace` (`drive_list`, `gmail_search`, `docs_create`, ...)
+3. I log reali Kilo mostravano esattamente questi due failure mode:
+   - `Cannot resolve backend for tool: call_tool`
+   - `Unknown tool: 'drive_list'`
+4. I test repository-wide non coprivano correttamente la semantica live
+   `productivity-agent -> aria-mcp-proxy -> google_workspace`
+
+### Fix applied
+
+- **Prompt/runtime copies**
+  - corretto il pattern canonico in:
+    - `.aria/kilocode/agents/productivity-agent.md`
+    - `.aria/kilo-home/.kilo/agents/productivity-agent.md`
+    - `.aria/kilocode/agents/search-agent.md`
+    - `.aria/kilo-home/.kilo/agents/search-agent.md`
+- **Google Workspace naming alignment**
+  - aggiornato `.aria/config/mcp_catalog.yaml` ai nomi canonici upstream `workspace-mcp`
+  - corrette le skill:
+    - `.aria/kilocode/skills/meeting-prep/SKILL.md`
+    - `.aria/kilocode/skills/email-draft/SKILL.md`
+    - rispettive runtime copies in `.aria/kilo-home/.kilo/skills/`
+- **Robust compatibility backstop**
+  - `src/aria/mcp/proxy/broker.py` ora normalizza alcuni alias legacy
+    `google_workspace` verso i tool name upstream correnti
+    (es. `drive_list` → `list_drive_items`, `gmail_search` → `search_gmail_messages`)
+- **Regression updates**
+  - aggiornati test unit/integration per il contratto corretto
+  - rafforzati i prompt contract tests per vietare l'uso errato
+    `call_tool("search_tools")` / `call_tool("call_tool")`
+
+### Provenance
+
+- `src/aria/mcp/proxy/broker.py`
+- `.aria/config/mcp_catalog.yaml`
+- `.aria/kilocode/agents/productivity-agent.md`
+- `.aria/kilocode/agents/search-agent.md`
+- `.aria/kilocode/skills/meeting-prep/SKILL.md`
+- `.aria/kilocode/skills/email-draft/SKILL.md`
+- Context7 `/taylorwilsdon/google_workspace_mcp`
+- `.aria/kilo-home/.local/share/kilo/log/2026-05-02T105845.log`
+
 ## 2026-05-02T09:50+02:00 — FIX: catalog-driven proxy search + lazy backend broker
 
 **Operation**: ARCHITECTURE FIX (proxy core)

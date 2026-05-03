@@ -47,6 +47,12 @@ class TestProductivityAgentProxyContract:
     def test_proxy_caller_id_rule_explicit(self, productivity_text: str) -> None:
         assert '_caller_id: "productivity-agent"' in productivity_text
 
+    def test_proxy_examples_use_synthetic_tools_correctly(self, productivity_text: str) -> None:
+        assert "aria-mcp-proxy__search_tools({" in productivity_text
+        assert "aria-mcp-proxy__call_tool({" in productivity_text
+        assert 'aria-mcp-proxy__call_tool("search_tools"' not in productivity_text
+        assert 'aria-mcp-proxy__call_tool("call_tool"' not in productivity_text
+
     def test_forbids_native_host_helpers_for_ordinary_workflows(
         self, productivity_text: str
     ) -> None:
@@ -114,6 +120,9 @@ class TestWorkDomainSkillsContract:
             (
                 EMAIL_DRAFT_SKILL,
                 [
+                    "google_workspace__search_gmail_messages",
+                    "google_workspace__get_gmail_message_content",
+                    "google_workspace__draft_gmail_message",
                     "Una semplice richiesta testuale di conferma nella risposta NON è sufficiente",
                     "hitl-queue/ask",
                     "`wiki_update_tool` al massimo una volta per turno",
@@ -122,6 +131,9 @@ class TestWorkDomainSkillsContract:
             (
                 MEETING_PREP_SKILL,
                 [
+                    "google_workspace__get_events",
+                    "google_workspace__search_gmail_messages",
+                    "google_workspace__get_drive_file_content",
                     "hitl-queue__ask",
                     "non sostituirlo con una semplice domanda testuale finale",
                 ],

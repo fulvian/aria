@@ -239,5 +239,9 @@ agents:
         tools = registry.get_allowed_tools("productivity-agent")
         assert "google_workspace__*" in tools
         assert (
-            registry.is_tool_allowed("productivity-agent", "google_workspace__gmail_send") is True
+            registry.is_tool_allowed(
+                "productivity-agent",
+                "google_workspace__send_gmail_message",
+            )
+            is True
         )

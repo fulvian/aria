@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-05-02T09:18 (v6.9 — trader proxy call_tool two-pass fix + crypto schema hardening)
-**Status**: ✅ **v6.9** — corretto il bug strutturale del proxy per cui `call_tool` perdeva `_caller_id` nel passaggio sintetico → backend e falliva con `denied: no caller identity provided`. Il middleware ora preserva l'identità tra i due passaggi e continua a stripparla prima della chiamata reale al backend. Rafforzati i test di regressione middleware e corretta la guidance crypto del trader-agent (`crypto_search` → `coin`, `technical_analysis` con `BTC-USD`).
+**Last Updated**: 2026-05-02T13:45 (v6.10 — productivity-agent / Google Workspace contract reconciliation)
+**Status**: ✅ **v6.10** — corretta la regressione che impediva al `productivity-agent` di interrogare robustamente `google_workspace` tramite proxy: riallineato il contratto dei tool sintetici (`search_tools` → `call_tool`), aggiornato il catalogo ai nomi canonici upstream `workspace-mcp`, corrette skill/prompt/runtime copies e aggiunta compatibilità alias legacy nel broker per i vecchi nomi `google_workspace`.
 
 ## Purpose
 

@@ -1,5 +1,96 @@
 # Findings — MCP Proxy Integration Audit (2026-05-01)
 
+## Productivity-agent / Google Workspace forensic addendum (2026-05-02)
+
+### 1) The strongest current production failure is prompt-level misuse of the proxy
+- `.aria/kilocode/agents/productivity-agent.md` and `.aria/kilo-home/.kilo/agents/productivity-agent.md`
+  both document this as the canonical flow:
+  - `aria-mcp-proxy__call_tool("search_tools", ...)`
+  - `aria-mcp-proxy__call_tool("call_tool", ...)`
+- This is structurally wrong for the current proxy architecture.
+- `src/aria/mcp/proxy/server.py` exposes two separate synthetic tools:
+  - `search_tools(query=...)`
+  - `call_tool(name=..., arguments=...)`
+- Live Kilo log evidence:
+  - `.aria/kilo-home/.local/share/kilo/log/2026-05-02T105845.log:3584`
+  - `ToolError: Cannot resolve backend for tool: call_tool`
+- Conclusion: the agent is being instructed to ask the proxy to resolve a backend named
+  `call_tool`, which can never work.
+
+### 2) Google Workspace tool names in catalog/skills are stale relative to upstream `workspace-mcp`
+- `.aria/config/mcp_catalog.yaml` currently advertises names such as:
+  - `gmail_send`, `gmail_search`, `calendar_list_events`, `drive_list`, `drive_read_file`,
+    `docs_create`, `sheets_create`, `slides_create`
+- Context7 verification against `/taylorwilsdon/google_workspace_mcp` shows the current
+  upstream canonical tool names are instead:
+  - Gmail: `search_gmail_messages`, `get_gmail_message_content`, `send_gmail_message`, `draft_gmail_message`
+  - Calendar: `list_calendars`, `get_events`, `get_event`, `create_event`, `modify_event`, `delete_event`
+  - Drive: `search_drive_files`, `get_drive_file_content`, `list_drive_items`, `create_drive_file`
+  - Docs: `search_docs`, `get_doc_content`, `list_docs_in_folder`, `create_doc`, ...
+  - Sheets: `create_spreadsheet`, `read_sheet_values`, `modify_sheet_values`, ...
+  - Slides: `create_presentation`, `get_presentation`, `batch_update_presentation`, ...
+- Live Kilo log evidence:
+  - `.aria/kilo-home/.local/share/kilo/log/2026-05-02T105845.log:12854`
+  - `ToolError: Unknown tool: 'drive_list'`
+- Conclusion: even when proxy routing succeeds, the backend receives non-existent tool names.
+
+### 3) Skills reinforce the stale naming instead of the real upstream contract
+- `.aria/kilocode/skills/meeting-prep/SKILL.md` uses:
+  - `google_workspace__calendar_list_events`
+  - `google_workspace__gmail_search`
+  - `google_workspace__drive_read_file`
+- `.aria/kilocode/skills/email-draft/SKILL.md` uses:
+  - `google_workspace__gmail_search`
+  - `google_workspace__gmail_get_thread`
+  - `google_workspace__gmail_draft_create`
+- These names do not match the Context7-verified upstream surface.
+- Conclusion: the productivity workflow layer is currently teaching the model the wrong API.
+
+### 4) Proxy core is not the primary failure point for this incident
+- `src/aria/mcp/proxy/server.py` shows the lazy catalog/broker design is coherent:
+  - discovery is via `search_tools`
+  - execution is via `call_tool`
+  - backend resolution is delegated to `LazyBackendBroker.resolve_tool()`
+- `src/aria/mcp/proxy/broker.py` correctly supports:
+  - `server__tool`
+  - `server_tool`
+  - `server/tool`
+- The previously known `_caller_id` propagation bug was already fixed in middleware and is
+  not the best explanation for the current productivity-agent failures.
+- Conclusion: current breakage is contract drift above the proxy, not a broker-resolution defect.
+
+### 5) Tests currently preserve the drift instead of catching it
+- `tests/unit/mcp/proxy/test_broker.py` and `tests/unit/mcp/proxy/test_server.py`
+  still encode stale names like `gmail_send`.
+- `tests/unit/agents/productivity/test_prompt_contract.py` checks for proxy/HITL presence but
+  does not validate that the documented example invocations are syntactically correct.
+- `tests/integration/productivity/test_email_draft_e2e.py` still models a mocked
+  `workspace-agent` delegate using dotted pseudo-actions (`gmail.search`, `gmail.draft_create`),
+  not the current proxy + backend contract.
+- Conclusion: the repository lacks an e2e regression test that proves the live productivity flow
+  against the real `google_workspace` tool contract.
+
+### 6) Capability policy is permissive enough; naming is the blocker
+- `.aria/config/agent_capability_matrix.yaml` grants `productivity-agent`:
+  - `google_workspace__*`
+  - `google-workspace__*`
+- This means policy is not the main blocker for calling Google Workspace tools.
+- The blocker is that prompts/catalog/tests are asking for the wrong tool names.
+
+### 7) Existing docs already contain the correct upstream vocabulary, creating source-of-truth drift
+- `docs/llm_wiki/wiki/google-workspace-mcp-write-reliability.md` already documents the
+  upstream tool mapping with names like `search_gmail_messages`, `create_doc`,
+  `create_spreadsheet`, `create_presentation`, `search_drive_files`.
+- Therefore the repo currently has an internal contradiction:
+  - wiki/docs say one thing,
+  - catalog/skills/tests/runtime prompts say another.
+- Conclusion: the required fix is a repo-wide contract reconciliation, not a one-line patch.
+
+### 8) Working-tree hygiene note
+- `git status --short` shows pre-existing uncommitted changes on branch `fix/trader-agent-recovery`.
+- This does not block forensic diagnosis, but it is a risk for a clean remediation branch and for
+  unambiguous verification of this productivity-agent fix set.
+
 ## Trader-agent forensic addendum (2026-05-02)
 
 ### 1) Missing original implementation plan is real, not user error
@@ -83,6 +174,50 @@
   2. a session where the expected proxy tool surface was not actually available.
 - Additional important detail: the transcript inspected `kilo.json` paths, while the repo's live
   runtime MCP definitions are currently in `.aria/kilocode/mcp.json` and `.aria/kilo-home/.config/kilo/kilo.jsonc`.
+
+### 9) Proxy-tool absence is now explained by an actual startup crash
+- Reproducing `kilo run --agent trader-agent ...` under the same runtime env showed that the
+  agent really sees no `aria-mcp-proxy_*` tools; the symptom is not hallucinated.
+- `kilo mcp list` showed:
+  - `aria-memory` connected
+  - `aria-mcp-proxy` failed with `MCP error -32000: Connection closed`
+- Debug logs exposed the concrete exception:
+  - `AttributeError: 'CredentialManager' object has no attribute 'get'`
+- Crash path:
+  - `aria.mcp.proxy.__main__ -> build_proxy() -> _load_backends() -> CredentialInjector._lookup()`
+  - `CredentialInjector` called `CredentialManager.get(var)`
+  - `CredentialManager` did not implement `get()`
+
+### 10) Why this broke only now
+- The proxy boots even with synthetic tools only, but it still resolves catalog backend env placeholders during startup.
+- The trader-agent restoration enabled finance backends in the catalog that require:
+  - `FRED_API_KEY`
+  - `ALPACA_API_KEY`
+  - `ALPACA_API_SECRET`
+- Because credential resolution crashed before proxy startup completed, Kilo never exposed the proxy synthetic tools to the agent.
+
+### 11) Runtime tool naming nuance confirmed
+- In the live Kilo runtime, the proxy tools are exposed to the model as:
+  - `aria-mcp-proxy_search_tools`
+  - `aria-mcp-proxy_call_tool`
+- This is the runtime single-underscore alias form of the canonical prompt/config names:
+  - `aria-mcp-proxy__search_tools`
+  - `aria-mcp-proxy__call_tool`
+- The middleware/registry already tolerate single/double underscore forms, but prompt/skill text needed an explicit note so the agent does not get confused when it inspects the visible tool list.
+
+### 12) `call_tool` had a real two-pass caller propagation bug
+- Runtime reproduction against `build_proxy(strict=False)` proved that nested `_caller_id` on synthetic `call_tool` requests was not enough.
+- The middleware is invoked twice:
+  1. synthetic pass on `call_tool`
+  2. backend pass on the actual tool (`financekit-mcp_crypto_price`, etc.)
+- In pass 1 the middleware stripped nested `_caller_id` too early, so pass 2 received no caller identity and fail-closed correctly.
+- Fix direction: preserve/reinject `_caller_id` between pass 1 and pass 2, then strip it only immediately before the real backend invocation.
+
+### 13) Crypto skill contract had live schema drift
+- `financekit-mcp_crypto_price` requires `coin` (CoinGecko ID), not `symbol`.
+- `financekit-mcp_crypto_search` exists and should be used first to resolve user-facing names/symbols to CoinGecko IDs.
+- `financekit-mcp_technical_analysis` accepts crypto tickers like `BTC-USD`, `ETH-USD`.
+- The old crypto skill example was therefore structurally wrong even after proxy connectivity had been fixed.
 
 ## Wiki-first context
 - Read first: `docs/llm_wiki/wiki/index.md`, `docs/llm_wiki/wiki/log.md`, `docs/llm_wiki/wiki/mcp-proxy.md`

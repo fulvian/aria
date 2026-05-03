@@ -34,15 +34,15 @@ stesso proxy — non serve più delegare a workspace-agent per operazioni singol
 ## Procedura
 1. Parsing input utente: data/ora evento + parole chiave (cliente, progetto).
 2. Cerca evento calendario via proxy:
-   `call_tool(name="google_workspace__calendar_list_events", arguments={...}, _caller_id="productivity-agent")`
+   `call_tool(name="google_workspace__get_events", arguments={...}, _caller_id="productivity-agent")`
    → seleziona evento.
 3. Estrai partecipanti (campo `attendees`).
 4. Per ogni partecipante (esterno, non self):
-   - Cerca email via proxy:
-     `call_tool(name="google_workspace__gmail_search", arguments={"query": "from:<email> OR to:<email>", "after": "90d"}, _caller_id="productivity-agent")`
-   - Sintetizza topic ricorrenti + tono interlocutore.
+    - Cerca email via proxy:
+      `call_tool(name="google_workspace__search_gmail_messages", arguments={"query": "from:<email> OR to:<email>", "after": "90d"}, _caller_id="productivity-agent")`
+    - Sintetizza topic ricorrenti + tono interlocutore.
 5. Allegati Drive dell'evento → leggi via proxy:
-   `call_tool(name="google_workspace__drive_read_file", arguments={...}, _caller_id="productivity-agent")`
+   `call_tool(name="google_workspace__get_drive_file_content", arguments={...}, _caller_id="productivity-agent")`
    → invoca office-ingest per l'estrazione.
 6. wiki_recall su `<participant_name>` e `<keywords>` → eventuali topic/decision storici.
 7. Compone brief: Profilo evento → Partecipanti (storia + tono) → Allegati key → Decisioni pending → Domande aperte.
