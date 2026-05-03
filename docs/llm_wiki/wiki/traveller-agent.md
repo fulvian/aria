@@ -20,7 +20,7 @@ Sub-agente ARIA domain-primary per pianificazione e assistenza viaggi. Copre l'i
 | Fase 4 — skill core (destination + accommodation + transport) | ✅ Completa (v7.9) |
 | Fase 5 — skill complementari + booking gated | ✅ Completa (v8.0) |
 | Fase 6 — export integration via productivity-agent | ✅ Completa (v8.1) |
-| Fase 7 — observability + cost circuit breaker | ⏳ Pending |
+| Fase 7 — observability + cost circuit breaker | ✅ Completa (v8.2) |
 | Fase 8 — ADR-0017 + ADR-0018 + wiki sync | ⏳ Pending |
 | Fase 9 — smoke E2E | ⏳ Pending |
 
@@ -33,6 +33,28 @@ Sub-agente ARIA domain-primary per pianificazione e assistenza viaggi. Copre l'i
 | `aria-amadeus-mcp` | `scripts/wrappers/aria-amadeus-wrapper.sh` (FastMCP in `src/aria/tools/amadeus/mcp_server.py`) | 6 tool read-only | AMADEUS_CLIENT_ID/SECRET (SOPS) | gratuito (2K/mese) | enabled |
 
 **Nota**: Google Maps Platform (`@cablate/mcp-google-map`) **escluso** — richiedeva billing account Google Cloud non attivabile. Sostituito con `osm-mcp-server` basato su OpenStreetMap (100% free, no API key, no billing).
+
+## Observability + anti-drift (Fase 7 completata)
+
+### Eventi tipati
+Nuovi eventi in `src/aria/observability/events.py`:
+- `TravellerEvent` con `TravellerEventKind`: dispatch_received, skill_invoked, proxy_call, hitl_requested, hitl_resolved, export_delegated, amadeus_quota_warning
+
+### Cost circuit breaker (aria-amadeus-mcp)
+Integrato nel server FastMCP `mcp_server.py`:
+- `_check_quota()`: conteggio chiamate con limite free tier (2000/mese)
+- Warning a 90%: log warning
+- Auto-quarantine a 100%: error 429, nessuna altra chiamata API
+- `_reset_quota()` per reset mensile
+
+### Anti-drift tests (16 test)
+`tests/unit/agents/traveller/test_traveller_anti_drift.py`:
+- source-of-truth: frontmatter allineato
+- host tools: prompt vieta Glob/Read/Write/bash per travel
+- HITL: solo hitl-queue__ask, mai conferma testuale
+- Memory: 1 wiki_update per turn, wiki_recall a inizio
+- Self-remediation: no edit codice/config/kill
+- Naming: server__tool wildcard
 
 ## Handoff chain (Fase 6 completata)
 

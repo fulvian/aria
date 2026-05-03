@@ -61,11 +61,37 @@ class ProxyEvent(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+TravellerEventKind = Literal[
+    "traveller.dispatch_received",
+    "traveller.skill_invoked",
+    "traveller.proxy_call",
+    "traveller.hitl_requested",
+    "traveller.hitl_resolved",
+    "traveller.export_delegated",
+    "traveller.amadeus_quota_warning",
+]
+
+_TravellerEvent = tuple[TravellerEventKind, str, dict[str, object]]
+
+
+class TravellerEvent(BaseModel):
+    ts: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
+    event_type: TravellerEventKind
+    agent: str = "traveller-agent"
+    trace_id: str = Field(default_factory=new_trace_id)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 _EVENT_MARKER = "aria_event"
 
 
 def emit_event(  # noqa: E501
-    event: CutoverEvent | RollbackEvent | DriftDetected | QuarantineTriggered | ProxyEvent,
+    event: CutoverEvent
+    | RollbackEvent
+    | DriftDetected
+    | QuarantineTriggered
+    | ProxyEvent
+    | TravellerEvent,
 ) -> None:
     logger = get_aria_logger(f"aria.events.{event.agent}")
     logger.info(

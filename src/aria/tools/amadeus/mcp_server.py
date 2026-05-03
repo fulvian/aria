@@ -35,9 +35,74 @@ mcp = FastMCP(
     ),
 )
 
-# ── Client ────────────────────────────────────────────────────────────────────
+# ── Quota / circuit breaker ───────────────────────────────────────────────────
 
-_state: dict[str, Client | None] = {"client": None}
+_FREE_TIER_LIMIT = 2000  # Amadeus free tier calls per month
+
+_state: dict[str, Any] = {
+    "client": None,
+    "call_count": 0,
+    "quota_warning_emitted": False,
+    "quarantined": False,
+}
+
+
+def _check_quota() -> dict[str, Any] | None:
+    """Check Amadeus free tier quota.
+
+    Returns an error dict if quota exceeded or warning info.
+    Must be called before each tool invocation.
+    """
+    if _state["quarantined"]:
+        return {
+            "error": True,
+            "status_code": 429,
+            "message": (
+                "Amadeus API quota esaurita per questo mese. "
+                "Il backend è in auto-quarantine fino al prossimo ciclo di fatturazione."
+            ),
+            "details": {
+                "call_count": _state["call_count"],
+                "limit": _FREE_TIER_LIMIT,
+            },
+        }
+
+    _state["call_count"] += 1
+    used = _state["call_count"]
+    pct = (used / _FREE_TIER_LIMIT) * 100
+
+    if pct >= 100:
+        _state["quarantined"] = True
+        return {
+            "error": True,
+            "status_code": 429,
+            "message": "Amadeus API quota esaurita (100%). Auto-quarantine attivata.",
+            "details": {"call_count": used, "limit": _FREE_TIER_LIMIT},
+        }
+
+    if pct >= 90 and not _state["quota_warning_emitted"]:
+        _state["quota_warning_emitted"] = True
+        # Soft warning: quota near limit
+        import logging
+
+        logging.warning(
+            "Amadeus quota near limit: %d/%d (%.0f%%)",
+            used,
+            _FREE_TIER_LIMIT,
+            pct,
+        )
+
+    return None
+
+
+def _reset_quota() -> None:
+    """Reset quota counters (e.g. monthly cycle)."""
+    _state["call_count"] = 0
+    _state["quota_warning_emitted"] = False
+    _state["quarantined"] = False
+
+
+# ── Client ────────────────────────────────────────────────────────────────────
 
 
 def _get_client() -> Client | None:
@@ -127,6 +192,9 @@ def flight_offers_search(
     amadeus = _get_client()
     if amadeus is None:
         return _missing_credentials_error()
+    quota_err = _check_quota()
+    if quota_err:
+        return quota_err
     try:
         params: dict[str, Any] = {
             "originLocationCode": origin_location_code,
@@ -186,6 +254,9 @@ def hotel_offers_search(
     amadeus = _get_client()
     if amadeus is None:
         return _missing_credentials_error()
+    quota_err = _check_quota()
+    if quota_err:
+        return quota_err
 
     # Build common search params
     def _hotel_params() -> dict[str, Any]:
@@ -259,6 +330,9 @@ def hotel_list_by_geocode(
     amadeus = _get_client()
     if amadeus is None:
         return _missing_credentials_error()
+    quota_err = _check_quota()
+    if quota_err:
+        return quota_err
     try:
         params: dict[str, Any] = {
             "latitude": latitude,
@@ -302,6 +376,9 @@ def locations_search(
     amadeus = _get_client()
     if amadeus is None:
         return _missing_credentials_error()
+    quota_err = _check_quota()
+    if quota_err:
+        return quota_err
     try:
         from amadeus import Location
 
@@ -349,6 +426,9 @@ def nearest_airport(
     amadeus = _get_client()
     if amadeus is None:
         return _missing_credentials_error()
+    quota_err = _check_quota()
+    if quota_err:
+        return quota_err
     try:
         response = amadeus.reference_data.locations.airports.get(
             latitude=latitude,
@@ -384,6 +464,9 @@ def flight_status(
     amadeus = _get_client()
     if amadeus is None:
         return _missing_credentials_error()
+    quota_err = _check_quota()
+    if quota_err:
+        return quota_err
     try:
         response = amadeus.schedule.flights.get(
             carrierCode=carrier_code,
