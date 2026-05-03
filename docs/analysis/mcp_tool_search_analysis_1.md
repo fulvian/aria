@@ -80,14 +80,14 @@ tool-search-tools-mcp/
 │   │   ├── search.ts        # Ricerca ibrida (fuse + vector) (~260 linee)
 │   │   ├── executor.ts      # Esecuzione tool + skills (~30 linee)
 │   │   ├── skills.ts        # Motore skills YAML (~180 linee)
-│   │   └── __tests__/
+│   │   └── _tests_/
 │   │       ├── search-integration.test.ts  # Test ricerca
 │   │       └── embeddings-cache.test.ts    # Test cache embeddings
 │   └── utils/
 │       ├── embeddings.ts    # Generazione/ caching embeddings (~250 linee)
 │       ├── logger.ts        # Logger strutturato (~120 linee)
 │       ├── text.ts          # NLP: tokenize, normalizza, keywords (~50 linee)
-│       └── __tests__/       # (vuoto)
+│       └── _tests_/       # (vuoto)
 ├── tests/
 │   └── skills.test.ts       # Test skills (~200 linee)
 ├── mcp-config.json          # Config server backend (esempio)
@@ -236,25 +236,25 @@ Lo stesso client SDK è condiviso tra tutti i tool di uno stesso server (efficie
 ```
 mcp-orchestrator/
 ├── src/mcp_orchestrator/
-│   ├── __init__.py
+│   ├── _init_.py
 │   ├── main.py               # Entry point, DI wiring (~150 linee)
 │   ├── models.py             # Pydantic v2 models (~180 linee)
 │   ├── config_loader.py      # Caricamento server da JSON (~230 linee)
 │   ├── mcp_server.py         # FastMCP server, dynamic tools (~650 linee)
 │   ├── server/
-│   │   ├── __init__.py
+│   │   ├── _init_.py
 │   │   └── registry.py       # ServerRegistry con storage persistente (~250 linee)
 │   ├── tools/
-│   │   ├── __init__.py
+│   │   ├── _init_.py
 │   │   ├── search.py         # ToolSearchService (BM25 + regex) (~450 linee)
 │   │   └── router.py         # ToolRouter (HTTP + stdio routing) (~320 linee)
 │   └── storage/
-│       ├── __init__.py
+│       ├── _init_.py
 │       ├── base.py           # Interfaccia astratta StorageBackend (~60 linee)
 │       ├── memory.py         # Backend in-memory (~90 linee)
 │       └── redis.py          # Backend Redis (~90 linee)
 ├── tests/
-│   ├── __init__.py
+│   ├── _init_.py
 │   ├── test_search.py        # Test ricerca (~200 linee)
 │   ├── test_registry.py      # Test registry (~130 linee)
 │   ├── test_storage.py       # Test storage (~120 linee)
@@ -335,11 +335,11 @@ mcp-orchestrator/
    - **Regex** (opzionale): Python `re.compile(pattern, IGNORECASE)` su `searchable_text`
    - Fallback: senza whoosh, usa regex generata dai keywords
    - **Stop words** rimosse dal corpus
-   - Namespacing automatico `server_name__tool_name`
+   - Namespacing automatico `server_name_tool_name`
 
 3. **Esecuzione** (`router.py` + `mcp_server.py:call_remote_tool`):
    - `call_remote_tool(tool_name, arguments)`:
-     - Parsa `server_name__tool_name` da `tool_name`
+     - Parsa `server_name_tool_name` da `tool_name`
      - Recupera `ServerInfo` dal registry (inclusi auth, url, transport)
      - Se HTTP: `streamable_http_client` + `ClientSession`
      - Se stdio: `stdio_client` + `StdioServerParameters`
@@ -363,7 +363,7 @@ mcp-orchestrator/
 class ToolReference(BaseModel):
     server_name: str
     tool_name: str
-    namespaced_name: str  # server_name__tool_name
+    namespaced_name: str  # server_name_tool_name
     description: str
     input_schema: Dict[str, Any]
     defer_loading: bool = True
@@ -391,7 +391,7 @@ class ServerRegistration(BaseModel):
 - **Python puro**: stack identico ad ARIA (FastMCP, Pydantic, asyncio). Integrabile come `src/aria/mcp/tool_search_proxy/`.
 - **BM25 avanzato**: sistema di pesi sofisticato con semantic equivalents, fuzzy parziale, boost su name+description.
 - **Storage persistente**: Redis come backend production-ready. InMemory per sviluppo.
-- **Namespacing formale**: `server_name__tool_name` previene conflitti tra server.
+- **Namespacing formale**: `server_name_tool_name` previene conflitti tra server.
 - **Auth flessibile**: tre modalità (auto, static, forward) con supporto per OAuth bearer.
 - **Timeout espliciti**: 30s default per connessioni, `asyncio.timeout` ovunque.
 - **Pydantic models**: 17 modelli tipizzati, validazione automatica input/output.
@@ -439,7 +439,7 @@ class ServerRegistration(BaseModel):
 | **Timeout** | ❌ Non configurabili | ✅ 30s default, configurabili |
 | **Auth backend** | ❌ Nessuno | ✅ 3 modalità (auto/static/forward) |
 | **Health check** | ❌ No | ❌ Solo stato "unknown" |
-| **Namespacing** | `server:name` (informale) | `server__name` (formale Pydantic) |
+| **Namespacing** | `server:name` (informale) | `server_name` (formale Pydantic) |
 | **Storage** | Solo in-memory | In-memory + Redis |
 | **Transport backend** | Solo stdio | stdio + HTTP |
 | **Transport proxy** | Solo stdio | stdio + HTTP (uvicorn/CORS) |
@@ -694,7 +694,7 @@ L'**Opzione B** è la scelta migliore per ARIA per una ragione dominante: **l'in
 
 **Fase 1 — Short term (1-2 giorni)**
 1. `pip install mcp-orchestrator` in `.venv`
-2. Scrivere `src/aria/mcp/tool_search_orchestrator/__init__.py` che:
+2. Scrivere `src/aria/mcp/tool_search_orchestrator/_init_.py` che:
    - Legge `mcp_catalog.yaml` e genera il JSON di config per orchestrator
    - Inietta le credenziali tramite CredentialManager
    - Lancia il server con InMemory storage

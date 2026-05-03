@@ -124,7 +124,7 @@ Aggiornare `.aria/kilocode/mcp.json`: `google_workspace.command` = path wrapper,
 
 ```python
 class GoogleOAuthHelper:
-    def __init__(self, cm: CredentialManager): ...
+    def _init_(self, cm: CredentialManager): ...
     def ensure_refresh_token(self, account: str = "primary") -> str: ...   # raise if missing, with actionable msg
     def get_scopes(self, account: str = "primary") -> list[str]: ...
     def revoke(self, account: str = "primary") -> None: ...                 # calls Google revoke endpoint + clears keyring
@@ -142,7 +142,7 @@ class GoogleOAuthHelper:
 class ScopeManager:
     MINIMAL = ["gmail.readonly","gmail.modify","calendar.events","drive.file","documents","spreadsheets"]
 
-    def __init__(self, helper: GoogleOAuthHelper): ...
+    def _init_(self, helper: GoogleOAuthHelper): ...
     def current(self, account: str = "primary") -> list[str]: ...
     def request_escalation(self, new_scopes: list[str], reason: str) -> EscalationTicket: ...
     # produce un hitl_pending + ADR reference; user deve rilanciare oauth_first_setup con nuovi scope
@@ -283,7 +283,7 @@ Procedura:
 
 ### W1.4.H — Scheduler task preconfigurati
 
-Via CLI `aria schedule add` oppure migrazione `src/aria/scheduler/migrations/0001__seed_tasks.sql`:
+Via CLI `aria schedule add` oppure migrazione `src/aria/scheduler/migrations/0001_seed_tasks.sql`:
 
 Task 1 — Daily email triage:
 ```

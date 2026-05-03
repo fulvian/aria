@@ -75,30 +75,16 @@ class YamlCapabilityRegistry:
         """Return the list of tool names the agent is allowed to invoke."""
         return self._data.get(agent, [])
 
-    def is_tool_allowed(self, agent: str, namespaced_tool: str) -> bool:  # noqa: PLR0911
-        """Return True if `namespaced_tool` is in the agent's allowed list."""
+    def is_tool_allowed(self, agent: str, namespaced_tool: str) -> bool:
+        """Return True if `namespaced_tool` is in the agent's allowed list.
+
+        Handles the ``server_tool`` (proxy single-underscore) form.
+        """
         allowed = set(self.get_allowed_tools(agent))
         if namespaced_tool in allowed:
             return True
-        if "__" in namespaced_tool:
-            legacy = namespaced_tool.replace("__", "/", 1)
-            if legacy in allowed:
-                return True
-        # Proxy names use single _ but matrix uses __.
-        if "_" in namespaced_tool and "__" not in namespaced_tool:
-            first = namespaced_tool.index("_")
-            if namespaced_tool[:first] + "__" + namespaced_tool[first + 1 :] in allowed:
-                return True
-            if namespaced_tool[:first] + "__*" in allowed:
-                return True
-        # Wildcard server__* matches any form
+        # Wildcard server_* matches any tool under that server
         for entry in allowed:
-            if entry.endswith("__*"):
-                prefix = entry[:-3]
-                if "__" in namespaced_tool and namespaced_tool.startswith(prefix + "__"):
-                    return True
-                if "_" in namespaced_tool and "__" not in namespaced_tool:
-                    first = namespaced_tool.index("_")
-                    if namespaced_tool[:first] == prefix:
-                        return True
+            if entry.endswith("_*") and namespaced_tool.startswith(entry[:-2] + "_"):
+                return True
         return False

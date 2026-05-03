@@ -47,9 +47,7 @@ class TestTraderAgentFrontmatter:
         """Frontmatter declares name: trader-agent."""
         assert trader_agent_yaml.get("name") == "trader-agent"
 
-    def test_trader_agent_type_is_subagent(
-        self, trader_agent_yaml: dict
-    ) -> None:
+    def test_trader_agent_type_is_subagent(self, trader_agent_yaml: dict) -> None:
         """type must be 'subagent'."""
         assert trader_agent_yaml.get("type") == "subagent"
 
@@ -61,15 +59,11 @@ class TestTraderAgentFrontmatter:
         """category must be 'finance'."""
         assert trader_agent_yaml.get("category") == "finance"
 
-    def test_trader_agent_has_temperature(
-        self, trader_agent_yaml: dict
-    ) -> None:
+    def test_trader_agent_has_temperature(self, trader_agent_yaml: dict) -> None:
         """temperature must be declared (0.2 for analytical agent)."""
         assert trader_agent_yaml.get("temperature") == 0.2
 
-    def test_max_spawn_depth_is_zero(
-        self, trader_agent_yaml: dict
-    ) -> None:
+    def test_max_spawn_depth_is_zero(self, trader_agent_yaml: dict) -> None:
         """trader-agent is a leaf agent — max_spawn_depth must be 0."""
         assert trader_agent_yaml.get("max-spawn-depth") == 0
 
@@ -83,42 +77,32 @@ class TestTraderAgentAllowedTools:
         assert len(tools) > 0
 
     def test_allowed_tools_uses_proxy(self, trader_agent_yaml: dict) -> None:
-        """allowed-tools must include aria-mcp-proxy__search_tools."""
+        """allowed-tools must include aria-mcp-proxy_search_tools."""
         tools = trader_agent_yaml.get("allowed-tools", [])
-        assert "aria-mcp-proxy__search_tools" in tools
+        assert "aria-mcp-proxy_search_tools" in tools
 
     def test_allowed_tools_uses_call_tool(self, trader_agent_yaml: dict) -> None:
-        """allowed-tools must include aria-mcp-proxy__call_tool."""
+        """allowed-tools must include aria-mcp-proxy_call_tool."""
         tools = trader_agent_yaml.get("allowed-tools", [])
-        assert "aria-mcp-proxy__call_tool" in tools
+        assert "aria-mcp-proxy_call_tool" in tools
 
-    def test_allowed_tools_includes_memory(
-        self, trader_agent_yaml: dict
-    ) -> None:
+    def test_allowed_tools_includes_memory(self, trader_agent_yaml: dict) -> None:
         """allowed-tools must include aria-memory wiki tools."""
         tools = trader_agent_yaml.get("allowed-tools", [])
-        # Accept both __ and / separators since the matrix uses __
-        memory_tools = [
-            t for t in tools
-            if t.startswith(("aria-memory__", "aria-memory/"))
-        ]
+        memory_tools = [t for t in tools if t.startswith(("aria-memory_", "aria-memory/"))]
         assert len(memory_tools) >= 4
 
     def test_allowed_tools_includes_hitl(self, trader_agent_yaml: dict) -> None:
-        """allowed-tools must include hitl-queue__ask."""
+        """allowed-tools must include hitl-queue_ask."""
         tools = trader_agent_yaml.get("allowed-tools", [])
-        assert "hitl-queue__ask" in tools
+        assert "hitl-queue_ask" in tools
 
-    def test_allowed_tools_includes_sequential_thinking(
-        self, trader_agent_yaml: dict
-    ) -> None:
+    def test_allowed_tools_includes_sequential_thinking(self, trader_agent_yaml: dict) -> None:
         """allowed-tools must include sequential-thinking."""
         tools = trader_agent_yaml.get("allowed-tools", [])
         assert any(t.startswith("sequential-thinking") for t in tools)
 
-    def test_allowed_tools_under_20_entries(
-        self, trader_agent_yaml: dict
-    ) -> None:
+    def test_allowed_tools_under_20_entries(self, trader_agent_yaml: dict) -> None:
         """P9: allowed-tools must be <= 20 entries."""
         tools = trader_agent_yaml.get("allowed-tools", [])
         assert len(tools) <= 20
@@ -161,9 +145,7 @@ class TestTraderAgentRequiredSkills:
         skills = trader_agent_yaml.get("required-skills", [])
         assert len(skills) == 7
 
-    def test_all_7_trading_skills_present(
-        self, trader_agent_yaml: dict
-    ) -> None:
+    def test_all_7_trading_skills_present(self, trader_agent_yaml: dict) -> None:
         """All 7 trading skills must be declared."""
         expected_skills = {
             "trading-analysis",
@@ -187,16 +169,12 @@ class TestTraderAgentIntentCategories:
         categories = trader_agent_yaml.get("intent-categories", [])
         assert len(categories) > 0
 
-    def test_intent_categories_8_entries(
-        self, trader_agent_yaml: dict
-    ) -> None:
+    def test_intent_categories_8_entries(self, trader_agent_yaml: dict) -> None:
         """trader-agent must declare exactly 8 intent categories."""
         categories = trader_agent_yaml.get("intent-categories", [])
         assert len(categories) == 8
 
-    def test_all_intent_categories_are_finance(
-        self, trader_agent_yaml: dict
-    ) -> None:
+    def test_all_intent_categories_are_finance(self, trader_agent_yaml: dict) -> None:
         """All intent categories must start with 'finance.'."""
         categories = trader_agent_yaml.get("intent-categories", [])
         for cat in categories:
@@ -206,17 +184,13 @@ class TestTraderAgentIntentCategories:
 class TestTraderAgentCapabilityMatrix:
     """trader-agent entry in capability matrix must be aligned."""
 
-    def test_trader_in_capability_matrix(
-        self, capability_matrix_yaml: dict
-    ) -> None:
+    def test_trader_in_capability_matrix(self, capability_matrix_yaml: dict) -> None:
         """trader-agent must appear in the capability matrix."""
         agents = capability_matrix_yaml.get("agents", [])
         agent_names = {a.get("name") for a in agents}
         assert "trader-agent" in agent_names
 
-    def test_trader_capability_matrix_proxy_deps(
-        self, capability_matrix_yaml: dict
-    ) -> None:
+    def test_trader_capability_matrix_proxy_deps(self, capability_matrix_yaml: dict) -> None:
         """trader-agent in capability matrix must have aria-mcp-proxy dep."""
         agents = capability_matrix_yaml.get("agents", [])
         for agent in agents:
@@ -226,9 +200,7 @@ class TestTraderAgentCapabilityMatrix:
                 assert "aria-memory" in deps
                 return
 
-    def test_trader_capability_matrix_max_spawn_zero(
-        self, capability_matrix_yaml: dict
-    ) -> None:
+    def test_trader_capability_matrix_max_spawn_zero(self, capability_matrix_yaml: dict) -> None:
         """trader-agent must have max_spawn_depth: 0 in capability matrix."""
         agents = capability_matrix_yaml.get("agents", [])
         for agent in agents:
@@ -236,9 +208,7 @@ class TestTraderAgentCapabilityMatrix:
                 assert agent.get("max_spawn_depth") == 0
                 return
 
-    def test_trader_capability_matrix_intent_categories(
-        self, capability_matrix_yaml: dict
-    ) -> None:
+    def test_trader_capability_matrix_intent_categories(self, capability_matrix_yaml: dict) -> None:
         """trader-agent must have finance.* intent_categories."""
         agents = capability_matrix_yaml.get("agents", [])
         for agent in agents:

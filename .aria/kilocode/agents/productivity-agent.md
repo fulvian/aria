@@ -6,14 +6,14 @@ color: "#7C3AED"
 category: productivity
 temperature: 0.2
 allowed-tools:
-  - aria-mcp-proxy__search_tools
-  - aria-mcp-proxy__call_tool
-  - aria-memory__wiki_update_tool
-  - aria-memory__wiki_recall_tool
-  - aria-memory__wiki_show_tool
-  - aria-memory__wiki_list_tool
-  - hitl-queue__ask
-  - sequential-thinking__*
+  - aria-mcp-proxy_search_tools
+  - aria-mcp-proxy_call_tool
+  - aria-memory_wiki_update_tool
+  - aria-memory_wiki_recall_tool
+  - aria-memory_wiki_show_tool
+  - aria-memory_wiki_list_tool
+  - hitl-queue_ask
+  - sequential-thinking_*
   - spawn-subagent
 required-skills:
   - office-ingest
@@ -28,7 +28,7 @@ mcp-dependencies:
 
 ## Proxy invocation rule
 
-Quando chiami `aria-mcp-proxy__search_tools` o `aria-mcp-proxy__call_tool`,
+Quando chiami `aria-mcp-proxy_search_tools` o `aria-mcp-proxy_call_tool`,
 includi sempre l'argomento `_caller_id: "productivity-agent"`.
 
 Il proxy usa `_caller_id` per applicare la `agent_capability_matrix.yaml`.
@@ -38,11 +38,11 @@ Il proxy usa `_caller_id` per applicare la `agent_capability_matrix.yaml`.
 Tutte le operazioni su backend MCP (markitdown, filesystem, google_workspace, fetch)
 passano esclusivamente tramite i tool sintetici del proxy:
 
-1. **Discovery**: `aria-mcp-proxy__search_tools({"query": "<descrizione tool>", "_caller_id": "productivity-agent"})`
-2. **Esecuzione**: `aria-mcp-proxy__call_tool({"name": "<server__tool>", "arguments": {...}, "_caller_id": "productivity-agent"})`
+1. **Discovery**: `aria-mcp-proxy_search_tools({"query": "<descrizione tool>", "_caller_id": "productivity-agent"})`
+2. **Esecuzione**: `aria-mcp-proxy_call_tool({"name": "<server_tool>", "arguments": {...}, "_caller_id": "productivity-agent"})`
 
-NON invocare mai direttamente tool backend come `markitdown-mcp__convert_to_markdown`
-o `filesystem__read` — passa sempre dal proxy.
+NON invocare mai direttamente tool backend come `markitdown-mcp_convert_to_markdown`
+o `filesystem_read` — passa sempre dal proxy.
 
 ## Vincolo operativo: SOLO proxy per document discovery e file access
 
@@ -55,10 +55,10 @@ Per i workflow di questo agente, **NON usare tool nativi Kilo/host** come:
 quando il compito può essere svolto tramite backend MCP raggiungibili dal proxy.
 
 Per questo agente valgono queste regole:
-1. **Ricerca file/documenti locali** → `filesystem__list_directory` / `filesystem__read`
+1. **Ricerca file/documenti locali** → `filesystem_list_directory` / `filesystem_read`
    via proxy (`search_tools` → `call_tool`).
-2. **Lettura file** → `filesystem__read` via proxy oppure `markitdown-mcp` via proxy.
-3. **Conversione office/PDF** → `markitdown-mcp__convert_to_markdown` via proxy.
+2. **Lettura file** → `filesystem_read` via proxy oppure `markitdown-mcp` via proxy.
+3. **Conversione office/PDF** → `markitdown-mcp_convert_to_markdown` via proxy.
 4. **Google Workspace** → solo via proxy.
 
 Se usi tool nativi host invece del proxy in un workflow ordinario, il risultato è
@@ -104,7 +104,7 @@ con `decision`/`lesson` immutable) → `hitl-queue/ask` su REPL locale.
 Non basta una richiesta testuale di conferma nella risposta finale. Per azioni write
 Google Workspace devi:
 1. preparare payload via proxy;
-2. aprire un vero gate con `hitl-queue__ask`;
+2. aprire un vero gate con `hitl-queue_ask`;
 3. eseguire solo dopo conferma positiva.
 
 Se il gate non è stato realmente aperto tramite tool, devi dichiarare che l'azione

@@ -112,7 +112,7 @@ Adopt the **hybrid capability-scoped model**:
    `productivity-agent`.
 3. Security is maintained via:
    - **Proxy fail-closed enforcement**: no caller identity → tool call denied
-   - **Capability matrix scoping**: `google_workspace__*` is explicitly listed
+   - **Capability matrix scoping**: `google_workspace_*` is explicitly listed
      in `productivity-agent`'s allowed tools
    - **HITL**: destructive/external actions still require human approval
    - **Audit logging**: all proxy calls are logged with caller identity

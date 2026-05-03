@@ -2,17 +2,17 @@ agents:
   - name: aria-conductor
     type: primary
     allowed_tools:
-      - aria-memory__wiki_update_tool
-      - aria-memory__wiki_recall_tool
-      - aria-memory__wiki_show_tool
-      - aria-memory__wiki_list_tool
-      - aria-memory__forget
-      - aria-memory__stats
-      - aria-memory__hitl_ask
-      - aria-memory__hitl_list_pending
-      - aria-memory__hitl_cancel
-      - aria-memory__hitl_approve
-      - sequential-thinking__*
+      - aria-memory_wiki_update_tool
+      - aria-memory_wiki_recall_tool
+      - aria-memory_wiki_show_tool
+      - aria-memory_wiki_list_tool
+      - aria-memory_forget
+      - aria-memory_stats
+      - aria-memory_hitl_ask
+      - aria-memory_hitl_list_pending
+      - aria-memory_hitl_cancel
+      - aria-memory_hitl_approve
+      - sequential-thinking_*
       - spawn-subagent
     mcp_dependencies:
       - aria-memory
@@ -33,15 +33,15 @@ agents:
   - name: search-agent
     type: worker
     allowed_tools:
-      - searxng-script__*
-      - tavily-mcp__*
-      - exa-script__*
-      - brave-mcp__*
-      - reddit-search__*
-      - scientific-papers-mcp__*
-      - aria-memory__wiki_update_tool
-      - aria-memory__wiki_recall_tool
-      - fetch__*
+      - searxng-script_*
+      - tavily-mcp_*
+      - exa-script_*
+      - brave-mcp_*
+      - reddit-search_*
+      - scientific-papers-mcp_*
+      - aria-memory_wiki_update_tool
+      - aria-memory_wiki_recall_tool
+      - fetch_*
     mcp_dependencies:
       - aria-mcp-proxy
       - aria-memory
@@ -58,10 +58,11 @@ agents:
   - name: workspace-agent
     type: worker
     allowed_tools:
-      - google_workspace__*
-      - aria-memory__wiki_update_tool
-      - aria-memory__wiki_recall_tool
-      - hitl-queue__ask
+      - google_workspace_*
+      - google-workspace_*
+      - aria-memory_wiki_update_tool
+      - aria-memory_wiki_recall_tool
+      - hitl-queue_ask
     mcp_dependencies:
       - aria-mcp-proxy
       - aria-memory
@@ -74,16 +75,17 @@ agents:
   - name: productivity-agent
     type: worker
     allowed_tools:
-      - markitdown-mcp__*
-      - filesystem__*
-      - google_workspace__*
-      - aria-memory__wiki_update_tool
-      - aria-memory__wiki_recall_tool
-      - aria-memory__wiki_show_tool
-      - aria-memory__wiki_list_tool
-      - hitl-queue__ask
-      - fetch__*
-      - sequential-thinking__*
+      - markitdown-mcp_*
+      - filesystem_*
+      - google_workspace_*
+      - google-workspace_*
+      - aria-memory_wiki_update_tool
+      - aria-memory_wiki_recall_tool
+      - aria-memory_wiki_show_tool
+      - aria-memory_wiki_list_tool
+      - hitl-queue_ask
+      - fetch_*
+      - sequential-thinking_*
       - spawn-subagent
     mcp_dependencies:
       - aria-mcp-proxy
@@ -99,19 +101,19 @@ agents:
     type: worker
     description: Agente di analisi finanziaria — stock, ETF, options, macro, sentiment, crypto, commodity. Consulente di analisi, NON execution bot.
     allowed_tools:
-      - financekit-mcp__*
-      - mcp-fredapi__*
-      - alpaca-mcp__*
-      - financial-modeling-prep-mcp__*
-      - helium-mcp__*
-      - aria-mcp-proxy__search_tools
-      - aria-mcp-proxy__call_tool
-      - aria-memory__wiki_update_tool
-      - aria-memory__wiki_recall_tool
-      - aria-memory__wiki_show_tool
-      - aria-memory__wiki_list_tool
-      - hitl-queue__ask
-      - sequential-thinking__*
+      - financekit-mcp_*
+      - mcp-fredapi_*
+      - alpaca-mcp_*
+      - financial-modeling-prep-mcp_*
+      - helium-mcp_*
+      - aria-mcp-proxy_search_tools
+      - aria-mcp-proxy_call_tool
+      - aria-memory_wiki_update_tool
+      - aria-memory_wiki_recall_tool
+      - aria-memory_wiki_show_tool
+      - aria-memory_wiki_list_tool
+      - hitl-queue_ask
+      - sequential-thinking_*
     mcp_dependencies:
       - aria-mcp-proxy
       - aria-memory

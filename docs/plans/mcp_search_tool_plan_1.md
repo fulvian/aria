@@ -20,20 +20,20 @@ Files to create:
 
 ```
 src/aria/mcp/proxy/
-├── __init__.py
-├── __main__.py                      # python -m aria.mcp.proxy entry
+├── _init_.py
+├── _main_.py                      # python -m aria.mcp.proxy entry
 ├── server.py                        # FastMCP wiring
 ├── catalog.py                       # YAML catalog → mcpServers dict + cred injection
 ├── credential.py                    # CredentialInjector (SOPS unwrap, rotation listener)
 ├── middleware.py                    # CapabilityMatrixMiddleware
 ├── config.py                        # ProxyConfig pydantic model (loads .aria/config/proxy.yaml)
 └── transforms/
-    ├── __init__.py
+    ├── _init_.py
     ├── hybrid.py                    # HybridSearchTransform extends BM25
     └── lmstudio_embedder.py         # httpx client for LM Studio embeddings
 
 tests/unit/mcp/proxy/
-├── __init__.py
+├── _init_.py
 ├── conftest.py                      # shared fixtures
 ├── test_catalog.py
 ├── test_config.py
@@ -44,7 +44,7 @@ tests/unit/mcp/proxy/
 └── test_server.py
 
 tests/integration/mcp/proxy/
-├── __init__.py
+├── _init_.py
 ├── conftest.py
 ├── test_proxy_e2e_stdio.py
 ├── test_call_tool_routing.py
@@ -53,7 +53,7 @@ tests/integration/mcp/proxy/
 └── test_emergency_rollback.py
 
 tests/e2e/mcp/proxy/
-├── __init__.py
+├── _init_.py
 ├── test_search_quality.py
 ├── test_full_session_kilocode.py
 └── test_context_token_reduction.py
@@ -151,7 +151,7 @@ async def main() -> None:
         result = await client.call_tool("search_tools", {"pattern": "read"})
         print(f"OK: search_tools(pattern='read') → {result}")
 
-if __name__ == "__main__":
+if _name_ == "_main_":
     asyncio.run(main())
 ```
 
@@ -227,15 +227,15 @@ git commit -m "chore(proxy): add respx + numpy dev deps for proxy tests"
 ### Task F1.2: Package skeleton
 
 **Files:**
-- Create: `src/aria/mcp/proxy/__init__.py`
-- Create: `src/aria/mcp/proxy/__main__.py`
-- Create: `tests/unit/mcp/proxy/__init__.py`
+- Create: `src/aria/mcp/proxy/_init_.py`
+- Create: `src/aria/mcp/proxy/_main_.py`
+- Create: `tests/unit/mcp/proxy/_init_.py`
 - Create: `tests/unit/mcp/proxy/conftest.py`
 
-- [ ] **Step 1: Write `__init__.py`**
+- [ ] **Step 1: Write `_init_.py`**
 
 ```python
-# src/aria/mcp/proxy/__init__.py
+# src/aria/mcp/proxy/_init_.py
 """ARIA MCP tool-search proxy — FastMCP-native multi-server aggregator.
 
 Replaces the static lazy loader with a runtime BM25/hybrid search surface
@@ -247,13 +247,13 @@ See docs/superpowers/specs/2026-05-01-mcp-tool-search-design.md.
 
 from aria.mcp.proxy.server import build_proxy
 
-__all__ = ["build_proxy"]
+_all_ = ["build_proxy"]
 ```
 
-- [ ] **Step 2: Write `__main__.py`**
+- [ ] **Step 2: Write `_main_.py`**
 
 ```python
-# src/aria/mcp/proxy/__main__.py
+# src/aria/mcp/proxy/_main_.py
 """Entry point: python -m aria.mcp.proxy"""
 from __future__ import annotations
 
@@ -277,7 +277,7 @@ def main() -> None:
     asyncio.run(_run())
 
 
-if __name__ == "__main__":
+if _name_ == "_main_":
     main()
 ```
 
@@ -370,8 +370,8 @@ Expected: ImportError on `build_proxy` (server.py not yet written) — that's fi
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/aria/mcp/proxy/__init__.py src/aria/mcp/proxy/__main__.py \
-        tests/unit/mcp/proxy/__init__.py tests/unit/mcp/proxy/conftest.py \
+git add src/aria/mcp/proxy/_init_.py src/aria/mcp/proxy/_main_.py \
+        tests/unit/mcp/proxy/_init_.py tests/unit/mcp/proxy/conftest.py \
         tests/unit/mcp/proxy/test_server.py
 git commit -m "feat(proxy): scaffold src/aria/mcp/proxy package + test fixtures"
 ```
@@ -752,7 +752,7 @@ from aria.mcp.proxy.credential import CredentialInjector
 
 
 class _FakeManager:
-    def __init__(self, mapping: dict[str, str]):
+    def _init_(self, mapping: dict[str, str]):
         self._m = mapping
 
     def get(self, key: str) -> str | None:
@@ -863,7 +863,7 @@ class _SecretSource(Protocol):
 
 
 class CredentialInjector:
-    def __init__(self, manager: _SecretSource | None = None) -> None:
+    def _init_(self, manager: _SecretSource | None = None) -> None:
         self._manager = manager
 
     def inject(self, spec: BackendSpec) -> BackendSpec:
@@ -933,7 +933,7 @@ git commit -m "feat(proxy): CredentialInjector resolves \${VAR} env placeholders
 ### Task F1.6: LM Studio embedder client
 
 **Files:**
-- Create: `src/aria/mcp/proxy/transforms/__init__.py`
+- Create: `src/aria/mcp/proxy/transforms/_init_.py`
 - Create: `src/aria/mcp/proxy/transforms/lmstudio_embedder.py`
 - Create: `tests/unit/mcp/proxy/test_lmstudio_embedder.py`
 
@@ -1023,7 +1023,7 @@ Expected: ImportError.
 - [ ] **Step 3: Implement embedder**
 
 ```python
-# src/aria/mcp/proxy/transforms/__init__.py
+# src/aria/mcp/proxy/transforms/_init_.py
 ```
 
 ```python
@@ -1044,7 +1044,7 @@ class LMStudioUnavailable(RuntimeError):
 
 
 class LMStudioEmbedder:
-    def __init__(
+    def _init_(
         self,
         *,
         endpoint: str,
@@ -1104,7 +1104,7 @@ Expected: 6 passed.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/aria/mcp/proxy/transforms/__init__.py \
+git add src/aria/mcp/proxy/transforms/_init_.py \
         src/aria/mcp/proxy/transforms/lmstudio_embedder.py \
         tests/unit/mcp/proxy/test_lmstudio_embedder.py
 git commit -m "feat(proxy): LMStudioEmbedder with probe + dim validation + normalisation"
@@ -1249,13 +1249,13 @@ def _tool_text(tool: Any) -> str:
 
 
 class HybridSearchTransform(BM25SearchTransform):
-    def __init__(
+    def _init_(
         self,
         *,
         embedder: LMStudioEmbedder | None = None,
         blend: float = 0.6,
     ) -> None:
-        super().__init__()
+        super()._init_()
         self._embedder = embedder
         self._blend = blend
         self._tool_vectors: dict[str, np.ndarray] = {}
@@ -1325,7 +1325,7 @@ from aria.mcp.proxy.middleware import CapabilityMatrixMiddleware
 
 
 class _Reg:
-    def __init__(self, mapping: dict[str, list[str]]):
+    def _init_(self, mapping: dict[str, list[str]]):
         self._m = mapping
 
     def get_allowed_tools(self, agent: str) -> list[str]:
@@ -1347,9 +1347,9 @@ def _ctx(*, args: dict | None = None, tool_name: str | None = None) -> MagicMock
 
 @pytest.mark.asyncio
 async def test_on_call_tool_allows_when_caller_in_matrix() -> None:
-    reg = _Reg({"search-agent": ["tavily-mcp__search"]})
+    reg = _Reg({"search-agent": ["tavily-mcp_search"]})
     mw = CapabilityMatrixMiddleware(reg)  # type: ignore[arg-type]
-    ctx = _ctx(args={"_caller_id": "search-agent", "q": "x"}, tool_name="tavily-mcp__search")
+    ctx = _ctx(args={"_caller_id": "search-agent", "q": "x"}, tool_name="tavily-mcp_search")
     call_next = AsyncMock(return_value="ok")
     out = await mw.on_call_tool(ctx, call_next)
     assert out == "ok"
@@ -1360,9 +1360,9 @@ async def test_on_call_tool_allows_when_caller_in_matrix() -> None:
 
 @pytest.mark.asyncio
 async def test_on_call_tool_denies_when_caller_not_in_matrix() -> None:
-    reg = _Reg({"search-agent": ["tavily-mcp__search"]})
+    reg = _Reg({"search-agent": ["tavily-mcp_search"]})
     mw = CapabilityMatrixMiddleware(reg)  # type: ignore[arg-type]
-    ctx = _ctx(args={"_caller_id": "search-agent"}, tool_name="google_workspace__gmail_send")
+    ctx = _ctx(args={"_caller_id": "search-agent"}, tool_name="google_workspace_gmail_send")
     call_next = AsyncMock()
     with pytest.raises(ToolError, match="not allowed"):
         await mw.on_call_tool(ctx, call_next)
@@ -1373,7 +1373,7 @@ async def test_on_call_tool_denies_when_caller_not_in_matrix() -> None:
 async def test_on_call_tool_permissive_when_caller_id_absent() -> None:
     reg = _Reg({})
     mw = CapabilityMatrixMiddleware(reg)  # type: ignore[arg-type]
-    ctx = _ctx(args={"q": "x"}, tool_name="filesystem__read")
+    ctx = _ctx(args={"q": "x"}, tool_name="filesystem_read")
     call_next = AsyncMock(return_value="ok")
     out = await mw.on_call_tool(ctx, call_next)
     assert out == "ok"
@@ -1381,10 +1381,10 @@ async def test_on_call_tool_permissive_when_caller_id_absent() -> None:
 
 @pytest.mark.asyncio
 async def test_on_list_tools_filters_per_caller() -> None:
-    reg = _Reg({"search-agent": ["tavily-mcp__search"]})
+    reg = _Reg({"search-agent": ["tavily-mcp_search"]})
     mw = CapabilityMatrixMiddleware(reg, default_caller_env="ARIA_CALLER_ID")  # type: ignore[arg-type]
-    tool_a = MagicMock(); tool_a.name = "tavily-mcp__search"
-    tool_b = MagicMock(); tool_b.name = "google_workspace__gmail_send"
+    tool_a = MagicMock(); tool_a.name = "tavily-mcp_search"
+    tool_b = MagicMock(); tool_b.name = "google_workspace_gmail_send"
     tool_c = MagicMock(); tool_c.name = "search_tools"  # always_visible synthetic
     call_next = AsyncMock(return_value=[tool_a, tool_b, tool_c])
     ctx = _ctx()
@@ -1392,8 +1392,8 @@ async def test_on_list_tools_filters_per_caller() -> None:
     ctx.fastmcp_context.headers = {"X-ARIA-Caller-Id": "search-agent"}
     out = await mw.on_list_tools(ctx, call_next)
     names = [t.name for t in out]
-    assert "tavily-mcp__search" in names
-    assert "google_workspace__gmail_send" not in names
+    assert "tavily-mcp_search" in names
+    assert "google_workspace_gmail_send" not in names
     # synthetic tools are always visible
     assert "search_tools" in names
 
@@ -1402,7 +1402,7 @@ async def test_on_list_tools_filters_per_caller() -> None:
 async def test_on_list_tools_passthrough_when_no_caller() -> None:
     reg = _Reg({})
     mw = CapabilityMatrixMiddleware(reg)  # type: ignore[arg-type]
-    tool_a = MagicMock(); tool_a.name = "filesystem__read"
+    tool_a = MagicMock(); tool_a.name = "filesystem_read"
     call_next = AsyncMock(return_value=[tool_a])
     out = await mw.on_list_tools(_ctx(), call_next)
     assert out == [tool_a]
@@ -1414,13 +1414,13 @@ async def test_synthetic_tools_never_filtered() -> None:
     mw = CapabilityMatrixMiddleware(reg)  # type: ignore[arg-type]
     sym = MagicMock(); sym.name = "search_tools"
     call = MagicMock(); call.name = "call_tool"
-    other = MagicMock(); other.name = "filesystem__read"
+    other = MagicMock(); other.name = "filesystem_read"
     call_next = AsyncMock(return_value=[sym, call, other])
     ctx = _ctx(args={"_caller_id": "search-agent"})
     out = await mw.on_list_tools(ctx, call_next)
     names = [t.name for t in out]
     assert "search_tools" in names and "call_tool" in names
-    assert "filesystem__read" not in names
+    assert "filesystem_read" not in names
 ```
 
 - [ ] **Step 2: Run tests**
@@ -1434,17 +1434,17 @@ In `src/aria/agents/coordination/registry.py`, append (or extend) the `AgentRegi
 
 ```python
 def is_tool_allowed(self, agent: str, namespaced_tool: str) -> bool:
-    """Return True if `namespaced_tool` (server__tool form) is in the agent's allowed list.
+    """Return True if `namespaced_tool` (server_tool form) is in the agent's allowed list.
 
-    Accepts both legacy `server/tool` and new `server__tool` forms in the
+    Accepts both legacy `server/tool` and new `server_tool` forms in the
     YAML matrix during the migration window.
     """
     allowed = set(self.get_allowed_tools(agent))
     if namespaced_tool in allowed:
         return True
-    # fall back to legacy form: convert "server__tool" → "server/tool"
-    if "__" in namespaced_tool:
-        legacy = namespaced_tool.replace("__", "/", 1)
+    # fall back to legacy form: convert "server_tool" → "server/tool"
+    if "_" in namespaced_tool:
+        legacy = namespaced_tool.replace("_", "/", 1)
         if legacy in allowed:
             return True
     return False
@@ -1488,7 +1488,7 @@ class _Registry(Protocol):
 
 
 class CapabilityMatrixMiddleware(Middleware):
-    def __init__(
+    def _init_(
         self,
         registry: _Registry,
         *,
@@ -1539,18 +1539,18 @@ class CapabilityMatrixMiddleware(Middleware):
     def _matches(tool_name: str, allowed: Iterable[str]) -> bool:
         if tool_name in allowed:
             return True
-        # legacy form: "server/tool" in matrix vs "server__tool" in proxy
-        if "__" in tool_name:
-            legacy = tool_name.replace("__", "/", 1)
+        # legacy form: "server/tool" in matrix vs "server_tool" in proxy
+        if "_" in tool_name:
+            legacy = tool_name.replace("_", "/", 1)
             if legacy in allowed:
                 return True
-        # wildcard `server/*` or `server__*`
+        # wildcard `server/*` or `server_*`
         for entry in allowed:
             if entry.endswith("/*") and tool_name.startswith(
-                entry[:-2].replace("/", "__") + "__"
+                entry[:-2].replace("/", "_") + "_"
             ):
                 return True
-            if entry.endswith("__*") and tool_name.startswith(entry[:-3] + "__"):
+            if entry.endswith("_*") and tool_name.startswith(entry[:-3] + "_"):
                 return True
         return False
 ```
@@ -1744,7 +1744,7 @@ git commit -m "feat(proxy): build_proxy() wires catalog + transform + middleware
 ### Task F1.10: Integration test — stdio e2e
 
 **Files:**
-- Create: `tests/integration/mcp/proxy/__init__.py`
+- Create: `tests/integration/mcp/proxy/_init_.py`
 - Create: `tests/integration/mcp/proxy/conftest.py`
 - Create: `tests/integration/mcp/proxy/test_proxy_e2e_stdio.py`
 
@@ -1828,7 +1828,7 @@ from aria.mcp.proxy.server import build_proxy
 
 class _StubReg:
     def get_allowed_tools(self, agent: str) -> list[str]:
-        return {"search-agent": ["filesystem__read"]}.get(agent, [])
+        return {"search-agent": ["filesystem_read"]}.get(agent, [])
 
     def is_tool_allowed(self, agent: str, tool: str) -> bool:
         return tool in self.get_allowed_tools(agent)
@@ -1849,7 +1849,7 @@ async def test_search_agent_blocked_from_workspace(monkeypatch) -> None:
                 "call_tool",
                 {
                     "_caller_id": "search-agent",
-                    "name": "google_workspace__gmail_send",
+                    "name": "google_workspace_gmail_send",
                     "arguments": {"to": "x"},
                 },
             )
@@ -1890,7 +1890,7 @@ import pytest
 
 @pytest.mark.integration
 def test_emergency_direct_uses_lkg_baseline(tmp_path: Path, monkeypatch) -> None:
-    repo_root = Path(__file__).resolve().parents[4]
+    repo_root = Path(_file_).resolve().parents[4]
     bin_aria = repo_root / "bin/aria"
     if not bin_aria.exists():
         pytest.skip("bin/aria not present")
@@ -1904,7 +1904,7 @@ def test_emergency_direct_uses_lkg_baseline(tmp_path: Path, monkeypatch) -> None
         [str(bin_aria), "start", "--emergency-direct", "--dry-run"],
         capture_output=True,
         text=True,
-        env={**dict(monkeypatch.delenv.__globals__["os"].environ),
+        env={**dict(monkeypatch.delenv._globals_["os"].environ),
              "ARIA_HOME": str(tmp_path)},
     )
     assert res.returncode == 0, res.stderr
@@ -2087,7 +2087,7 @@ async def main() -> None:
                     f.write(json.dumps({"q": q, "ok": False, "err": str(exc)}) + "\n")
 
 
-if __name__ == "__main__":
+if _name_ == "_main_":
     asyncio.run(main())
 ```
 
@@ -2181,32 +2181,32 @@ git commit -m "feat(proxy): F3 cutover — mcp.json reduced to aria-memory + ari
 
 - [ ] **Step 1: Rewrite tool entries**
 
-Replace each `server/tool` entry with `server__tool` form (the legacy form is still accepted by `is_tool_allowed`, but we want the canonical YAML to use the new form). Example:
+Replace each `server/tool` entry with `server_tool` form (the legacy form is still accepted by `is_tool_allowed`, but we want the canonical YAML to use the new form). Example:
 
 ```yaml
 agents:
   - name: search-agent
     type: worker
     allowed_tools:
-      - searxng-script__search
-      - tavily-mcp__search
-      - exa-script__search
-      - brave-mcp__web_search
-      - brave-mcp__news_search
-      - reddit-search__search
-      - reddit-search__search_subreddit
-      - reddit-search__get_post
-      - reddit-search__get_subreddit_posts
-      - reddit-search__get_user
-      - reddit-search__get_user_posts
-      - scientific-papers-mcp__search_papers
-      - scientific-papers-mcp__fetch_content
-      - scientific-papers-mcp__fetch_latest
-      - scientific-papers-mcp__list_categories
-      - scientific-papers-mcp__fetch_top_cited
-      - aria-memory__wiki_update_tool
-      - aria-memory__wiki_recall_tool
-      - fetch__fetch
+      - searxng-script_search
+      - tavily-mcp_search
+      - exa-script_search
+      - brave-mcp_web_search
+      - brave-mcp_news_search
+      - reddit-search_search
+      - reddit-search_search_subreddit
+      - reddit-search_get_post
+      - reddit-search_get_subreddit_posts
+      - reddit-search_get_user
+      - reddit-search_get_user_posts
+      - scientific-papers-mcp_search_papers
+      - scientific-papers-mcp_fetch_content
+      - scientific-papers-mcp_fetch_latest
+      - scientific-papers-mcp_list_categories
+      - scientific-papers-mcp_fetch_top_cited
+      - aria-memory_wiki_update_tool
+      - aria-memory_wiki_recall_tool
+      - fetch_fetch
     mcp_dependencies:
       - aria-mcp-proxy
       - aria-memory
@@ -2257,10 +2257,10 @@ color: "#2E86AB"
 category: research
 temperature: 0.1
 allowed-tools:
-  - aria-mcp-proxy__search_tools
-  - aria-mcp-proxy__call_tool
-  - aria-memory__wiki_update_tool
-  - aria-memory__wiki_recall_tool
+  - aria-mcp-proxy_search_tools
+  - aria-mcp-proxy_call_tool
+  - aria-memory_wiki_update_tool
+  - aria-memory_wiki_recall_tool
 required-skills:
   - deep-research
   - source-dedup
@@ -2270,7 +2270,7 @@ mcp-dependencies:
 ---
 ```
 
-The agent body keeps tool *names* (e.g. `tavily-mcp/search`) where they appear inside narrative tier ladders, but the agent now reaches them by going through `aria-mcp-proxy__call_tool`.
+The agent body keeps tool *names* (e.g. `tavily-mcp/search`) where they appear inside narrative tier ladders, but the agent now reaches them by going through `aria-mcp-proxy_call_tool`.
 
 - [ ] **Step 2: Insert the `_caller_id` addendum**
 
@@ -2279,7 +2279,7 @@ Add a new top-level section to each agent prompt (after the YAML front matter):
 ```markdown
 ## Proxy invocation rule
 
-Quando chiami `aria-mcp-proxy__search_tools` o `aria-mcp-proxy__call_tool`,
+Quando chiami `aria-mcp-proxy_search_tools` o `aria-mcp-proxy_call_tool`,
 includi sempre l'argomento `_caller_id` con il NOME ESATTO di questo agente,
 es. `_caller_id: "search-agent"`.
 
@@ -2317,7 +2317,7 @@ git commit -m "feat(proxy): F3 — agent prompts use namespaced tools + _caller_
 ### Task F3.4: E2E smoke session
 
 **Files:**
-- Create: `tests/e2e/mcp/proxy/__init__.py`
+- Create: `tests/e2e/mcp/proxy/_init_.py`
 - Create: `tests/e2e/mcp/proxy/test_full_session_kilocode.py`
 
 - [ ] **Step 1: Manual smoke**
@@ -2325,7 +2325,7 @@ git commit -m "feat(proxy): F3 — agent prompts use namespaced tools + _caller_
 In a real KiloCode 7.2.x session, ask:
 > "Cerca tre paper recenti su modelli di stato (state space models)."
 
-Expected: conductor spawns search-agent → search-agent uses `aria-mcp-proxy__search_tools(pattern="state space model papers", _caller_id="search-agent")` → top results include `scientific-papers-mcp__search_papers`. Final answer cites at least one arXiv reference.
+Expected: conductor spawns search-agent → search-agent uses `aria-mcp-proxy_search_tools(pattern="state space model papers", _caller_id="search-agent")` → top results include `scientific-papers-mcp_search_papers`. Final answer cites at least one arXiv reference.
 
 Capture `KiloCode logs` and `.aria/runtime/proxy/shadow-*.jsonl` excerpt; paste into the PR description.
 
@@ -2365,7 +2365,7 @@ def test_kilocode_session_reaches_proxy() -> None:
 - [ ] **Step 3: Commit**
 
 ```bash
-git add tests/e2e/mcp/proxy/__init__.py tests/e2e/mcp/proxy/test_full_session_kilocode.py
+git add tests/e2e/mcp/proxy/_init_.py tests/e2e/mcp/proxy/test_full_session_kilocode.py
 git commit -m "test(proxy): F3 — manual + programmatic e2e KiloCode session smoke"
 ```
 
@@ -2379,7 +2379,7 @@ git commit -m "test(proxy): F3 — manual + programmatic e2e KiloCode session sm
 Add (or extend) checks so that:
 
 1. `mcp.json.mcpServers` keys are exactly `{"aria-memory", "aria-mcp-proxy"}`.
-2. Every entry in `agent_capability_matrix.yaml.allowed_tools` either (a) is a synthetic `aria-mcp-proxy__*`, (b) is `aria-memory__*`, or (c) is a backend tool whose `<server>` exists as a `lifecycle: enabled` entry in `mcp_catalog.yaml`.
+2. Every entry in `agent_capability_matrix.yaml.allowed_tools` either (a) is a synthetic `aria-mcp-proxy_*`, (b) is `aria-memory_*`, or (c) is a backend tool whose `<server>` exists as a `lifecycle: enabled` entry in `mcp_catalog.yaml`.
 3. Every agent prompt's `allowed-tools` list mirrors its matrix entry (modulo the addendum).
 
 Reference fragment:
@@ -2450,9 +2450,9 @@ git rm src/aria/launcher/lazy_loader.py
 
 Remove any `--intent` / `--profile candidate` handling from `bin/aria`. Keep `--profile baseline` only as a no-op alias for `--emergency-direct`.
 
-- [ ] **Step 4: Update __init__.py**
+- [ ] **Step 4: Update _init_.py**
 
-Edit `src/aria/launcher/__init__.py` to drop the `lazy_loader` export.
+Edit `src/aria/launcher/_init_.py` to drop the `lazy_loader` export.
 
 - [ ] **Step 5: Run quality gate**
 
@@ -2699,7 +2699,7 @@ class ProxyCallerAnomalyEvent(BaseEvent):
 
 - [ ] **Step 2: Emit on proxy startup / shutdown**
 
-In `src/aria/mcp/proxy/__main__.py`, around `proxy.run_async`, emit `ProxyStartedEvent(backends=[...])` and `ProxyShutdownEvent()`.
+In `src/aria/mcp/proxy/_main_.py`, around `proxy.run_async`, emit `ProxyStartedEvent(backends=[...])` and `ProxyShutdownEvent()`.
 
 - [ ] **Step 3: Run quality gate**
 
@@ -2709,7 +2709,7 @@ Expected: green.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/aria/observability/events.py src/aria/mcp/proxy/__main__.py
+git add src/aria/observability/events.py src/aria/mcp/proxy/_main_.py
 git commit -m "feat(observability): typed proxy.* events + start/shutdown emission"
 ```
 
@@ -2730,11 +2730,11 @@ Expected: a list of skill files with hardcoded `server/tool` references.
 
 - [ ] **Step 2: Replace with namespaced form**
 
-For each skill, replace `server/tool` with `aria-mcp-proxy__call_tool(name="server__tool", ...)`. Example diff for a deep-research SKILL excerpt:
+For each skill, replace `server/tool` with `aria-mcp-proxy_call_tool(name="server_tool", ...)`. Example diff for a deep-research SKILL excerpt:
 
 ```diff
 -Use `tavily-mcp/search` for web tier 2.
-+Use `aria-mcp-proxy__call_tool(name="tavily-mcp__search", _caller_id="search-agent", arguments={...})` for web tier 2.
++Use `aria-mcp-proxy_call_tool(name="tavily-mcp_search", _caller_id="search-agent", arguments={...})` for web tier 2.
 ```
 
 - [ ] **Step 3: Validate skills file structure**
@@ -2877,26 +2877,26 @@ import pytest
 from fastmcp import Client
 
 QUERIES = [
-    ("ricerca paper accademici state space model", "scientific-papers-mcp__search_papers"),
-    ("invia un'email a Mario", "google_workspace__gmail_send"),
-    ("cerca su reddit discussioni AI", "reddit-search__search"),
-    ("converti questo PDF in markdown", "markitdown-mcp__convert"),
-    ("salva memoria utente preferenze", "aria-memory__wiki_update_tool"),
-    ("recall wiki Tavily routing", "aria-memory__wiki_recall_tool"),
-    ("naviga su un sito e prendi screenshot", "playwright__navigate"),
-    ("cerca file in /tmp", "filesystem__list_directory"),
-    ("leggi questo file txt", "filesystem__read"),
-    ("scrivi un file json", "filesystem__write"),
-    ("ricerca Brave news ultime", "brave-mcp__news_search"),
-    ("cerca su Tavily best practice REST API", "tavily-mcp__search"),
-    ("Exa deep search Mamba architecture", "exa-script__search"),
-    ("self-hosted searxng query", "searxng-script__search"),
-    ("get post da subreddit /r/Python", "reddit-search__get_post"),
-    ("crea un evento calendario domani", "google_workspace__calendar_create_event"),
-    ("aggiungi nota in google docs", "google_workspace__docs_create"),
-    ("scarica una pagina web in plain text", "fetch__fetch"),
-    ("trova repo su github relativi a fastmcp", "github-discovery__discover_repos"),
-    ("cerca paper recenti EuropePMC", "scientific-papers-mcp__fetch_latest"),
+    ("ricerca paper accademici state space model", "scientific-papers-mcp_search_papers"),
+    ("invia un'email a Mario", "google_workspace_gmail_send"),
+    ("cerca su reddit discussioni AI", "reddit-search_search"),
+    ("converti questo PDF in markdown", "markitdown-mcp_convert"),
+    ("salva memoria utente preferenze", "aria-memory_wiki_update_tool"),
+    ("recall wiki Tavily routing", "aria-memory_wiki_recall_tool"),
+    ("naviga su un sito e prendi screenshot", "playwright_navigate"),
+    ("cerca file in /tmp", "filesystem_list_directory"),
+    ("leggi questo file txt", "filesystem_read"),
+    ("scrivi un file json", "filesystem_write"),
+    ("ricerca Brave news ultime", "brave-mcp_news_search"),
+    ("cerca su Tavily best practice REST API", "tavily-mcp_search"),
+    ("Exa deep search Mamba architecture", "exa-script_search"),
+    ("self-hosted searxng query", "searxng-script_search"),
+    ("get post da subreddit /r/Python", "reddit-search_get_post"),
+    ("crea un evento calendario domani", "google_workspace_calendar_create_event"),
+    ("aggiungi nota in google docs", "google_workspace_docs_create"),
+    ("scarica una pagina web in plain text", "fetch_fetch"),
+    ("trova repo su github relativi a fastmcp", "github-discovery_discover_repos"),
+    ("cerca paper recenti EuropePMC", "scientific-papers-mcp_fetch_latest"),
 ]
 
 
@@ -2952,7 +2952,7 @@ from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[4]
+REPO = Path(_file_).resolve().parents[4]
 LKG = REPO / ".aria/kilocode/mcp.json.baseline"
 LIVE = REPO / ".aria/kilocode/mcp.json"
 

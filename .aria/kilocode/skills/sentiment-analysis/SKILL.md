@@ -5,11 +5,11 @@ description: News scoring, bias analysis, social sentiment aggregation, source c
 trigger-keywords: [sentiment, news, bias, social, Reuters, CNN, Reuters, financial news, media]
 user-invocable: true
 allowed-tools:
-  - aria-mcp-proxy__search_tools
-  - aria-mcp-proxy__call_tool
-  - aria-memory__wiki_update_tool
-  - aria-memory__wiki_recall_tool
-  - sequential-thinking__*
+  - aria-mcp-proxy_search_tools
+  - aria-mcp-proxy_call_tool
+  - aria-memory_wiki_update_tool
+  - aria-memory_wiki_recall_tool
+  - sequential-thinking_*
 max-tokens: 50000
 estimated-cost-eur: 0.08
 ---
@@ -69,12 +69,12 @@ Nel runtime Kilo i tool del proxy possono apparire come alias
 
 ```python
 # Discovery
-aria-mcp-proxy__search_tools({"query": "news sentiment analysis scoring", "_caller_id": "trader-agent"})
+aria-mcp-proxy_search_tools({"query": "news sentiment analysis scoring", "_caller_id": "trader-agent"})
 
 # Esecuzione — helium-mcp è HTTP/SSE, attualmente disabilitato (Phase 2)
 # Usa search-agent per news come fallback, o financekit-mcp per dati di mercato
-aria-mcp-proxy__call_tool({
-    "name": "financekit-mcp__search_news",
+aria-mcp-proxy_call_tool({
+    "name": "financekit-mcp_search_news",
     "arguments": {"query": "AAPL earnings", "limit": 10},
     "_caller_id": "trader-agent"
 })

@@ -5,8 +5,8 @@
 ### 1) The strongest current production failure is prompt-level misuse of the proxy
 - `.aria/kilocode/agents/productivity-agent.md` and `.aria/kilo-home/.kilo/agents/productivity-agent.md`
   both document this as the canonical flow:
-  - `aria-mcp-proxy__call_tool("search_tools", ...)`
-  - `aria-mcp-proxy__call_tool("call_tool", ...)`
+  - `aria-mcp-proxy_call_tool("search_tools", ...)`
+  - `aria-mcp-proxy_call_tool("call_tool", ...)`
 - This is structurally wrong for the current proxy architecture.
 - `src/aria/mcp/proxy/server.py` exposes two separate synthetic tools:
   - `search_tools(query=...)`
@@ -36,13 +36,13 @@
 
 ### 3) Skills reinforce the stale naming instead of the real upstream contract
 - `.aria/kilocode/skills/meeting-prep/SKILL.md` uses:
-  - `google_workspace__calendar_list_events`
-  - `google_workspace__gmail_search`
-  - `google_workspace__drive_read_file`
+  - `google_workspace_calendar_list_events`
+  - `google_workspace_gmail_search`
+  - `google_workspace_drive_read_file`
 - `.aria/kilocode/skills/email-draft/SKILL.md` uses:
-  - `google_workspace__gmail_search`
-  - `google_workspace__gmail_get_thread`
-  - `google_workspace__gmail_draft_create`
+  - `google_workspace_gmail_search`
+  - `google_workspace_gmail_get_thread`
+  - `google_workspace_gmail_draft_create`
 - These names do not match the Context7-verified upstream surface.
 - Conclusion: the productivity workflow layer is currently teaching the model the wrong API.
 
@@ -52,7 +52,7 @@
   - execution is via `call_tool`
   - backend resolution is delegated to `LazyBackendBroker.resolve_tool()`
 - `src/aria/mcp/proxy/broker.py` correctly supports:
-  - `server__tool`
+  - `server_tool`
   - `server_tool`
   - `server/tool`
 - The previously known `_caller_id` propagation bug was already fixed in middleware and is
@@ -72,8 +72,8 @@
 
 ### 6) Capability policy is permissive enough; naming is the blocker
 - `.aria/config/agent_capability_matrix.yaml` grants `productivity-agent`:
-  - `google_workspace__*`
-  - `google-workspace__*`
+  - `google_workspace_*`
+  - `google-workspace_*`
 - This means policy is not the main blocker for calling Google Workspace tools.
 - The blocker is that prompts/catalog/tests are asking for the wrong tool names.
 
@@ -127,10 +127,10 @@
 ### 4) Trader-agent prompt/skill proxy examples are internally wrong
 - `.aria/kilocode/agents/trader-agent.md` and `.aria/kilocode/skills/trading-analysis/SKILL.md`
   instruct discovery via:
-  - `aria-mcp-proxy__call_tool("search_tools", ...)`
-  instead of direct `aria-mcp-proxy__search_tools(...)`.
+  - `aria-mcp-proxy_call_tool("search_tools", ...)`
+  instead of direct `aria-mcp-proxy_search_tools(...)`.
 - They also show legacy slash-form tool names like `financial-modeling-prep-mcp/get_stock_data`
-  despite the documented canonical naming model being `server__tool`.
+  despite the documented canonical naming model being `server_tool`.
 - The same invalid example pattern appears in `search-agent.md` and `productivity-agent.md`, so
   this is systemic prompt drift, not trader-only.
 
@@ -151,19 +151,19 @@
 - `src/aria/mcp/proxy/server.py::_allowed_server_names()` derives allowed backend server names
   from the caller's `allowed_tools` list.
 - `trader-agent` capability matrix entry currently lists only:
-  - `aria-mcp-proxy__search_tools`
-  - `aria-mcp-proxy__call_tool`
+  - `aria-mcp-proxy_search_tools`
+  - `aria-mcp-proxy_call_tool`
   - memory/HITL/sequential-thinking tools
 - Therefore, if `ARIA_CALLER_ID=trader-agent` is ever used at proxy boot time,
   `_filter_backends_for_caller()` would load **zero finance backends**.
 - Search/productivity still work with this design because their matrix entries still include
-  backend wildcards (`searxng-script__*`, `filesystem__*`, etc.). Trader-agent does not.
+  backend wildcards (`searxng-script_*`, `filesystem_*`, etc.). Trader-agent does not.
 
 ### 7) HITL tool naming remains inconsistent across the stack
-- Prompts/tests/skills use `hitl-queue__ask`.
-- The live directly available memory MCP tools in this environment are `aria-memory__hitl_*`.
-- `agent_capability_matrix.yaml` mixes both conventions: conductor uses `aria-memory__hitl_*`,
-  while workspace/productivity/trader use `hitl-queue__ask`.
+- Prompts/tests/skills use `hitl-queue_ask`.
+- The live directly available memory MCP tools in this environment are `aria-memory_hitl_*`.
+- `agent_capability_matrix.yaml` mixes both conventions: conductor uses `aria-memory_hitl_*`,
+  while workspace/productivity/trader use `hitl-queue_ask`.
 - This is a separate contract drift that can break side-effect gating even after routing is fixed.
 
 ### 8) User transcript evidence is consistent with tool-surface drift
@@ -184,7 +184,7 @@
 - Debug logs exposed the concrete exception:
   - `AttributeError: 'CredentialManager' object has no attribute 'get'`
 - Crash path:
-  - `aria.mcp.proxy.__main__ -> build_proxy() -> _load_backends() -> CredentialInjector._lookup()`
+  - `aria.mcp.proxy._main_ -> build_proxy() -> _load_backends() -> CredentialInjector._lookup()`
   - `CredentialInjector` called `CredentialManager.get(var)`
   - `CredentialManager` did not implement `get()`
 
@@ -201,8 +201,8 @@
   - `aria-mcp-proxy_search_tools`
   - `aria-mcp-proxy_call_tool`
 - This is the runtime single-underscore alias form of the canonical prompt/config names:
-  - `aria-mcp-proxy__search_tools`
-  - `aria-mcp-proxy__call_tool`
+  - `aria-mcp-proxy_search_tools`
+  - `aria-mcp-proxy_call_tool`
 - The middleware/registry already tolerate single/double underscore forms, but prompt/skill text needed an explicit note so the agent does not get confused when it inspects the visible tool list.
 
 ### 12) `call_tool` had a real two-pass caller propagation bug
@@ -261,13 +261,13 @@
 
 ### 1) Plan/spec drift: prompts do not follow the F3 canonical tool contract
 - `docs/plans/mcp_search_tool_plan_1.md` F3.3 explicitly says agent frontmatter should expose only:
-  - `aria-mcp-proxy__search_tools`
-  - `aria-mcp-proxy__call_tool`
+  - `aria-mcp-proxy_search_tools`
+  - `aria-mcp-proxy_call_tool`
   - memory tools as needed
 - Current prompts instead expose backend wildcards directly:
-  - `search-agent.md`: `searxng-script__*`, `tavily-mcp__*`, `exa-script__*`, etc.
-  - `workspace-agent.md`: `google_workspace__*`
-  - `productivity-agent.md`: `markitdown-mcp__*`, `filesystem__*`, etc.
+  - `search-agent.md`: `searxng-script_*`, `tavily-mcp_*`, `exa-script_*`, etc.
+  - `workspace-agent.md`: `google_workspace_*`
+  - `productivity-agent.md`: `markitdown-mcp_*`, `filesystem_*`, etc.
 - This is inconsistent with the proxy cutover design and weakens the “single MCP surface” abstraction.
 
 ### 2) Caller-aware backend boot filtering is implemented but not actually wired
@@ -290,12 +290,12 @@
 ### 5) Skills are not harmonized with the proxy invocation model
 - `deep-research` still documents direct provider usage and contains no proxy `_caller_id` guidance.
 - `meeting-prep` and `email-draft` still use dotted pseudo-calls like `calendar.list_events`, `gmail.search`, `gmail.get_thread`, `gmail.draft_create` instead of real proxy/backend invocation patterns.
-- `office-ingest` still documents direct `markitdown-mcp__convert_to_markdown` use.
+- `office-ingest` still documents direct `markitdown-mcp_convert_to_markdown` use.
 - This means agent prompts mention `_caller_id`, but skills still train agents toward non-canonical tool usage.
 
 ### 6) `deep-research` frontmatter is internally inconsistent
-- It omits `scientific-papers-mcp__*` from `allowed-tools`.
-- The body still requires `scientific-papers-mcp__search_papers` for academic tier 2.
+- It omits `scientific-papers-mcp_*` from `allowed-tools`.
+- The body still requires `scientific-papers-mcp_search_papers` for academic tier 2.
 
 ### 7) Naming drift remains in prompt body examples
 - `search-agent.md` still contains slash-form examples such as:
@@ -305,7 +305,7 @@
 
 ### 8) Conductor prompt has unresolved tool/policy drift
 - `aria-conductor.md` declares `aria-mcp-proxy` as an MCP dependency but does not expose or explain a canonical proxy usage path for the conductor.
-- It instructs HITL through `hitl-queue/ask`, while the actual allowed tools/matrix entries use memory-backed HITL tools (`aria-memory__hitl_*`) and not `hitl-queue__ask` for the conductor.
+- It instructs HITL through `hitl-queue/ask`, while the actual allowed tools/matrix entries use memory-backed HITL tools (`aria-memory_hitl_*`) and not `hitl-queue_ask` for the conductor.
 - There are also live uncommitted modifications in:
   - `.aria/kilocode/agents/aria-conductor.md`
   - `.aria/kilo-home/.kilo/agents/aria-conductor.md`

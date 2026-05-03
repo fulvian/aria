@@ -5,9 +5,9 @@ description: Classificazione inbox Gmail per urgenza con digest. Usa il proxy MC
 trigger-keywords: [email, inbox, triage, leggi mail, leggi email]
 user-invocable: true
 allowed-tools:
-  - aria-mcp-proxy__search_tools
-  - aria-mcp-proxy__call_tool
-  - aria-memory__wiki_update_tool
+  - aria-mcp-proxy_search_tools
+  - aria-mcp-proxy_call_tool
+  - aria-memory_wiki_update_tool
 max-tokens: 8000
 estimated-cost-eur: 0.05
 ---

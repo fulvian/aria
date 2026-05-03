@@ -185,13 +185,13 @@ agents:
     allowed_tools: [spawn-subagent]
     delegation_targets: [search-agent, productivity-agent]
   - name: search-agent
-    allowed_tools: [searxng-script__*]
+    allowed_tools: [searxng-script_*]
     delegation_targets: []
   - name: productivity-agent
-    allowed_tools: [markitdown-mcp__*, google_workspace__*]
+    allowed_tools: [markitdown-mcp_*, google_workspace_*]
     delegation_targets: [workspace-agent]
   - name: workspace-agent
-    allowed_tools: [google_workspace__*]
+    allowed_tools: [google_workspace_*]
     delegation_targets: []
 """.lstrip()
         )
@@ -211,10 +211,10 @@ agents:
             """
 agents:
   - name: productivity-agent
-    allowed_tools: [spawn-subagent, google_workspace__*]
+    allowed_tools: [spawn-subagent, google_workspace_*]
     delegation_targets: [workspace-agent]
   - name: workspace-agent
-    allowed_tools: [google_workspace__*]
+    allowed_tools: [google_workspace_*]
     delegation_targets: []
 """.lstrip()
         )
@@ -230,18 +230,18 @@ agents:
             """
 agents:
   - name: productivity-agent
-    allowed_tools: [markitdown-mcp__*, filesystem__*, google_workspace__*]
+    allowed_tools: [markitdown-mcp_*, filesystem_*, google_workspace_*]
     delegation_targets: []
 """.lstrip()
         )
 
         registry = YamlCapabilityRegistry(path=matrix)
         tools = registry.get_allowed_tools("productivity-agent")
-        assert "google_workspace__*" in tools
+        assert "google_workspace_*" in tools
         assert (
             registry.is_tool_allowed(
                 "productivity-agent",
-                "google_workspace__send_gmail_message",
+                "google_workspace_send_gmail_message",
             )
             is True
         )

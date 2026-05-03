@@ -69,15 +69,9 @@ def resolve_server_from_tool(
 ) -> tuple[str, str] | None:
     """Parse a namespaced tool name into ``(server_name, tool_name)``.
 
-    Handles three naming conventions:
-
-    * Double-underscore (matrix): ``financekit-mcp__crypto_price``
-    * Single-underscore (runtime): ``financekit-mcp_crypto_price``
-    * Slash (legacy): ``financekit-mcp/crypto_price``
-
-    For single-underscore runtime names, tries each ``_`` position
-    longest-prefix-first so that server names containing underscores
-    (e.g. ``google_workspace``) are resolved correctly.
+    Handles the single-underscore runtime form: ``financekit-mcp_crypto_price``.
+    Tries each ``_`` position longest-prefix-first so that server names
+    containing underscores (e.g. ``google_workspace``) are resolved correctly.
 
     Returns ``None`` when the server portion does not match any known
     backend name.
@@ -85,12 +79,6 @@ def resolve_server_from_tool(
     cleaned = namespaced_name.strip()
     if not cleaned:
         return None
-
-    # Double-underscore form
-    if "__" in cleaned:
-        server, _, tool = cleaned.partition("__")
-        if server in backend_names and tool:
-            return server, tool
 
     # Single-underscore form — try each _ split longest-server-prefix-first
     # so names like "google_workspace_gmail_send" resolve correctly.
@@ -101,12 +89,6 @@ def resolve_server_from_tool(
             if candidate in backend_names:
                 return candidate, cleaned[idx + 1 :]
             idx += 1
-
-    # Slash form
-    if "/" in cleaned:
-        server, _, tool = cleaned.partition("/")
-        if server in backend_names and tool:
-            return server, tool
 
     return None
 

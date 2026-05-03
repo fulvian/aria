@@ -28,78 +28,78 @@ SKILL_FRONTYIELD_TEMPLATE = {
         "name": "trading-analysis",
         "version": "1.0.0",
         "allowed-tools": [
-            "aria-mcp-proxy__search_tools",
-            "aria-mcp-proxy__call_tool",
-            "aria-memory__wiki_update_tool",
-            "aria-memory__wiki_recall_tool",
-            "hitl-queue__ask",
-            "sequential-thinking__*",
+            "aria-mcp-proxy_search_tools",
+            "aria-mcp-proxy_call_tool",
+            "aria-memory_wiki_update_tool",
+            "aria-memory_wiki_recall_tool",
+            "hitl-queue_ask",
+            "sequential-thinking_*",
         ],
     },
     "fundamental-analysis": {
         "name": "fundamental-analysis",
         "version": "1.0.0",
         "allowed-tools": [
-            "aria-mcp-proxy__search_tools",
-            "aria-mcp-proxy__call_tool",
-            "aria-memory__wiki_update_tool",
-            "aria-memory__wiki_recall_tool",
-            "sequential-thinking__*",
+            "aria-mcp-proxy_search_tools",
+            "aria-mcp-proxy_call_tool",
+            "aria-memory_wiki_update_tool",
+            "aria-memory_wiki_recall_tool",
+            "sequential-thinking_*",
         ],
     },
     "technical-analysis": {
         "name": "technical-analysis",
         "version": "1.0.0",
         "allowed-tools": [
-            "aria-mcp-proxy__search_tools",
-            "aria-mcp-proxy__call_tool",
-            "aria-memory__wiki_update_tool",
-            "aria-memory__wiki_recall_tool",
-            "sequential-thinking__*",
+            "aria-mcp-proxy_search_tools",
+            "aria-mcp-proxy_call_tool",
+            "aria-memory_wiki_update_tool",
+            "aria-memory_wiki_recall_tool",
+            "sequential-thinking_*",
         ],
     },
     "macro-intelligence": {
         "name": "macro-intelligence",
         "version": "1.0.0",
         "allowed-tools": [
-            "aria-mcp-proxy__search_tools",
-            "aria-mcp-proxy__call_tool",
-            "aria-memory__wiki_update_tool",
-            "aria-memory__wiki_recall_tool",
-            "sequential-thinking__*",
+            "aria-mcp-proxy_search_tools",
+            "aria-mcp-proxy_call_tool",
+            "aria-memory_wiki_update_tool",
+            "aria-memory_wiki_recall_tool",
+            "sequential-thinking_*",
         ],
     },
     "sentiment-analysis": {
         "name": "sentiment-analysis",
         "version": "1.0.0",
         "allowed-tools": [
-            "aria-mcp-proxy__search_tools",
-            "aria-mcp-proxy__call_tool",
-            "aria-memory__wiki_update_tool",
-            "aria-memory__wiki_recall_tool",
-            "sequential-thinking__*",
+            "aria-mcp-proxy_search_tools",
+            "aria-mcp-proxy_call_tool",
+            "aria-memory_wiki_update_tool",
+            "aria-memory_wiki_recall_tool",
+            "sequential-thinking_*",
         ],
     },
     "options-analysis": {
         "name": "options-analysis",
         "version": "1.0.0",
         "allowed-tools": [
-            "aria-mcp-proxy__search_tools",
-            "aria-mcp-proxy__call_tool",
-            "aria-memory__wiki_update_tool",
-            "aria-memory__wiki_recall_tool",
-            "sequential-thinking__*",
+            "aria-mcp-proxy_search_tools",
+            "aria-mcp-proxy_call_tool",
+            "aria-memory_wiki_update_tool",
+            "aria-memory_wiki_recall_tool",
+            "sequential-thinking_*",
         ],
     },
     "crypto-analysis": {
         "name": "crypto-analysis",
         "version": "1.0.0",
         "allowed-tools": [
-            "aria-mcp-proxy__search_tools",
-            "aria-mcp-proxy__call_tool",
-            "aria-memory__wiki_update_tool",
-            "aria-memory__wiki_recall_tool",
-            "sequential-thinking__*",
+            "aria-mcp-proxy_search_tools",
+            "aria-mcp-proxy_call_tool",
+            "aria-memory_wiki_update_tool",
+            "aria-memory_wiki_recall_tool",
+            "sequential-thinking_*",
         ],
     },
 }
@@ -181,10 +181,7 @@ class TestTradingSkillsFrontmatter:
     def test_allowed_tools_use_proxy(self, skill_yaml: dict) -> None:
         """allowed-tools must include aria-mcp-proxy tools."""
         tools = skill_yaml.get("allowed-tools", [])
-        has_proxy = (
-            "aria-mcp-proxy__search_tools" in tools or
-            "aria-mcp-proxy__call_tool" in tools
-        )
+        has_proxy = "aria-mcp-proxy_search_tools" in tools or "aria-mcp-proxy_call_tool" in tools
         assert has_proxy
 
     def test_max_tokens_declared(self, skill_yaml: dict) -> None:
@@ -218,9 +215,7 @@ class TestTradingSkillsBody:
     def test_has_output_format(self, skill_text: str) -> None:
         """SKILL.md body should describe expected output format."""
         lines = skill_text.split("\n")
-        header_lines = [
-            ln for ln in lines if ln.startswith(("#", "##"))
-        ]
+        header_lines = [ln for ln in lines if ln.startswith(("#", "##"))]
         assert len(header_lines) > 0
 
 
@@ -234,8 +229,8 @@ class TestTradingSkillsProxyExamples:
     def test_no_call_tool_with_search_tools_arg(self, skill_text: str) -> None:
         """Example code must NOT use call_tool('search_tools', ...) pattern.
 
-        Discovery should use aria-mcp-proxy__search_tools directly, not
-        aria-mcp-proxy__call_tool("search_tools", ...).
+        Discovery should use aria-mcp-proxy_search_tools directly, not
+        aria-mcp-proxy_call_tool("search_tools", ...).
         """
         # This anti-pattern was in the original recovery commit
         assert 'call_tool("search_tools"' not in skill_text
@@ -244,25 +239,25 @@ class TestTradingSkillsProxyExamples:
     def test_no_legacy_slash_tool_names(self, skill_text: str) -> None:
         """Example code must NOT use server/tool slash naming.
 
-        Canonical form is server__tool (double underscore).
+        Canonical form is server_tool (single underscore).
         """
         import re
 
         # Find proxy call examples and check they don't use slash
         # Match patterns like "server-name/tool_name" inside proxy call blocks
         proxy_blocks = re.findall(
-            r'aria-mcp-proxy__call_tool\([^)]*"name":\s*"([^"]+)"',
+            r'aria-mcp-proxy_call_tool\([^)]*"name":\s*"([^"]+)"',
             skill_text,
         )
         for tool_name in proxy_blocks:
             assert "/" not in tool_name, (
                 f"Tool name '{tool_name}' uses legacy slash separator. "
-                f"Use double underscore: '{tool_name.replace('/', '__')}'"
+                f"Use single underscore: '{tool_name.replace('/', '_')}'"
             )
 
     def test_examples_use_caller_id(self, skill_text: str) -> None:
         """All proxy examples must include _caller_id."""
-        if "aria-mcp-proxy__" in skill_text:
+        if "aria-mcp-proxy_" in skill_text:
             assert '"_caller_id": "trader-agent"' in skill_text or (
                 '"_caller_id":"trader-agent"' in skill_text
             )

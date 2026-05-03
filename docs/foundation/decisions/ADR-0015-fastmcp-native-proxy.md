@@ -75,8 +75,8 @@ KiloCode session
      tool name, not the proxy tool name.
 
 ### 3. Namespaced tool names (F3)
-   - Tools are namespaced as `server__tool_name` (e.g., `tavily-mcp__search`).
-   - The capability matrix uses the same `__` form.
+   - Tools are namespaced as `server_tool_name` (e.g., `tavily-mcp_search`).
+   - The capability matrix uses the same `_` form.
    - Legacy `server/tool` form is supported during migration via fallback
      matching in `CapabilityMatrixMiddleware._matches()`.
 

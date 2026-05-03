@@ -5,10 +5,10 @@ description: Ricerca web approfondita multi-provider con deduplica e sintesi. Us
 trigger-keywords: [ricerca, search, approfondisci, analizza tema, deep, research, reddit, social]
 user-invocable: true
 allowed-tools:
-  - aria-mcp-proxy__search_tools
-  - aria-mcp-proxy__call_tool
-  - aria-memory__wiki_update_tool
-  - aria-memory__wiki_recall_tool
+  - aria-mcp-proxy_search_tools
+  - aria-mcp-proxy_call_tool
+  - aria-memory_wiki_update_tool
+  - aria-memory_wiki_recall_tool
 max-tokens: 50000
 estimated-cost-eur: 0.10
 ---
@@ -25,10 +25,10 @@ Tutte le chiamate ai backend MCP passano dal proxy. Ogni chiamata deve includere
 `_caller_id: "search-agent"`:
 
 ```
-aria-mcp-proxy__call_tool(
+aria-mcp-proxy_call_tool(
   name="call_tool",
   arguments={
-    "name": "<server__tool>",
+    "name": "<server_tool>",
     "arguments": {<tool params>},
     "_caller_id": "search-agent"
   }
@@ -37,7 +37,7 @@ aria-mcp-proxy__call_tool(
 
 Per scoprire tool disponibili:
 ```
-aria-mcp-proxy__call_tool(
+aria-mcp-proxy_call_tool(
   name="search_tools",
   arguments={"query": "<descrizione>", "_caller_id": "search-agent"}
 )
@@ -86,20 +86,20 @@ Non esiste piu' un MCP server pubmed separato (RIMOSSO 2026-04-30).
 
 Invoca tramite proxy:
 ```
-call_tool(name="scientific-papers-mcp__search_papers", arguments={"source": "europepmc", "query": "machine learning cancer", "count": 10}, _caller_id="search-agent")
+call_tool(name="scientific-papers-mcp_search_papers", arguments={"source": "europepmc", "query": "machine learning cancer", "count": 10}, _caller_id="search-agent")
 ```
 
 ### Fase 3 — Deduplica e Arricchimento
 1. Deduplica URL (Levenshtein title + URL canonicalization)
-2. Per post Reddit rilevanti: usa `reddit-search__get_post` via proxy per ottenere l'albero commenti completo
-3. Per pagine web: usa `fetch__fetch` via proxy per estrarre contenuto full-text
+2. Per post Reddit rilevanti: usa `reddit-search_get_post` via proxy per ottenere l'albero commenti completo
+3. Per pagine web: usa `fetch_fetch` via proxy per estrarre contenuto full-text
 4. Classifica per rilevanza e data
 
 ### Fase 4 — Sintesi Report
 1. Sintesi report con sezioni: TL;DR, Findings, Open Questions, Sources
 2. Per fonti Reddit: cita subreddit, autore, punteggio updoot
 3. Salva report in memoria episodica con tag `research_report`
-4. Aggiorna wiki con `aria-memory__wiki_update_tool` per scoperte significative
+4. Aggiorna wiki con `aria-memory_wiki_update_tool` per scoperte significative
 
 ## Invarianti (SOTA April 2026)
 - **Cita SEMPRE le fonti con URL completo** — anche per post Reddit usa permalink

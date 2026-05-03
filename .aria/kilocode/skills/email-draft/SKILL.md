@@ -10,10 +10,10 @@ trigger-keywords:
   - rispondi mail
 user-invocable: true
 allowed-tools:
-  - aria-mcp-proxy__search_tools
-  - aria-mcp-proxy__call_tool
-  - aria-memory__wiki_recall_tool
-  - hitl-queue__ask
+  - aria-mcp-proxy_search_tools
+  - aria-mcp-proxy_call_tool
+  - aria-memory_wiki_recall_tool
+  - hitl-queue_ask
   - spawn-subagent
 max-tokens: 6000
 estimated-cost-eur: 0.04
@@ -36,7 +36,7 @@ Tutte le chiamate ai backend MCP passano dal proxy. Ogni chiamata deve includere
    scopo (rispondere/ proporre/ chiedere).
 2. **Style discovery dinamico (Q7)**:
    a. Cerca email via proxy:
-      `call_tool(name="google_workspace__search_gmail_messages", arguments={"query": "to:<recipient> OR from:<recipient>", "after": "365d"}, _caller_id="productivity-agent")`
+      `call_tool(name="google_workspace_search_gmail_messages", arguments={"query": "to:<recipient> OR from:<recipient>", "after": "365d"}, _caller_id="productivity-agent")`
        → ultimi 10-30 thread.
    b. Estrai dai thread usando `email_style.py`:
       - Saluto iniziale (es. "Ciao Mario", "Egregio Dott.", "Hi Mario")
@@ -47,7 +47,7 @@ Tutte le chiamate ai backend MCP passano dal proxy. Ogni chiamata deve includere
    c. Profilo stile **runtime** (NON salvare in wiki — transitorio per-recipient).
 3. Recall contesto thread:
    a. Se reply: leggi il messaggio Gmail più rilevante via proxy:
-      `call_tool(name="google_workspace__get_gmail_message_content", arguments={"message_id": "<id>"}, _caller_id="productivity-agent")`
+      `call_tool(name="google_workspace_get_gmail_message_content", arguments={"message_id": "<id>"}, _caller_id="productivity-agent")`
       → usa il `message_id` restituito dalla ricerca Gmail per recuperare il contenuto.
    b. `wiki_recall` su recipient name → eventuali entity/topic correlati.
 4. Genera bozza rispettando profilo stile + contesto thread + scopo.
@@ -55,7 +55,7 @@ Tutte le chiamate ai backend MCP passano dal proxy. Ogni chiamata deve includere
    utente conferma, modifica o annulla.
    Una semplice richiesta testuale di conferma nella risposta NON è sufficiente.
 6. Su conferma: crea draft via proxy:
-   `call_tool(name="google_workspace__draft_gmail_message", arguments={"to": "<recipient>", "subject": "<...>", "body": "<...>", "in_reply_to": "<message_id?>"}, _caller_id="productivity-agent")`
+   `call_tool(name="google_workspace_draft_gmail_message", arguments={"to": "<recipient>", "subject": "<...>", "body": "<...>", "in_reply_to": "<message_id?>"}, _caller_id="productivity-agent")`
 7. **Mai send diretto**: l'invio richiede passo HITL ulteriore esplicito.
 
 ## Output

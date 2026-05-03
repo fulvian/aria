@@ -149,8 +149,8 @@ Il server `workspace-mcp` in `--single-user` mode:
 È stato corretto un drift interno tra wiki/docs e runtime ARIA:
 
 - **Prompt synthetic tools**: il pattern corretto è
-  1. `aria-mcp-proxy__search_tools({...})`
-  2. `aria-mcp-proxy__call_tool({...})`
+  1. `aria-mcp-proxy_search_tools({...})`
+  2. `aria-mcp-proxy_call_tool({...})`
 - **Catalog/skill naming**: i nomi legacy interni come
   `gmail_search`, `drive_list`, `docs_create`, `sheets_create`, `slides_create`
   non sono più la source of truth.

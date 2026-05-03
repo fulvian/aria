@@ -5,11 +5,11 @@ description: On-chain, DEX data, funding rates, whale tracking, crypto technical
 trigger-keywords: [crypto, bitcoin, BTC, ETH,ethereum, solana, DEX, on-chain, funding rate, whale, DeFi]
 user-invocable: true
 allowed-tools:
-  - aria-mcp-proxy__search_tools
-  - aria-mcp-proxy__call_tool
-  - aria-memory__wiki_update_tool
-  - aria-memory__wiki_recall_tool
-  - sequential-thinking__*
+  - aria-mcp-proxy_search_tools
+  - aria-mcp-proxy_call_tool
+  - aria-memory_wiki_update_tool
+  - aria-memory_wiki_recall_tool
+  - sequential-thinking_*
 max-tokens: 50000
 estimated-cost-eur: 0.08
 ---
@@ -94,10 +94,10 @@ Nel runtime Kilo i tool del proxy possono apparire come alias
 
 ```python
 # Discovery — verifica sempre i nomi effettivi dei tool
-aria-mcp-proxy__search_tools({"query": "crypto price search technical analysis", "_caller_id": "trader-agent"})
+aria-mcp-proxy_search_tools({"query": "crypto price search technical analysis", "_caller_id": "trader-agent"})
 
 # Step 1: Risolvi symbol → CoinGecko ID (OBBLIGATORIO prima di crypto_price)
-aria-mcp-proxy__call_tool({
+aria-mcp-proxy_call_tool({
     "name": "financekit-mcp_crypto_search",
     "arguments": {"query": "BTC"},
     "_caller_id": "trader-agent"
@@ -105,14 +105,14 @@ aria-mcp-proxy__call_tool({
 # Risultato contiene id="bitcoin" → usare come parametro `coin`
 
 # Step 2: Prezzo con CoinGecko ID (NON symbol)
-aria-mcp-proxy__call_tool({
+aria-mcp-proxy_call_tool({
     "name": "financekit-mcp_crypto_price",
     "arguments": {"coin": "bitcoin"},
     "_caller_id": "trader-agent"
 })
 
 # Step 3: Analisi tecnica con ticker formato Yahoo (BTC-USD, ETH-USD)
-aria-mcp-proxy__call_tool({
+aria-mcp-proxy_call_tool({
     "name": "financekit-mcp_technical_analysis",
     "arguments": {"symbol": "BTC-USD"},
     "_caller_id": "trader-agent"

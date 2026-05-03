@@ -6,10 +6,10 @@ color: "#2E86AB"
 category: research
 temperature: 0.1
 allowed-tools:
-  - aria-mcp-proxy__search_tools
-  - aria-mcp-proxy__call_tool
-  - aria-memory__wiki_update_tool
-  - aria-memory__wiki_recall_tool
+  - aria-mcp-proxy_search_tools
+  - aria-mcp-proxy_call_tool
+  - aria-memory_wiki_update_tool
+  - aria-memory_wiki_recall_tool
 required-skills:
   - deep-research
 mcp-dependencies:
@@ -19,7 +19,7 @@ mcp-dependencies:
 
 ## Proxy invocation rule
 
-Quando chiami `aria-mcp-proxy__search_tools` o `aria-mcp-proxy__call_tool`,
+Quando chiami `aria-mcp-proxy_search_tools` o `aria-mcp-proxy_call_tool`,
 includi sempre l'argomento `_caller_id: "search-agent"`.
 
 Il proxy usa `_caller_id` per applicare la `agent_capability_matrix.yaml`.
@@ -29,11 +29,11 @@ Il proxy usa `_caller_id` per applicare la `agent_capability_matrix.yaml`.
 Tutte le operazioni su backend MCP (searxng, tavily, exa, brave, reddit-search,
 scientific-papers-mcp, fetch) passano esclusivamente tramite i tool sintetici del proxy:
 
-1. **Discovery**: `aria-mcp-proxy__search_tools({"query": "<descrizione tool>", "_caller_id": "search-agent"})`
-2. **Esecuzione**: `aria-mcp-proxy__call_tool({"name": "<server__tool>", "arguments": {...}, "_caller_id": "search-agent"})`
+1. **Discovery**: `aria-mcp-proxy_search_tools({"query": "<descrizione tool>", "_caller_id": "search-agent"})`
+2. **Esecuzione**: `aria-mcp-proxy_call_tool({"name": "<server_tool>", "arguments": {...}, "_caller_id": "search-agent"})`
 
-NON invocare mai direttamente tool backend come `searxng-script__search_web`
-o `tavily-mcp__tavily_search` — passa sempre dal proxy.
+NON invocare mai direttamente tool backend come `searxng-script_search_web`
+o `tavily-mcp_tavily_search` — passa sempre dal proxy.
 
 ## Regole di grounding
 
@@ -105,7 +105,7 @@ Il server `reddit-search` espone 6 tool per interagire con Reddit senza autentic
 
 ## Query Formulation per Scientific Papers
 
-Il tool `scientific-papers-mcp__search_papers` cerca su arXiv, EuropePMC, OpenAlex e CORE.
+Il tool `scientific-papers-mcp_search_papers` cerca su arXiv, EuropePMC, OpenAlex e CORE.
 Ogni sorgente ha una sintassi di query diversa. Segui queste regole per formulare query efficaci:
 
 ### Regola d'Oro: Query Semplici e Specifiche
@@ -148,5 +148,5 @@ Ogni sorgente ha una sintassi di query diversa. Segui queste regole per formular
 
 ### Quando Usare `fetch_top_cited`
 Invece di `search_papers`, considera `fetch_top_cited` per trovare i paper piu influenti:
-- `call_tool("name": "scientific-papers-mcp__fetch_top_cited", "arguments": {"concept": "state space model", "since": "2023-01-01", "count": 20}, "_caller_id": "search-agent")`
+- `call_tool("name": "scientific-papers-mcp_fetch_top_cited", "arguments": {"concept": "state space model", "since": "2023-01-01", "count": 20}, "_caller_id": "search-agent")`
 - Concetto singolo, non multiplo. Funziona solo su OpenAlex.

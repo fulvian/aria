@@ -79,9 +79,9 @@ def test_filter_backends_for_search_agent_excludes_workspace_and_memory() -> Non
         registry=_Registry(
             {
                 "search-agent": [
-                    "searxng-script__*",
-                    "tavily-mcp__*",
-                    "aria-memory__wiki_recall_tool",
+                    "searxng-script_*",
+                    "tavily-mcp_*",
+                    "aria-memory_wiki_recall_tool",
                 ]
             }
         ),
@@ -153,7 +153,7 @@ servers:
     with patch(
         "aria.mcp.proxy.server.YamlCapabilityRegistry",
         return_value=_Registry(
-            {"search-agent": ["searxng-script__*", "aria-memory__wiki_recall_tool"]}
+            {"search-agent": ["searxng-script_*", "aria-memory_wiki_recall_tool"]}
         ),
     ):
         proxy = build_proxy(catalog_path=catalog, proxy_config_path=proxy_yaml, strict=False)
@@ -211,7 +211,7 @@ servers:
     monkeypatch.setenv("ARIA_CALLER_ID", "trader-agent")
     with patch(
         "aria.mcp.proxy.server.YamlCapabilityRegistry",
-        return_value=_Registry({"trader-agent": ["financekit-mcp__*"]}),
+        return_value=_Registry({"trader-agent": ["financekit-mcp_*"]}),
     ):
         proxy = build_proxy(catalog_path=catalog, proxy_config_path=proxy_yaml, strict=False)
 

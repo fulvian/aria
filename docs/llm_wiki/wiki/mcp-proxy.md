@@ -1,7 +1,7 @@
 # MCP Proxy (aria-mcp-proxy)
 
-**Last Updated**: 2026-05-02T13:45+02:00
-**Status**: Active ✅ — canonical proxy contract enforced; Google Workspace alias compatibility added
+**Last Updated**: 2026-05-03T09:58+02:00
+**Status**: Active ✅ — naming convention unified to single underscore `server_tool` (v7.0)
 **Source**: `src/aria/mcp/proxy/`, `.aria/config/proxy.yaml`, `.aria/kilocode/mcp.json`, `.aria/config/agent_capability_matrix.yaml`, `docs/superpowers/specs/2026-05-01-mcp-tool-search-design.md`, `docs/foundation/decisions/ADR-0015-fastmcp-native-proxy.md`, `docs/foundation/decisions/ADR-0008-productivity-agent-introduction.md`
 
 ## Purpose
@@ -24,11 +24,30 @@ reduced the MCP surface presented to KiloCode to a stable 2-entry runtime:
 | `src/aria/mcp/proxy/transforms/hybrid.py` | BM25 + mxbai-embed-large-v1 blend |
 | `src/aria/mcp/proxy/transforms/lmstudio_embedder.py` | HTTP client for LM Studio embeddings |
 
+## ✅ Correct naming pattern (single underscore)
+
+**Tutti i tool name MCP devono usare il singolo underscore `_` come separatore tra server name e tool name.**
+
+| Pattern | Esempio | Stato |
+|---------|---------|-------|
+| `server_tool` | `aria-mcp-proxy_search_tools` | ✅ **Standard** |
+| `server_*` (wildcard) | `google_workspace_*` | ✅ **Standard** |
+| `server__tool` (double underscore) | `aria-mcp-proxy__search_tools` | ❌ Deprecato |
+| `server/tool` (slash) | `google_workspace/create_event` | ❌ Deprecato |
+
+Utilizzare sempre il singolo underscore in:
+- Capability matrix (`agent_capability_matrix.yaml`) → `google_workspace_*`
+- Agent prompts (`allowed-tools` frontmatter) → `aria-mcp-proxy_search_tools`
+- Skill files (SKILL.md) → `aria-mcp-proxy_search_tools`, `server_tool`
+- Test assertion → `"tavily-mcp_search"`
+
+---
+
 ## Operational baseline
 
 - `mcp.json`: **2 live entries** (`aria-memory`, `aria-mcp-proxy`)
 - Proxy synthetic entrypoints exposed to KiloCode: `search_tools`, `call_tool`
-- Agent-facing canonical prompt tool names: `aria-mcp-proxy__search_tools`, `aria-mcp-proxy__call_tool`
+- Agent-facing canonical prompt tool names: `aria-mcp-proxy_search_tools`, `aria-mcp-proxy_call_tool` (single underscore `_` separator)
 - Emergency rollback path: `bin/aria start --emergency-direct`
 - Backend boot filtering: when `ARIA_CALLER_ID` is set, proxy boot loads only backend servers referenced by that agent's `allowed_tools`; `aria-memory` stays out-of-proxy and remains a separate MCP dependency
 - **Catalog-driven discovery** (since F9): `search_tools` indexes `expected_tools` metadata from `mcp_catalog.yaml` without contacting any live backend; actual backend sessions are created on demand by `LazyBackendBroker` only when `call_tool` is invoked
@@ -43,8 +62,8 @@ reduced the MCP surface presented to KiloCode to a stable 2-entry runtime:
 - Agents expose only the proxy synthetic tools plus direct non-proxy tools (memory, sequential-thinking, spawn-subagent, HITL where needed).
 - Every proxy call must include `_caller_id` in the arguments.
 - Canonical pattern:
-  1. discovery via `aria-mcp-proxy__search_tools`
-  2. execution via `aria-mcp-proxy__call_tool`
+  1. discovery via `aria-mcp-proxy_search_tools`
+  2. execution via `aria-mcp-proxy_call_tool`
 
 ### 2. Enforcement model
 - `on_call_tool`: **fail-closed** for non-synthetic calls when no caller identity is present.
@@ -53,11 +72,9 @@ reduced the MCP surface presented to KiloCode to a stable 2-entry runtime:
 - Search transforms improve discovery only; they are **not** factual validation controls.
 
 ### 3. Naming model
-- Prompts and matrix use the logical `server__tool` form.
-- Middleware/registry compatibility layer also accepts:
-  - legacy `server/tool`
-  - runtime single-underscore `server_tool`
-- Wildcards in matrix are server-scoped (`server__*`) to absorb upstream tool renames.
+- The naming convention is uniformly single underscore `server_tool` (e.g., `aria-mcp-proxy_search_tools`, `google_workspace_search_gmail_messages`).
+- Wildcards in matrix are server-scoped (`server_*`) to absorb upstream tool renames.
+- No compatibility shims for legacy `server__tool` (double underscore) or `server/tool` (slash) forms remain — the migration is complete.
 
 ### 4. Agent-boundary model
 - `search-agent` remains a separate research-domain agent.
@@ -90,15 +107,17 @@ reduced the MCP surface presented to KiloCode to a stable 2-entry runtime:
 
 **Fix**: `scripts/mcp-stdio-filter.py` filtra stdout e inoltra solo payload JSONRPC validi.
 
-### F6 — naming convention mismatch (2026-05-01)
-**Problema**: Il proxy esponeva nomi runtime `server_tool`, mentre matrix e prompt usavano `server__tool`.
+### F6 — naming convention mismatch — resolved (2026-05-01 → 2026-05-03)
+**Problema**: Il proxy esponeva nomi runtime `server_tool` (singolo underscore), mentre matrix e prompt usavano `server__tool` (doppio underscore).
 
-**Fix**: `YamlCapabilityRegistry.is_tool_allowed()` e `CapabilityMatrixMiddleware._matches()` ora gestiscono `server__tool`, `server/tool` e `server_tool`.
+**Fix (v6.0)**: `YamlCapabilityRegistry.is_tool_allowed()` e `CapabilityMatrixMiddleware._matches()` aggiungevano compatibility shim per gestire tutti e tre i formati (`__`, `_`, `/`).
+
+**Risoluzione definitiva (2026-05-03)**: Tutti i riferimenti `server__tool` sono stati migrati al singolo underscore `server_tool`. I compatibility shim nelle funzioni `_matches()`, `is_tool_allowed()`, `resolve_server_from_tool()` e `_tool_server_name()` sono stati rimossi. Il formato singolo underscore è ora l'unico standard in tutto il codebase.
 
 ### F6 — wildcard capability matrix (2026-05-01)
 **Problema**: La matrice elencava tool name troppo specifici e fragili.
 
-**Fix**: sostituzione con wildcard `server__*`.
+**Fix**: sostituzione con wildcard `server_*`.
 
 ### F7 — caller-aware backend boot filtering (2026-05-01)
 **Problema**: Il proxy bootava tutti i backend enabled anche in sessioni search-only, avviando server irrilevanti come `google_workspace`.
@@ -122,8 +141,8 @@ reduced the MCP surface presented to KiloCode to a stable 2-entry runtime:
 
 **Fix**:
 - prompt e runtime copy riallineati al pattern corretto:
-  1. `aria-mcp-proxy__search_tools({...})`
-  2. `aria-mcp-proxy__call_tool({...})`
+  1. `aria-mcp-proxy_search_tools({...})`
+  2. `aria-mcp-proxy_call_tool({...})`
 - `mcp_catalog.yaml` ora usa i nomi canonici upstream di `workspace-mcp`
 - `LazyBackendBroker` normalizza gli alias legacy `google_workspace` più comuni
   verso i nomi live backend per robustezza retrocompatibile
@@ -140,7 +159,7 @@ reduced the MCP surface presented to KiloCode to a stable 2-entry runtime:
 - Le skill attive usano `_caller_id` e il pattern `search_tools` → `call_tool`.
 
 **Productivity/workspace convergence**
-- `productivity-agent` ha `google_workspace__*` nella capability matrix.
+- `productivity-agent` ha `google_workspace_*` nella capability matrix.
 - `productivity-agent` è ora il work-domain agent principale.
 - `workspace-agent` è dichiarato compatibilità/transitorio nei prompt e nella governance.
 

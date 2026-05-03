@@ -136,7 +136,7 @@ class Trigger(Protocol):
     def next_fire(self, now: datetime, task: Task) -> datetime | None: ...
 
 class CronTrigger:
-    def __init__(self, expr: str, tz: str): ...   # validate via croniter
+    def _init_(self, expr: str, tz: str): ...   # validate via croniter
     def next_fire(self, now: datetime, task: Task) -> datetime: ...
 
 class OneshotTrigger: ...
@@ -149,7 +149,7 @@ Event bus (in-process, in Sprint 1.2 minimal):
 
 ```python
 class EventBus:
-    def __init__(self): ...
+    def _init_(self): ...
     async def publish(self, event: str, payload: dict) -> None: ...
     def subscribe(self, event: str, callback: Callable[[dict], Awaitable[None]]) -> None: ...
 ```
@@ -170,7 +170,7 @@ Eventi blueprint §6.2: `memory.semantic_threshold`, `task.dlq.new`, `credential
 
 ```python
 class BudgetGate:
-    def __init__(self, store: TaskStore, config: AriaConfig): ...
+    def _init_(self, store: TaskStore, config: AriaConfig): ...
     async def pre_check(self, task: Task) -> BudgetDecision: ...       # prima di iniziare run
     async def tick(self, run_id: str, tokens_consumed: int, cost_eur: float) -> BudgetDecision: ...   # durante
     async def post_run(self, run_id: str, final_tokens: int, final_cost: float) -> None: ...
@@ -213,7 +213,7 @@ class PolicyDecision(str, Enum):
     DEFERRED = "deferred"  # Quiet hours shift
 
 class PolicyGate:
-    def __init__(self, config: AriaConfig, clock: Callable[[], datetime]): ...
+    def _init_(self, config: AriaConfig, clock: Callable[[], datetime]): ...
     def evaluate(self, task: Task, now: datetime | None = None) -> PolicyDecision: ...
 ```
 
@@ -236,7 +236,7 @@ Regole (blueprint §6.4):
 
 ```python
 class HitlManager:
-    def __init__(self, store: TaskStore, bus: EventBus, config: AriaConfig): ...
+    def _init_(self, store: TaskStore, bus: EventBus, config: AriaConfig): ...
     async def ask(self, task: Task, run_id: str, question: str, options: list[str] | None = None,
                   channel: Literal["telegram","cli"] = "telegram",
                   ttl_seconds: int = 900) -> HitlPending: ...
@@ -255,7 +255,7 @@ class HitlManager:
 
 ```python
 class SdNotifier:
-    def __init__(self, watchdog_interval_s: int = 30): ...
+    def _init_(self, watchdog_interval_s: int = 30): ...
     async def start(self) -> None: ...         # sends READY=1
     async def ping(self) -> None: ...          # sends WATCHDOG=1
     async def stop(self, reason: str = "") -> None: ...   # sends STOPPING=1
@@ -301,7 +301,7 @@ async def main() -> None:
         tg.create_task(reaper.run_forever())
         tg.create_task(runner.run_forever())
 
-if __name__ == "__main__":
+if _name_ == "_main_":
     asyncio.run(main())
 ```
 
@@ -317,7 +317,7 @@ if __name__ == "__main__":
 Auth:
 ```python
 class AuthGuard:
-    def __init__(self, whitelist: list[str]): ...
+    def _init_(self, whitelist: list[str]): ...
     def is_allowed_telegram_user(self, user_id: int) -> bool: ...
     def verify_webhook_hmac(self, body: bytes, signature: str, secret: str) -> bool: ...
 ```
@@ -338,7 +338,7 @@ Struttura:
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 
 class TelegramAdapter:
-    def __init__(self, cm: CredentialManager, auth: AuthGuard, sessions: SessionManager, bus: EventBus, config: AriaConfig): ...
+    def _init_(self, cm: CredentialManager, auth: AuthGuard, sessions: SessionManager, bus: EventBus, config: AriaConfig): ...
     async def build_app(self) -> Application: ...
     async def start_polling(self) -> None: ...    # run in daemon
     async def stop(self) -> None: ...
@@ -427,7 +427,7 @@ Test integration: creazione `hitl_pending` mock → adapter simula messaggio →
 ## 4) Piano sprint (5 giorni)
 
 ### D1 — Schema store + trigger evaluator
-- W1.2.A store + migrazioni `0003__lease_columns.sql`
+- W1.2.A store + migrazioni `0003_lease_columns.sql`
 - W1.2.B triggers (cron/oneshot/event stub)
 - End-of-day: `TaskStore.acquire_due` verde in test concorrenza
 
@@ -471,7 +471,7 @@ Test integration: creazione `hitl_pending` mock → adapter simula messaggio →
 
 - [ ] `src/aria/scheduler/{schema,store,triggers,budget_gate,policy_gate,hitl,notify,reaper,daemon,cli}.py`
 - [ ] `src/aria/gateway/{schema,daemon,telegram_adapter,session_manager,auth,multimodal,hitl_responder,metrics_server}.py`
-- [ ] `src/aria/memory/migrations/0003__lease_columns.sql`
+- [ ] `src/aria/memory/migrations/0003_lease_columns.sql`
 - [ ] `systemd/aria-scheduler.service`, `systemd/aria-gateway.service` finalizzati
 - [ ] `scripts/install_systemd.sh` funzionante (idempotente)
 - [ ] `tests/unit/{scheduler,gateway}/`

@@ -184,21 +184,21 @@ L'agente risponde a:
 ```yaml
 allowed-tools:
   # MCP servers finanziari
-  - financial-modeling-prep-mcp__*          # 253+ tools — cornerstone
-  - helium-mcp__*                            # news/sentiment/options ML
-  - fredapi-mcp__*                           # macro data
-  - financekit-mcp__*                        # risk/technical metrics
-  - alpaca-mcp__*                            # market data (lettura)
+  - financial-modeling-prep-mcp_*          # 253+ tools — cornerstone
+  - helium-mcp_*                            # news/sentiment/options ML
+  - fredapi-mcp_*                           # macro data
+  - financekit-mcp_*                        # risk/technical metrics
+  - alpaca-mcp_*                            # market data (lettura)
 
   # Sistema ARIA
-  - aria-memory__wiki_update_tool           # salva analisi/trading-brief
-  - aria-memory__wiki_recall_tool           # recupera contesto storico
-  - aria-memory__wiki_show_tool
-  - aria-memory__wiki_list_tool
-  - hitl-queue__ask                          # HITL per operazioni costose
+  - aria-memory_wiki_update_tool           # salva analisi/trading-brief
+  - aria-memory_wiki_recall_tool           # recupera contesto storico
+  - aria-memory_wiki_show_tool
+  - aria-memory_wiki_list_tool
+  - hitl-queue_ask                          # HITL per operazioni costose
 
   # Tool di sistema
-  - sequential-thinking__*                  # ragionamento strutturato
+  - sequential-thinking_*                  # ragionamento strutturato
   - spawn-subagent                          # solo per escalation a conductor
 ```
 

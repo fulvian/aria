@@ -34,9 +34,9 @@ def _ctx(*, args: dict | None = None, tool_name: str | None = None) -> MagicMock
 
 @pytest.mark.asyncio
 async def test_on_call_tool_allows_when_caller_in_matrix() -> None:
-    reg = _Reg({"search-agent": ["tavily-mcp__search"]})
+    reg = _Reg({"search-agent": ["tavily-mcp_search"]})
     mw = CapabilityMatrixMiddleware(reg)
-    ctx = _ctx(args={"_caller_id": "search-agent", "q": "x"}, tool_name="tavily-mcp__search")
+    ctx = _ctx(args={"_caller_id": "search-agent", "q": "x"}, tool_name="tavily-mcp_search")
     call_next = AsyncMock(return_value="ok")
     out = await mw.on_call_tool(ctx, call_next)
     assert out == "ok"
@@ -48,11 +48,11 @@ async def test_on_call_tool_allows_when_caller_in_matrix() -> None:
 
 @pytest.mark.asyncio
 async def test_on_call_tool_extracts_nested_caller_id_for_proxy_call() -> None:
-    reg = _Reg({"productivity-agent": ["google_workspace__create_doc"]})
+    reg = _Reg({"productivity-agent": ["google_workspace_create_doc"]})
     mw = CapabilityMatrixMiddleware(reg)
     ctx = _ctx(
         args={
-            "name": "google_workspace__create_doc",
+            "name": "google_workspace_create_doc",
             "arguments": {
                 "_caller_id": "productivity-agent",
                 "title": "Briefing",
@@ -65,7 +65,7 @@ async def test_on_call_tool_extracts_nested_caller_id_for_proxy_call() -> None:
     out = await mw.on_call_tool(ctx, call_next)
     assert out == "ok"
     forwarded = call_next.call_args[0][0].message.arguments
-    assert forwarded["name"] == "google_workspace__create_doc"
+    assert forwarded["name"] == "google_workspace_create_doc"
     # _caller_id is re-injected into nested args so it survives pass 2
     assert forwarded["arguments"]["_caller_id"] == "productivity-agent"
 
@@ -132,10 +132,8 @@ async def test_two_pass_call_tool_denies_backend_without_caller() -> None:
 
 @pytest.mark.asyncio
 async def test_two_pass_single_underscore_runtime_name() -> None:
-    """Regression for runtime names like financekit-mcp_crypto_price
-    (single underscore). The _matches helper must map these to the
-    double-underscore entries in the capability matrix."""
-    reg = _Reg({"trader-agent": ["financekit-mcp__crypto_price"]})
+    """Regression for runtime names like financekit-mcp_crypto_price."""
+    reg = _Reg({"trader-agent": ["financekit-mcp_crypto_price"]})
     mw = CapabilityMatrixMiddleware(reg)
 
     # Pass 1: synthetic call_tool with runtime-style single-underscore name
@@ -169,11 +167,11 @@ async def test_two_pass_single_underscore_runtime_name() -> None:
 
 @pytest.mark.asyncio
 async def test_on_call_tool_denies_when_caller_not_in_matrix() -> None:
-    reg = _Reg({"search-agent": ["tavily-mcp__search"]})
+    reg = _Reg({"search-agent": ["tavily-mcp_search"]})
     mw = CapabilityMatrixMiddleware(reg)
     ctx = _ctx(
         args={"_caller_id": "search-agent"},
-        tool_name="google_workspace__send_gmail_message",
+        tool_name="google_workspace_send_gmail_message",
     )
     call_next = AsyncMock()
     with pytest.raises(ToolError, match="not allowed"):
@@ -186,7 +184,7 @@ async def test_on_call_tool_denies_when_caller_absent() -> None:
     """Fail-closed: middleware denies non-synthetic tools when no caller identity is present."""
     reg = _Reg({})
     mw = CapabilityMatrixMiddleware(reg)
-    ctx = _ctx(args={"q": "x"}, tool_name="filesystem__read")
+    ctx = _ctx(args={"q": "x"}, tool_name="filesystem_read")
     call_next = AsyncMock(return_value="ok")
     with pytest.raises(ToolError, match="denied: no caller identity"):
         await mw.on_call_tool(ctx, call_next)
@@ -209,7 +207,7 @@ async def test_on_call_tool_permissive_when_caller_id_absent() -> None:
     """Legacy test name — now verifies fail-closed behavior for non-synthetic tools."""
     reg = _Reg({})
     mw = CapabilityMatrixMiddleware(reg)
-    ctx = _ctx(args={"q": "x"}, tool_name="filesystem__read")
+    ctx = _ctx(args={"q": "x"}, tool_name="filesystem_read")
     call_next = AsyncMock(return_value="ok")
     with pytest.raises(ToolError, match="denied: no caller identity"):
         await mw.on_call_tool(ctx, call_next)
@@ -217,12 +215,12 @@ async def test_on_call_tool_permissive_when_caller_id_absent() -> None:
 
 @pytest.mark.asyncio
 async def test_on_list_tools_filters_per_caller() -> None:
-    reg = _Reg({"search-agent": ["tavily-mcp__search"]})
+    reg = _Reg({"search-agent": ["tavily-mcp_search"]})
     mw = CapabilityMatrixMiddleware(reg, default_caller_env="ARIA_CALLER_ID")
     tool_a = MagicMock()
-    tool_a.name = "tavily-mcp__search"
+    tool_a.name = "tavily-mcp_search"
     tool_b = MagicMock()
-    tool_b.name = "google_workspace__send_gmail_message"
+    tool_b.name = "google_workspace_send_gmail_message"
     tool_c = MagicMock()
     tool_c.name = "search_tools"  # always_visible synthetic
     call_next = AsyncMock(return_value=[tool_a, tool_b, tool_c])
@@ -231,8 +229,8 @@ async def test_on_list_tools_filters_per_caller() -> None:
     ctx.fastmcp_context.headers = {"X-ARIA-Caller-Id": "search-agent"}
     out = await mw.on_list_tools(ctx, call_next)
     names = [t.name for t in out]
-    assert "tavily-mcp__search" in names
-    assert "google_workspace__send_gmail_message" not in names
+    assert "tavily-mcp_search" in names
+    assert "google_workspace_send_gmail_message" not in names
     # synthetic tools are always visible
     assert "search_tools" in names
 
@@ -242,7 +240,7 @@ async def test_on_list_tools_passthrough_when_no_caller() -> None:
     reg = _Reg({})
     mw = CapabilityMatrixMiddleware(reg)
     tool_a = MagicMock()
-    tool_a.name = "filesystem__read"
+    tool_a.name = "filesystem_read"
     call_next = AsyncMock(return_value=[tool_a])
     ctx = _ctx()
     ctx.fastmcp_context = None  # no caller info
@@ -259,7 +257,7 @@ async def test_synthetic_tools_never_filtered() -> None:
     call = MagicMock()
     call.name = "call_tool"
     other = MagicMock()
-    other.name = "filesystem__read"
+    other.name = "filesystem_read"
     call_next = AsyncMock(return_value=[sym, call, other])
     ctx = _ctx()
     ctx.fastmcp_context = MagicMock()
@@ -267,4 +265,4 @@ async def test_synthetic_tools_never_filtered() -> None:
     out = await mw.on_list_tools(ctx, call_next)
     names = [t.name for t in out]
     assert "search_tools" in names and "call_tool" in names
-    assert "filesystem__read" not in names
+    assert "filesystem_read" not in names

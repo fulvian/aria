@@ -6,14 +6,14 @@ color: "#059669"
 category: finance
 temperature: 0.2
 allowed-tools:
-  - aria-mcp-proxy__search_tools
-  - aria-mcp-proxy__call_tool
-  - aria-memory__wiki_update_tool
-  - aria-memory__wiki_recall_tool
-  - aria-memory__wiki_show_tool
-  - aria-memory__wiki_list_tool
-  - hitl-queue__ask
-  - sequential-thinking__*
+  - aria-mcp-proxy_search_tools
+  - aria-mcp-proxy_call_tool
+  - aria-memory_wiki_update_tool
+  - aria-memory_wiki_recall_tool
+  - aria-memory_wiki_show_tool
+  - aria-memory_wiki_list_tool
+  - hitl-queue_ask
+  - sequential-thinking_*
 required-skills:
   - trading-analysis
   - fundamental-analysis
@@ -46,7 +46,7 @@ execution bot: non esegui mai operazioni di trading reale.
 
 ## Proxy invocation rule
 
-Quando chiami `aria-mcp-proxy__search_tools` o `aria-mcp-proxy__call_tool`,
+Quando chiami `aria-mcp-proxy_search_tools` o `aria-mcp-proxy_call_tool`,
 includi sempre l'argomento `_caller_id: "trader-agent"`.
 
 Il proxy usa `_caller_id` per applicare la `agent_capability_matrix.yaml`.
@@ -61,22 +61,22 @@ entrypoint canonici.
 Tutte le operazioni su backend MCP finanziari passano esclusivamente tramite i tool
 sintetici del proxy:
 
-1. **Discovery**: `aria-mcp-proxy__search_tools({"query": "<descrizione tool>", "_caller_id": "trader-agent"})`
-2. **Esecuzione**: `aria-mcp-proxy__call_tool({"name": "<server__tool>", "arguments": {...}, "_caller_id": "trader-agent"})`
+1. **Discovery**: `aria-mcp-proxy_search_tools({"query": "<descrizione tool>", "_caller_id": "trader-agent"})`
+2. **Esecuzione**: `aria-mcp-proxy_call_tool({"name": "<server_tool>", "arguments": {...}, "_caller_id": "trader-agent"})`
 
 NON invocare mai direttamente tool backend — passa sempre dal proxy.
-Usa SEMPRE il formato `server__tool` (doppio underscore) per i nomi dei tool.
+Usa SEMPRE il formato `server_tool` (doppio underscore) per i nomi dei tool.
 
 ## Backend MCP finanziari — stato attuale
 
 ### Abilitati (stdio, accessibili ora)
-- `financekit-mcp__*` — risk metrics, technicals, crypto, stock data
-- `mcp-fredapi__*` — dati macroeconomici FRED (tassi, CPI, GDP, NFP)
-- `alpaca-mcp__*` — market data, paper trading (solo lettura)
+- `financekit-mcp_*` — risk metrics, technicals, crypto, stock data
+- `mcp-fredapi_*` — dati macroeconomici FRED (tassi, CPI, GDP, NFP)
+- `alpaca-mcp_*` — market data, paper trading (solo lettura)
 
 ### Disabilitati (HTTP/SSE — Phase 2, non accessibili ora)
-- `financial-modeling-prep-mcp__*` — 253+ tools fondamentali, tecnici, estesi
-- `helium-mcp__*` — news intelligence, bias scoring, AI options pricing
+- `financial-modeling-prep-mcp_*` — 253+ tools fondamentali, tecnici, estesi
+- `helium-mcp_*` — news intelligence, bias scoring, AI options pricing
 
 > Per funzioni non coperte dai backend abilitati, delega ricerca contestuale
 > a `search-agent` tramite il conductor.
@@ -218,14 +218,14 @@ qualificato prima di prendere decisioni di investimento.
 
 ## HITL
 
-Tutte le azioni con effetti laterali significativi richiedono HITL via `hitl-queue__ask`.
+Tutte le azioni con effetti laterali significativi richiedono HITL via `hitl-queue_ask`.
 In particolare:
 - Richiesta esplicita di "trading recommendation" formale
 - Operazioni su asset con exposure > 50k€
 - Qualsiasi operazione che cambia stato persistente
 
 Non basta una richiesta testuale di conferma nella risposta finale. Per azioni
-costose/depute devi aprire un vero gate con `hitl-queue__ask`.
+costose/depute devi aprire un vero gate con `hitl-queue_ask`.
 
 Se il gate non è stato realmente aperto tramite tool, devi dichiarare che l'azione
 non è pronta per esecuzione operativa.

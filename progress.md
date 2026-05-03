@@ -97,7 +97,7 @@
 ## 2026-05-02T02:47+02:00 — Context7 verification completed
 - Verified FastMCP docs via Context7 `/prefecthq/fastmcp`.
 - Confirmed synthetic `search_tools` / `call_tool` behavior and middleware enforcement model.
-- This reinforces that prompt examples should call `aria-mcp-proxy__search_tools` directly for discovery, not `call_tool("search_tools", ...)`.
+- This reinforces that prompt examples should call `aria-mcp-proxy_search_tools` directly for discovery, not `call_tool("search_tools", ...)`.
 
 ## 2026-05-02T02:50+02:00 — Targeted regression tests executed
 - `uv run pytest -q tests/unit/agents/test_conductor_dispatch.py tests/unit/agents/trader/test_config_consistency.py tests/unit/agents/trader/test_skills.py`
@@ -243,7 +243,7 @@
 
 ## 2026-05-01T20:20+02:00 — Productivity-agent hardening completed
 - Hardened `.aria/kilocode/agents/productivity-agent.md` and Kilo-home runtime copy to forbid ordinary use of host-native helpers (`Glob`, `Read`, `Write`, `TodoWrite`) when proxy-backed MCP routes exist.
-- Added explicit requirements for real `hitl-queue__ask` gating on Google Workspace write operations and for a single valid `wiki_update_tool` call per turn.
+- Added explicit requirements for real `hitl-queue_ask` gating on Google Workspace write operations and for a single valid `wiki_update_tool` call per turn.
 - Clarified core work-domain skills (`office-ingest`, `consultancy-brief`, `email-draft`, `meeting-prep`) to reduce drift toward native host tools and pseudo-HITL text.
 - Added new static contract tests in `tests/unit/agents/productivity/test_prompt_contract.py`.
 - Re-ran full validation successfully: `ruff`, `mypy`, `pytest` all green (`700 passed, 23 skipped, 3 warnings`).

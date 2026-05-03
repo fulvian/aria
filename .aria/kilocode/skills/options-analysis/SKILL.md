@@ -5,11 +5,11 @@ description: Catene opzioni, grecs, strategie base, prob ITM, IV rank, volatilit
 trigger-keywords: [options, opzioni, strike, expiration, call, put, IV, Greeks, delta, gamma, theta, vega, ITM, OTM]
 user-invocable: true
 allowed-tools:
-  - aria-mcp-proxy__search_tools
-  - aria-mcp-proxy__call_tool
-  - aria-memory__wiki_update_tool
-  - aria-memory__wiki_recall_tool
-  - sequential-thinking__*
+  - aria-mcp-proxy_search_tools
+  - aria-mcp-proxy_call_tool
+  - aria-memory_wiki_update_tool
+  - aria-memory_wiki_recall_tool
+  - sequential-thinking_*
 max-tokens: 50000
 estimated-cost-eur: 0.10
 ---
@@ -71,11 +71,11 @@ Nel runtime Kilo i tool del proxy possono apparire come alias
 
 ```python
 # Discovery
-aria-mcp-proxy__search_tools({"query": "options chain greeks IV analysis", "_caller_id": "trader-agent"})
+aria-mcp-proxy_search_tools({"query": "options chain greeks IV analysis", "_caller_id": "trader-agent"})
 
 # Esecuzione — alpaca-mcp per market data opzioni
-aria-mcp-proxy__call_tool({
-    "name": "alpaca-mcp__get_option_chain",
+aria-mcp-proxy_call_tool({
+    "name": "alpaca-mcp_get_option_chain",
     "arguments": {"symbol": "AAPL"},
     "_caller_id": "trader-agent"
 })

@@ -52,7 +52,7 @@ Diagnose and remediate the productivity-agent / Google Workspace regression clus
 - Keep fixes minimal and aligned with the proxy architecture and trader-agent protocol.
 
 ## Current suspected root causes
-- `productivity-agent.md` and its runtime copy document malformed synthetic proxy calls (`aria-mcp-proxy__call_tool("search_tools", ...)` and `aria-mcp-proxy__call_tool("call_tool", ...)`), which match the live `ToolError: Cannot resolve backend for tool: call_tool` failure.
+- `productivity-agent.md` and its runtime copy document malformed synthetic proxy calls (`aria-mcp-proxy_call_tool("search_tools", ...)` and `aria-mcp-proxy_call_tool("call_tool", ...)`), which match the live `ToolError: Cannot resolve backend for tool: call_tool` failure.
 - `.aria/config/mcp_catalog.yaml` advertises stale/non-upstream Google Workspace tool names (`gmail_send`, `drive_list`, `docs_create`, etc.) that do not match current `workspace-mcp` canonical tools.
 - `meeting-prep` and `email-draft` skills encode those stale names directly, so the agent is trained toward failing runtime calls even when the proxy is healthy.
 - Proxy unit/integration tests preserve the same stale names, so regressions remain green while the real runtime fails with `Unknown tool: 'drive_list'`.

@@ -5,11 +5,11 @@ description: Analisi tecnica — RSI, MACD, SMA, EMA, Bollinger Bands, pattern d
 trigger-keywords: [tecnica, technical, RSI, MACD, Bollinger, SMA, EMA, support, resistance, trend, pattern, candlestick]
 user-invocable: true
 allowed-tools:
-  - aria-mcp-proxy__search_tools
-  - aria-mcp-proxy__call_tool
-  - aria-memory__wiki_update_tool
-  - aria-memory__wiki_recall_tool
-  - sequential-thinking__*
+  - aria-mcp-proxy_search_tools
+  - aria-mcp-proxy_call_tool
+  - aria-memory_wiki_update_tool
+  - aria-memory_wiki_recall_tool
+  - sequential-thinking_*
 max-tokens: 50000
 estimated-cost-eur: 0.08
 ---
@@ -74,11 +74,11 @@ Nel runtime Kilo i tool del proxy possono apparire come alias
 
 ```python
 # Discovery
-aria-mcp-proxy__search_tools({"query": "technical analysis RSI MACD indicators", "_caller_id": "trader-agent"})
+aria-mcp-proxy_search_tools({"query": "technical analysis RSI MACD indicators", "_caller_id": "trader-agent"})
 
 # Esecuzione
-aria-mcp-proxy__call_tool({
-    "name": "financekit-mcp__technical_analysis",
+aria-mcp-proxy_call_tool({
+    "name": "financekit-mcp_technical_analysis",
     "arguments": {"symbol": "AAPL"},
     "_caller_id": "trader-agent"
 })

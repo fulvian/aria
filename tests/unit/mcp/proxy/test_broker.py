@@ -46,12 +46,8 @@ class TestResolveServerFromTool:
         result = resolve_server_from_tool("financekit-mcp_crypto_price", self.NAMES)
         assert result == ("financekit-mcp", "crypto_price")
 
-    def test_double_underscore_matrix_name(self) -> None:
-        result = resolve_server_from_tool("financekit-mcp__crypto_price", self.NAMES)
-        assert result == ("financekit-mcp", "crypto_price")
-
-    def test_slash_legacy_name(self) -> None:
-        result = resolve_server_from_tool("financekit-mcp/crypto_price", self.NAMES)
+    def test_single_underscore_name(self) -> None:
+        result = resolve_server_from_tool("financekit-mcp_crypto_price", self.NAMES)
         assert result == ("financekit-mcp", "crypto_price")
 
     def test_server_with_underscore_name(self) -> None:
@@ -142,7 +138,7 @@ class TestLazyBackendBroker:
                 )
             ]
         )
-        assert broker.resolve_tool("google_workspace__gmail_search") == (
+        assert broker.resolve_tool("google_workspace_gmail_search") == (
             "google_workspace",
             "search_gmail_messages",
         )

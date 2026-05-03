@@ -23,9 +23,9 @@ This page summarizes the **post-proxy-remediation** model, where:
 |-------|------|----------------|--------------------------------|-------------------|---------------|
 | **aria-conductor** | primary | memory + sequential-thinking + spawn | no direct operational backend usage | `search-agent`, `workspace-agent`, `productivity-agent`, `trader-agent` | destructive/costly/oauth-sensitive decisions |
 | **search-agent** | subagent (research) | proxy synthetic tools + memory | search-domain backends only | none | no |
-| **workspace-agent** | subagent (compatibility) | proxy synthetic tools + memory + hitl | `google_workspace__*` only | none | yes on side effects |
-| **productivity-agent** | subagent (work domain) | proxy synthetic tools + memory + hitl + sequential-thinking + spawn | `markitdown-mcp__*`, `filesystem__*`, `google_workspace__*`, `fetch__*` | `workspace-agent` (compatibility fallback only) | yes on side effects |
-| **trader-agent** | subagent (finance domain) | proxy synthetic tools + memory + sequential-thinking + hitl | `financekit-mcp__*`, `mcp-fredapi__*`, `alpaca-mcp__*`, `financial-modeling-prep-mcp__*` (Phase 2), `helium-mcp__*` (Phase 2) via proxy | none | yes on formal recommendations + exposure >50k€ |
+| **workspace-agent** | subagent (compatibility) | proxy synthetic tools + memory + hitl | `google_workspace_*` only | none | yes on side effects |
+| **productivity-agent** | subagent (work domain) | proxy synthetic tools + memory + hitl + sequential-thinking + spawn | `markitdown-mcp_*`, `filesystem_*`, `google_workspace_*`, `fetch_*` | `workspace-agent` (compatibility fallback only) | yes on side effects |
+| **trader-agent** | subagent (finance domain) | proxy synthetic tools + memory + sequential-thinking + hitl | `financekit-mcp_*`, `mcp-fredapi_*`, `alpaca-mcp_*`, `financial-modeling-prep-mcp_*` (Phase 2), `helium-mcp_*` (Phase 2) via proxy | none | yes on formal recommendations + exposure >50k€ |
 
 ## Important interpretation changes
 

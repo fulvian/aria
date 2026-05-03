@@ -5,12 +5,12 @@ description: Orchestratore principale — riceve ticker/asset → analisi multi-
 trigger-keywords: [trading, analisi, ticker, asset, stock, ETF, borsa, mercato, quotazione, prezzo]
 user-invocable: true
 allowed-tools:
-  - aria-mcp-proxy__search_tools
-  - aria-mcp-proxy__call_tool
-  - aria-memory__wiki_update_tool
-  - aria-memory__wiki_recall_tool
-  - hitl-queue__ask
-  - sequential-thinking__*
+  - aria-mcp-proxy_search_tools
+  - aria-mcp-proxy_call_tool
+  - aria-memory_wiki_update_tool
+  - aria-memory_wiki_recall_tool
+  - hitl-queue_ask
+  - sequential-thinking_*
 max-tokens: 80000
 estimated-cost-eur: 0.15
 ---
@@ -110,7 +110,7 @@ qualificato prima di prendere decisioni di investimento.
 
 ## Regole operative
 
-1. **Usa SEMPRE il proxy** (`aria-mcp-proxy__search_tools` / `aria-mcp-proxy__call_tool`)
+1. **Usa SEMPRE il proxy** (`aria-mcp-proxy_search_tools` / `aria-mcp-proxy_call_tool`)
    con `_caller_id: "trader-agent"`
    - Nel runtime Kilo questi tool possono apparire come alias `aria-mcp-proxy_search_tools`
      / `aria-mcp-proxy_call_tool`; se compaiono così nella tool list, usa l'alias visibile.
@@ -123,11 +123,11 @@ qualificato prima di prendere decisioni di investimento.
 
 ```python
 # Discovery
-aria-mcp-proxy__search_tools({"query": "stock quote financial data", "_caller_id": "trader-agent"})
+aria-mcp-proxy_search_tools({"query": "stock quote financial data", "_caller_id": "trader-agent"})
 
 # Esecuzione
-aria-mcp-proxy__call_tool({
-    "name": "financekit-mcp__get_stock_data",
+aria-mcp-proxy_call_tool({
+    "name": "financekit-mcp_get_stock_data",
     "arguments": {"symbol": "AAPL"},
     "_caller_id": "trader-agent"
 })
@@ -135,4 +135,4 @@ aria-mcp-proxy__call_tool({
 
 > **Nota backend**: I backend attualmente abilitati via proxy sono `financekit-mcp`, `mcp-fredapi` e `alpaca-mcp` (stdio).
 > `financial-modeling-prep-mcp` e `helium-mcp` sono HTTP/SSE, attualmente disabilitati (Phase 2).
-> Quando disponibile, usa `financial-modeling-prep-mcp__<tool>` per dati fondamentali estesi.
+> Quando disponibile, usa `financial-modeling-prep-mcp_<tool>` per dati fondamentali estesi.

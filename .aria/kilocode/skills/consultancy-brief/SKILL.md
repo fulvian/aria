@@ -12,8 +12,8 @@ trigger-keywords:
 user-invocable: true
 allowed-tools:
   - office-ingest
-  - aria-memory__wiki_recall_tool
-  - aria-memory__wiki_update_tool
+  - aria-memory_wiki_recall_tool
+  - aria-memory_wiki_update_tool
   - planning-with-files
 max-tokens: 20000
 estimated-cost-eur: 0.10

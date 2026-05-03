@@ -5,9 +5,9 @@ description: Scansione codice vs blueprint, genera ADR per divergenze
 trigger-keywords: [blueprint, audit, divergenza, ADR]
 user-invocable: false
 allowed-tools:
-  - filesystem__read
-  - aria-memory__wiki_update_tool
-  - github__search
+  - filesystem_read
+  - aria-memory_wiki_update_tool
+  - github_search
 max-tokens: 20000
 estimated-cost-eur: 0.05
 ---

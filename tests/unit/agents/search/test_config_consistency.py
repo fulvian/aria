@@ -3,8 +3,8 @@
 Verifica che la definizione YAML di search-agent (allowed-tools, mcp-dependencies)
 sia allineata con il modello canonico del proxy.
 
-Il frontmatter espone solo i tool sintetici del proxy (`aria-mcp-proxy__search_tools`,
-`aria-mcp-proxy__call_tool`) più i tool aria-memory diretti. I backend MCP reali
+Il frontmatter espone solo i tool sintetici del proxy (`aria-mcp-proxy_search_tools`,
+`aria-mcp-proxy_call_tool`) più i tool aria-memory diretti. I backend MCP reali
 (searxng, tavily, exa, etc.) sono gestiti dalla capability matrix YAML
 (`.aria/config/agent_capability_matrix.yaml`), non dal frontmatter.
 
@@ -46,27 +46,27 @@ class TestSearchAgentProxyExposure:
     """Search-agent YAML exposes proxy canonical tools, not backend wildcards."""
 
     def test_exposes_proxy_search_tools(self, allowed_tools_set: set[str]):
-        """search-agent exposes aria-mcp-proxy__search_tools."""
-        assert "aria-mcp-proxy__search_tools" in allowed_tools_set
+        """search-agent exposes aria-mcp-proxy_search_tools."""
+        assert "aria-mcp-proxy_search_tools" in allowed_tools_set
 
     def test_exposes_proxy_call_tool(self, allowed_tools_set: set[str]):
-        """search-agent exposes aria-mcp-proxy__call_tool."""
-        assert "aria-mcp-proxy__call_tool" in allowed_tools_set
+        """search-agent exposes aria-mcp-proxy_call_tool."""
+        assert "aria-mcp-proxy_call_tool" in allowed_tools_set
 
     def test_exposes_memory_tools(self, allowed_tools_set: set[str]):
         """search-agent exposes aria-memory tools."""
-        assert "aria-memory__wiki_update_tool" in allowed_tools_set
-        assert "aria-memory__wiki_recall_tool" in allowed_tools_set
+        assert "aria-memory_wiki_update_tool" in allowed_tools_set
+        assert "aria-memory_wiki_recall_tool" in allowed_tools_set
 
     def test_no_backend_wildcards_in_frontmatter(self, allowed_tools_set: set[str]):
         """Frontmatter does NOT contain backend-specific wildcards (those are in capability matrix)."""
         backend_wildcards = {
-            "searxng-script__*",
-            "tavily-mcp__*",
-            "exa-script__*",
-            "brave-mcp__*",
-            "reddit-search__*",
-            "scientific-papers-mcp__*",
+            "searxng-script_*",
+            "tavily-mcp_*",
+            "exa-script_*",
+            "brave-mcp_*",
+            "reddit-search_*",
+            "scientific-papers-mcp_*",
         }
         overlap = backend_wildcards & allowed_tools_set
         assert overlap == set(), (

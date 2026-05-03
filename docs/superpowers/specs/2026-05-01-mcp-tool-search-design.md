@@ -71,7 +71,7 @@ KiloCode 7.2.x (client)
 aria-mcp-proxy (NEW, FastMCP server, stdio, single process)
   ├── BackendComposite (FastMCP create_proxy)
   │     mcpServers loaded from .aria/config/mcp_catalog.yaml
-  │     auto-namespacing: <server>__<tool>
+  │     auto-namespacing: <server>_<tool>
   │     14 backends today; 50+ at scale
   ├── HybridSearchTransform (NEW, extends BM25SearchTransform)
   │     exposes 2 synthetic tools: search_tools, call_tool
@@ -109,7 +109,7 @@ def build_proxy() -> FastMCP:
     proxy.add_middleware(CapabilityMatrixMiddleware(AgentRegistry()))
     return proxy
 
-if __name__ == "__main__":
+if _name_ == "_main_":
     asyncio.run(build_proxy().run_async(transport="stdio"))
 ```
 
@@ -149,7 +149,7 @@ from fastmcp.exceptions import ToolError
 from aria.agents.coordination.registry import AgentRegistry
 
 class CapabilityMatrixMiddleware(Middleware):
-    def __init__(self, registry: AgentRegistry):
+    def _init_(self, registry: AgentRegistry):
         self._registry = registry
 
     async def on_list_tools(self, ctx: MiddlewareContext, call_next):
@@ -184,7 +184,7 @@ End-to-end search-agent flow:
 5. KiloCode `tools/list` → returns 2 synthetic tools (`search_tools`, `call_tool`) plus any tools explicitly marked `always_visible=true`.
 6. Search-agent reasons about query intent and calls `search_tools(pattern="academic papers", _caller_id="search-agent")`.
 7. `HybridSearchTransform` returns top-K matching backend tools with full schemas.
-8. Search-agent calls `call_tool(name="scientific-papers-mcp__search_papers", arguments={...}, _caller_id="search-agent")`.
+8. Search-agent calls `call_tool(name="scientific-papers-mcp_search_papers", arguments={...}, _caller_id="search-agent")`.
 9. `CapabilityMatrixMiddleware` validates: `scientific-papers-mcp/search_papers` ∈ allowed-tools[search-agent] → ✓.
 10. Proxy forwards to the backend stdio process; result passes through unchanged.
 11. Search-agent returns to conductor; conductor synthesises final answer.
@@ -255,7 +255,7 @@ Typed events added to `src/aria/observability/events.py`:
 
 All four agent prompts (`.aria/kilocode/agents/*.md`) need:
 
-1. `allowed-tools` rewritten with namespaced names (`tavily-mcp__search` instead of `tavily-mcp/search`).
+1. `allowed-tools` rewritten with namespaced names (`tavily-mcp_search` instead of `tavily-mcp/search`).
 2. `mcp-dependencies` field updated to a single entry: `aria-mcp-proxy` (plus `aria-memory` for direct callers).
 3. New addendum (auto-injected by template):
 
@@ -266,18 +266,18 @@ All four agent prompts (`.aria/kilocode/agents/*.md`) need:
 
 ### 6.2 Capability matrix update
 
-`.aria/config/agent_capability_matrix.yaml` keys remain the canonical SoT but tool names change to namespaced form. The `AgentRegistry.get_allowed_tools()` loader handles backwards-compat by accepting both `server/tool` and `server__tool`.
+`.aria/config/agent_capability_matrix.yaml` keys remain the canonical SoT but tool names change to namespaced form. The `AgentRegistry.get_allowed_tools()` loader handles backwards-compat by accepting both `server/tool` and `server_tool`.
 
 ### 6.3 Skills coordination impact
 
 | Skill | Impact |
 |---|---|
-| `deep-research` | Update tool name references (e.g. `tavily-mcp__search`). Logic unchanged. |
+| `deep-research` | Update tool name references (e.g. `tavily-mcp_search`). Logic unchanged. |
 | `planning-with-files` | No change (does not call MCP tools directly). |
 | `triage-email` | No change (workspace-agent owns the call). |
 | `calendar-orchestration` | No change. |
-| `pdf-extract` | Update reference: `markitdown-mcp__convert_to_markdown`. |
-| `office-ingest` | Update reference: `markitdown-mcp__convert_to_markdown`. |
+| `pdf-extract` | Update reference: `markitdown-mcp_convert_to_markdown`. |
+| `office-ingest` | Update reference: `markitdown-mcp_convert_to_markdown`. |
 | `doc-draft` | No change. |
 | `hitl-queue` | No change (uses `aria-memory` direct, not via proxy). |
 | `memory-distillation` | No change (direct). |
@@ -332,7 +332,7 @@ LM Studio mocked via `respx` / `httpx_mock`. Total wall-clock < 5 s.
 | File | Scope |
 |---|---|
 | `test_proxy_e2e_stdio.py` | spawn proxy stdio; `tools/list` returns 2 synthetic; `search_tools(pattern="memory")` finds wiki_recall |
-| `test_call_tool_routing.py` | `call_tool(name="filesystem__read", ...)` reaches a real backend fixture |
+| `test_call_tool_routing.py` | `call_tool(name="filesystem_read", ...)` reaches a real backend fixture |
 | `test_capability_enforcement.py` | search-agent caller calls a workspace tool → `ToolError` |
 | `test_hybrid_with_real_lms.py` | skip if LM Studio offline; otherwise verify embed roundtrip |
 | `test_emergency_rollback.py` | `bin/aria start --emergency-direct` restores original mcp.json |

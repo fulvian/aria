@@ -6,11 +6,11 @@ color: "#4285F4"
 category: productivity
 temperature: 0.1
 allowed-tools:
-  - aria-mcp-proxy__search_tools
-  - aria-mcp-proxy__call_tool
-  - aria-memory__wiki_update_tool
-  - aria-memory__wiki_recall_tool
-  - hitl-queue__ask
+  - aria-mcp-proxy_search_tools
+  - aria-mcp-proxy_call_tool
+  - aria-memory_wiki_update_tool
+  - aria-memory_wiki_recall_tool
+  - hitl-queue_ask
 required-skills:
   - triage-email
 mcp-dependencies:
@@ -28,7 +28,7 @@ capability Google Workspace.
 
 ## Proxy invocation rule
 
-Quando chiami `aria-mcp-proxy__search_tools` o `aria-mcp-proxy__call_tool`,
+Quando chiami `aria-mcp-proxy_search_tools` o `aria-mcp-proxy_call_tool`,
 includi sempre l'argomento `_caller_id: "workspace-agent"`.
 
 Il proxy usa `_caller_id` per applicare la `agent_capability_matrix.yaml`.

@@ -59,15 +59,15 @@ KiloCode
 
 ### Prompt/frontmatter layer
 - `search-agent` and `productivity-agent` expose only:
-  - `aria-mcp-proxy__search_tools`
-  - `aria-mcp-proxy__call_tool`
+  - `aria-mcp-proxy_search_tools`
+  - `aria-mcp-proxy_call_tool`
   - direct non-proxy tools they truly need (memory, sequential-thinking, spawn)
 - `workspace-agent` follows the same contract but is transitional.
 
 ### Policy layer
 - `.aria/config/agent_capability_matrix.yaml` is the effective source of truth for
   which backend families an agent can call.
-- `productivity-agent` now includes `google_workspace__*`.
+- `productivity-agent` now includes `google_workspace_*`.
 - `search-agent` remains isolated to search-domain providers.
 
 ### Enforcement layer

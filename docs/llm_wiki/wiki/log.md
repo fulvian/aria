@@ -1,5 +1,59 @@
 # Implementation Log
 
+## 2026-05-03T09:34+02:00 — MCP naming convention migration: double-underscore → single-underscore
+
+**Operation**: REFACTOR (naming convention alignment)
+**Branch**: working tree (uncommitted)
+**Trigger**: il proxy MCP esponeva nomi runtime con singolo underscore (`server_tool`) mentre il codebase usava ancora il doppio underscore (`server__tool`) come formato canonico. Questa discrepanza era gestita da compatibility shim in 4 funzioni.
+
+### Migrazione eseguita
+
+**Cambiamento**: Tutti i riferimenti `server__tool` (doppio underscore) sono stati migrati a `server_tool` (singolo underscore) in TUTTI i file del repository.
+
+**File modificati**: 76 file in totale
+
+**Categorie di modifiche**:
+
+1. **Config** (1 file):
+   - `.aria/config/agent_capability_matrix.yaml` — tutti i wildcard e tool name: `server__*` → `server_*`, `aria-memory__*` → `aria-memory_*`, `hitl-queue__ask` → `hitl-queue_ask`, ecc.
+
+2. **Agent prompts** (10 file):
+   - `.aria/kilocode/agents/*.md` — `aria-mcp-proxy__*` → `aria-mcp-proxy_*`, `server__tool` → `server_tool`
+   - `.aria/kilo-home/.kilo/agents/*.md` — runtime copies allineate
+
+3. **Skill files** (20+ file):
+   - `.aria/kilocode/skills/*/SKILL.md` — tutti i riferimenti aggiornati
+   - `.aria/kilo-home/.kilo/skills/*/SKILL.md` — runtime copies allineate
+
+4. **Python source** (4 file):
+   - `src/aria/mcp/proxy/middleware.py` — `_matches()` semplificato: rimosse conversioni `_`→`__` e matching wildcard `__*`
+   - `src/aria/mcp/proxy/broker.py` — `resolve_server_from_tool()` semplificato: rimosso parsing `__` e `/`, solo `_`
+   - `src/aria/mcp/proxy/server.py` — `_tool_server_name()` usa `_` invece di `__`
+   - `src/aria/agents/coordination/registry.py` — `is_tool_allowed()` semplificato: rimosse conversioni `_`→`__` e wildcard `__*`
+
+5. **Test files** (10 file): tutti gli assert e docstring aggiornati
+
+6. **Documentazione** (20+ file): wiki, ADR, piani, spec
+
+### Quality gates
+```
+ruff check .          → All checks passed ✅
+ruff format --check . → 208 files already formatted ✅
+mypy src              → Success: no issues found in 91 source files ✅
+pytest -q             → 1004 passed, 23 skipped, 3 warnings ✅
+```
+
+### Provenance
+- `src/aria/mcp/proxy/middleware.py`
+- `src/aria/mcp/proxy/broker.py`
+- `src/aria/mcp/proxy/server.py`
+- `src/aria/agents/coordination/registry.py`
+- `.aria/config/agent_capability_matrix.yaml`
+- `.aria/kilocode/agents/*.md`
+- `.aria/kilocode/skills/*/SKILL.md`
+
+---
+
 ## 2026-05-02T13:45+02:00 — FIX: productivity-agent / Google Workspace contract reconciliation
 
 **Operation**: FIX (prompt contract + catalog + broker compatibility + regressions)
@@ -9,10 +63,10 @@
 ### Root cause
 
 1. I prompt di `productivity-agent` (e `search-agent`) documentavano un uso errato dei tool sintetici:
-   - `aria-mcp-proxy__call_tool("search_tools", ...)`
-   - `aria-mcp-proxy__call_tool("call_tool", ...)`
-   invece delle due entrypoint separate `aria-mcp-proxy__search_tools(...)` e
-   `aria-mcp-proxy__call_tool(...)`
+   - `aria-mcp-proxy_call_tool("search_tools", ...)`
+   - `aria-mcp-proxy_call_tool("call_tool", ...)`
+   invece delle due entrypoint separate `aria-mcp-proxy_search_tools(...)` e
+   `aria-mcp-proxy_call_tool(...)`
 2. `mcp_catalog.yaml` e le skill work-domain usavano nomi legacy/non-upstream per
    `google_workspace` (`drive_list`, `gmail_search`, `docs_create`, ...)
 3. I log reali Kilo mostravano esattamente questi due failure mode:
@@ -86,7 +140,7 @@
 
 - `src/aria/mcp/proxy/broker.py` (NEW)
 - `src/aria/mcp/proxy/server.py` (REFACTORED)
-- `src/aria/mcp/proxy/__init__.py` (DOCSTRING)
+- `src/aria/mcp/proxy/_init_.py` (DOCSTRING)
 - `tests/unit/mcp/proxy/test_broker.py` (NEW)
 - `tests/unit/mcp/proxy/test_server.py` (UPDATED)
 - `tests/integration/mcp/proxy/test_proxy_e2e_stdio.py` (UPDATED)
@@ -119,7 +173,7 @@
 2. Nel pass 1 il middleware estraeva e rimuoveva `_caller_id` dai nested arguments
 3. Quando il proxy inoltrava la chiamata al backend, il pass 2 riceveva args puliti ma senza caller identity
 4. Il middleware quindi falliva correttamente in modalità fail-closed con `denied: no caller identity provided`
-5. In più, `on_call_tool()` usava `registry.is_tool_allowed()` per il controllo permessi, ma i nomi runtime dei tool usano underscore singolo (`financekit-mcp_crypto_price`) mentre la capability matrix usa il formato canonico con doppio underscore (`financekit-mcp__crypto_price`)
+5. In più, `on_call_tool()` usava `registry.is_tool_allowed()` per il controllo permessi, ma i nomi runtime dei tool usano underscore singolo (`financekit-mcp_crypto_price`) mentre la capability matrix usa il formato canonico con doppio underscore (`financekit-mcp_crypto_price`)
 
 ### Fix applicato
 
@@ -269,11 +323,11 @@ kilo run --agent trader-agent ... proxy discovery smoke test
 - `.aria/kilo-home/.kilo/agents/aria-conductor.md` — synced from kilocode active
 
 **B. Trader-agent contract fixed** (8 files):
-- `.aria/kilocode/agents/trader-agent.md` — proxy examples now use `aria-mcp-proxy__search_tools` for discovery, `aria-mcp-proxy__call_tool` with `server__tool` canonical names; backend state accurately described (3 enabled stdio, 2 disabled HTTP/SSE)
-- All 7 skills: fixed proxy examples to canonical `server__tool` (double underscore), added backend state notes, fixed discovery to use `aria-mcp-proxy__search_tools` directly
+- `.aria/kilocode/agents/trader-agent.md` — proxy examples now use `aria-mcp-proxy_search_tools` for discovery, `aria-mcp-proxy_call_tool` with `server_tool` canonical names; backend state accurately described (3 enabled stdio, 2 disabled HTTP/SSE)
+- All 7 skills: fixed proxy examples to canonical `server_tool` (double underscore), added backend state notes, fixed discovery to use `aria-mcp-proxy_search_tools` directly
 
 **C. Capability governance fixed** (1 file):
-- `.aria/config/agent_capability_matrix.yaml` — trader-agent now lists 5 finance backend wildcards (`financekit-mcp__*`, `mcp-fredapi__*`, `alpaca-mcp__*`, `financial-modeling-prep-mcp__*`, `helium-mcp__*`) alongside proxy synthetic tools (14 entries total, ≤20)
+- `.aria/config/agent_capability_matrix.yaml` — trader-agent now lists 5 finance backend wildcards (`financekit-mcp_*`, `mcp-fredapi_*`, `alpaca-mcp_*`, `financial-modeling-prep-mcp_*`, `helium-mcp_*`) alongside proxy synthetic tools (14 entries total, ≤20)
 
 **D. Regression tests added** (2 files):
 - `tests/unit/agents/trader/test_skills.py` — 3 new tests per skill: `test_no_call_tool_with_search_tools_arg`, `test_no_legacy_slash_tool_names`, `test_examples_use_caller_id`
@@ -319,10 +373,10 @@ pytest -q             → 913 passed, 23 skipped, 2 failed (pre-existing integra
 ### Modifiche effettuate (commit `9b24c67`)
 
 **Recupero selettivo dal commit `41e0ef3`:**
-- 7 skill in `.aria/kilocode/skills/`: trading-analysis, fundamental-analysis, technical-analysis, macro-intelligence, sentiment-analysis, options-analysis, crypto-analysis (già compatibili con proxy — usano `aria-mcp-proxy__search_tools` / `aria-mcp-proxy__call_tool`)
+- 7 skill in `.aria/kilocode/skills/`: trading-analysis, fundamental-analysis, technical-analysis, macro-intelligence, sentiment-analysis, options-analysis, crypto-analysis (già compatibili con proxy — usano `aria-mcp-proxy_search_tools` / `aria-mcp-proxy_call_tool`)
 - ADR: `docs/foundation/decisions/ADR-00XX-trader-agent-introduction.md`
 - Wiki: `docs/llm_wiki/wiki/trader-agent.md`
-- 4 file test: `tests/unit/agents/trader/__init__.py`, `test_conductor_dispatch.py`, `test_config_consistency.py`, `test_skills.py`
+- 4 file test: `tests/unit/agents/trader/_init_.py`, `test_conductor_dispatch.py`, `test_config_consistency.py`, `test_skills.py`
 
 **Registrazione backend MCP finanziari in `mcp_catalog.yaml`:**
 | Backend | Transport | Auth | Stato | Tools |
@@ -428,7 +482,7 @@ Il protocollo definisce una procedura unica e prescrittiva che parte da un'idea 
 4. **Ricerca tecnica ed ecosistema** con repo/wiki analysis e, se utile, `github-discovery`
 5. **Branch di ricerca manuale via ARIA**: il protocollo prevede prompt pronti da far eseguire manualmente all'utente, con successiva ingestione delle risposte come input di ricerca
 6. **Decision ladder P8**: MCP esistente → skill → tool Python locale
-7. **Proxy/capability design**: `aria-mcp-proxy`, `_caller_id`, matrix, `server__tool`
+7. **Proxy/capability design**: `aria-mcp-proxy`, `_caller_id`, matrix, `server_tool`
 8. **Memory/wiki.db design**: provenance, actor-awareness, no duplicate/invalid wiki writes
 9. **HITL e boundary comportamentali**: niente pseudo-HITL, niente self-remediation durante workflow utente
 10. **Osservabilità e testabilità**
@@ -505,13 +559,13 @@ uv run pytest -q      → 703 passed, 23 skipped, 3 warnings  ✅
 - Hardened `.aria/kilocode/agents/productivity-agent.md` (and synced Kilo-home copy):
   - explicit **SOLO proxy** rule for document discovery and file access
   - explicit prohibition of host-native helpers `Glob`, `Read`, `Write`, `TodoWrite` for ordinary workflows
-  - explicit requirement that Google Workspace write actions must open a real `hitl-queue__ask` gate, not merely ask for confirmation in prose
+  - explicit requirement that Google Workspace write actions must open a real `hitl-queue_ask` gate, not merely ask for confirmation in prose
   - explicit rule that `wiki_update_tool` must run **exactly once** with a valid payload and must not memorialize non-canonical success paths
 - Normalized core skills to reduce model drift toward host-native tools or pseudo-HITL:
   - `office-ingest` → clarified proxy-only filesystem discovery/reads
   - `consultancy-brief` → clarified directory discovery via proxy filesystem, not `Glob`
   - `email-draft` → strengthened real HITL requirement and single valid wiki update rule
-  - `meeting-prep` → clarified that write outputs need a real `hitl-queue__ask` gate
+  - `meeting-prep` → clarified that write outputs need a real `hitl-queue_ask` gate
 - Added new static contract tests:
   - `tests/unit/agents/productivity/test_prompt_contract.py`
   - verifies proxy-only productivity prompt contract, no native host helpers, real HITL wording, single valid wiki update rule, and aligned skill fragments
@@ -686,13 +740,13 @@ uv run pytest -q      → 689 passed, 23 skipped, 3 warnings  ✅
 - No changes needed in `conductor_bridge.py`: caller identity is passed per-request via `_caller_id` in tool arguments, not as an env var.
 
 **B) Canonical proxy contract**:
-- `search-agent.md` frontmatter: removed backend wildcards (`searxng-script__*`, `tavily-mcp__*`, etc.), replaced with canonical `aria-mcp-proxy__search_tools` + `aria-mcp-proxy__call_tool` + memory tools.
+- `search-agent.md` frontmatter: removed backend wildcards (`searxng-script_*`, `tavily-mcp_*`, etc.), replaced with canonical `aria-mcp-proxy_search_tools` + `aria-mcp-proxy_call_tool` + memory tools.
 - `productivity-agent.md` frontmatter: same canonical model.
 - `workspace-agent.md` frontmatter: same canonical model, reduced to transitional stub.
 - `aria-conductor.md`: dispatch rules updated — productivity-agent now handles Google Workspace directly.
 
 **C) Productivity/workspace convergence**:
-- `agent_capability_matrix.yaml`: `productivity-agent` now includes `google_workspace__*` in allowed_tools.
+- `agent_capability_matrix.yaml`: `productivity-agent` now includes `google_workspace_*` in allowed_tools.
 - `productivity-agent.md` prompt: expanded description — unified work-domain agent with direct GW access via proxy.
 - `workspace-agent.md` prompt: marked as COMPATIBILITÀ/TRANSITORIO.
 - `aria-conductor.md` prompt: workspace-agent described as transitional; productivity-agent as primary work agent.
@@ -731,7 +785,7 @@ uv run pytest -q      → 673 passed, 23 skipped, 3 warnings  ✅
 | File | Change |
 |------|--------|
 | `src/aria/mcp/proxy/middleware.py` | Fail-closed enforcement + caller-anomaly logging |
-| `.aria/config/agent_capability_matrix.yaml` | `productivity-agent` gains `google_workspace__*` |
+| `.aria/config/agent_capability_matrix.yaml` | `productivity-agent` gains `google_workspace_*` |
 | `.aria/kilocode/agents/productivity-agent.md` | Unified work-domain agent, canonical proxy model |
 | `.aria/kilocode/agents/search-agent.md` | Canonical proxy model, no backend wildcards |
 | `.aria/kilocode/agents/workspace-agent.md` | Transitional stub with deprecation notice |
@@ -776,7 +830,7 @@ uv run pytest -q      → 673 passed, 23 skipped, 3 warnings  ✅
 
 ### Findings frozen
 
-1. **Prompt contract drift** — F3 plan expects prompt frontmatter to expose only `aria-mcp-proxy__search_tools` / `aria-mcp-proxy__call_tool` (+ memory), but current prompts still expose backend wildcards directly.
+1. **Prompt contract drift** — F3 plan expects prompt frontmatter to expose only `aria-mcp-proxy_search_tools` / `aria-mcp-proxy_call_tool` (+ memory), but current prompts still expose backend wildcards directly.
 2. **Caller propagation gap** — `server.py` boot filtering depends on `ARIA_CALLER_ID`, but the inspected `mcp.json` and `conductor_bridge.py` do not wire it end-to-end; no `X-ARIA-Caller-Id` propagation was found either.
 3. **Fail-open middleware** — missing caller identity still results in permissive `list_tools` / `call_tool` paths.
 4. **Skill drift** — multiple skills still document direct backend or pseudo-tool invocation patterns instead of the canonical proxy invocation path with `_caller_id`.
@@ -829,11 +883,11 @@ uv run pytest -q      → 673 passed, 23 skipped, 3 warnings  ✅
 ### Fix applicati
 
 - **Pytest collection/import**
-  - Added package markers: `tests/__init__.py`, `tests/e2e/__init__.py`, `tests/unit/mcp/__init__.py`, `tests/integration/mcp/__init__.py`, `tests/e2e/mcp/__init__.py`
+  - Added package markers: `tests/_init_.py`, `tests/e2e/_init_.py`, `tests/unit/mcp/_init_.py`, `tests/integration/mcp/_init_.py`, `tests/e2e/mcp/_init_.py`
   - Added `tests/conftest.py` to prepend the repo root so `scripts.*` imports resolve under pytest console-script execution
-  - Updated stale prompt-config tests to assert proxy-era wildcard tool exposure (`server__*`) and proxy-based MCP dependencies
+  - Updated stale prompt-config tests to assert proxy-era wildcard tool exposure (`server_*`) and proxy-based MCP dependencies
 - **Mypy**
-  - Replaced the broken `src/aria/launcher/__init__.py` lazy-loader re-export with an empty importable package stub
+  - Replaced the broken `src/aria/launcher/_init_.py` lazy-loader re-export with an empty importable package stub
   - Added narrow `tool.mypy.overrides` coverage for `croniter`
 - **Ruff**
   - Applied safe `ruff check --fix`
@@ -2084,7 +2138,7 @@ Net: 1 new SQLite store + 4 MCP tools + 1 scheduler task (Phase B).
 
 | Module | Purpose |
 |--------|---------|
-| `src/aria/memory/wiki/__init__.py` | Module exports |
+| `src/aria/memory/wiki/_init_.py` | Module exports |
 | `src/aria/memory/wiki/schema.py` | Pydantic: PagePatch, WikiUpdatePayload, Page |
 | `src/aria/memory/wiki/migrations.py` | wiki.db DDL (FTS5, page_revision, watermark, tombstone) |
 | `src/aria/memory/wiki/db.py` | WikiStore CRUD + schema fingerprint check |
@@ -2101,7 +2155,7 @@ Net: 1 new SQLite store + 4 MCP tools + 1 scheduler task (Phase B).
 
 | Module | Purpose | Status |
 |--------|---------|--------|
-| `src/aria/memory/wiki/__init__.py` | Module exports | ✅ Done |
+| `src/aria/memory/wiki/_init_.py` | Module exports | ✅ Done |
 | `src/aria/memory/wiki/schema.py` | Pydantic: PagePatch, WikiUpdatePayload, Page, PageRevision, PageKind | ✅ Done |
 | `src/aria/memory/wiki/migrations.py` | wiki.db DDL (FTS5, page_revision, watermark, tombstone) | ✅ Done |
 | `src/aria/memory/wiki/db.py` | WikiStore CRUD + schema fingerprint + watermark | ✅ Done |
@@ -2644,7 +2698,7 @@ Awaiting user action for OAuth re-authentication with browser.
 | `episodic.py` | E501 | Line too long (SQL INSERT) | Reformatted multiline SQL |
 | `episodic.py` | ASYNC240 | os.path in async | Used pathlib.stat() with error handling |
 | `runner.py` | ANN401 | Any disallowed | Changed to Callable[..., object] with noqa |
-| `schema.py` | ANN003 | Missing **data type | Added noqa (Pydantic __init__) |
+| `schema.py` | ANN003 | Missing **data type | Added noqa (Pydantic _init_) |
 | `schema.py` | E501 | Comment line too long | Reformatted comment example |
 | `migrations.py` | E501 | SQL DDL lines too long | per-file-ignore (SQL cannot be reformatted) |
 | `semantic.py` | E501 | SQL DDL lines too long | per-file-ignore (SQL cannot be reformatted) |
@@ -2912,7 +2966,7 @@ src/aria/gateway/multimodal.py      # Multimodal processing stub
 src/aria/utils/prompt_safety.py    # Prompt safety utilities
 systemd/aria-backup.service        # Systemd oneshot backup service
 systemd/aria-backup.timer          # Systemd weekly timer
-tests/integration/memory/__init__.py
+tests/integration/memory/_init_.py
 tests/integration/memory/test_remember_distill_recall.py
 tests/integration/memory/test_hitl_approve.py
 tests/integration/memory/test_retention_pruning.py
@@ -3886,7 +3940,7 @@ pytest unit + integration → 38 passed ✅
 ```
 
 ### Files created
-- `src/aria/mcp/proxy/` (10 files: `__init__.py`, `__main__.py`, `config.py`, `catalog.py`, `credential.py`, `middleware.py`, `server.py`, `transforms/__init__.py`, `transforms/hybrid.py`, `transforms/lmstudio_embedder.py`)
+- `src/aria/mcp/proxy/` (10 files: `_init_.py`, `_main_.py`, `config.py`, `catalog.py`, `credential.py`, `middleware.py`, `server.py`, `transforms/_init_.py`, `transforms/hybrid.py`, `transforms/lmstudio_embedder.py`)
 - `tests/unit/mcp/proxy/` (7 files: 6 test modules + conftest)
 - `tests/integration/mcp/proxy/` (4 files: 3 test modules + conftest)
 - `.aria/config/proxy.yaml`
@@ -3911,7 +3965,7 @@ Il proxy caricava tutti i backend enabled da `mcp_catalog.yaml`, inclusi server
 estranei alla sessione come `google_workspace`.
 
 **Fix**: `src/aria/mcp/proxy/server.py` ora deriva i server ammessi dai prefissi
-`server__*` in `allowed_tools` del caller (`ARIA_CALLER_ID`) ed esclude sempre
+`server_*` in `allowed_tools` del caller (`ARIA_CALLER_ID`) ed esclude sempre
 `aria-memory`, che resta separato dal proxy.
 
 ### Problema 3 — Validator di delega troppo permissivo
@@ -3968,7 +4022,7 @@ Ripristino dei quality gate repository-wide dopo i fix della sessione cinema, se
 #### Fix minimi applicati
 - packaging marker aggiunti per evitare collisione `proxy.conftest` nei tree `tests/*/mcp/`
 - `tests/conftest.py` aggiunto per inserire il repo root in `sys.path` e rendere importabile `scripts.*` sotto `pytest`
-- `src/aria/launcher/__init__.py` ripulito dal re-export obsoleto di `lazy_loader`
+- `src/aria/launcher/_init_.py` ripulito dal re-export obsoleto di `lazy_loader`
 - `pyproject.toml` aggiornato con override mirato per `croniter` in mypy e per-file ignores Ruff strettamente limitati a rumore storico di test/script
 - piccoli fix puntuali nei test per allineamento a wildcard proxy exposure e import mancanti
 
@@ -3998,16 +4052,16 @@ stdout passando solo messaggi JSONRPC validi. Applicato a 4 wrapper scripts.
 ### Problema 2 — Naming mismatch single/double underscore
 FastMCP Namespace transform produce tool names con singolo underscore
 (`server_tool`). Capability matrix e agent prompts usano doppio underscore
-(`server__tool`). Middleware bloccava chiamate legittime.
+(`server_tool`). Middleware bloccava chiamate legittime.
 
 **Fix**: `is_tool_allowed()` e `_matches()` ora gestiscono tutte 3 le forme:
-`server__tool`, `server/tool`, `server_tool`.
+`server_tool`, `server/tool`, `server_tool`.
 
 ### Problema 3 — Nomi esatti vs wildcard
 La matrice elencava nomi di tool specifici non corrispondenti ai nomi reali
 del proxy.
 
-**Fix**: Sostituiti con wildcard `server__*` in capability matrix e in tutti
+**Fix**: Sostituiti con wildcard `server_*` in capability matrix e in tutti
 i 5 agent prompts. Molto più resilienti.
 
 ### File creati
@@ -4020,7 +4074,7 @@ i 5 agent prompts. Molto più resilienti.
 - `scripts/wrappers/google-workspace-wrapper.sh` — stdio filter
 - `src/aria/mcp/proxy/middleware.py` — _matches() single/double underscore
 - `src/aria/agents/coordination/registry.py` — is_tool_allowed() 3 forme
-- `.aria/config/agent_capability_matrix.yaml` — wildcard server__*
+- `.aria/config/agent_capability_matrix.yaml` — wildcard server_*
 - `.aria/kilocode/agents/search-agent.md` — wildcard
 - `.aria/kilocode/agents/workspace-agent.md` — wildcard
 - `.aria/kilocode/agents/productivity-agent.md` — wildcard
@@ -4048,7 +4102,7 @@ Drift validator  → All checks passed ✅
 #### F3 — Cutover ✅
 - `mcp.json` reduced to 2 entries: `aria-memory` + `aria-mcp-proxy`
 - Baseline snapshot saved as `mcp.json.baseline`
-- `agent_capability_matrix.yaml` → namespaced `server__tool` form
+- `agent_capability_matrix.yaml` → namespaced `server_tool` form
 - All 4 agent prompts updated + `_caller_id` proxy invocation rule
 - `scripts/check_mcp_drift.py` created with proxy-aware validation
 - Tag: `proxy-cutover-v1`
@@ -4062,7 +4116,7 @@ Drift validator  → All checks passed ✅
 - `events.py`: `ProxyEvent` with 7 event types
 - `metrics.py`: `aria_proxy_search_latency`, `aria_proxy_call_latency`,
   `aria_proxy_tool_denied`, `aria_proxy_caller_missing`
-- All 11 skill files updated to namespaced `server__tool` names
+- All 11 skill files updated to namespaced `server_tool` names
 - Wiki pages updated: `mcp-proxy.md`, `mcp-refoundation.md`, `index.md`, `log.md`
 
 #### Quality gate finale

@@ -5,11 +5,11 @@ description: Analisi fondamentali — earnings, statements, DCF, analyst estimat
 trigger-keywords: [fondamentale, earnings, bilancio, income statement, balance sheet, cash flow, DCF, valuation, fatturato, utile, EPS]
 user-invocable: true
 allowed-tools:
-  - aria-mcp-proxy__search_tools
-  - aria-mcp-proxy__call_tool
-  - aria-memory__wiki_update_tool
-  - aria-memory__wiki_recall_tool
-  - sequential-thinking__*
+  - aria-mcp-proxy_search_tools
+  - aria-mcp-proxy_call_tool
+  - aria-memory_wiki_update_tool
+  - aria-memory_wiki_recall_tool
+  - sequential-thinking_*
 max-tokens: 60000
 estimated-cost-eur: 0.10
 ---
@@ -68,11 +68,11 @@ Nel runtime Kilo i tool del proxy possono apparire come alias
 
 ```python
 # Discovery
-aria-mcp-proxy__search_tools({"query": "financial statement earnings data", "_caller_id": "trader-agent"})
+aria-mcp-proxy_search_tools({"query": "financial statement earnings data", "_caller_id": "trader-agent"})
 
 # Esecuzione — usa financekit-mcp (enabled) per fundamentals base
-aria-mcp-proxy__call_tool({
-    "name": "financekit-mcp__get_financial_statement",
+aria-mcp-proxy_call_tool({
+    "name": "financekit-mcp_get_financial_statement",
     "arguments": {"symbol": "AAPL", "statement_type": "income", "period": "annual"},
     "_caller_id": "trader-agent"
 })
@@ -80,7 +80,7 @@ aria-mcp-proxy__call_tool({
 
 > **Nota backend**: `financekit-mcp` è il backend fondamentale attualmente abilitato.
 > `financial-modeling-prep-mcp` (253+ tools fondamentali) è HTTP/SSE, disabilitato (Phase 2).
-> Quando disponibile, preferisci `financial-modeling-prep-mcp__<tool>` per copertura estesa.
+> Quando disponibile, preferisci `financial-modeling-prep-mcp_<tool>` per copertura estesa.
 
 ## Output strutturato
 

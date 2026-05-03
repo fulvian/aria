@@ -5,11 +5,11 @@ description: Dati macroeconomici — FRED, tassi, inflazione, NFP, GDP, PMI, cor
 trigger-keywords: [macro, FRED, tassi, inflation, CPI, PPI, NFP, GDP, PMI, Treasury, yield, Fed, recessione]
 user-invocable: true
 allowed-tools:
-  - aria-mcp-proxy__search_tools
-  - aria-mcp-proxy__call_tool
-  - aria-memory__wiki_update_tool
-  - aria-memory__wiki_recall_tool
-  - sequential-thinking__*
+  - aria-mcp-proxy_search_tools
+  - aria-mcp-proxy_call_tool
+  - aria-memory_wiki_update_tool
+  - aria-memory_wiki_recall_tool
+  - sequential-thinking_*
 max-tokens: 50000
 estimated-cost-eur: 0.05
 ---
@@ -80,11 +80,11 @@ Nel runtime Kilo i tool del proxy possono apparire come alias
 
 ```python
 # Discovery
-aria-mcp-proxy__search_tools({"query": "FRED treasury yield CPI GDP macro", "_caller_id": "trader-agent"})
+aria-mcp-proxy_search_tools({"query": "FRED treasury yield CPI GDP macro", "_caller_id": "trader-agent"})
 
 # Esecuzione — mcp-fredapi è enabled (stdio)
-aria-mcp-proxy__call_tool({
-    "name": "mcp-fredapi__get_fred_series_observations",
+aria-mcp-proxy_call_tool({
+    "name": "mcp-fredapi_get_fred_series_observations",
     "arguments": {"series_id": "DGS10", "sort_order": "desc", "limit": 30},
     "_caller_id": "trader-agent"
 })

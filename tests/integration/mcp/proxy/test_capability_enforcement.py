@@ -12,7 +12,7 @@ from aria.mcp.proxy.server import build_proxy
 
 class _StubReg:
     def get_allowed_tools(self, agent: str) -> list[str]:
-        return {"search-agent": ["filesystem__read"]}.get(agent, [])
+        return {"search-agent": ["filesystem_read"]}.get(agent, [])
 
     def is_tool_allowed(self, agent: str, tool: str) -> bool:
         return tool in self.get_allowed_tools(agent)
@@ -35,7 +35,7 @@ async def test_search_agent_blocked_from_workspace(monkeypatch) -> None:
                 "call_tool",
                 {
                     "_caller_id": "search-agent",
-                    "name": "google_workspace__send_gmail_message",
+                    "name": "google_workspace_send_gmail_message",
                     "arguments": {"to": "x"},
                 },
             )

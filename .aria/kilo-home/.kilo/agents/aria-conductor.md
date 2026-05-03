@@ -6,8 +6,8 @@ color: "#FFD700"
 category: orchestration
 temperature: 0.2
 allowed-tools:
-  - aria-memory__*
-  - sequential-thinking__*
+  - aria-memory_*
+  - sequential-thinking_*
   - spawn-subagent
 required-skills:
   - planning-with-files

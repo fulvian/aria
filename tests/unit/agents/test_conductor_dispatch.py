@@ -267,7 +267,7 @@ class TestConductorYamlConfig:
 
     def test_allows_sequential_thinking(self, conductor_yaml: dict):
         """Conductor has sequential-thinking in allowed-tools."""
-        assert "sequential-thinking__*" in conductor_yaml.get("allowed-tools", [])
+        assert "sequential-thinking_*" in conductor_yaml.get("allowed-tools", [])
 
     def test_required_skills(self, conductor_yaml: dict):
         """Conductor has required-skills: planning-with-files, hitl-queue."""
@@ -290,7 +290,7 @@ class TestConductorYamlConfig:
             "google_workspace",
             "searxng",
             "tavily",
-            "fetch__",
+            "fetch_",
         ]
         for tool in tools:
             for prefix in operational_prefixes:
@@ -332,8 +332,7 @@ class TestConductorTraderAgentRegistry:
     def test_financial_keyword_routing_exists(self, conductor_text: str):
         """Conductor has keyword routing section for finance."""
         assert "Keyword di routing automatico" in conductor_text or (
-            "keyword" in conductor_text.lower()
-            and "trader-agent" in conductor_text
+            "keyword" in conductor_text.lower() and "trader-agent" in conductor_text
         )
 
     def test_stock_analysis_routes_to_trader(self, conductor_text: str):
@@ -374,11 +373,7 @@ class TestConductorTraderAgentRegistry:
         found = False
         for line in conductor_text.splitlines():
             lower = line.lower()
-            if (
-                "opportunit" in lower
-                and "investiment" in lower
-                and "trader-agent" in line
-            ):
+            if "opportunit" in lower and "investiment" in lower and "trader-agent" in line:
                 found = True
                 break
         assert found, "Investment opportunity research must route to trader-agent"
@@ -407,9 +402,7 @@ class TestTraderAgentPromptExists:
 
     def test_trader_agent_file_exists(self):
         """Trader-agent prompt file exists in .aria/kilocode/agents/."""
-        assert TRADER_AGENT_FILE.exists(), (
-            f"trader-agent prompt missing: {TRADER_AGENT_FILE}"
-        )
+        assert TRADER_AGENT_FILE.exists(), f"trader-agent prompt missing: {TRADER_AGENT_FILE}"
 
     @pytest.fixture(scope="class")
     def trader_text(self) -> str:
@@ -448,15 +441,11 @@ class TestTraderAgentPromptExists:
     def test_trader_agent_has_memory_tools(self, trader_yaml: dict):
         """Trader-agent has memory tools."""
         tools = trader_yaml.get("allowed-tools", [])
-        assert any("aria-memory" in t for t in tools), (
-            "trader-agent must have aria-memory tools"
-        )
+        assert any("aria-memory" in t for t in tools), "trader-agent must have aria-memory tools"
 
     def test_trader_agent_has_no_spawn_depth(self, trader_yaml: dict):
         """Trader-agent has max-spawn-depth 0 (no sub-delegation)."""
-        assert trader_yaml.get("max-spawn-depth") == 0, (
-            "trader-agent must have max-spawn-depth: 0"
-        )
+        assert trader_yaml.get("max-spawn-depth") == 0, "trader-agent must have max-spawn-depth: 0"
 
     def test_trader_agent_has_required_skills(self, trader_yaml: dict):
         """Trader-agent lists all 7 required skills."""
@@ -516,42 +505,30 @@ class TestTraderAgentInCapabilityMatrix:
     def test_trader_agent_in_matrix(self, matrix_agents: list[dict]):
         """Trader-agent is listed in the capability matrix."""
         names = [a.get("name") for a in matrix_agents]
-        assert "trader-agent" in names, (
-            "trader-agent not found in agent_capability_matrix.yaml"
-        )
+        assert "trader-agent" in names, "trader-agent not found in agent_capability_matrix.yaml"
 
     def test_conductor_delegates_to_trader(self, matrix_agents: list[dict]):
         """Conductor's delegation_targets includes trader-agent."""
-        conductor = next(
-            (a for a in matrix_agents if a.get("name") == "aria-conductor"), None
-        )
+        conductor = next((a for a in matrix_agents if a.get("name") == "aria-conductor"), None)
         assert conductor is not None
         targets = conductor.get("delegation_targets", [])
-        assert "trader-agent" in targets, (
-            "conductor delegation_targets missing trader-agent"
-        )
+        assert "trader-agent" in targets, "conductor delegation_targets missing trader-agent"
 
     def test_trader_agent_no_sub_delegation(self, matrix_agents: list[dict]):
         """Trader-agent has empty delegation_targets (no sub-delegation)."""
-        trader = next(
-            (a for a in matrix_agents if a.get("name") == "trader-agent"), None
-        )
+        trader = next((a for a in matrix_agents if a.get("name") == "trader-agent"), None)
         assert trader is not None
         assert trader.get("delegation_targets") == [] or trader.get("delegation_targets") is None
 
     def test_trader_agent_type_is_worker(self, matrix_agents: list[dict]):
         """Trader-agent is type worker."""
-        trader = next(
-            (a for a in matrix_agents if a.get("name") == "trader-agent"), None
-        )
+        trader = next((a for a in matrix_agents if a.get("name") == "trader-agent"), None)
         assert trader is not None
         assert trader.get("type") == "worker"
 
     def test_trader_agent_has_finance_intents(self, matrix_agents: list[dict]):
         """Trader-agent has finance intent categories."""
-        trader = next(
-            (a for a in matrix_agents if a.get("name") == "trader-agent"), None
-        )
+        trader = next((a for a in matrix_agents if a.get("name") == "trader-agent"), None)
         assert trader is not None
         intents = trader.get("intent_categories", [])
         assert len(intents) > 0, "trader-agent must have intent categories"
@@ -560,9 +537,7 @@ class TestTraderAgentInCapabilityMatrix:
 
     def test_trader_agent_mcp_dependencies(self, matrix_agents: list[dict]):
         """Trader-agent depends on aria-mcp-proxy and aria-memory."""
-        trader = next(
-            (a for a in matrix_agents if a.get("name") == "trader-agent"), None
-        )
+        trader = next((a for a in matrix_agents if a.get("name") == "trader-agent"), None)
         assert trader is not None
         deps = trader.get("mcp_dependencies", [])
         assert "aria-mcp-proxy" in deps

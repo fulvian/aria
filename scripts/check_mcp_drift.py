@@ -4,7 +4,7 @@
 Validates:
 1. mcp.json has exactly {"aria-memory", "aria-mcp-proxy"} entries
 2. Every entry in agent_capability_matrix.yaml allowed_tools that is
-   a backend tool (not aria-memory__* or synthetic) exists as a
+   a backend tool (not aria-memory_* or synthetic) exists as a
    lifecycle: enabled entry in mcp_catalog.yaml
 3. Every agent prompt's allowed-tools list mirrors its matrix entry
 
@@ -64,8 +64,8 @@ def check_matrix_vs_catalog(matrix_path: Path, catalog_path: Path) -> list[str]:
     for agent in matrix.get("agents") or []:
         name = agent.get("name", "")
         for tool in agent.get("allowed_tools") or []:
-            if "__" in tool:
-                server = tool.split("__", 1)[0]
+            if "_" in tool:
+                server = tool.split("_", 1)[0]
             elif "/" in tool:
                 server = tool.split("/", 1)[0]
             else:

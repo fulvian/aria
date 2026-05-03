@@ -27,7 +27,7 @@ This evidence pack records the final alignment work completed for the following 
 
 ### 1) CLI credentials -> Typer
 
-- Reworked `src/aria/credentials/__main__.py` to Typer commands:
+- Reworked `src/aria/credentials/_main_.py` to Typer commands:
   - `list`
   - `rotate <provider>`
   - `status [--provider]`
@@ -38,7 +38,7 @@ This evidence pack records the final alignment work completed for the following 
 ### 2) Memory HITL queue persistence
 
 - Added migration and table:
-  - `src/aria/memory/migrations/0003__hitl_pending.sql`
+  - `src/aria/memory/migrations/0003_hitl_pending.sql`
   - `src/aria/memory/migrations.py`
   - table name finalized as `memory_hitl_pending` to avoid collision with scheduler `hitl_pending`
 - Added store APIs:

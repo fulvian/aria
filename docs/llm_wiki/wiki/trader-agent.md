@@ -87,7 +87,7 @@ hitl_triggers:
 ## Proxy Invocation
 
 Tutte le operazioni passano tramite `aria-mcp-proxy` con `_caller_id: "trader-agent"`.
-Usa SEMPRE il formato `server__tool` (doppio underscore).
+Usa SEMPRE il formato `server_tool` (doppio underscore).
 
 ### Nota runtime Kilo
 
@@ -95,7 +95,7 @@ Nel runtime Kilo i tool del proxy possono apparire nella tool list come alias a 
 - `aria-mcp-proxy_search_tools`
 - `aria-mcp-proxy_call_tool`
 
-Sono alias runtime dei nomi canonici documentati nel prompt/config (`aria-mcp-proxy__search_tools` / `aria-mcp-proxy__call_tool`).
+Sono alias runtime dei nomi canonici documentati nel prompt/config (`aria-mcp-proxy_search_tools` / `aria-mcp-proxy_call_tool`).
 
 ### Nota `call_tool` / caller identity
 
@@ -116,11 +116,11 @@ in v1.4 dopo una regressione reale sul trader-agent.
 
 ```python
 # Discovery
-aria-mcp-proxy__search_tools({"query": "stock quote", "_caller_id": "trader-agent"})
+aria-mcp-proxy_search_tools({"query": "stock quote", "_caller_id": "trader-agent"})
 
 # Esecuzione
-aria-mcp-proxy__call_tool({
-    "name": "financekit-mcp__get_stock_data",
+aria-mcp-proxy_call_tool({
+    "name": "financekit-mcp_get_stock_data",
     "arguments": {"symbol": "AAPL"},
     "_caller_id": "trader-agent"
 })

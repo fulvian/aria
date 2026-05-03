@@ -277,7 +277,7 @@ Assicurare compatibilità con il sistema proxy e con la policy runtime.
 - il nuovo agente deve poter lavorare con `search_tools` → `call_tool`;
 - tutte le chiamate routed devono essere compatibili con `_caller_id`;
 - le capability devono essere esprimibili nella capability matrix;
-- il naming logico deve essere `server__tool`.
+- il naming logico deve essere `server_tool` (singolo underscore `_` come separatore tra nome server e nome tool). Esempi: `aria-mcp-proxy_search_tools`, `google_workspace_search_gmail_messages`, `tavily-mcp_search`. NON usare mai `server__tool` (doppio underscore — deprecato) né `server/tool` (slash — deprecato).
 
 ### Checklist di boundary
 - Il nuovo agente è:

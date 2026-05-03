@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-05-02T13:45 (v6.10 — productivity-agent / Google Workspace contract reconciliation)
-**Status**: ✅ **v6.10** — corretta la regressione che impediva al `productivity-agent` di interrogare robustamente `google_workspace` tramite proxy: riallineato il contratto dei tool sintetici (`search_tools` → `call_tool`), aggiornato il catalogo ai nomi canonici upstream `workspace-mcp`, corrette skill/prompt/runtime copies e aggiunta compatibilità alias legacy nel broker per i vecchi nomi `google_workspace`.
+**Last Updated**: 2026-05-03T09:34 (v7.0 — naming convention migration double-underscore → single-underscore)
+**Status**: ✅ **v7.0** — completata la migrazione da `server__tool` (doppio underscore) a `server_tool` (singolo underscore) in tutto il codebase. Semplificati i compatibility shim in `_matches()`, `is_tool_allowed()`, `resolve_server_from_tool()` e `_tool_server_name()`. Il formato singolo underscore è ora l'unico standard. 1004 test passanti.
 
 ## Purpose
 
@@ -83,7 +83,7 @@ docs/llm_wiki/
 ### Coordination (L1)
 | Source | Description | Last Updated |
 |--------|-------------|--------------|
-| `.aria/config/agent_capability_matrix.yaml` | Capability matrix YAML canonica (4 agenti), now includes direct `google_workspace__*` reach for `productivity-agent` | 2026-05-01 |
+| `.aria/config/agent_capability_matrix.yaml` | Capability matrix YAML canonica (4 agenti), now includes direct `google_workspace_*` reach for `productivity-agent` | 2026-05-01 |
 | `src/aria/agents/coordination/handoff.py` | **NEW**: Handoff Pydantic model + validator | 2026-04-30 |
 | `src/aria/agents/coordination/envelope.py` | **NEW**: ContextEnvelope + persistenza + cleanup | 2026-04-30 |
 | `src/aria/agents/coordination/registry.py` | **NEW**: AgentRegistry (loader + validator) | 2026-04-30 |
@@ -177,14 +177,14 @@ docs/llm_wiki/
 - 2026-04-30: **v5.0** — **ARCHITETTURA 4 LIVELLI** completa. L1: agent coordination (86 test). L2: MCP catalog + lazy loader. L3: LLM routing dichiarativo. L4: Observability JSON/metriche. 634 test totali. 81 file Python verificati mypy.
 - 2026-05-01: **v6.0 (F1)** — `src/aria/mcp/proxy/` core implementation complete. HybridSearchTransform, CapabilityMatrixMiddleware, catalog loader, credential injector, LM Studio embedder. 35 unit + 3 integration tests.
 - 2026-05-01: **v6.0 (F2)** — Shadow mode: proxy entry added to mcp.json alongside 15 existing servers.
-- 2026-05-01: **v6.0 (F3)** — **CUTOVER**: mcp.json reduced to 2 entries (aria-memory + aria-mcp-proxy). Agent prompts namespaced with `__` tool names + `_caller_id` rule. Tagged `proxy-cutover-v1`.
+- 2026-05-01: **v6.0 (F3)** — **CUTOVER**: mcp.json reduced to 2 entries (aria-memory + aria-mcp-proxy). Agent prompts namespaced with `_` tool names + `_caller_id` rule. Tagged `proxy-cutover-v1`.
 - 2026-05-01: **v6.0 (F4)** — Lazy loader removed (`src/aria/launcher/lazy_loader.py`). `lazy_load`/`intent_tags` stripped from catalog. ADR-0015 written.
 - 2026-05-01: **v6.0 (F5)** — `proxy.*` events + `aria_proxy_*` metrics in observability. All skill files updated to namespaced tool names. Wiki finalized.
-- 2026-05-01: **v6.0 (F6)** — **Debug & stabilizzazione runtime**. Scoperti 3 problemi critici: (1) server rumorosi — creato `mcp-stdio-filter.py` per 4 wrapper; (2) naming mismatch — middleware ora gestisce single/double underscore; (3) capability matrix ora usa wildcard `server__*` invece di nomi esatti.
+- 2026-05-01: **v6.0 (F6)** — **Debug & stabilizzazione runtime**. Scoperti 3 problemi critici: (1) server rumorosi — creato `mcp-stdio-filter.py` per 4 wrapper; (2) naming mismatch — middleware ora gestisce single/double underscore; (3) capability matrix ora usa wildcard `server_*` invece di nomi esatti.
 - 2026-05-01: **v6.1** — Fix search-flow cinema session: riuso stabile della child session Kilo nel gateway (`--session` propagato), proxy con caller-aware backend boot filtering per escludere `google_workspace` da search-agent, validator di delega parent→target corretto, prompt di grounding irrigiditi per follow-up `continua`.
 - 2026-05-01: **v6.2** — Baseline cleanup dei quality gate repository-wide: `ruff check .`, `mypy src` e `pytest -q` tutti verdi. Fix minimi su packaging test MCP, import pytest di `scripts.*`, re-export obsoleto del launcher e configurazione lint/type-check per rumore storico dei test/script.
 - 2026-05-01: **v6.2** — Baseline gate cleanup post-cutover: fixed pytest package/import collisions (`proxy.conftest`, `scripts` visibility), removed stale launcher lazy-loader re-export, added narrow `croniter` mypy override, aligned stale prompt-config tests with proxy wildcard exposure, and scoped Ruff noise down to green gates.
-- 2026-05-01: **v6.3** — Proxy remediation complete: fail-closed middleware, canonical proxy synthetic prompt surface, `productivity-agent` gains direct `google_workspace__*`, `workspace-agent` transitional, ADR-0008 amended.
+- 2026-05-01: **v6.3** — Proxy remediation complete: fail-closed middleware, canonical proxy synthetic prompt surface, `productivity-agent` gains direct `google_workspace_*`, `workspace-agent` transitional, ADR-0008 amended.
 - 2026-05-01: **v6.3a** — Detailed wiki consolidation: refreshed `mcp-proxy`, `mcp-architecture`, `mcp-refoundation`, `productivity-agent`, and `agent-capability-matrix` to match the live post-remediation baseline.
 - 2026-05-01: **v6.3b** — Conductor behavioral remediation: hardened prompt with no-direct-ops section, GW→productivity-agent routing fix, mixed-domain dispatch rules, wiki validity guard, workspace-agent dispatch prohibition. 16 new tests (689 total).
 - 2026-05-01: **v6.3c** — Fixed runtime/source-of-truth drift: aligned the actual Kilo-loaded conductor file under `.aria/kilocode/agents/aria-conductor.md`, restored the Kilo-home template placeholder, and fixed `prompt_inject.py` test isolation so test fixtures no longer corrupt the live conductor prompt.
@@ -192,8 +192,9 @@ docs/llm_wiki/
 - 2026-05-01: **v6.3e** — Added definitive proxy/runtime hardening: middleware now extracts nested `_caller_id` for synthetic `call_tool`, stale Kilo-home conductor artifacts were restored, and conductor/productivity prompts now explicitly forbid code edits, config edits, process killing, and runtime self-remediation during ordinary user workflows.
 - 2026-05-01: **v6.4** — Creato `docs/protocols/protocollo_creazione_agenti.md`: workflow unico per nuovi agenti/sub-agenti, con intake, wiki-first reconstruction, ricerca repo + `github-discovery`, branch di ricerca manuale via ARIA, decision ladder P8, guardrail P9/HITL/wiki.db/proxy, e output obbligatorio dei piani in `docs/plans/agents/`.
 - 2026-05-02: **v6.5** — **trader-agent runtime integration**. Il trader-agent (esistente in `.aria/kilo-home/.kilo/agents/` con 7 skill) era invisibile al conductor perché mancava da tutti i touchpoint runtime. Fix: capability matrix entry, conductor dispatch rules con keyword routing per 40+ termini finanziari, prompt canonico in `.aria/kilocode/agents/trader-agent.md`, delegation chain aggiornata. Aggiornato `protocollo_creazione_agenti.md` con **Fase L (Runtime Integration Checklist)** — 8 touchpoint obbligatori per prevenire integrazioni parziali future. 28 nuovi test trader-agent.
-- 2026-05-02: **v6.7** — **targeted restoration**: conductor prompt regressed → restaurato con trader-agent, no-direct-ops, wiki validity guard, finance dispatch. Kilo-home template coerente con `{{ARIA_MEMORY_BLOCK}}`. 7 trader skill fixate con esempi proxy canonici `server__tool`. Capability matrix con backend finance wildcard per boot-time filtering. 913 test passanti.
+- 2026-05-02: **v6.7** — **targeted restoration**: conductor prompt regressed → restaurato con trader-agent, no-direct-ops, wiki validity guard, finance dispatch. Kilo-home template coerente con `{{ARIA_MEMORY_BLOCK}}`. 7 trader skill fixate con esempi proxy canonici `server_tool`. Capability matrix con backend finance wildcard per boot-time filtering. 913 test passanti.
 - 2026-05-02: **v6.6** — **trader-agent backend MCP registration + credential pipeline**. Scoperto che il commit `41e0ef3` su `feature/trader-agent-mvp` (mai mergiato) conteneva il lavoro completo (20 file, +1957 linee). Recuperato selettivamente: 7 skill, ADR, wiki, 157 test. Registrati 5 backend MCP finanziari nel `mcp_catalog.yaml` (3 stdio enabled, 2 HTTP disabled Phase 2). Setup repos esterni: mcp-fredapi + alpaca-mcp clonati con venv. Credential pipeline: SOPS + .env + CredentialInjector `${VAR}` placeholders. Catalog parser esteso per leggere campo `env`. 877 test passanti.
+- 2026-05-03: **v7.0** — **MCP naming convention migration**: completata la migrazione da `server__tool` (doppio underscore) a `server_tool` (singolo underscore) in 76 file. Semplificati i compatibility shim in 4 funzioni Python. Il formato singolo underscore è ora l'unico standard. 1004 test passanti.
 
 ## Git & GitHub Rules
 

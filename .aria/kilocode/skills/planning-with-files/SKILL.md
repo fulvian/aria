@@ -5,9 +5,9 @@ description: Pianificazione strutturata su file (task_plan.md, findings.md, prog
 trigger-keywords: [pianifica, piano, task, todo,工作计划]
 user-invocable: true
 allowed-tools:
-  - filesystem__*
-  - aria-memory__wiki_update_tool
-  - aria-memory__wiki_recall_tool
+  - filesystem_*
+  - aria-memory_wiki_update_tool
+  - aria-memory_wiki_recall_tool
 max-tokens: 10000
 estimated-cost-eur: 0.02
 ---

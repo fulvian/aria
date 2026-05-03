@@ -229,10 +229,8 @@ def _tool_server_name(tool_name: str) -> str | None:
     cleaned = tool_name.strip()
     if not cleaned or cleaned in DIRECT_SERVER_ALLOWLIST:
         return None
-    if "__" in cleaned:
-        return cleaned.split("__", 1)[0] or None
-    if "/" in cleaned:
-        return cleaned.split("/", 1)[0] or None
+    if "_" in cleaned:
+        return cleaned.split("_", 1)[0] or None
     return None
 
 
