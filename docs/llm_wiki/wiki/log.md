@@ -1,5 +1,26 @@
 # Implementation Log
 
+## 2026-05-03T22:55+02:00 — FIX: booking attivato + credential injection Amadeus
+
+**Operation**: FIX (backend activation + credential injection)
+**Branch**: `feature/traveller-agent-f1`
+**Trigger**: attivazione di tutti i backend traveller in lifecycle enabled + credential injection pattern corretto per Amadeus.
+
+### Changes
+- **booking MCP**: lifecycle `shadow` → `enabled` — ora tutti e 4 i backend traveller sono attivi (airbnb, osm-mcp, aria-amadeus-mcp, booking)
+- **Wrapper script** (`scripts/wrappers/aria-amadeus-wrapper.sh`): riscritto con pattern identico a `brave-wrapper.sh`:
+  - Auto-acquire credenziali da SOPS via `sops --decrypt` + inline Python
+  - Imposta `AMADEUS_CLIENT_ID` e `AMADEUS_CLIENT_SECRET` come env var
+  - Fallback: warning se credenziali mancanti (non crash)
+- **Context7 verification**: confermato pattern `Client(client_id, client_secret)` e auto-read da env var
+- **Aggiornato test catalog**: booking lifecycle `shadow` → `enabled`
+- **157 test**: tutti PASS
+
+### Files modified
+- `.aria/config/mcp_catalog.yaml` (booking: shadow → enabled)
+- `scripts/wrappers/aria-amadeus-wrapper.sh` (credential injection via SOPS)
+- `tests/unit/agents/traveller/test_mcp_catalog_traveller_backends.py` (booking lifecycle test)
+
 ## 2026-05-03T22:22+02:00 — COMPLETE: traveller-agent — tutte le 9 fasi implementate
 
 **Operation**: COMPLETE (traveller-agent foundation plan)
