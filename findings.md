@@ -1,408 +1,215 @@
-# Findings — MCP Proxy Integration Audit (2026-05-01)
+# Findings: Debug Completo Trader-Agent
 
-## Productivity-agent / Google Workspace forensic addendum (2026-05-02)
+## 1. Panoramica Fonti Analizzate
 
-### 1) The strongest current production failure is prompt-level misuse of the proxy
-- `.aria/kilocode/agents/productivity-agent.md` and `.aria/kilo-home/.kilo/agents/productivity-agent.md`
-  both document this as the canonical flow:
-  - `aria-mcp-proxy_call_tool("search_tools", ...)`
-  - `aria-mcp-proxy_call_tool("call_tool", ...)`
-- This is structurally wrong for the current proxy architecture.
-- `src/aria/mcp/proxy/server.py` exposes two separate synthetic tools:
-  - `search_tools(query=...)`
-  - `call_tool(name=..., arguments=...)`
-- Live Kilo log evidence:
-  - `.aria/kilo-home/.local/share/kilo/log/2026-05-02T105845.log:3584`
-  - `ToolError: Cannot resolve backend for tool: call_tool`
-- Conclusion: the agent is being instructed to ask the proxy to resolve a backend named
-  `call_tool`, which can never work.
+| Fonte | Tipo | Scopo |
+|-------|------|-------|
+| `docs/analysis/trader_agent_session_analysis_2026-05-03.md` | Report analisi | Gap analysis della sessione reale |
+| `docs/llm_wiki/wiki/trader-agent.md` v1.4 | Wiki | Stato attuale e gap noti |
+| `docs/llm_wiki/wiki/mcp-proxy.md` | Wiki | Contratto proxy, naming, fasi implementazione |
+| `docs/llm_wiki/wiki/agent-coordination.md` | Wiki | Sistema L1: HandoffRequest, ContextEnvelope, SpawnValidator |
+| `docs/llm_wiki/wiki/observability.md` | Wiki | Tracciamento trace_id, metriche, eventi |
+| `.aria/kilocode/agents/trader-agent.md` (267 linee) | Prompt agente | Istruzioni, tool, frontmatter |
+| `.aria/kilocode/agents/aria-conductor.md` | Prompt conductor | Dispatch rules, spawn-subagent usage |
+| `.aria/config/agent_capability_matrix.yaml` | Config | allowed_tools, delegation, hitl_triggers |
+| `.aria/config/mcp_catalog.yaml` | Catalog | Backend finanziari e relativi stati |
+| `.aria/kilocode/mcp.json` | Config | 2 entries: aria-memory + aria-mcp-proxy |
+| `src/aria/mcp/proxy/server.py` | Source | build_proxy, _tool_server_name, _load_backends |
+| `src/aria/mcp/proxy/broker.py` | Source | LazyBackendBroker, resolve_server_from_tool |
+| `src/aria/mcp/proxy/middleware.py` | Source | CapabilityMatrixMiddleware, fail-closed, _caller_id |
+| `src/aria/agents/coordination/registry.py` | Source | YamlCapabilityRegistry, wildcard matching |
+| `src/aria/agents/coordination/spawn.py` | Source | spawn_subagent_validated validator |
+| `src/aria/agents/coordination/handoff.py` | Source | HandoffRequest Pydantic model |
+| `tests/unit/mcp/proxy/test_broker.py` | Tests | 63 unit test broker + middleware |
+| `tests/unit/mcp/proxy/test_middleware.py` | Tests | Two-pass flow, _caller_id propagation |
+| `.aria/kilocode/skills/trading-analysis/SKILL.md` | Skill | Orchestratore pipeline analisi |
+| `.aria/kilocode/skills/fundamental-analysis/SKILL.md` | Skill | Analisi fondamentale |
 
-### 2) Google Workspace tool names in catalog/skills are stale relative to upstream `workspace-mcp`
-- `.aria/config/mcp_catalog.yaml` currently advertises names such as:
-  - `gmail_send`, `gmail_search`, `calendar_list_events`, `drive_list`, `drive_read_file`,
-    `docs_create`, `sheets_create`, `slides_create`
-- Context7 verification against `/taylorwilsdon/google_workspace_mcp` shows the current
-  upstream canonical tool names are instead:
-  - Gmail: `search_gmail_messages`, `get_gmail_message_content`, `send_gmail_message`, `draft_gmail_message`
-  - Calendar: `list_calendars`, `get_events`, `get_event`, `create_event`, `modify_event`, `delete_event`
-  - Drive: `search_drive_files`, `get_drive_file_content`, `list_drive_items`, `create_drive_file`
-  - Docs: `search_docs`, `get_doc_content`, `list_docs_in_folder`, `create_doc`, ...
-  - Sheets: `create_spreadsheet`, `read_sheet_values`, `modify_sheet_values`, ...
-  - Slides: `create_presentation`, `get_presentation`, `batch_update_presentation`, ...
-- Live Kilo log evidence:
-  - `.aria/kilo-home/.local/share/kilo/log/2026-05-02T105845.log:12854`
-  - `ToolError: Unknown tool: 'drive_list'`
-- Conclusion: even when proxy routing succeeds, the backend receives non-existent tool names.
+---
 
-### 3) Skills reinforce the stale naming instead of the real upstream contract
-- `.aria/kilocode/skills/meeting-prep/SKILL.md` uses:
-  - `google_workspace_calendar_list_events`
-  - `google_workspace_gmail_search`
-  - `google_workspace_drive_read_file`
-- `.aria/kilocode/skills/email-draft/SKILL.md` uses:
-  - `google_workspace_gmail_search`
-  - `google_workspace_gmail_get_thread`
-  - `google_workspace_gmail_draft_create`
-- These names do not match the Context7-verified upstream surface.
-- Conclusion: the productivity workflow layer is currently teaching the model the wrong API.
+## 2. RCA #1: FMP MCP Disabilitato (HTTP/SSE)
 
-### 4) Proxy core is not the primary failure point for this incident
-- `src/aria/mcp/proxy/server.py` shows the lazy catalog/broker design is coherent:
-  - discovery is via `search_tools`
-  - execution is via `call_tool`
-  - backend resolution is delegated to `LazyBackendBroker.resolve_tool()`
-- `src/aria/mcp/proxy/broker.py` correctly supports:
-  - `server_tool`
-  - `server_tool`
-  - `server/tool`
-- The previously known `_caller_id` propagation bug was already fixed in middleware and is
-  not the best explanation for the current productivity-agent failures.
-- Conclusion: current breakage is contract drift above the proxy, not a broker-resolution defect.
+### Stato attuale
 
-### 5) Tests currently preserve the drift instead of catching it
-- `tests/unit/mcp/proxy/test_broker.py` and `tests/unit/mcp/proxy/test_server.py`
-  still encode stale names like `gmail_send`.
-- `tests/unit/agents/productivity/test_prompt_contract.py` checks for proxy/HITL presence but
-  does not validate that the documented example invocations are syntactically correct.
-- `tests/integration/productivity/test_email_draft_e2e.py` still models a mocked
-  `workspace-agent` delegate using dotted pseudo-actions (`gmail.search`, `gmail.draft_create`),
-  not the current proxy + backend contract.
-- Conclusion: the repository lacks an e2e regression test that proves the live productivity flow
-  against the real `google_workspace` tool contract.
+| Backend | Trasporto | Stato | Tool | Catalogo |
+|---------|-----------|-------|------|----------|
+| `financekit-mcp` | stdio (uvx) | ✅ ENABLED | 12+ | `mcp_catalog.yaml` |
+| `mcp-fredapi` | stdio (Python) | ✅ ENABLED | 3 | `mcp_catalog.yaml` |
+| `alpaca-mcp` | stdio (Python) | ✅ ENABLED | 22+ | `mcp_catalog.yaml` |
+| `financial-modeling-prep-mcp` | HTTP/SSE | ❌ DISABLED | 253+ | `mcp_catalog.yaml lifecycle: disabled` |
+| `helium-mcp` | HTTP/streamable | ❌ DISABLED | 9 | `mcp_catalog.yaml lifecycle: disabled` |
 
-### 6) Capability policy is permissive enough; naming is the blocker
-- `.aria/config/agent_capability_matrix.yaml` grants `productivity-agent`:
-  - `google_workspace_*`
-  - `google-workspace_*`
-- This means policy is not the main blocker for calling Google Workspace tools.
-- The blocker is that prompts/catalog/tests are asking for the wrong tool names.
+### Root cause
 
-### 7) Existing docs already contain the correct upstream vocabulary, creating source-of-truth drift
-- `docs/llm_wiki/wiki/google-workspace-mcp-write-reliability.md` already documents the
-  upstream tool mapping with names like `search_gmail_messages`, `create_doc`,
-  `create_spreadsheet`, `create_presentation`, `search_drive_files`.
-- Therefore the repo currently has an internal contradiction:
-  - wiki/docs say one thing,
-  - catalog/skills/tests/runtime prompts say another.
-- Conclusion: the required fix is a repo-wide contract reconciliation, not a one-line patch.
+`financial-modeling-prep-mcp` e `helium-mcp` usano trasporto HTTP/SSE. Il proxy (`aria-mcp-proxy`) usa esclusivamente trasporto `stdio` per le connessioni backend. La funzione `LazyBackendBroker._get_or_create()` chiama `create_proxy()` di FastMCP che supporta solo configurazioni `mcpServers` stdio.
 
-### 8) Working-tree hygiene note
-- `git status --short` shows pre-existing uncommitted changes on branch `fix/trader-agent-recovery`.
-- This does not block forensic diagnosis, but it is a risk for a clean remediation branch and for
-  unambiguous verification of this productivity-agent fix set.
+### Impatto
 
-## Trader-agent forensic addendum (2026-05-02)
+- **FMP MCP**: 253+ tool fondamentali/tecnici non accessibili. Le abilità `fundamental-analysis` e `technical-analysis` nei loro SKILL.md citano FMP come fonte primaria, ma non è disponibile.
+- **Helium MCP**: News/sentiment/options non accessibili. Le abilità `sentiment-analysis` e `options-analysis` nei loro SKILL.md citano Helium come fonte primaria, ma non è disponibile.
+- **Copertura effettiva**: Solo il 30% circa della copertura dati finanziaria desiderata è disponibile.
 
-### 1) Missing original implementation plan is real, not user error
-- `docs/llm_wiki/wiki/trader-agent.md` and `docs/foundation/decisions/ADR-00XX-trader-agent-introduction.md`
-  both cite `docs/plans/agents/trader_agent_foundation_plan.md` as the source plan.
-- Filesystem glob/search found **no such file** in the repo.
-- `git show 41e0ef3 --name-only` (the recovered trader-agent foundation commit) also shows
-  **no plan file** ever committed in that branch snapshot.
-- Conclusion: the wiki/ADR currently reference a non-existent artifact. This is a provenance bug,
-  not merely a misplaced file.
+### Fix potenziali
 
-### 2) Active conductor prompt is currently regressed by template drift
-- Current uncommitted diff in `.aria/kilocode/agents/aria-conductor.md` removes:
-  - trader-agent listing and finance dispatch rules;
-  - prior productivity/workspace hardening;
-  - no-direct-ops / no-self-remediation / wiki-validity sections.
-- The same stale content exists in `.aria/kilo-home/.kilo/agents/aria-conductor.md` and
-  `.aria/kilo-home/.kilo/agents/_aria-conductor.template.md`.
-- `src/aria/memory/wiki/prompt_inject.py` regenerates the active conductor file from the
-  Kilo-home template and also writes it into `.aria/kilocode/agents/aria-conductor.md`.
-- Conclusion: any wiki/profile regeneration can silently overwrite the live conductor prompt
-  with a stale template, reintroducing old routing behavior.
+1. **Wrapper stdio**: Creare script wrapper che traduce HTTP/SSE in stdio (es. `financial-modeling-prep-wrapper.sh`)
+2. **FastMCP update**: Verificare se FastMCP supporta già HTTP/SSE nativamente
+3. **mcp-gateway**: Usare `mcp-gateway` come intermediario HTTP→stdio
+4. **Dual proxy**: Proxy separato per HTTP/SSE backends
 
-### 3) This regression is test-visible right now
-- `uv run pytest -q tests/unit/agents/test_conductor_dispatch.py tests/unit/agents/trader/test_config_consistency.py tests/unit/agents/trader/test_skills.py`
-  currently yields **23 failures / 180 passes**.
-- All failures are concentrated in `tests/unit/agents/test_conductor_dispatch.py` and match the
-  stale-conductor symptoms (missing trader-agent rules, missing no-direct-ops, workspace/productivity
-  regression, missing wiki validity guard).
-- `uv run pytest -q tests/unit/mcp/proxy/test_server.py tests/unit/memory/wiki/test_prompt_inject.py`
-  yields **16 passed**, meaning the existing prompt-injection tests do not currently detect template
-  content staleness against the active/runtime contract.
+### Verifica Context7
 
-### 4) Trader-agent prompt/skill proxy examples are internally wrong
-- `.aria/kilocode/agents/trader-agent.md` and `.aria/kilocode/skills/trading-analysis/SKILL.md`
-  instruct discovery via:
-  - `aria-mcp-proxy_call_tool("search_tools", ...)`
-  instead of direct `aria-mcp-proxy_search_tools(...)`.
-- They also show legacy slash-form tool names like `financial-modeling-prep-mcp/get_stock_data`
-  despite the documented canonical naming model being `server_tool`.
-- The same invalid example pattern appears in `search-agent.md` and `productivity-agent.md`, so
-  this is systemic prompt drift, not trader-only.
+Da verificare: FastMCP supporta trasporto HTTP/SSE per `create_proxy`?
 
-### 5) Trader-agent guidance assumes disabled backends are live
-- `financial-modeling-prep-mcp` and `helium-mcp` are marked `lifecycle: disabled` in
-  `.aria/config/mcp_catalog.yaml` because HTTP transport is not yet supported by the proxy.
-- Yet trader-agent prompt/skills/wiki still present them as primary paths for:
-  - stock/fundamental analysis,
-  - options,
-  - sentiment/news.
-- Currently enabled finance backends are only:
-  - `financekit-mcp`
-  - `mcp-fredapi`
-  - `alpaca-mcp`
-- Conclusion: live trader workflows are under-specified for the actually enabled backend set.
+---
 
-### 6) Trader-agent is incompatible with boot-time backend filtering as currently modeled
-- `src/aria/mcp/proxy/server.py::_allowed_server_names()` derives allowed backend server names
-  from the caller's `allowed_tools` list.
-- `trader-agent` capability matrix entry currently lists only:
-  - `aria-mcp-proxy_search_tools`
-  - `aria-mcp-proxy_call_tool`
-  - memory/HITL/sequential-thinking tools
-- Therefore, if `ARIA_CALLER_ID=trader-agent` is ever used at proxy boot time,
-  `_filter_backends_for_caller()` would load **zero finance backends**.
-- Search/productivity still work with this design because their matrix entries still include
-  backend wildcards (`searxng-script_*`, `filesystem_*`, etc.). Trader-agent does not.
+## 3. RCA #2: KiloCode `task` vs ARIA `spawn-subagent`
 
-### 7) HITL tool naming remains inconsistent across the stack
-- Prompts/tests/skills use `hitl-queue_ask`.
-- The live directly available memory MCP tools in this environment are `aria-memory_hitl_*`.
-- `agent_capability_matrix.yaml` mixes both conventions: conductor uses `aria-memory_hitl_*`,
-  while workspace/productivity/trader use `hitl-queue_ask`.
-- This is a separate contract drift that can break side-effect gating even after routing is fixed.
+### Meccanismo di dispatch attuale
 
-### 8) User transcript evidence is consistent with tool-surface drift
-- The failing trader transcript shows the agent falling back to filesystem/bash inspection of
-  Kilo config instead of using proxy tools.
-- That behavior is consistent with one or both of:
-  1. stale prompt/skill instructions; and/or
-  2. a session where the expected proxy tool surface was not actually available.
-- Additional important detail: the transcript inspected `kilo.json` paths, while the repo's live
-  runtime MCP definitions are currently in `.aria/kilocode/mcp.json` and `.aria/kilo-home/.config/kilo/kilo.jsonc`.
+Il conductor usa `spawn-subagent` (tool nativo) per delegare ai sub-agenti. Il formato attuale del payload non include `HandoffRequest` validato:
 
-### 9) Proxy-tool absence is now explained by an actual startup crash
-- Reproducing `kilo run --agent trader-agent ...` under the same runtime env showed that the
-  agent really sees no `aria-mcp-proxy_*` tools; the symptom is not hallucinated.
-- `kilo mcp list` showed:
-  - `aria-memory` connected
-  - `aria-mcp-proxy` failed with `MCP error -32000: Connection closed`
-- Debug logs exposed the concrete exception:
-  - `AttributeError: 'CredentialManager' object has no attribute 'get'`
-- Crash path:
-  - `aria.mcp.proxy._main_ -> build_proxy() -> _load_backends() -> CredentialInjector._lookup()`
-  - `CredentialInjector` called `CredentialManager.get(var)`
-  - `CredentialManager` did not implement `get()`
+```json
+{
+  "goal": "task description",
+  "constraints": "vincoli (opzionale)",
+  "required_output": "formato atteso (opzionale)",
+  "timeout": 120,
+  "trace_id": "trace_<descrizione>"
+}
+```
 
-### 10) Why this broke only now
-- The proxy boots even with synthetic tools only, but it still resolves catalog backend env placeholders during startup.
-- The trader-agent restoration enabled finance backends in the catalog that require:
-  - `FRED_API_KEY`
-  - `ALPACA_API_KEY`
-  - `ALPACA_API_SECRET`
-- Because credential resolution crashed before proxy startup completed, Kilo never exposed the proxy synthetic tools to the agent.
+### Cosa prevede l'architettura L1
 
-### 11) Runtime tool naming nuance confirmed
-- In the live Kilo runtime, the proxy tools are exposed to the model as:
-  - `aria-mcp-proxy_search_tools`
-  - `aria-mcp-proxy_call_tool`
-- This is the runtime single-underscore alias form of the canonical prompt/config names:
-  - `aria-mcp-proxy_search_tools`
-  - `aria-mcp-proxy_call_tool`
-- The middleware/registry already tolerate single/double underscore forms, but prompt/skill text needed an explicit note so the agent does not get confused when it inspects the visible tool list.
+```python
+class HandoffRequest(BaseModel):
+    goal: str = Field(..., max_length=500)
+    constraints: str | None = None
+    required_output: str | None = None
+    timeout_seconds: int = Field(default=120, ge=10, le=300)
+    trace_id: str
+    parent_agent: str
+    spawn_depth: int = Field(default=1, ge=1, le=2)
+    envelope_ref: str | None = None
+```
 
-### 12) `call_tool` had a real two-pass caller propagation bug
-- Runtime reproduction against `build_proxy(strict=False)` proved that nested `_caller_id` on synthetic `call_tool` requests was not enough.
-- The middleware is invoked twice:
-  1. synthetic pass on `call_tool`
-  2. backend pass on the actual tool (`financekit-mcp_crypto_price`, etc.)
-- In pass 1 the middleware stripped nested `_caller_id` too early, so pass 2 received no caller identity and fail-closed correctly.
-- Fix direction: preserve/reinject `_caller_id` between pass 1 and pass 2, then strip it only immediately before the real backend invocation.
+Il validator `spawn_subagent_validated()` esiste ma **NON viene chiamato** perché non è integrato nel flusso del conductor. Il conductor invoca direttamente `spawn-subagent` tool senza passare dalla validazione ARIA.
 
-### 13) Crypto skill contract had live schema drift
-- `financekit-mcp_crypto_price` requires `coin` (CoinGecko ID), not `symbol`.
-- `financekit-mcp_crypto_search` exists and should be used first to resolve user-facing names/symbols to CoinGecko IDs.
-- `financekit-mcp_technical_analysis` accepts crypto tickers like `BTC-USD`, `ETH-USD`.
-- The old crypto skill example was therefore structurally wrong even after proxy connectivity had been fixed.
+### Problema critico: visibilità tool proxy in sub-sessione
 
-## Wiki-first context
-- Read first: `docs/llm_wiki/wiki/index.md`, `docs/llm_wiki/wiki/log.md`, `docs/llm_wiki/wiki/mcp-proxy.md`
-- Relevant source documents:
-  - `docs/plans/mcp_search_tool_plan_1.md`
-  - `docs/superpowers/specs/2026-05-01-mcp-tool-search-design.md`
-  - `docs/foundation/decisions/ADR-0015-fastmcp-native-proxy.md`
+La domanda centrale è: **quando il conductor spawna il trader-agent tramite KiloCode, il sub-agente vede i tool del proxy (`aria-mcp-proxy_search_tools` / `aria-mcp-proxy_call_tool`)?**
 
-## Files inspected
+Evidenze:
+- `mcp.json` ha `aria-mcp-proxy` configurato
+- `trader-agent.md` frontmatter dichiara `mcp-dependencies: [aria-mcp-proxy, aria-memory]`
+- I tool `aria-mcp-proxy_search_tools` e `aria-mcp-proxy_call_tool` sono elencati in `allowed-tools`
+- **Tuttavia**: La sessione reale mostra ZERO chiamate proxy
 
-### Runtime / config
-- `.aria/kilocode/mcp.json`
-- `.aria/config/agent_capability_matrix.yaml`
-- `.aria/config/mcp_catalog.yaml`
-- `src/aria/mcp/proxy/server.py`
-- `src/aria/mcp/proxy/middleware.py`
-- `src/aria/agents/coordination/registry.py`
-- `src/aria/gateway/conductor_bridge.py`
+Ipotesi diagnostica:
+1. **Strangling**: I tool proxy sono VISIBILI ma il modello LLM non li chiama (preferisce conoscenza interna)
+2. **Invisibilità**: I tool proxy NON sono visibili nella tool list del sub-agente KiloCode
+3. **Timeout**: Il sub-agent tenta chiamate proxy che vanno in timeout (620.5s di latenza supporta questa ipotesi)
 
-### Agent prompts
-- `.aria/kilocode/agents/aria-conductor.md`
-- `.aria/kilocode/agents/search-agent.md`
-- `.aria/kilocode/agents/workspace-agent.md`
-- `.aria/kilocode/agents/productivity-agent.md`
+### `_tool_server_name()` verification
 
-### Skills
-- `.aria/kilocode/skills/deep-research/SKILL.md`
-- `.aria/kilocode/skills/office-ingest/SKILL.md`
-- `.aria/kilocode/skills/meeting-prep/SKILL.md`
-- `.aria/kilocode/skills/email-draft/SKILL.md`
-- skills inventory under `.aria/kilocode/skills/`
+```python
+_tool_server_name("financekit-mcp_*")  → "financekit-mcp" ✅ (hyphen ok)
+_tool_server_name("google_workspace_*") → "google" ❌ (underscore in server name!)
+```
 
-## Context7 verification
-- Library resolved: `/prefecthq/fastmcp`
-- Verified behavior:
-  - search transforms expose synthetic `search_tools` and `call_tool`
-  - middleware hooks can intercept `on_list_tools` / `on_call_tool`
-  - FastMCP does not solve ARIA-side caller identity propagation or factual grounding
+BUG CONFERMATO: `_tool_server_name()` per `google_workspace_*` estrae `"google"` invece di `"google_workspace"`. Questo causa **backends filtrati erroneamente** quando `ARIA_CALLER_ID` è impostato.
 
-## Main findings
+Per il trader-agent non è un problema (nomi senza underscore), ma per productivity-agent/workspace-agent è un bug attivo.
 
-### 1) Plan/spec drift: prompts do not follow the F3 canonical tool contract
-- `docs/plans/mcp_search_tool_plan_1.md` F3.3 explicitly says agent frontmatter should expose only:
-  - `aria-mcp-proxy_search_tools`
-  - `aria-mcp-proxy_call_tool`
-  - memory tools as needed
-- Current prompts instead expose backend wildcards directly:
-  - `search-agent.md`: `searxng-script_*`, `tavily-mcp_*`, `exa-script_*`, etc.
-  - `workspace-agent.md`: `google_workspace_*`
-  - `productivity-agent.md`: `markitdown-mcp_*`, `filesystem_*`, etc.
-- This is inconsistent with the proxy cutover design and weakens the “single MCP surface” abstraction.
+---
 
-### 2) Caller-aware backend boot filtering is implemented but not actually wired
-- `src/aria/mcp/proxy/server.py` filters booted backends only when `ARIA_CALLER_ID` is present.
-- `.aria/kilocode/mcp.json` does not set `ARIA_CALLER_ID` for the proxy process.
-- `src/aria/gateway/conductor_bridge.py` does not inject `ARIA_CALLER_ID` when launching Kilo.
-- No code path inspected sets `X-ARIA-Caller-Id` either.
-- Result: the proxy likely boots the full enabled backend catalog in real sessions, contrary to the intended per-agent isolation.
+## 4. RCA #3: Verifica Runtime Uso Proxy
 
-### 3) Middleware is still fail-open when caller identity is absent
-- `CapabilityMatrixMiddleware.on_list_tools()` returns all tools if caller resolution fails.
-- `on_call_tool()` denies only when a caller is present; otherwise the call proceeds.
-- The design/spec describe caller anomaly tracking, but current implementation does not fail closed and does not appear to emit the documented metric/event hooks from middleware.
+### Stato attuale
 
-### 4) `search_tools` discovery can still leak unrelated backend tools
-- Synthetic tools are always visible, which is expected.
-- But if caller-aware backend boot filtering is inactive, `search_tools` can search across all booted backends.
-- That reintroduces the exact cross-agent noise/problem the proxy F7 fix was meant to solve.
+- `CapabilityMatrixMiddleware` verifica che i tool chiamati siano nella `allowed_tools` dell'agente
+- Il middleware è **fail-closed**: se l'identità chiamante è assente, nega tool non sintetici
+- **Non esiste** un meccanismo che verifichi se l'agente ha effettivamente chiamato `search_tools`/`call_tool`
 
-### 5) Skills are not harmonized with the proxy invocation model
-- `deep-research` still documents direct provider usage and contains no proxy `_caller_id` guidance.
-- `meeting-prep` and `email-draft` still use dotted pseudo-calls like `calendar.list_events`, `gmail.search`, `gmail.get_thread`, `gmail.draft_create` instead of real proxy/backend invocation patterns.
-- `office-ingest` still documents direct `markitdown-mcp_convert_to_markdown` use.
-- This means agent prompts mention `_caller_id`, but skills still train agents toward non-canonical tool usage.
+### Gap
 
-### 6) `deep-research` frontmatter is internally inconsistent
-- It omits `scientific-papers-mcp_*` from `allowed-tools`.
-- The body still requires `scientific-papers-mcp_search_papers` for academic tier 2.
+Il prompt dice "usa il proxy per tutte le operazioni finanziarie" ma:
+1. L'agente può produrre output senza chiamare alcun tool
+2. Non c'è un guard runtime che obblighi l'uso del proxy
+3. Il conductor non verifica la presenza di chiamate proxy nell'output dell'agente
 
-### 7) Naming drift remains in prompt body examples
-- `search-agent.md` still contains slash-form examples such as:
-  - `scientific-papers-mcp/search_papers`
-  - `scientific-papers-mcp/fetch_top_cited`
-- The current proxy/matrix compatibility layer accepts multiple forms, but the prompt examples are still stale relative to the intended post-cutover convention.
+### Impatto
 
-### 8) Conductor prompt has unresolved tool/policy drift
-- `aria-conductor.md` declares `aria-mcp-proxy` as an MCP dependency but does not expose or explain a canonical proxy usage path for the conductor.
-- It instructs HITL through `hitl-queue/ask`, while the actual allowed tools/matrix entries use memory-backed HITL tools (`aria-memory_hitl_*`) and not `hitl-queue_ask` for the conductor.
-- There are also live uncommitted modifications in:
-  - `.aria/kilocode/agents/aria-conductor.md`
-  - `.aria/kilo-home/.kilo/agents/aria-conductor.md`
+L'agente produce analisi basate su conoscenza LLM (dati non live), passando inosservato.
 
-### 9) Required skills inventory is incomplete vs prompt declarations
-- Missing from `.aria/kilocode/skills/`:
-  - `source-dedup`
-  - `calendar-orchestration`
-  - `doc-draft`
-- Yet they are still declared in prompt frontmatter:
-  - `search-agent.md` requires `source-dedup`
-  - `workspace-agent.md` requires `calendar-orchestration`, `doc-draft`
-- This is a concrete integration gap, not just wording drift.
+---
 
-### 10) Observability contract appears only partially implemented
-- Docs/spec mention `aria_proxy_caller_missing_total` anomaly counting and `proxy.caller_anomaly` events.
-- Metrics/events constants exist, but the inspected middleware currently only logs `proxy.tool_denied`; it does not appear to increment caller-missing metrics or emit caller-anomaly events in the missing-caller path.
+## 5. Proxy Middleware Flow Corretto
 
-## High-priority fix buckets
-1. **Runtime enforcement**
-   - propagate caller identity end-to-end
-   - decide whether the proxy must fail closed without caller identity
-2. **Canonical invocation model**
-   - align prompts/matrix/tests on either synthetic proxy tools only or explicitly justified direct backend exposure
-3. **Skill normalization**
-   - rewrite stale dotted/slash/direct-backend instructions
-   - add `_caller_id` guidance where proxy calls are expected
-4. **Inventory integrity**
-   - restore or remove missing required skills
-5. **Docs vs runtime reconciliation**
-   - update wiki/spec/ADR only after the runtime contract is made true again
+Dopo l'analisi del codice, il flusso a due passaggi del middleware è confermato corretto:
 
-## Architectural boundary research — new direction under evaluation
+```
+Pass 1: LLM → call_tool({name: "financekit-mcp_...", arguments: {_caller_id: "trader-agent"}})
+  → Middleware: estrae _caller_id, re-inietta in arguments nidificati
+  → _call_tool(): _strip_caller_id() rimuove _caller_id
+  → broker.call(server, tool, clean_args)
 
-### Local blueprint tension
-- Blueprint P9 currently encodes tool scoping as near-exclusive per sub-agent and caps sub-agent MCP tools at 20.
-- Blueprint §8.3 / §8.5 and ADR-0008 intentionally separated `workspace-agent` and `productivity-agent` mainly to avoid overlap and tool-count blow-up.
-- With the MCP proxy and policy layer, the original assumption “tool exclusivity = safest architecture” is now under pressure.
+Pass 2: broker → FastMCP.create_proxy(single-backend)
+  → Chiama tool backend senza _caller_id (già rimosso)
+```
 
-### External best-practice signals
-- **Microsoft (2025, Designing Multi-Agent Intelligence)**
-  - Avoid keeping highly similar agents separate when they overlap in knowledge/action scope.
-  - Refactor or group similar agents under shared interfaces/capabilities.
-  - Supervisor/group abstraction is useful as domains scale.
-- **IBM (2026, AI agent security guide)**
-  - Keep least privilege, permission gating, audit logging, governance, approval workflows.
-  - The real control point is policy and validation, not arbitrary fragmentation.
-- **Knostic (2026, multi-agent security)**
-  - Capability scoping, zero-trust between agents, isolated context windows, hardened orchestrator.
-  - Warns specifically about capability bleed and over-shared toolsets without policy.
-- **arXiv 2601.13671 (2026)**
-  - Specialized agents remain valuable, but orchestration + policy + least-privilege communication are the backbone.
-  - Privacy should restrict sharing to task-relevant information, not necessarily mandate one-agent-per-tool ownership.
+Questo flusso è corretto e testato (`test_middleware.py` → `test_two_pass_call_tool_preserves_caller_into_backend_pass`).
 
-### Architectural synthesis
-- The evidence supports **relaxing tool exclusivity**, not removing governance.
-- The stronger invariant should become:
-  - **workflow/domain cohesion for agent boundaries**
-  - **policy-scoped active capabilities per task/session**
-  - **least privilege + HITL + auditability**
-- This means ARIA should likely move away from “MCP belongs to one agent” and toward “MCP can be shared, but callable operations are scoped per agent/per task”.
+---
 
-### Candidate models
-1. **Status quo / strict exclusive MCP ownership**
-   - strongest static blast-radius boundaries
-   - worst for adjacent workflows; causes delegation inflation
-2. **Shared MCP pools with domain-capability agents**
-   - best workflow fit
-   - requires strong proxy policy, caller identity, audit, read/write splitting
-3. **Hybrid model (current best recommendation)**
-   - keep distinct domains where they are truly distinct (`search-agent`)
-   - relax exclusivity where domains are adjacent (`workspace-agent` + `productivity-agent`)
-   - use shared MCP access governed by policy-scoped capability bundles
+## 6. Gap Aggiuntivi Scoperti
 
-### Current recommendation for ARIA
-- Prefer the **hybrid model**.
-- Near-term end-state should likely evolve toward:
-  - `search-agent`
-  - unified **productivity** domain agent (local files + office ingest + Google Workspace)
-  - existing system agents unchanged
-- Safer transition path:
-  1. keep both agents temporarily
-  2. let `productivity-agent` acquire scoped `google_workspace` capabilities under proxy policy
-  3. use `workspace-agent` only as compatibility/privileged fallback for a short migration window
-  4. later merge into **`productivity-agent` as the single surviving name** if runtime and prompts stay clean
+### Gap A.1: Conductor non passa `trace_id` strutturato
 
-### Blueprint / ADR implications
-- Preserve:
-  - isolation first
-  - HITL on destructive/external actions
-  - conductor non-operational role
-  - child-session isolation
-- Reword P9 from static exclusive tool ownership to something like:
-  - **"Scoped active capabilities <= 20 per task/session"**
-  - cap applies to simultaneously exposed callable tools, not permanent ownership
-- ADR-0008 likely needs amendment or supersession because its anti-overlap reasoning predates the proxy-era policy control plane.
+Il conductor usa `"trace_id": "trace_<descrizione>"` (stringa informale) invece di UUIDv7. Questo viola L4 (observability.md §2).
 
-### User-approved naming constraint
-- The converged single work-domain agent must retain the name **`productivity-agent`**.
-- `workspace-agent` should be considered transitional and later deprecated/removed, not the surviving canonical name.
+### Gap A.2: Skill pipeline mai attivata
+
+7 skills esistono (`trading-analysis`, `fundamental-analysis`, `technical-analysis`, `macro-intelligence`, `sentiment-analysis`, `options-analysis`, `crypto-analysis`) ma non vengono mai caricate dal trader-agent. Il prompt del trader-agent non dice di caricarli, e il meccanismo `required-skills` nel frontmatter non è supportato dal runtime KiloCode.
+
+### Gap A.3: Capability matrix `mcp-dependencies` non risolte dal conductor per `spawn-subagent`
+
+Il conductor ha `mcp-dependencies: [aria-memory, aria-mcp-proxy]`, ma quando spawna trader-agent, non c'è garanzia che `aria-mcp-proxy` sia esposto al sub-agente.
+
+### Gap A.4: `wiki_update_tool` chiamato dal conductor, non dal trader-agent
+
+Il conductor esegue `wiki_update_tool` al termine della sessione, violando il principio che ogni agente gestisce la propria persistenza (GAP #7).
+
+---
+
+## 7. Conformità Backend Finanziari
+
+### Backend abilitati
+
+| Backend | Tool principali | API Key | Coverage |
+|---------|----------------|---------|----------|
+| `financekit-mcp` | stock_price, stock_quote, technical_analysis, crypto_*, etf_info, market_indices, treasury_rates | keyless | Free, 12+ tool |
+| `mcp-fredapi` | get_fred_series_observations, get_fred_series_search, get_fred_series_info | FRED_API_KEY (SOPS) | Macro (tassi, CPI, NFP) |
+| `alpaca-mcp` | get_stock_bars, get_stock_quote, get_stock_snapshot, get_option_chain, get_crypto_*, get_news | ALPACA_API_KEY (SOPS) | Market data, opzioni, news |
+
+### Backend disabilitati
+
+| Backend | Tool | Coverage mancante |
+|---------|------|-------------------|
+| `financial-modeling-prep-mcp` ⛔ | 253+ tool | Financial statements, DCF, analyst estimates, stock screener, rating, price target |
+| `helium-mcp` ⛔ | 9 tool | News sentiment, bias analysis, options pricing, AI strategy |
+
+### Copertura effettiva con backends ENABLED
+
+| Dimensione analisi | Backend | Copertura |
+|-------------------|---------|-----------|
+| Quote prezzi stock/ETF | financekit-mcp + alpaca-mcp | ✅ OK |
+| Dati storici | alpaca-mcp (bars) | ✅ OK |
+| Analisi tecnica (RSI, MACD, SMA) | financekit-mcp (technical_analysis) | ✅ OK |
+| Dati macro (tassi, CPI, GDP) | mcp-fredapi | ✅ OK |
+| Crypto | financekit-mcp (crypto_*) | ✅ OK |
+| Financial statements | ❌ NESSUNO (FMP disabilitato) | ❌ GAP |
+| DCF, analyst estimates | ❌ NESSUNO (FMP disabilitato) | ❌ GAP |
+| News sentiment | ❌ NESSUNO (Helium disabilitato) | ❌ GAP |
+| Options chain/analysis | alpaca-mcp (parziale) | ⚠️ Parziale |
+| Stock screener | ❌ NESSUNO (FMP disabilitato) | ❌ GAP |
+| Rating/price target | ❌ NESSUNO (FMP disabilitato) | ❌ GAP |

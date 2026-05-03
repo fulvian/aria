@@ -1,6 +1,6 @@
 # MCP Proxy (aria-mcp-proxy)
 
-**Last Updated**: 2026-05-03T09:58+02:00
+**Last Updated**: 2026-05-03T12:30+02:00
 **Status**: Active ✅ — naming convention unified to single underscore `server_tool` (v7.0)
 **Source**: `src/aria/mcp/proxy/`, `.aria/config/proxy.yaml`, `.aria/kilocode/mcp.json`, `.aria/config/agent_capability_matrix.yaml`, `docs/superpowers/specs/2026-05-01-mcp-tool-search-design.md`, `docs/foundation/decisions/ADR-0015-fastmcp-native-proxy.md`, `docs/foundation/decisions/ADR-0008-productivity-agent-introduction.md`
 
@@ -166,6 +166,34 @@ Utilizzare sempre il singolo underscore in:
 **Docs/governance**
 - ADR-0008 è stato emendato.
 - Blueprint P9 è stato formalmente riscritto come **Scoped Active Capabilities**.
+
+## Fixed Bugs (2026-05-03)
+
+### ~~B1 — `BackendSpec.to_mcp_entry()` ignora `transport` field~~ ✅ FIXED
+
+**File**: `catalog.py:40-51`
+**Fix PR**: branch `fix/trader-agent-recovery`
+
+`to_mcp_entry()` ora produce formato corretto in base al transport:
+- HTTP/SSE: `{"url": self.url, "transport": self.transport}`
+- stdio: `{"command": self.command, "args": list(self.args)}`
+
+`BackendSpec` ha un nuovo campo `url: str = ""`. `_parse_entry()` auto-rileva URL per HTTP backends da `source_of_truth` (se inizia con `http`) o dal campo esplicito `url` nello YAML.
+
+**Context7 verificato**: FastMCP `create_proxy` supporta nativamente `{"url": ..., "transport": "http"}`.
+
+**Helium MCP** ora abilitato (9 tool). FMP richiede ancora server lifecycle management.
+
+### ~~B2 — `_tool_server_name()` split errato per underscore~~ ✅ FIXED
+
+**File**: `server.py:210-227`
+**Fix PR**: branch `fix/trader-agent-recovery`
+
+`_tool_server_name()` ora accetta `known_servers: set[str] | None` e usa right-to-left longest-prefix matching. Per `google_workspace_search_gmail`, cerca ogni prefisso separato da `_` da destra verso sinistra finché non trova una corrispondenza in `known_servers`.
+
+`_filter_backends_for_caller()` passa `known_servers` a `_allowed_server_names()` → `_tool_server_name()`.
+
+**Test**: 12 nuovi test per B1 (5) + B2 (7). 959 totali pass.
 
 ## Residual caveats
 

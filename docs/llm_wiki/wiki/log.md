@@ -1,5 +1,76 @@
 # Implementation Log
 
+## 2026-05-03T11:35+02:00 — AUDIT: trader-agent first real session analysis
+
+**Operation**: AUDIT
+**Branch**: working tree (uncommitted)
+**Trigger**: prima sessione utente reale con trader-agent per analisi portafoglio ETF e stock picks.
+
+### Findings
+
+1. **Score architetturale: 31%** (4/14 obblighi soddisfatti)
+2. **CRITICAL**: Nessun dato live da proxy MCP — il trader-agent ha prodotto l'analisi basandosi su conoscenza LLM e dati wiki pregressi
+3. **CRITICAL**: `financial-modeling-prep-mcp` (253+ tool) e `helium-mcp` disabilitati — cornerstone architetturale assente
+4. **6/14 FAIL** totali nella tabella di conformità architetturale
+
+### Root cause principali
+
+1. Backend MCP cornerstone disabilitati (HTTP/SSE Phase 2)
+2. Dispatch via `task` KiloCode bypassa coordinamento ARIA L1
+3. Nessuna verifica runtime uso proxy
+4. Nessuna standardizzazione formato output
+
+### Recommendation
+
+- P0: Abilitare FMP MCP + Helium MCP (Phase 1.5)
+- P0: Diagnosticare visibilità tool proxy in sub-sessione KiloCode
+- P1: Adottare spawn-subagent ARIA per dispatch, verifica runtime uso proxy
+- P2: Standardizzare formato Trading Brief, propagare trace_id
+
+
+## 2026-05-03T11:45+02:00 — DEBUG: trader-agent complete debug session
+
+**Operation**: DEBUG
+**Branch**: `fix/trader-agent-recovery`
+**Trigger**: debug completo basato sul report di analisi, con verifica Context7 e AGENTS.md compliance.
+
+### Findings — 6 bug trovati
+
+| ID | Bug | File | Priorità |
+|----|-----|------|----------|
+| **B1** | `to_mcp_entry()` ignora `transport` field — HTTP/SSE backends (FMP 253+ tool, Helium) NON possono MAI funzionare | `catalog.py:76-82` | 🔴 P0 |
+| **B2** | `_tool_server_name()` split errato per underscore — `google_workspace_*` → server `"google"` | `server.py:147-152` | 🔴 P0 |
+| **B3** | `spawn_subagent_validated()` mai integrato — layer L1 bypassato | `spawn.py` / conductor | 🔴 P1 |
+| **B4** | Nessun guard runtime proxy usage | middleware / conductor | 🟡 P1 |
+| **B5** | Intent classification saltata | prompt trader-agent | 🟡 P2 |
+| **B6** | 7 skills MAI caricate | skill files / runtime | 🟡 P2 |
+
+### Scoperte chiave
+
+1. **Context7 confirmed**: FastMCP `create_proxy` supporta nativamente HTTP/SSE backends con formato `{"url": "...", "transport": "http"}` — fix B1 permette di abilitare FMP MCP e Helium MCP senza wrapper stdio
+2. **Middleware corretto**: Two-pass `_caller_id` flow funziona e testato (test_middleware.py)
+3. **Broker corretto**: `resolve_server_from_tool()` longest-prefix matching gestisce underscore nei server names
+4. **Backend finanziari**: 3/5 funzionanti (financekit-mcp, mcp-fredapi, alpaca-mcp); +2 riparabili con fix B1
+
+### Context7 verification
+
+- `create_proxy` supporta: URL diretto, Client autenticato, configurazione dict, e stdio
+- `Client` con `StreamableHttpTransport` per HTTP/SSE
+- MCP config format supporta `{"url": "...", "transport": "http"}` per backends remoti
+
+### Report completo
+
+- `docs/debug/trader_agent_debug_report_2026-05-03.md`
+- `findings.md`
+- `task_plan.md`
+
+### Provenance
+
+- `docs/analysis/trader_agent_session_analysis_2026-05-03.md` (report completo)
+- Session ID: `ses_212fe1909ffeNpUzcxnG3HCqhw`
+
+---
+
 ## 2026-05-03T09:34+02:00 — MCP naming convention migration: double-underscore → single-underscore
 
 **Operation**: REFACTOR (naming convention alignment)
@@ -4139,3 +4210,30 @@ Drift validator    → All checks passed ✅
 - `memory-v3.md` wiki: documented `CANONICAL_TEMPLATE_REL` and canonical source path.
 
 **Test count**: 979 passed (up from 966 before hardening)
+
+## 2026-05-03T12:30+02:00 — P0 Fix Sprint: B1 (HTTP transport) + B2 (underscore server names)
+
+**Branch**: `fix/trader-agent-recovery`
+**Trigger**: Fix plan from debug report `docs/debug/trader_agent_debug_report_2026-05-03.md`
+
+### Changes
+
+**B1 — `BackendSpec.to_mcp_entry()` HTTP/SSE transport support** (`src/aria/mcp/proxy/catalog.py`)
+- Added `url: str = ""` field to `BackendSpec` dataclass
+- `to_mcp_entry()` now produces `{"url": ..., "transport": "http"}` for HTTP/SSE backends
+- `_parse_entry()` auto-detects URL from `source_of_truth` when it starts with `http`, or reads explicit `url` YAML field
+- Context7 verified: FastMCP `create_proxy` supports both `command+args` (stdio) and `url+transport` (HTTP/SSE) formats
+- +5 new tests: HTTP transport, SSE transport, stdio unchanged, fallback behavior, YAML parsing with URL
+
+**B2 — `_tool_server_name()` underscore-aware resolution** (`src/aria/mcp/proxy/server.py`)
+- Added `known_servers: set[str] | None` parameter
+- Uses right-to-left longest-prefix matching instead of naive `split("_", 1)[0]`
+- Correctly resolves `google_workspace_search_gmail` → `google_workspace` (was `google`)
+- `_allowed_server_names()` and `_filter_backends_for_caller()` pass known backend names through
+- +7 new tests: hyphen server, underscore without known, underscore with known, longest-prefix, empty, whitespace, registry integration
+
+**Catalog enablement** (`.aria/config/mcp_catalog.yaml`)
+- `helium-mcp`: lifecycle changed from `disabled` to `enabled`, URL field added
+- `financial-modeling-prep-mcp`: URL field documented for future use (needs server lifecycle management)
+
+**Test results**: 959 passed, 21 skipped, 0 new failures (78 proxy tests all pass)

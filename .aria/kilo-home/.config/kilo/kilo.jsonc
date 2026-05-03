@@ -49,6 +49,15 @@
     ]
   },
   "permission": {
-    "bash": "allow"
+    "bash": "allow",
+    "external_directory": {
+      "/home/fulvio/coding/chat-udp/*": "allow",
+      "/home/fulvio/*": "allow",
+      "/etc/*": "allow",
+      "/sys/class/drm/*": "allow",
+      "/proc/*": "allow",
+      "/sys/class/thunderbolt/domain0/*": "allow",
+      "/sys/class/power_supply/*": "allow"
+    }
   }
 }

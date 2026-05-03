@@ -433,7 +433,7 @@ servers:
   owner_agent: trader-agent
   tier: 2
   transport: http
-  lifecycle: disabled
+  lifecycle: disabled  # needs server lifecycle management (npx fmp-mcp before URL connect)
   auth_mode: api_key
   statefulness: stateless
   expected_tools:
@@ -447,18 +447,19 @@ servers:
   risk_level: low
   cost_class: freemium
   source_of_truth: npx fmp-mcp
+  url: http://localhost:3000
   rollback_class: server
-  baseline_status: disabled
+  baseline_status: lkg
   notes: "Financial Modeling Prep MCP — 253+ tools, HTTP/SSE transport only.
-    DISABLED: proxy does not support HTTP transport yet. Requires proxy extension
-    for SSE/HTTP backends. Phase 2 target."
+    Requires npx fmp-mcp running externally on port 3000.
+    API key: FMP_API_KEY env var."
 
 - name: helium-mcp
   domain: finance
   owner_agent: trader-agent
   tier: 2
   transport: http
-  lifecycle: disabled
+  lifecycle: enabled
   auth_mode: api_key
   statefulness: stateless
   expected_tools:
@@ -473,8 +474,8 @@ servers:
   risk_level: low
   cost_class: freemium
   source_of_truth: https://app.heliumtrades.com/mcp
+  url: https://app.heliumtrades.com/mcp
   rollback_class: server
-  baseline_status: disabled
+  baseline_status: lkg
   notes: "Helium MCP — AI-powered options pricing, news sentiment, bias analysis.
-    HTTP/streamable transport. DISABLED: proxy HTTP support required.
-    50 free queries/month. Phase 2 target after proxy HTTP extension."
+    HTTP/streamable transport. 50 free queries/month. Requires HELIUM_API_KEY."

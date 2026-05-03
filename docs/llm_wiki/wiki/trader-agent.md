@@ -157,9 +157,58 @@ aria-mcp-proxy_call_tool({
 | `macro-snapshot` | CREATE | Dashboard macro periodiche |
 | `lesson` | CREATE (HITL) | Regole apprese da risultati trading |
 
+## Session Audit (2026-05-03)
+
+Il 3 maggio 2026 è stata condotta un'analisi completa della prima sessione utente reale del trader-agent (portfolio analysis + rebalancing + stock picks). Risultati:
+
+**Score architetturale: 4/14 obblighi soddisfatti (31%)**
+
+### Gap principali identificati
+
+| # | Gap | Gravità | Fix richiesto |
+|---|---|---|---|
+| 1 | Nessun uso del proxy MCP per dati live — dati prodotti da LLM knowledge, non da backends | 🔴 CRITICAL | P0.3: diagnosticare visibilità tool proxy in sub-sessione |
+| 2 | FMP MCP (253+ tool, cornerstone) e Helium MCP disabilitati (HTTP/SSE Phase 2) | 🔴 CRITICAL | P0.1/P0.2: abilitare via wrapper stdio o mcp-gateway |
+| 3 | Nessuna classificazione intent (Fase 1 del workflow saltata) | 🟡 HIGH | P1.4: hard gate nel prompt |
+| 4 | Formato output non conforme al Trading Brief template | 🟡 HIGH | P1.5: template obbligatorio |
+| 5 | Dispatch via `task` KiloCode, non `spawn-subagent` ARIA + HandoffRequest | 🟡 HIGH | P1.2: adottare coordinamento ARIA |
+| 6 | wiki_update fatto dal conductor, non dal trader-agent | 🟡 HIGH | P1.3: correggere flusso |
+| 7 | Nessuna propagazione trace_id | 🟡 HIGH | P2.3: strumento UUIDv7 |
+| 8 | 620.5s di latenza per task singolo | 🟢 LOW | P2.1: audit performance |
+
+### Report completo
+`docs/analysis/trader_agent_session_analysis_2026-05-03.md`
+
+### Debug completo (2026-05-03)
+
+Il 3 maggio 2026 è stato condotto un debug completo del trader-agent basato sul report di analisi. Risultati:
+
+**Bug trovati: 6** (3 critici, 2 medi, 1 minore)
+
+| ID | Bug | File | Impatto | Priorità |
+|----|-----|------|---------|----------|
+| **B1** | `to_mcp_entry()` ignora `transport` field | `catalog.py:76-82` | HTTP/SSE backends (FMP 253+ tool, Helium) NON possono MAI funzionare | 🔴 P0 |
+| **B2** | `_tool_server_name()` split errato per underscore | `server.py:147-152` | `google_workspace_*` → server `"google"` (solo productivity-agent) | 🔴 P0 |
+| **B3** | `spawn_subagent_validated()` mai integrato | `spawn.py` / conductor prompt | Layer L1 bypassato: no HandoffRequest, no ContextEnvelope, no trace_id | 🔴 P1 |
+| **B4** | Nessun guard runtime proxy usage | middleware / conductor | Agente produce analisi senza proxy, nessuno lo rileva | 🟡 P1 |
+| **B5** | Intent classification saltata | prompt trader-agent | Fase 1 del workflow sempre ignorata | 🟡 P2 |
+| **B6** | 7 skills MAI caricate | skill files / runtime | Skills esistono ma non vengono mai attivate | 🟡 P2 |
+
+**Scoperta critica (Context7)**: FastMCP `create_proxy` **supporta nativamente HTTP/SSE** con formato `{"url": "...", "transport": "http"}`. Il fix B1 permette di abilitare FMP MCP e Helium MCP SENZA wrapper stdio, semplicemente correggendo `to_mcp_entry()`.
+
+**Report completo**: `docs/debug/trader_agent_debug_report_2026-05-03.md`
+
+### Lezioni per future iterazioni
+1. I backend MCP cornerstone devono essere abilitati PRIMA di testare funzionalità avanzate
+2. Il sub-agente KiloCode `task` bypassa tutto il layer L1 di coordinamento ARIA
+3. Prompt engineering senza runtime enforcement è insufficiente per garantire uso proxy
+4. Il template Trading Brief standardizzato deve essere parsabile e validabile
+5. **Fix B1** (to_mcp_entry HTTP) è il prerequisito per qualsiasi analisi con dati live — senza FMP MCP, il trader-agent non ha copertura fondamentale
+
 ## Fonte di Verità
 
 - Piano: `docs/plans/agents/trader_agent_foundation_plan.md`
 - ADR: `docs/foundation/decisions/ADR-00XX-trader-agent-introduction.md`
 - Protocollo: `docs/protocols/protocollo_creazione_agenti.md`
 - Skill tree: `.aria/kilocode/skills/{trading-analysis,fundamental-analysis,technical-analysis,macro-intelligence,sentiment-analysis,options-analysis,crypto-analysis}/SKILL.md`
+- Audit report: `docs/analysis/trader_agent_session_analysis_2026-05-03.md`

@@ -1,66 +1,42 @@
-# Task Plan: productivity-agent Google Workspace debug → remediation
+# Task Plan: Debug Completo Trader-Agent
 
-## Goal
-Diagnose and remediate the productivity-agent / Google Workspace regression cluster reported on 2026-05-02:
-- malformed proxy invocation guidance causing the agent to call `call_tool` incorrectly;
-- stale Google Workspace tool names in catalog, skills, tests, and docs;
-- missing end-to-end coverage for `productivity-agent -> aria-mcp-proxy -> google_workspace`;
-- source-of-truth drift between wiki, prompts, runtime copies, catalog metadata, and tests.
+**Goal**: Effettuare debug completo del trader-agent basato sul report di analisi `docs/analysis/trader_agent_session_analysis_2026-05-03.md`, seguendo AGENTS.md, LLM Wiki, e Context7.
 
-## Status: ✅ IMPLEMENTATION + VERIFICATION COMPLETE
+**Score attuale**: 4/14 obblighi architetturali soddisfatti (31%)
+**Target**: Identificare tutte le root cause e produrre raccomandazioni implementative verificabili.
 
-## Phases
+## Fasi
 
-### Phase 1: Wiki-first reconstruction
-- [x] Read `AGENTS.md`
-- [x] Read `docs/llm_wiki/wiki/index.md`
-- [x] Read `docs/llm_wiki/wiki/log.md`
-- [x] Read `docs/llm_wiki/wiki/productivity-agent.md`
-- [x] Read `docs/llm_wiki/wiki/google-workspace-mcp-write-reliability.md`
-- [x] Read `docs/llm_wiki/wiki/mcp-proxy.md`
-- [x] Read `docs/llm_wiki/wiki/agent-capability-matrix.md`
+| Phase | Descrizione | Stato |
+|-------|-------------|-------|
+| 0 | Session recovery & workspace assessment | ✅ COMPLETE |
+| 1 | Deep analysis — source documents | ✅ COMPLETE |
+| 2 | RCA #1 — FMP MCP disabilitato (HTTP/SSE transport) | 🔴 IN PROGRESS |
+| 3 | RCA #2 — KiloCode `task` vs ARIA `spawn-subagent` | ⏳ PENDING |
+| 4 | RCA #3 — Runtime proxy usage verification | ⏳ PENDING |
+| 5 | RCA #4 — Standardizzazione output Trading Brief | ⏳ PENDING |
+| 6 | Intent classification, skill pipeline, wiki_update, trace_id | ⏳ PENDING |
+| 7 | Report finale di debug con raccomandazioni implementative | ⏳ PENDING |
+| 8 | LLM Wiki maintenance | ⏳ PENDING |
 
-### Phase 2: Forensic diagnosis / PRD
-- [x] Inspect productivity-agent prompt + runtime copy
-- [x] Inspect Google Workspace skills, proxy catalog, capability matrix, and wrapper
-- [x] Verify upstream `workspace-mcp` tool names with Context7
-- [x] Inspect real Kilo runtime logs for Google Workspace failures
-- [x] Audit proxy broker/server resolution behavior against those failures
-- [x] Freeze final defect inventory and remediation scope
+## Decisioni Architetturali
 
-### Phase 3: Technical design
-- [x] Define canonical proxy invocation syntax for productivity/search/workspace prompts
-- [x] Define authoritative Google Workspace tool-name mapping from upstream to catalog/skills/tests
-- [x] Define regression suite for proxy + productivity-agent + google_workspace e2e semantics
-- [x] Define wiki/catalog provenance corrections
+| Decisione | Status | Note |
+|-----------|--------|------|
+| Backend filtering via `_tool_server_name` | ✅ CORRETTO | Nomi con hyphen funzionano; nomi con underscore (google_workspace) no |
+| Proxy middleware two-pass flow | ✅ CORRETTO | `_caller_id` re-injected e stripped correttamente |
+| Broker lazy resolution | ✅ CORRETTO | `resolve_server_from_tool` longest-prefix matching OK |
+| Capability matrix per trader-agent | ⚠️ DA VERIFICARE | `_*` wildcard funzionanti, ma `financial-modeling-prep-mcp_*` e `helium-mcp_*` disabilitati |
 
-### Phase 4: Implementation
-- [x] Apply selected fixes
-- [x] Add/extend regression tests
-- [x] Update wiki + state + provenance docs
+## Dipendenze
 
-### Phase 5: Verification
-- [x] Run targeted regression tests
-- [x] Run `ruff check .`
-- [x] Run `mypy src`
-- [x] Run `pytest -q` or constrained subset if full suite is noisy
-
-## Constraints
-- Follow `AGENTS.md` strictly.
-- Use wiki-first and Context7-first workflow.
-- Do not perform destructive git recovery without explicit approval.
-- Keep fixes minimal and aligned with the proxy architecture and trader-agent protocol.
-
-## Current suspected root causes
-- `productivity-agent.md` and its runtime copy document malformed synthetic proxy calls (`aria-mcp-proxy_call_tool("search_tools", ...)` and `aria-mcp-proxy_call_tool("call_tool", ...)`), which match the live `ToolError: Cannot resolve backend for tool: call_tool` failure.
-- `.aria/config/mcp_catalog.yaml` advertises stale/non-upstream Google Workspace tool names (`gmail_send`, `drive_list`, `docs_create`, etc.) that do not match current `workspace-mcp` canonical tools.
-- `meeting-prep` and `email-draft` skills encode those stale names directly, so the agent is trained toward failing runtime calls even when the proxy is healthy.
-- Proxy unit/integration tests preserve the same stale names, so regressions remain green while the real runtime fails with `Unknown tool: 'drive_list'`.
-- There is no strong repository test covering `productivity-agent -> aria-mcp-proxy -> google_workspace` with the current upstream tool contract.
-
-## Final remediation applied
-- Corrected canonical proxy usage examples in active and runtime prompt copies.
-- Updated the `google_workspace` catalog metadata to the official upstream `workspace-mcp` tool names.
-- Corrected work-domain skills (`meeting-prep`, `email-draft`) and their runtime copies to the live tool names.
-- Added broker-side legacy alias normalization for stale `google_workspace` names as a runtime backstop.
-- Extended regression tests to lock the corrected contract.
+- `docs/analysis/trader_agent_session_analysis_2026-05-03.md` — report di analisi
+- `docs/llm_wiki/wiki/trader-agent.md` — wiki pagina
+- `docs/llm_wiki/wiki/mcp-proxy.md` — proxy contract
+- `docs/llm_wiki/wiki/agent-coordination.md` — L1 coordination
+- `.aria/kilocode/agents/trader-agent.md` — prompt agente
+- `src/aria/mcp/proxy/server.py` — proxy server
+- `src/aria/mcp/proxy/broker.py` — lazy backend broker
+- `src/aria/mcp/proxy/middleware.py` — capability middleware
+- `.aria/config/agent_capability_matrix.yaml` — capability matrix
+- `.aria/config/mcp_catalog.yaml` — catalog backend MCP

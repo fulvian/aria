@@ -1,6 +1,6 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-05-03T09:34 (v7.0 — naming convention migration double-underscore → single-underscore)
+**Last Updated**: 2026-05-03T11:50 (v7.1 — debug completo trader-agent, 6 bug identificati)
 **Status**: ✅ **v7.0** — completata la migrazione da `server__tool` (doppio underscore) a `server_tool` (singolo underscore) in tutto il codebase. Semplificati i compatibility shim in `_matches()`, `is_tool_allowed()`, `resolve_server_from_tool()` e `_tool_server_name()`. Il formato singolo underscore è ora l'unico standard. 1004 test passanti.
 
 ## Purpose
@@ -195,6 +195,7 @@ docs/llm_wiki/
 - 2026-05-02: **v6.7** — **targeted restoration**: conductor prompt regressed → restaurato con trader-agent, no-direct-ops, wiki validity guard, finance dispatch. Kilo-home template coerente con `{{ARIA_MEMORY_BLOCK}}`. 7 trader skill fixate con esempi proxy canonici `server_tool`. Capability matrix con backend finance wildcard per boot-time filtering. 913 test passanti.
 - 2026-05-02: **v6.6** — **trader-agent backend MCP registration + credential pipeline**. Scoperto che il commit `41e0ef3` su `feature/trader-agent-mvp` (mai mergiato) conteneva il lavoro completo (20 file, +1957 linee). Recuperato selettivamente: 7 skill, ADR, wiki, 157 test. Registrati 5 backend MCP finanziari nel `mcp_catalog.yaml` (3 stdio enabled, 2 HTTP disabled Phase 2). Setup repos esterni: mcp-fredapi + alpaca-mcp clonati con venv. Credential pipeline: SOPS + .env + CredentialInjector `${VAR}` placeholders. Catalog parser esteso per leggere campo `env`. 877 test passanti.
 - 2026-05-03: **v7.0** — **MCP naming convention migration**: completata la migrazione da `server__tool` (doppio underscore) a `server_tool` (singolo underscore) in 76 file. Semplificati i compatibility shim in 4 funzioni Python. Il formato singolo underscore è ora l'unico standard. 1004 test passanti.
+- 2026-05-03: **v7.1** — **Debug completo trader-agent**: 6 bug trovati (3 critici). Scoperta chiave: `BackendSpec.to_mcp_entry()` ignora `transport` field, impedendo HTTP/SSE backends. FastMCP `create_proxy` supporta nativamente HTTP/SSE (confermato via Context7). Report: `docs/debug/trader_agent_debug_report_2026-05-03.md`.
 
 ## Git & GitHub Rules
 
@@ -219,3 +220,4 @@ Definite in `AGENTS.md` § "Git & GitHub Workflow Rules". Regole chiave:
 - `docs/llm_wiki/wiki/agent-capability-matrix.md` — capability matrix
 - `docs/protocols/protocollo_creazione_agenti.md` — protocollo prescrittivo per nuovi agenti/sub-agenti
 - `docs/operations/rollback_matrix.md` — rollback matrix completa
+- `docs/debug/trader_agent_debug_report_2026-05-03.md` — **v7.1**: debug completo trader-agent (6 bug, 3 critici)

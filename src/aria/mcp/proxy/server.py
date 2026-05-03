@@ -195,7 +195,8 @@ def _filter_backends_for_caller(
     registry: YamlCapabilityRegistry | None,
     caller: str | None,
 ) -> list[BackendSpec]:
-    allowed_server_names = _allowed_server_names(registry, caller)
+    known_servers = {b.name for b in backends}
+    allowed_server_names = _allowed_server_names(registry, caller, known_servers=known_servers)
     filtered: list[BackendSpec] = []
     for backend in backends:
         if backend.name in SEPARATE_SERVERS:
@@ -206,9 +207,31 @@ def _filter_backends_for_caller(
     return filtered
 
 
+def _tool_server_name(tool_name: str, known_servers: set[str] | None = None) -> str | None:
+    cleaned = tool_name.strip()
+    if not cleaned or cleaned in DIRECT_SERVER_ALLOWLIST:
+        return None
+    if "_" in cleaned:
+        if known_servers:
+            # Longest-prefix matching: try each underscore position from right
+            # to left so that the longest matching prefix is found first.
+            # This correctly handles server names containing underscores
+            # (e.g. google_workspace, google_workspace_drive).
+            start = len(cleaned)
+            while (idx := cleaned.rfind("_", 0, start)) != -1:
+                candidate = cleaned[:idx]
+                if candidate in known_servers:
+                    return candidate
+                start = idx
+        # Fall back to simple split when no known_servers are provided
+        return cleaned.split("_", 1)[0] or None
+    return None
+
+
 def _allowed_server_names(
     registry: YamlCapabilityRegistry | None,
     caller: str | None,
+    known_servers: set[str] | None = None,
 ) -> set[str] | None:
     if registry is None or not caller:
         return None
@@ -219,19 +242,10 @@ def _allowed_server_names(
 
     server_names: set[str] = set()
     for tool_name in allowed_tools:
-        server_name = _tool_server_name(tool_name)
+        server_name = _tool_server_name(tool_name, known_servers=known_servers)
         if server_name is not None:
             server_names.add(server_name)
     return server_names
-
-
-def _tool_server_name(tool_name: str) -> str | None:
-    cleaned = tool_name.strip()
-    if not cleaned or cleaned in DIRECT_SERVER_ALLOWLIST:
-        return None
-    if "_" in cleaned:
-        return cleaned.split("_", 1)[0] or None
-    return None
 
 
 def _build_transform(cfg: ProxyConfig) -> Any:  # noqa: ANN401

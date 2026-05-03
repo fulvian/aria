@@ -10,7 +10,12 @@ import pytest
 from fastmcp import Client
 
 from aria.mcp.proxy.catalog import BackendSpec
-from aria.mcp.proxy.server import _filter_backends_for_caller, build_proxy
+from aria.mcp.proxy.server import (
+    _allowed_server_names,
+    _filter_backends_for_caller,
+    _tool_server_name,
+    build_proxy,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -268,3 +273,97 @@ servers:
         assert "call_tool" in names
         # No individual backend tools in list_tools
         assert "financekit-mcp_stock_price" not in names
+
+
+# ---------------------------------------------------------------------------
+# Bug B2 — _tool_server_name() underscore-aware resolution
+# ---------------------------------------------------------------------------
+
+
+def test_tool_server_name_direct_allowed() -> None:
+    """DIRECT_SERVER_ALLOWLIST items return None (not routed through proxy)."""
+    assert _tool_server_name("spawn-subagent") is None
+
+
+def test_tool_server_name_hyphen_server() -> None:
+    """Server names with hyphens work with simple split."""
+    result = _tool_server_name("financekit-mcp_stock_price")
+    assert result == "financekit-mcp"
+
+
+def test_tool_server_name_underscore_server_without_known() -> None:
+    """Underscore server name falls back to simple split when known_servers is None."""
+    result = _tool_server_name("google_workspace_search_gmail")
+    assert result == "google"  # fallback behavior
+
+
+def test_tool_server_name_underscore_server_with_known() -> None:
+    """Underscore server name resolves correctly with known_servers (Bug B2 fix)."""
+    known = {"google_workspace", "financekit-mcp", "searxng-script"}
+    result = _tool_server_name("google_workspace_search_gmail", known_servers=known)
+    assert result == "google_workspace"
+
+
+def test_tool_server_name_longest_prefix_matching() -> None:
+    """Known servers with overlapping prefixes resolve to the longest match."""
+    known = {"google", "google_workspace", "google_workspace_drive"}
+    result = _tool_server_name("google_workspace_drive_list_files", known_servers=known)
+    # Should match "google_workspace_drive" (longest prefix)
+    assert result == "google_workspace_drive"
+
+
+def test_tool_server_name_empty_returns_none() -> None:
+    assert _tool_server_name("") is None
+
+
+def test_tool_server_name_whitespace_returns_none() -> None:
+    assert _tool_server_name("  ") is None
+
+
+def test_allowed_server_names_resolves_underscore_servers() -> None:
+    """_allowed_server_names correctly extracts google_workspace from tools list."""
+    registry = _Registry(
+        {
+            "workspace-agent": [
+                "google_workspace_search_gmail",
+                "google_workspace_get_events",
+                "aria-memory_wiki_recall_tool",
+            ]
+        }
+    )
+    known_servers = {"google_workspace", "aria-memory"}
+    result = _allowed_server_names(registry, "workspace-agent", known_servers=known_servers)
+    assert result is not None
+    assert "google_workspace" in result
+    # _allowed_server_names returns ALL resolved server names;
+    # SEPARATE_SERVERS filtering happens in _filter_backends_for_caller
+    assert "aria-memory" in result
+
+
+def test_filter_backends_for_caller_google_workspace(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Workspace-agent correctly includes google_workspace backend (Bug B2)."""
+    backends = [
+        _backend("google_workspace"),
+        _backend("searxng-script"),
+        _backend("aria-memory"),
+    ]
+
+    filtered = _filter_backends_for_caller(
+        backends,
+        registry=_Registry(
+            {
+                "workspace-agent": [
+                    "google_workspace_search_gmail",
+                    "searxng-script_*",
+                ]
+            }
+        ),
+        caller="workspace-agent",
+    )
+
+    backend_names = [b.name for b in filtered]
+    assert "google_workspace" in backend_names
+    assert "searxng-script" in backend_names
+    assert "aria-memory" not in backend_names  # SEPARATE_SERVERS
