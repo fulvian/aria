@@ -1,5 +1,59 @@
 # Implementation Log
 
+## 2026-05-03T16:00+02:00 — PLAN: code-discovery skill integration (Context7 + github-discovery)
+
+**Operation**: PLAN (skill extension per search-agent)
+**Branch**: working tree (uncommitted)
+**Trigger**: richiesta utente di integrare `github-discovery` e `context7` MCP nel search-agent come nuova skill `code-discovery` per ricerca orientata allo sviluppo.
+
+### Analisi condotta
+
+1. **Wiki-first reconstruction**: letti `index.md`, `log.md`, `research-routing.md`, `mcp-architecture.md`, `agent-capability-matrix.md`
+2. **Codice analizzato**: `router.py`, `intent.py`, `server.py`, `broker.py`, `mcp_catalog.yaml`, `agent_capability_matrix.yaml`, `search-agent.md`, `deep-research/SKILL.md`
+3. **Context7 verification**: resolve-library-id + query-docs API patterns verificati via Context7 docs. 2-step flow (resolve → query) confermato.
+4. **github-discovery verification**: 16 tool già in catalogo, owner_agent: search-agent, lifecycle: enabled
+5. **Best practices research**: GitHub MCP Registry, MCP Server Finder, Context7 SDK docs
+
+### Piano creato
+
+- **File**: `docs/plans/mcp_discovery_context7_search_integration_plan.md`
+- **Categoria**: skill extension (NON nuovo agente)
+- **Scope**: nuova skill `code-discovery` per search-agent
+
+### Architettura target
+
+1. **Nuovo provider**: `context7` registrato in `mcp_catalog.yaml` (keyless, 2 tool)
+2. **Nuovo intent**: `Intent.DEVELOPMENT` in `router.py` e `intent.py`
+3. **Nuova tier ladder**: `context7(1) → github_discovery(2) → searxng(3) → tavily(4) → exa(5) → brave(6) → fetch(7)`
+4. **Nuova skill**: `.aria/kilocode/skills/code-discovery/SKILL.md` (4 fasi: Context7 → github-discovery → synthesis → fallback)
+5. **Capability matrix update**: `context7_*` e `github-discovery_*` aggiunti a search-agent allowed_tools
+6. **Prompt update**: sezione DEVELOPMENT in `search-agent.md`
+
+### P8 Decision Ladder
+
+| Opzione | Esito |
+|---------|-------|
+| github-discovery MCP (esistente) | ✅ RIUSO |
+| context7 MCP (esistente in KiloCode) | ✅ RIUSO — registrato nel catalogo ARIA |
+| Nuova skill code-discovery | ✅ NECESSARIA — compone i 2 MCP |
+| Tool Python locale | ❌ NON NECESSARIO |
+
+### Integration path
+
+- Context7 → via proxy (aggiunto a mcp_catalog.yaml) — Opzione A scelta per coerenza architetturale
+- github-discovery → via proxy (già in catalogo, aggiunto a capability matrix)
+- Skill → canonical proxy pattern con `_caller_id: "search-agent"`
+
+### Provenance
+
+- `docs/plans/mcp_discovery_context7_search_integration_plan.md`
+- `.aria/config/mcp_catalog.yaml` (github-discovery entry)
+- `.aria/config/agent_capability_matrix.yaml` (search-agent entry)
+- Context7 docs: `/websites/context7`
+- Session ID: corrente
+
+---
+
 ## 2026-05-03T11:35+02:00 — AUDIT: trader-agent first real session analysis
 
 **Operation**: AUDIT
@@ -4237,3 +4291,41 @@ Drift validator    → All checks passed ✅
 - `financial-modeling-prep-mcp`: URL field documented for future use (needs server lifecycle management)
 
 **Test results**: 959 passed, 21 skipped, 0 new failures (78 proxy tests all pass)
+
+## 2026-05-03T16:00+02:00 — P1 Sprint: B3-B8 (HandoffRequest, hard gates, uuid7, skill loading, proxy guard)
+
+**Branch**: `fix/trader-agent-recovery`
+**Trigger**: User feedback — sessione non conforme all'architettura documentata (8 gap strutturali riprodotti)
+
+### Changes
+
+**B3 — HandoffRequest validato nel conductor** (`aria-conductor.md`)
+- Sostituito il vecchio formato `trace_<descrizione>` con formato HandoffRequest completo
+- Aggiunte regole: trace_id UUIDv7, parent_agent, spawn_depth, envelope_ref
+- Riferimento esplicito alla Capability Matrix per tool/dependency dei sub-agenti
+
+**B4 — Proxy usage hard gate** (`aria-conductor.md`, `trader-agent.md`)
+- Conductor: post-dispatch verification — se output ha metriche ma non menziona `Proxy Usage`, avviso utente
+- Trader-agent: sezione obbligatoria `## Proxy Usage` nell'output con conteggio chiamate
+- Regola: ogni metrica finanziaria DEVE provenire da proxy call_tool, non da conoscenza LLM
+
+**B5 — Intent classification hard gate** (`trader-agent.md`)
+- PRIMA RIGA dell'output DEVE essere `Intent: finance.<categoria>` + `Tickers: [<simboli>]`
+- Se prima riga non contiene Intent, analisi INVALIDA
+
+**B6 — Skill loading obbligatorio** (`trader-agent.md`)
+- Nuova 🔴 HARD GATE: Skill Loading (Fase 0) prima di qualsiasi analisi
+- Elenco delle 7 skill con indicazione di quando caricarle
+- Istruzione esplicita per chiamare `skill({"name": "<skill>"})`
+
+**B7 — wiki_update actor ownership** (`aria-conductor.md`, `trader-agent.md`)
+- Conductor: NON chiamare wiki_update_tool per conto di sub-agenti
+- Trader-agent: SOLO tu chiami wiki_update_tool per le tue analisi
+
+**B8 — UUIDv7 trace_id utility** (nuovo: `src/aria/utils/trace.py`)
+- `generate_trace_id()` implementa UUID v7 (RFC 9562): 48-bit timestamp + 74-bit random
+- Version=7, variant=0b10 verificati
+- Supporto `short=True` per versioni concise (8 hex chars)
+- 6 nuovi test: formato, version nibble, variant, unicità, timestamp monotonic, short format
+
+**Test results**: 965 passed, 21 skipped (+6 new trace_id tests)

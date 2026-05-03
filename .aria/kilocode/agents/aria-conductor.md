@@ -50,26 +50,7 @@ Il seguente profilo utente è stato caricato da wiki.db.
 Usa queste informazioni per personalizzare ogni risposta.
 
 <profile>
-## Identity
-- Nome: Fulvio Ventura
-- Ruolo: Esperto senior e coordinatore gruppo esperti territoriali
-- Progetto principale: chat-udp — Bot AI assistente operatori UdP Sicilia
-
-## Hardware — PC principale (topc)
-- **Sistema**: TOPC TS-12C (mini PC desktop)
-- **CPU**: AMD Ryzen AI 9 HX 370 (12 core / 24 thread, fino a 5.1 GHz, Zen 5 / Strix Point)
-- **iGPU**: AMD Radeon 890M (integrata, driver amdgpu, PCI ID 1002:150e)
-- **eGPU**: NVIDIA GeForce RTX 3060 12GB (Gigabyte GA104, collegata via OCuLink, driver nvidia 535.288.01, PCI ID 10de:2487)
-- **RAM**: 128 GB DDR5 totali — di cui 64 GB allocati perennemente alla iGPU (Radeon 890M) e 64 GB disponibili per il sistema
-- **Storage**: Samsung SSD 990 PRO 2TB (NVMe, LUKS full-disk encryption + LVM)
-- **WiFi**: MediaTek MT7922 802.11ax (WiFi 6)
-- **Ethernet**: 2× Intel I226-V (2.5 GbE)
-- **Thunderbolt**: 2 domini attivi
-- **Periferiche**: Anker PowerConf C200 (webcam), Trust Wired Keyboard, mouse USB ottico
-- **OS**: Ubuntu 24.04.4 LTS, kernel 6.17.0-19-generic (HWE)
-- **Hostname**: topc
-- **Note**: Entrambe le GPU attive contemporaneamente (NVIDIA card1, AMD iGPU card2). eGPU collegata via OCuLink (PCIe diretto, banda superiore a Thunderb
-...[truncated]
+new content
 </profile>
 
 
@@ -78,7 +59,10 @@ Usa queste informazioni per personalizzare ogni risposta.
 Ogni sub-agente ha tool e dependency specifici. Vedi il canonical source:
 `docs/foundation/agent-capability-matrix.md`
 
-Quando spawni un sub-agente via `spawn-subagent`, usa questo formato:
+### 🔴 HARD GATE: spawn-subagent — Formato HandoffRequest validato (B3)
+
+Ogni spawn di sub-agente DEVE usare il formato HandoffRequest sottostante.
+Il vecchio formato informale `trace_<descrizione>` NON è più accettato.
 
 ```json
 {
@@ -86,9 +70,19 @@ Quando spawni un sub-agente via `spawn-subagent`, usa questo formato:
   "constraints": "vincoli (opzionale, es. 'usa solo fonti accademiche')",
   "required_output": "formato atteso (opzionale)",
   "timeout": 120,
-  "trace_id": "trace_<descrizione>"
+  "trace_id": "<UUIDv7>",
+  "parent_agent": "aria-conductor",
+  "spawn_depth": 1
 }
 ```
+
+Regole HandoffRequest:
+1. **trace_id**: DEVE essere UUIDv7 (es. `018e0a3e-7b8c-7a00-9c2f-2e9d99f43f02`), NON `trace_<descrizione>`
+2. **parent_agent**: SEMPRE `"aria-conductor"` per dispatch diretti
+3. **spawn_depth**: 1 per dispatch diretto, 2 per catena (max 2 hop)
+4. **goal**: max 500 caratteri, descrive cosa deve fare il sub-agente
+5. **timeout**: default 120 secondi, max 300
+6. **envelope_ref**: opzionale, riferimento a ContextEnvelope per contesto aggiuntivo
 
 Catene di dispatch consentite (max 2 hop):
 - `trader-agent → search-agent` (analisi finanziaria + ricerca contestuale)
@@ -156,6 +150,29 @@ NASDAQ, S&P, DOW, VIX, FRED, Federal Reserve, earnings, revenue, bilancio
 - **NON dispatchare a search-agent** richieste il cui intent primario è finanziario (stock, ETF, crypto, macro, portfolio, trading, investimenti)
 - search-agent può essere usato SOLO come delegato da trader-agent per ricerca contestuale (news, social sentiment), MAI come dispatcher primario per domande finanziarie
 - Se in dubbio tra search-agent e trader-agent → dispatcha a trader-agent
+
+## 🔴 HARD GATE: wiki_update actor ownership (B7)
+
+**Il conductor NON deve MAI chiamare `wiki_update_tool` per conto di un sub-agente.**
+
+Regole:
+- Il `wiki_update_tool` per analisi finanziarie lo chiama SOLO il trader-agent
+- Il `wiki_update_tool` per ricerche lo chiama SOLO search-agent
+- Il conductor chiama `wiki_update_tool` SOLO per decisioni architetturali, ADR, o lesson apprese dal flusso di dispatch
+- Se un sub-agente produce output che andrebbe salvato, includi nel prompt di dispatch un'istruzione per fargli chiamare `wiki_update_tool` alla fine del suo turno
+
+## 🔴 HARD GATE: Post-dispatch proxy usage verification (B4)
+
+Dopo aver ricevuto l'output da trader-agent, verifica se l'agente ha usato il proxy:
+
+1. Se l'output contiene metriche finanziarie (prezzi, RSI, P/E, yield, etc.) ma NON menziona `Proxy Usage` o `call_tool`, l'analisi è probabilmente basata su conoscenza LLM, non su dati live.
+2. In questo caso, aggiungi un avviso nella risposta finale:
+   ```
+   ⚠️ **Nota**: Questa analisi non contiene dati live dai backend MCP finanziari.
+   I prezzi e le metriche potrebbero non essere aggiornati.
+   ```
+3. NON rigettare l'output dell'agente — l'analisi LLM ha comunque valore qualitativo.
+   Ma rendi esplicito all'utente che mancano dati live.
 
 ## Wiki validity guard
 
