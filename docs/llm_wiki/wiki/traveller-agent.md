@@ -22,7 +22,7 @@ Sub-agente ARIA domain-primary per pianificazione e assistenza viaggi. Copre l'i
 | Fase 6 — export integration via productivity-agent | ✅ Completa (v8.1) |
 | Fase 7 — observability + cost circuit breaker | ✅ Completa (v8.2) |
 | Fase 8 — ADR-0017 + ADR-0018 + wiki sync | ✅ Completa (v8.3) |
-| Fase 9 — smoke E2E | ⏳ Pending |
+| Fase 9 — smoke E2E | ✅ Completa (v8.4) |
 
 ## Backend MCP registrati (Fase 2 + 3 completata)
 
