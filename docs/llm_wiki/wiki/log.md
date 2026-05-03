@@ -1,5 +1,41 @@
 # Implementation Log
 
+## 2026-05-03T22:22+02:00 — COMPLETE: traveller-agent — tutte le 9 fasi implementate
+
+**Operation**: COMPLETE (traveller-agent foundation plan)
+**Branch**: `feature/traveller-agent-f1`
+**Trigger**: implementazione completata di tutte le 9 fasi del foundation plan.
+
+### Riepilogo fasi
+
+| Fase | Descrizione | Commit |
+|------|-------------|--------|
+| F1 | Foundation (prompt + matrix + conductor dispatch) | `e9eac37` |
+| F2 | Backend MCP catalog (airbnb, osm-mcp, aria-amadeus-mcp) | `d462ff9` |
+| F3 | aria-amadeus-mcp FastMCP server (6 read-only tool) | `a8f8d07` |
+| F4 | Skill core (destination-research, accommodation-comparison, transport-planning) | `7a65b09` |
+| F5 | Skill complementari (activity-planning, itinerary-building, budget-analysis) + booking gated | `4d1857c` |
+| F6 | Export handoff chain (traveller → productivity-agent) | `33dfb8a` |
+| F7 | Observability + cost circuit breaker + anti-drift tests | `9301a40` |
+| F8 | ADR-0017 + ADR-0018 + Wiki sync | `935423c` |
+| F9 | Smoke E2E golden path (33 test) | `a5f9511` |
+
+### Risultati finali
+
+- **10 commits** su `feature/traveller-agent-f1`
+- **32 file** creati/modificati, ~2500 righe nette
+- **157 test** totali (48 unit + 18 integration + 19 handoff + 16 anti-drift + 12 skills + 11 catalog + 33 E2E)
+- **Quality gates**: ruff OK, mypy OK, format OK
+- **LLM Wiki**: v8.4
+
+### Decisioni architetturali chiave codificate
+
+1. **No LangGraph** — pattern ARIA-native (sub-agent + proxy + hitl-queue)
+2. **Google Maps escluso** — billing non attivabile → sostituito con osm-mcp (OpenStreetMap, 100% free)
+3. **No booking live in MVP** — solo raccomandazioni + link
+4. **Booking MCP gated** — lifecycle shadow (Playwright fragile)
+5. **Amadeus quota circuit breaker** — auto-quarantine a 100% free tier
+
 ## 2026-05-03T20:40+02:00 — FEAT: traveller-agent Fase 2 (Backend MCP)
 
 **Operation**: FEAT (traveller-agent backend catalog)
