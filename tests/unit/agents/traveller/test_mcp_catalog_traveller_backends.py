@@ -115,7 +115,7 @@ class TestMCPCatalogBooking:
         s = _by_name(servers, "booking")
         assert s["domain"] == "travel"
         assert s["owner_agent"] == "traveller-agent"
-        assert s["lifecycle"] == "shadow"
+        assert s["lifecycle"] == "enabled"
         assert s["auth_mode"] == "keyless"
         assert s["cost_class"] == "free"
 

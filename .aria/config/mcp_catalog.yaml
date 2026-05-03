@@ -388,7 +388,7 @@ servers:
   owner_agent: traveller-agent
   tier: 2
   transport: stdio
-  lifecycle: shadow
+  lifecycle: enabled
   auth_mode: keyless
   statefulness: stateless
   expected_tools:
