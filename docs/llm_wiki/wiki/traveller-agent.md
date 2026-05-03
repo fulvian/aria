@@ -17,7 +17,7 @@ Sub-agente ARIA domain-primary per pianificazione e assistenza viaggi. Copre l'i
 | **Fase 1 — capability matrix + prompt + conductor** | **✅ Completa (v7.6)** |
 | Fase 2 — backend MCP (airbnb + osm-mcp + aria-amadeus-mcp catalog) | ✅ Completa (v7.7) |
 | Fase 3 — `aria-amadeus-mcp` (FastMCP wrapper) | ✅ Completa (v7.8) |
-| Fase 4 — skill core (destination + accommodation) | ⏳ Pending |
+| Fase 4 — skill core (destination + accommodation + transport) | ✅ Completa (v7.9) |
 | Fase 5 — skill complementari + booking gated | ⏳ Pending |
 | Fase 6 — export integration via productivity-agent | ⏳ Pending |
 | Fase 7 — observability + cost circuit breaker | ⏳ Pending |
@@ -33,6 +33,18 @@ Sub-agente ARIA domain-primary per pianificazione e assistenza viaggi. Copre l'i
 | `aria-amadeus-mcp` | `scripts/wrappers/aria-amadeus-wrapper.sh` (FastMCP in `src/aria/tools/amadeus/mcp_server.py`) | 6 tool read-only | AMADEUS_CLIENT_ID/SECRET (SOPS) | gratuito (2K/mese) | enabled |
 
 **Nota**: Google Maps Platform (`@cablate/mcp-google-map`) **escluso** — richiedeva billing account Google Cloud non attivabile. Sostituito con `osm-mcp-server` basato su OpenStreetMap (100% free, no API key, no billing).
+
+## Skill implementate (Fase 4 completata)
+
+| Skill | SKILL.md | Tool MCP usati |
+|-------|----------|---------------|
+| `destination-research` | `.aria/kilocode/skills/destination-research/SKILL.md` | osm-mcp__geocode_address, osm-mcp__explore_area |
+| `accommodation-comparison` | `.aria/kilocode/skills/accommodation-comparison/SKILL.md` | airbnb__airbnb_search, aria-amadeus-mcp__hotel_*, osm-mcp__geocode_address |
+| `transport-planning` | `.aria/kilocode/skills/transport-planning/SKILL.md` | aria-amadeus-mcp__flight_*, osm-mcp__geocode_address, osm-mcp__get_route_directions |
+
+Skills registrate in `.aria/kilocode/skills/_registry.json` con category: `travel`.
+
+**Skills pending** (Fase 5): `activity-planning`, `itinerary-building`, `budget-analysis`.
 
 ## Runtime Integration (Fase 1 completata)
 
