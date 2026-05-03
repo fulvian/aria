@@ -12,16 +12,21 @@ from pathlib import Path
 from typing import Any
 
 from fastmcp import FastMCP
-from fastmcp.server import create_proxy
 
 from aria.agents.coordination.registry import YamlCapabilityRegistry
 from aria.mcp.proxy.catalog import BackendSpec, load_backends
 from aria.mcp.proxy.config import ProxyConfig
 from aria.mcp.proxy.credential import CredentialInjector
 from aria.mcp.proxy.middleware import CapabilityMatrixMiddleware
+from aria.mcp.proxy.provider import TimeoutProxyProvider
 from aria.mcp.proxy.transforms.hybrid import HybridSearchTransform
 from aria.mcp.proxy.transforms.lmstudio_embedder import LMStudioEmbedder
 from aria.utils.logging import get_logger
+
+try:
+    from fastmcp.server.providers.proxy import _create_client_factory
+except ImportError:
+    _create_client_factory = None  # pragma: no cover
 
 logger = get_logger("aria.mcp.proxy.server")
 
@@ -49,13 +54,14 @@ def build_proxy(
     if os.environ.get("ARIA_PROXY_DISABLE_BACKENDS") == "1":
         backends = []
 
-    if backends:
-        composite: FastMCP = create_proxy(
-            {"mcpServers": {b.name: b.to_mcp_entry() for b in backends}},
-            name=PROXY_NAME,
+    composite = FastMCP(name=PROXY_NAME)
+    if backends and _create_client_factory is not None:
+        client_factory = _create_client_factory(
+            {"mcpServers": {b.name: b.to_mcp_entry() for b in backends}}
         )
-    else:
-        composite = FastMCP(name=PROXY_NAME)
+        composite.add_provider(
+            TimeoutProxyProvider(client_factory, list_timeout_s=30.0)
+        )
 
     composite.add_transform(_build_transform(cfg))
     composite.add_middleware(CapabilityMatrixMiddleware(registry))

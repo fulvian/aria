@@ -1,5 +1,41 @@
 # Implementation Log
 
+## 2026-05-04T00:30+02:00 — FIX: TimeoutProxyProvider — proxy non bloccante su list_tools
+
+**Operation**: FIX (proxy hangs on tools/list with 17 backends)
+**Branch**: `feature/traveller-agent-f1`
+**Trigger**: traveller-agent non vedeva i tool `aria-mcp-proxy__search_tools` e
+`aria-mcp-proxy__call_tool` perché il proxy non rispondeva entro il timeout di
+KiloCode.
+
+### Root cause
+Il proxy carica 17 backends MCP dal catalogo. Alcuni backends (es. filesystem)
+richiedono `roots/list` dal client MCP durante l'inizializzazione. Se la
+catena di forwarding `proxy → client → Kilo → risposta` non funziona,
+subentra un deadlock: il backend blocca in attesa di roots, il proxy blocca
+in attesa del backend, e `tools/list` non viene mai servito.
+
+### Changes
+- **provider.py** (NUOVO): `TimeoutProxyProvider` — estende `FastMCP
+  ProxyProvider` con `asyncio.wait_for` su `_list_tools()`. Timeout default
+  30s. Se scade, restituisce lista vuota senza cache (ritenta alla prossima
+  chiamata). Rispetta P2 (Upstream Invariance: subclassing, non fork).
+- **server.py**: `build_proxy()` usa `TimeoutProxyProvider` invece di
+  `create_proxy()`. Import di `_create_client_factory` reso esplicito.
+- **test_server.py**: patch aggiornato da `create_proxy` a
+  `_create_client_factory`.
+
+### Effetto
+- Proxy SEMPRE risponde a `tools/list` entro 30s (anche se backends lenti o
+  roots/list bloccante)
+- KiloCode vede `search_tools` + `call_tool` → traveller-agent li usa
+- Backends lenti/non disponibili vengono persi e riprovati al prossimo
+  `list_tools` (cache non settata su timeout)
+
+### Quality gates
+- 127 test PASS (87 traveller + 40 proxy)
+- ruff check — all checks passed
+
 ## 2026-05-03T23:56+02:00 — FIX: capability matrix — travel backend tools autorizzati
 
 **Operation**: FIX (capability matrix + middleware call_tool bypass)

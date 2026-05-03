@@ -146,19 +146,9 @@ servers:
 
     captured: dict[str, object] = {}
 
-    class _Proxy:
-        def __init__(self, name: str) -> None:
-            self.name = name
-
-        def add_transform(self, _transform: object) -> None:
-            return None
-
-        def add_middleware(self, _middleware: object) -> None:
-            return None
-
-    def _fake_create_proxy(config: dict[str, object], *, name: str) -> _Proxy:
+    def _fake_client_factory(config: dict[str, object]) -> object:
         captured["config"] = config
-        return _Proxy(name)
+        return lambda: None
 
     monkeypatch.setenv("ARIA_CALLER_ID", "search-agent")
 
@@ -169,7 +159,10 @@ servers:
                 {"search-agent": ["searxng-script__*", "aria-memory__wiki_recall_tool"]}
             ),
         ),
-        patch("aria.mcp.proxy.server.create_proxy", side_effect=_fake_create_proxy),
+        patch(
+            "aria.mcp.proxy.server._create_client_factory",
+            side_effect=_fake_client_factory,
+        ),
     ):
         proxy = build_proxy(catalog_path=catalog, proxy_config_path=proxy_yaml, strict=False)
 
