@@ -311,3 +311,74 @@ servers:
   baseline_status: lkg
   notes: KiloOrg github-discovery MCP, uses GitHub PAT (GHDISC_GITHUB_TOKEN), stateful
     via pools.db + sessions.db, 16 tools
+
+- name: airbnb
+  domain: travel
+  owner_agent: traveller-agent
+  tier: 2
+  transport: stdio
+  lifecycle: enabled
+  auth_mode: keyless
+  statefulness: stateless
+  expected_tools:
+  - airbnb_search
+  - airbnb_listing_details
+  risk_level: low
+  cost_class: free
+  source_of_truth: npx -y @openbnb/mcp-server-airbnb
+  rollback_class: server
+  baseline_status: lkg
+  notes: Airbnb MCP (openbnb), MIT, 442 stelle, scraping no-auth, 2 tools. Ricerca vacation rental.
+
+- name: osm-mcp
+  domain: travel
+  owner_agent: traveller-agent
+  tier: 2
+  transport: stdio
+  lifecycle: enabled
+  auth_mode: keyless
+  statefulness: stateless
+  expected_tools:
+  - geocode_address
+  - reverse_geocode
+  - find_nearby_places
+  - get_route_directions
+  - search_category
+  - suggest_meeting_point
+  - explore_area
+  - find_schools_nearby
+  - analyze_commute
+  - find_ev_charging_stations
+  - analyze_neighborhood
+  - find_parking_facilities
+  risk_level: low
+  cost_class: free
+  source_of_truth: uvx osm-mcp-server
+  rollback_class: server
+  baseline_status: lkg
+  notes: OpenStreetMap MCP (jagan-shanmugam), Python, 12+ tools, free no-auth. Sostituisce Google Maps per geocoding/POI/routes.
+
+- name: aria-amadeus-mcp
+  domain: travel
+  owner_agent: traveller-agent
+  tier: 1
+  transport: stdio
+  lifecycle: shadow
+  auth_mode: api_key
+  statefulness: stateless
+  env:
+    AMADEUS_CLIENT_ID: ${AMADEUS_CLIENT_ID}
+    AMADEUS_CLIENT_SECRET: ${AMADEUS_CLIENT_SECRET}
+  expected_tools:
+  - flight_offers_search
+  - hotel_offers_search
+  - hotel_list_by_geocode
+  - locations_search
+  - nearest_airport
+  - flight_status
+  risk_level: low
+  cost_class: free
+  source_of_truth: scripts/wrappers/aria-amadeus-wrapper.sh
+  rollback_class: server
+  baseline_status: shadow
+  notes: ARIA locale FastMCP wrapper per Amadeus Self-Service API. 6 tool read-only MVP. Free tier 2000 chiamate/mese. Lifecycle shadow fino a creazione wrapper script e test server.

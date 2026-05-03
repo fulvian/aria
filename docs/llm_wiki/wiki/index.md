@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-05-03T20:00 (v7.6 — traveller-agent Fase 1 completata: foundation runtime integration. Prompt canonico, entry in capability matrix, conductor dispatch rules travel domain. 41 test unitari.)
-**Status**: ✅ **v7.6** — **traveller-agent Fase 1 (Foundation) completata**. Prompt canonico in `.aria/kilocode/agents/traveller-agent.md`, entry in `agent_capability_matrix.yaml`, conductor dispatch rules con keyword routing per 30+ keyword travel. 41 test unitari per traveller-agent + 26 test di integrazione conductor dispatch. Pre-existing: 9 test conductor dispatch su sezioni non-travel rimangono in rosso su main (da fixare separatamente).
+**Last Updated**: 2026-05-03T20:40 (v7.7 — traveller-agent Fase 2 completata: backend MCP registrati. Airbnb + osm-mcp (OSM free, sostituisce Google Maps). Credenziali Amadeus cifrate in SOPS. 7 test catalog.
+**Status**: ✅ **v7.7** — **traveller-agent Fase 2 (Backend MCP) completata**. 3 backend registrati in `mcp_catalog.yaml`: `airbnb` (keyless, enabled), `osm-mcp` (keyless, enabled — OpenStreetMap gratuito), `aria-amadeus-mcp` (api_key, shadow — in attesa Fase 3). Google Maps escluso (richiedeva billing account non attivabile). Sostituito con osm-mcp-server (OpenStreetMap, 12 tool, 100% free). Credenziali Amadeus cifrate in SOPS. 7 test catalog traveller-backends. Fase 1: 41+26=67 test. Fase 2: +7 test = 74 test totali traveller.
 
 ## Purpose
 
@@ -193,6 +193,7 @@ docs/llm_wiki/
 - 2026-05-01: **v6.4** — Creato `docs/protocols/protocollo_creazione_agenti.md`: workflow unico per nuovi agenti/sub-agenti, con intake, wiki-first reconstruction, ricerca repo + `github-discovery`, branch di ricerca manuale via ARIA, decision ladder P8, guardrail P9/HITL/wiki.db/proxy, e output obbligatorio dei piani in `docs/plans/agents/`.
 - 2026-05-02: **v6.5** — **trader-agent runtime integration**. Il trader-agent (esistente in `.aria/kilo-home/.kilo/agents/` con 7 skill) era invisibile al conductor perché mancava da tutti i touchpoint runtime. Fix: capability matrix entry, conductor dispatch rules con keyword routing per 40+ termini finanziari, prompt canonico in `.aria/kilocode/agents/trader-agent.md`, delegation chain aggiornata. Aggiornato `protocollo_creazione_agenti.md` con **Fase L (Runtime Integration Checklist)** — 8 touchpoint obbligatori per prevenire integrazioni parziali future. 28 nuovi test trader-agent.
 - 2026-05-03: **v7.6** — **traveller-agent Fase 1 (Foundation) completata**. Prompt canonico `.aria/kilocode/agents/traveller-agent.md`, entry in `agent_capability_matrix.yaml`, conductor dispatch rules per travel domain con 30+ keyword. 41 test unitari traveller-agent + 26 test integrazione conductor dispatch. Branch: `feature/traveller-agent-f1`.
+- 2026-05-03: **v7.7** — **traveller-agent Fase 2 (Backend MCP) completata**. 3 backend registrati in `mcp_catalog.yaml`: airbnb, osm-mcp (sostituisce Google Maps), aria-amadeus-mcp (shadow). Google Maps escluso (richiedeva billing). Sostituito con osm-mcp-server (OpenStreetMap, 12 tool, 100% free, no auth). Credenziali Amadeus cifrate in SOPS (`api-keys.enc.yaml`). 7 test catalog traveller-backends. 74 test totali traveller.
 
 ## Git & GitHub Rules
 

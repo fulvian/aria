@@ -1,5 +1,48 @@
 # Implementation Log
 
+## 2026-05-03T20:40+02:00 — FEAT: traveller-agent Fase 2 (Backend MCP)
+
+**Operation**: FEAT (traveller-agent backend catalog)
+**Branch**: `feature/traveller-agent-f1`
+**Trigger**: implementazione traveller-agent Fase 2: registrazione backend MCP airbnb + osm-mcp + aria-amadeus-mcp.
+
+### Decisione architetturale: Google Maps → OpenStreetMap
+
+Google Maps Platform (`@cablate/mcp-google-map`) è stato **escluso** perché richiede billing account Google Cloud (non attivabile dall'utente). Sostituito con **osm-mcp-server** basato su OpenStreetMap:
+- Geocoding via Nominatim (gratuito, no auth)
+- POI search via Overpass API (gratuito, no auth)
+- Route planning via OSRM (gratuito, no auth)
+- 12+ tool MCP, 100% free, nessuna API key
+- Installazione: `uvx osm-mcp-server`
+
+### Changes
+- Aggiornato `.aria/config/mcp_catalog.yaml` con 3 nuovi backend travel:
+  - `airbnb` (enabled, keyless, 2 tool)
+  - `osm-mcp` (enabled, keyless, 12 tool — sostituisce Google Maps)
+  - `aria-amadeus-mcp` (shadow, api_key, 6 tool — wrapper da implementare in Fase 3)
+- Cifrate credenziali Amadeus in `.aria/credentials/secrets/api-keys.enc.yaml` via SOPS+age
+- Creato placeholder `scripts/wrappers/aria-amadeus-wrapper.sh`
+- Creati 7 test catalog in `tests/unit/agents/traveller/test_mcp_catalog_traveller_backends.py`
+- Documentazione: `docs/operations/traveller-backend-setup.md`
+
+### Files modified
+- `.aria/config/mcp_catalog.yaml` (+3 backend, +80 righe)
+- `.aria/credentials/secrets/api-keys.enc.yaml` (+amadeus provider)
+- `docs/llm_wiki/wiki/index.md` (v7.7)
+- `docs/llm_wiki/wiki/log.md` (questa entry)
+- `docs/llm_wiki/wiki/traveller-agent.md` (Fase 2 status + backend table)
+
+### Files created
+- `tests/unit/agents/traveller/test_mcp_catalog_traveller_backends.py` (7 test)
+- `scripts/wrappers/aria-amadeus-wrapper.sh` (placeholder)
+- `docs/operations/traveller-backend-setup.md`
+- `docs/operations/traveller-google-cloud-setup.md` (deprecato, mantenuto per cronaca)
+
+### Quality gate
+- 7 catalog test: PASS
+- Tutti i 74 traveller test: PASS
+- ruff/mypy/format: OK
+
 ## 2026-05-03T20:00+02:00 — FEAT: traveller-agent Fase 1 (Foundation)
 
 **Operation**: FEAT (traveller-agent foundation)
