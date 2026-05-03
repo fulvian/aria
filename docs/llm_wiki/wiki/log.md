@@ -1,56 +1,55 @@
 # Implementation Log
 
-## 2026-05-03T16:00+02:00 — PLAN: code-discovery skill integration (Context7 + github-discovery)
+## 2026-05-03T17:26+02:00 — PLAN CORRECTION: code-discovery requires real proxy integration for github-discovery and context7
 
-**Operation**: PLAN (skill extension per search-agent)
+**Operation**: PLAN CORRECTION
 **Branch**: working tree (uncommitted)
-**Trigger**: richiesta utente di integrare `github-discovery` e `context7` MCP nel search-agent come nuova skill `code-discovery` per ricerca orientata allo sviluppo.
+**Trigger**: correzione di un assunto errato nel piano precedente: disponibilità in KiloCode o presenza nel catalogo non equivalgono a integrazione runtime in ARIA.
 
-### Analisi condotta
+### Correzioni chiave
 
-1. **Wiki-first reconstruction**: letti `index.md`, `log.md`, `research-routing.md`, `mcp-architecture.md`, `agent-capability-matrix.md`
-2. **Codice analizzato**: `router.py`, `intent.py`, `server.py`, `broker.py`, `mcp_catalog.yaml`, `agent_capability_matrix.yaml`, `search-agent.md`, `deep-research/SKILL.md`
-3. **Context7 verification**: resolve-library-id + query-docs API patterns verificati via Context7 docs. 2-step flow (resolve → query) confermato.
-4. **github-discovery verification**: 16 tool già in catalogo, owner_agent: search-agent, lifecycle: enabled
-5. **Best practices research**: GitHub MCP Registry, MCP Server Finder, Context7 SDK docs
+1. **`github-discovery` non è da considerare attivo in ARIA** solo perché compare in `mcp_catalog.yaml`
+2. **`context7` non è integrato in ARIA**: esiste solo nel KiloCode globale come backend HTTP autenticato
+3. **Il proxy ARIA non supporta ancora pienamente backend HTTP con `headers` autenticati**, necessari per Context7
+4. **`search-agent` oggi non ha policy** per `github-discovery_*` né `context7_*`
+5. **Il piano corretto parte dall’infrastruttura proxy**, non dalla skill
 
-### Piano creato
+### Analisi tecnica approfondita
 
-- **File**: `docs/plans/mcp_discovery_context7_search_integration_plan.md`
-- **Categoria**: skill extension (NON nuovo agente)
-- **Scope**: nuova skill `code-discovery` per search-agent
+- Runtime ARIA reale: `.aria/kilocode/mcp.json` espone solo `aria-memory` + `aria-mcp-proxy`
+- `github-discovery` in catalogo:
+  - presente ✅
+  - `env.GHDISC_GITHUB_TOKEN` mancante ❌
+  - capability matrix mancante ❌
+  - smoke test E2E via proxy assente ❌
+- `context7` in KiloCode globale:
+  - configurato come HTTP MCP remoto con `Authorization: Bearer ${CONTEXT7_API_KEY}`
+  - non presente nel catalogo ARIA ❌
+  - il `BackendSpec` ARIA non ha campo `headers` ❌
+  - `CredentialInjector` risolve solo `env`, non `headers` ❌
 
-### Architettura target
+### Nuovo ordine corretto del lavoro
 
-1. **Nuovo provider**: `context7` registrato in `mcp_catalog.yaml` (keyless, 2 tool)
-2. **Nuovo intent**: `Intent.DEVELOPMENT` in `router.py` e `intent.py`
-3. **Nuova tier ladder**: `context7(1) → github_discovery(2) → searxng(3) → tavily(4) → exa(5) → brave(6) → fetch(7)`
-4. **Nuova skill**: `.aria/kilocode/skills/code-discovery/SKILL.md` (4 fasi: Context7 → github-discovery → synthesis → fallback)
-5. **Capability matrix update**: `context7_*` e `github-discovery_*` aggiunti a search-agent allowed_tools
-6. **Prompt update**: sezione DEVELOPMENT in `search-agent.md`
+1. **Phase 0** — estendere il proxy ARIA per backend HTTP con headers
+2. **Phase 1** — completare davvero l’integrazione ARIA di `github-discovery`
+3. **Phase 2** — integrare `context7` nel catalogo ARIA tramite proxy
+4. **Phase 3** — aggiungere `Intent.DEVELOPMENT`
+5. **Phase 4** — creare skill `code-discovery`
 
-### P8 Decision Ladder
+### File aggiornato
 
-| Opzione | Esito |
-|---------|-------|
-| github-discovery MCP (esistente) | ✅ RIUSO |
-| context7 MCP (esistente in KiloCode) | ✅ RIUSO — registrato nel catalogo ARIA |
-| Nuova skill code-discovery | ✅ NECESSARIA — compone i 2 MCP |
-| Tool Python locale | ❌ NON NECESSARIO |
-
-### Integration path
-
-- Context7 → via proxy (aggiunto a mcp_catalog.yaml) — Opzione A scelta per coerenza architetturale
-- github-discovery → via proxy (già in catalogo, aggiunto a capability matrix)
-- Skill → canonical proxy pattern con `_caller_id: "search-agent"`
+- `docs/plans/mcp_discovery_context7_search_integration_plan.md` → riscritto in versione `1.1.0` con architettura, gap matrix e fasi corrette
 
 ### Provenance
 
+- `.aria/kilocode/mcp.json`
+- `~/.kilocode/mcp.json`
+- `.aria/config/mcp_catalog.yaml`
+- `.aria/config/agent_capability_matrix.yaml`
+- `src/aria/mcp/proxy/catalog.py`
+- `src/aria/mcp/proxy/credential.py`
+- `src/aria/mcp/proxy/server.py`
 - `docs/plans/mcp_discovery_context7_search_integration_plan.md`
-- `.aria/config/mcp_catalog.yaml` (github-discovery entry)
-- `.aria/config/agent_capability_matrix.yaml` (search-agent entry)
-- Context7 docs: `/websites/context7`
-- Session ID: corrente
 
 ---
 
@@ -4399,3 +4398,38 @@ cattura l'errore e restituisce backend name + lista tool disponibili + hint
 - Verificato: tutti e 3 i backend finanziari funzionanti
 
 **Test**: 965 passanti (0 regressions)
+
+## 2026-05-03T17:37+02:00 — Sprint C5: pre-dispatch planning + skill loading (da auto-analisi sessione)
+
+**Commit**: `d5a1d0c`
+**Branch**: `fix/trader-agent-recovery`
+**Trigger**: Auto-analisi sessione trader-agent: 3 deviazioni formali dal protocollo.
+
+### Problematiche identificate
+
+| # | Deviazione | Effetto |
+|---|-----------|---------|
+| 1 | Skill `trading-analysis` non caricata | Workflow skill-guided non garantito |
+| 2 | `planning-with-files` non usato per richieste >3 passi | Nessun piano strutturato su file |
+| 3 | Sotto-skill `sentiment-analysis` non richiesta esplicitamente | Analisi sentiment assente |
+
+### Fix
+
+**Conductor prompt** (`.aria/kilocode/agents/aria-conductor.md`):
+- Nuova 🔴 HARD GATE «Pre-dispatch planning + skill loading per trader-agent (C5)»
+  nella sezione wiki guard: planning pre-dispatch, skill loading esplicito nel goal.
+- Regole di dispatch trader-agent: aggiunte istruzioni per planning + sotto-skill.
+- 4 HARD GATE totali nel conductor: B3 (HandoffRequest) + B4 (proxy guard) +
+  B7 (wiki_update) + C5 (planning+skill).
+
+**Trader-agent prompt** (`.aria/kilocode/agents/trader-agent.md`):
+- Skill loading rinforzato: «PRIMA operazione del turno».
+
+### Risultato
+
+Ora quando il conductor dispatcha una richiesta multi-dimensionale a trader-agent:
+1. Prima crea un piano con `planning-with-files`
+2. Nel `goal` del HandoffRequest include sotto-skill e dimensioni da coprire
+3. Il trader-agent carica le skill come prima operazione del turno
+4. Usa il proxy per dati live
+5. Post-analisi: conductor verifica presenza proxy usage nell'output
