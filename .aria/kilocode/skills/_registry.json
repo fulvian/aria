@@ -13,6 +13,9 @@
     {"name": "blueprint-keeper", "path": "blueprint-keeper/SKILL.md", "version": "1.0.0", "category": "governance"},
     {"name": "destination-research", "path": "destination-research/SKILL.md", "version": "1.0.0", "category": "travel"},
     {"name": "accommodation-comparison", "path": "accommodation-comparison/SKILL.md", "version": "1.0.0", "category": "travel"},
-    {"name": "transport-planning", "path": "transport-planning/SKILL.md", "version": "1.0.0", "category": "travel"}
+    {"name": "transport-planning", "path": "transport-planning/SKILL.md", "version": "1.0.0", "category": "travel"},
+    {"name": "activity-planning", "path": "activity-planning/SKILL.md", "version": "1.0.0", "category": "travel"},
+    {"name": "itinerary-building", "path": "itinerary-building/SKILL.md", "version": "1.0.0", "category": "travel"},
+    {"name": "budget-analysis", "path": "budget-analysis/SKILL.md", "version": "1.0.0", "category": "travel"}
   ]
 }

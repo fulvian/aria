@@ -106,3 +106,23 @@ class TestMCPCatalogAriaAmadeus:
         s = _by_name(servers, "aria-amadeus-mcp")
         sot = s.get("source_of_truth", "")
         assert "wrapper" in sot.lower() or "scripts/" in sot
+
+
+class TestMCPCatalogBooking:
+    """Booking MCP server (@striderlabs/mcp-booking, gated)."""
+
+    def test_booking_present(self, servers):
+        s = _by_name(servers, "booking")
+        assert s["domain"] == "travel"
+        assert s["owner_agent"] == "traveller-agent"
+        assert s["lifecycle"] == "shadow"
+        assert s["auth_mode"] == "keyless"
+        assert s["cost_class"] == "free"
+
+    def test_booking_has_search_tools(self, servers):
+        s = _by_name(servers, "booking")
+        tools = s["expected_tools"]
+        search_tools = {"search_hotels", "search_destinations", "search_by_id"}
+        assert search_tools.issubset(set(tools)), (
+            f"booking missing tools: {search_tools - set(tools)}"
+        )

@@ -18,7 +18,7 @@ Sub-agente ARIA domain-primary per pianificazione e assistenza viaggi. Copre l'i
 | Fase 2 — backend MCP (airbnb + osm-mcp + aria-amadeus-mcp catalog) | ✅ Completa (v7.7) |
 | Fase 3 — `aria-amadeus-mcp` (FastMCP wrapper) | ✅ Completa (v7.8) |
 | Fase 4 — skill core (destination + accommodation + transport) | ✅ Completa (v7.9) |
-| Fase 5 — skill complementari + booking gated | ⏳ Pending |
+| Fase 5 — skill complementari + booking gated | ✅ Completa (v8.0) |
 | Fase 6 — export integration via productivity-agent | ⏳ Pending |
 | Fase 7 — observability + cost circuit breaker | ⏳ Pending |
 | Fase 8 — ADR-0017 + ADR-0018 + wiki sync | ⏳ Pending |
@@ -44,7 +44,7 @@ Sub-agente ARIA domain-primary per pianificazione e assistenza viaggi. Copre l'i
 
 Skills registrate in `.aria/kilocode/skills/_registry.json` con category: `travel`.
 
-**Skills pending** (Fase 5): `activity-planning`, `itinerary-building`, `budget-analysis`.
+Tutte le 6 skill sono state implementate (Fase 4 + Fase 5 completate).
 
 ## Runtime Integration (Fase 1 completata)
 

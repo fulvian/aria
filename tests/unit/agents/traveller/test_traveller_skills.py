@@ -73,6 +73,9 @@ class TestTravellerSkillRegistration:
         "destination-research",
         "accommodation-comparison",
         "transport-planning",
+        "activity-planning",
+        "itinerary-building",
+        "budget-analysis",
     ])
     def test_skill_has_skill_file(self, skill_name: str):
         """Each implemented skill has a SKILL.md file."""
@@ -83,6 +86,9 @@ class TestTravellerSkillRegistration:
         "destination-research",
         "accommodation-comparison",
         "transport-planning",
+        "activity-planning",
+        "itinerary-building",
+        "budget-analysis",
     ])
     def test_skill_frontmatter_valid(self, skill_name: str):
         """Each SKILL.md has valid YAML frontmatter."""
@@ -102,6 +108,9 @@ class TestTravellerSkillRegistration:
         "destination-research",
         "accommodation-comparison",
         "transport-planning",
+        "activity-planning",
+        "itinerary-building",
+        "budget-analysis",
     ])
     def test_skill_in_registry(self, registry, skill_name: str):
         """Each skill is registered in _registry.json."""

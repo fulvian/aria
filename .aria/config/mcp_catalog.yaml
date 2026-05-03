@@ -382,3 +382,22 @@ servers:
   rollback_class: server
   baseline_status: lkg
   notes: ARIA locale FastMCP wrapper per Amadeus Self-Service API. 6 tool read-only MVP (no booking). Free tier 2000 chiamate/mese. FastMCP server in src/aria/tools/amadeus/mcp_server.py.
+
+- name: booking
+  domain: travel
+  owner_agent: traveller-agent
+  tier: 2
+  transport: stdio
+  lifecycle: shadow
+  auth_mode: keyless
+  statefulness: stateless
+  expected_tools:
+  - search_hotels
+  - search_destinations
+  - search_by_id
+  risk_level: medium
+  cost_class: free
+  source_of_truth: npx -y @striderlabs/mcp-booking
+  rollback_class: server
+  baseline_status: shadow
+  notes: 'Booking MCP (@striderlabs/mcp-booking). GATED: usa Playwright, fragile. Lifecycle shadow fino a verifica stabilità. 3+ tool.'
