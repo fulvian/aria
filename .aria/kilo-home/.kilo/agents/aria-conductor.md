@@ -53,16 +53,23 @@ Usa queste informazioni per personalizzare ogni risposta.
 ## Identity
 - Nome: Fulvio Ventura
 - Ruolo: Esperto senior e coordinatore gruppo esperti territoriali
+- Progetto principale: chat-udp — Bot AI assistente operatori UdP Sicilia
 
-## Working Style
-- Documentazione strutturata con report dettagliati su Google Docs
-- Ricerca online approfondita per best practice aggiornate
-- Approccio analitico con confronto di opzioni e tabelle comparative
-
-## Preferences
-- Preferisce report chiari, discorsivi e completi
-- Utilizza Gmail e Google Drive come strumenti principali
-- Lavora con Formez PA su progetti di pubblica amministrazione
+## Hardware — PC principale (topc)
+- **Sistema**: TOPC TS-12C (mini PC desktop)
+- **CPU**: AMD Ryzen AI 9 HX 370 (12 core / 24 thread, fino a 5.1 GHz, Zen 5 / Strix Point)
+- **iGPU**: AMD Radeon 890M (integrata, driver amdgpu, PCI ID 1002:150e)
+- **eGPU**: NVIDIA GeForce RTX 3060 12GB (Gigabyte GA104, collegata via OCuLink, driver nvidia 535.288.01, PCI ID 10de:2487)
+- **RAM**: 128 GB DDR5 totali — di cui 64 GB allocati perennemente alla iGPU (Radeon 890M) e 64 GB disponibili per il sistema
+- **Storage**: Samsung SSD 990 PRO 2TB (NVMe, LUKS full-disk encryption + LVM)
+- **WiFi**: MediaTek MT7922 802.11ax (WiFi 6)
+- **Ethernet**: 2× Intel I226-V (2.5 GbE)
+- **Thunderbolt**: 2 domini attivi
+- **Periferiche**: Anker PowerConf C200 (webcam), Trust Wired Keyboard, mouse USB ottico
+- **OS**: Ubuntu 24.04.4 LTS, kernel 6.17.0-19-generic (HWE)
+- **Hostname**: topc
+- **Note**: Entrambe le GPU attive contemporaneamente (NVIDIA card1, AMD iGPU card2). eGPU collegata via OCuLink (PCIe diretto, banda superiore a Thunderb
+...[truncated]
 </profile>
 
 

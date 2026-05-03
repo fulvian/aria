@@ -18,16 +18,61 @@ estimated-cost-eur: 0.01
 Stimare il costo complessivo di un viaggio, suddiviso per categorie di spesa.
 Produrre breakdown chiaro con range di prezzo (economy/mid-range/lusso).
 
-## Proxy invocation
-Tutte le chiamate ai backend MCP passano dal proxy con `_caller_id: "traveller-agent"`.
+## ⚠️ REGOLA: DEVI ottenere PREZZI REALI via tool MCP
+Non inventare prezzi. Chiama i tool per ottenere dati reali.
 
-## Pipeline
+## Proxy invocation pattern
+```
+aria-mcp-proxy__call_tool(name="call_tool", arguments={
+  "name": "<server>__<tool>",
+  "arguments": {<parametri>},
+  "_caller_id": "traveller-agent"
+})
+```
 
-### 1. Raccolta costi reali
-Usa i tool MCP per ottenere prezzi reali dove possibile:
-- **Voli**: `aria-amadeus-mcp__flight_offers_search` per prezzi attuali
-- **Alloggi**: `airbnb__airbnb_search` + `aria-amadeus-mcp__hotel_offers_search`
-- Nessun tool per pasti/attività → usa stima basata su fascia destinazione
+## Pipeline — CHIAMATA OBBLIGATORIA
+
+### 1. Raccolta costi REALI via tool MCP
+DEVI chiamare questi tool per ottenere PREZZI VERI:
+- **Voli**:
+```
+aria-mcp-proxy__call_tool(name="call_tool", arguments={
+  "name": "aria-amadeus-mcp__flight_offers_search",
+  "arguments": {
+    "origin_location_code": "<IATA>",
+    "destination_location_code": "<IATA>",
+    "departure_date": "<YYYY-MM-DD>",
+    "adults": <numero>
+  },
+  "_caller_id": "traveller-agent"
+})
+```
+- **Alloggi Airbnb**:
+```
+aria-mcp-proxy__call_tool(name="call_tool", arguments={
+  "name": "airbnb__airbnb_search",
+  "arguments": {
+    "location": "<città>",
+    "checkIn": "<YYYY-MM-DD>",
+    "checkOut": "<YYYY-MM-DD>",
+    "adults": <numero>
+  },
+  "_caller_id": "traveller-agent"
+})
+```
+- **Alloggi Hotel Amadeus**:
+```
+aria-mcp-proxy__call_tool(name="call_tool", arguments={
+  "name": "aria-amadeus-mcp__hotel_offers_search",
+  "arguments": {
+    "hotel_ids": "<id1,id2>",
+    "check_in_date": "<YYYY-MM-DD>",
+    "check_out_date": "<YYYY-MM-DD>",
+    "adults": <numero>
+  },
+  "_caller_id": "traveller-agent"
+})
+```
 
 ### 2. Breakdown per categoria
 Organizza in categorie standard:

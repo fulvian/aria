@@ -19,52 +19,69 @@ Confrontare opzioni alloggio su più OTA (Airbnb, Amadeus hotel GDS, Booking)
 per una destinazione, date e numero ospiti specifici. Produrre tabella
 comparativa con prezzi, voti, posizione e link.
 
-## Proxy invocation
-Tutte le chiamate ai backend MCP passano dal proxy con `_caller_id: "traveller-agent"`.
+## ⚠️ REGOLA: DEVI chiamare tool, non descrivere
+Chiama OGNI tool elencato sotto in sequenza. Usa SEMPRE il pattern esatto.
 
-## Pipeline
+## Proxy invocation pattern
+```
+aria-mcp-proxy__call_tool(name="call_tool", arguments={
+  "name": "<server>__<tool>",
+  "arguments": {<parametri>},
+  "_caller_id": "traveller-agent"
+})
+```
 
-### 1. Geocoding destinazione
-Se non si hanno già le coordinate della destinazione:
+## Pipeline — CHIAMATA OBBLIGATORIA
+
+### 1. Geocoding destinazione — DEVI chiamare
 ```
-name: "osm-mcp__geocode_address"
-arguments: {"address": "<nome città, paese>"}
+aria-mcp-proxy__call_tool(name="call_tool", arguments={
+  "name": "osm-mcp__geocode_address",
+  "arguments": {"address": "<nome città, paese>"},
+  "_caller_id": "traveller-agent"
+})
 ```
 
-### 2. Ricerca Airbnb (se enabled)
+### 2. Ricerca Airbnb — DEVI chiamare
 ```
-name: "airbnb__airbnb_search"
-arguments: {
-  "location": "<città>",
-  "checkIn": "<YYYY-MM-DD>",
-  "checkOut": "<YYYY-MM-DD>",
-  "adults": <numero>,
-  "children": <numero>  # opzionale
-}
+aria-mcp-proxy__call_tool(name="call_tool", arguments={
+  "name": "airbnb__airbnb_search",
+  "arguments": {
+    "location": "<città>",
+    "checkIn": "<YYYY-MM-DD>",
+    "checkOut": "<YYYY-MM-DD>",
+    "adults": <numero>
+  },
+  "_caller_id": "traveller-agent"
+})
 ```
-Se disponibile, arricchisci con `airbnb__airbnb_listing_details` per i top 3.
+Poi arricchisci top 3 con `airbnb__airbnb_listing_details`.
 
-### 3. Ricerca Hotel Amadeus
-Prima ottieni hotel list per geocode:
+### 3. Ricerca Hotel Amadeus — DEVI chiamare
+Prima hotel list per geocode:
 ```
-name: "aria-amadeus-mcp__hotel_list_by_geocode"
-arguments: {"latitude": <lat>, "longitude": <lon>}
+aria-mcp-proxy__call_tool(name="call_tool", arguments={
+  "name": "aria-amadeus-mcp__hotel_list_by_geocode",
+  "arguments": {"latitude": <lat>, "longitude": <lon>},
+  "_caller_id": "traveller-agent"
+})
 ```
 Poi cerca offerte per i primi hotel:
 ```
-name: "aria-amadeus-mcp__hotel_offers_search"
-arguments: {
-  "hotel_ids": "<id1,id2>",
-  "check_in_date": "<YYYY-MM-DD>",
-  "check_out_date": "<YYYY-MM-DD>",
-  "adults": <numero>
-}
+aria-mcp-proxy__call_tool(name="call_tool", arguments={
+  "name": "aria-amadeus-mcp__hotel_offers_search",
+  "arguments": {
+    "hotel_ids": "<id1,id2>",
+    "check_in_date": "<YYYY-MM-DD>",
+    "check_out_date": "<YYYY-MM-DD>",
+    "adults": <numero>
+  },
+  "_caller_id": "traveller-agent"
+})
 ```
 
 ### 4. Ricerca Booking (se enabled — gated)
-Usa `booking__search_*` o `booking__availability_*` via proxy.
-Nota: Booking MCP è gated (Playwright, fragile). Se fallisce, continua
-con Airbnb + Amadeus.
+Usa lo stesso pattern con `booking__search_hotels` via proxy.
 
 ### 5. Sintesi comparativa
 Combina risultati in tabella:

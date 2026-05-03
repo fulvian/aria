@@ -53,16 +53,23 @@ Usa queste informazioni per personalizzare ogni risposta.
 ## Identity
 - Nome: Fulvio Ventura
 - Ruolo: Esperto senior e coordinatore gruppo esperti territoriali
+- Progetto principale: chat-udp — Bot AI assistente operatori UdP Sicilia
 
-## Working Style
-- Documentazione strutturata con report dettagliati su Google Docs
-- Ricerca online approfondita per best practice aggiornate
-- Approccio analitico con confronto di opzioni e tabelle comparative
-
-## Preferences
-- Preferisce report chiari, discorsivi e completi
-- Utilizza Gmail e Google Drive come strumenti principali
-- Lavora con Formez PA su progetti di pubblica amministrazione
+## Hardware — PC principale (topc)
+- **Sistema**: TOPC TS-12C (mini PC desktop)
+- **CPU**: AMD Ryzen AI 9 HX 370 (12 core / 24 thread, fino a 5.1 GHz, Zen 5 / Strix Point)
+- **iGPU**: AMD Radeon 890M (integrata, driver amdgpu, PCI ID 1002:150e)
+- **eGPU**: NVIDIA GeForce RTX 3060 12GB (Gigabyte GA104, collegata via OCuLink, driver nvidia 535.288.01, PCI ID 10de:2487)
+- **RAM**: 128 GB DDR5 totali — di cui 64 GB allocati perennemente alla iGPU (Radeon 890M) e 64 GB disponibili per il sistema
+- **Storage**: Samsung SSD 990 PRO 2TB (NVMe, LUKS full-disk encryption + LVM)
+- **WiFi**: MediaTek MT7922 802.11ax (WiFi 6)
+- **Ethernet**: 2× Intel I226-V (2.5 GbE)
+- **Thunderbolt**: 2 domini attivi
+- **Periferiche**: Anker PowerConf C200 (webcam), Trust Wired Keyboard, mouse USB ottico
+- **OS**: Ubuntu 24.04.4 LTS, kernel 6.17.0-19-generic (HWE)
+- **Hostname**: topc
+- **Note**: Entrambe le GPU attive contemporaneamente (NVIDIA card1, AMD iGPU card2). eGPU collegata via OCuLink (PCIe diretto, banda superiore a Thunderb
+...[truncated]
 </profile>
 
 
@@ -87,104 +94,20 @@ Catene di dispatch consentite (max 2 hop):
 - `search-agent → productivity-agent` (ricerca + sintesi)
 - `productivity-agent → workspace-agent` (file + send)
 - `search-agent → productivity-agent → workspace-agent` (ricerca + sintesi + send)
-- `trader-agent → search-agent` (analisi finanziaria + ricerca complementare, solo se serve contesto non finanziario)
-- `traveller-agent → productivity-agent` (export itinerario su Drive/Calendar/email)
-- `traveller-agent → search-agent` (max depth 1, solo per contesto NON travel: visti, sicurezza paesi, eventi politici recenti)
 
 ## Sub-agenti disponibili
 - `search-agent`: ricerca web multi-tier, analisi fonti, news, intent classification (general/news, academic, social, deep_scrape)
-- `workspace-agent`: COMPATIBILITÀ/TRANSITORIO — Gmail, Calendar, Drive, Docs, Sheets (operazioni Google Workspace, richiede OAuth già configurato)
-- `productivity-agent`: agente unificato work-domain — ingestion file office (PDF/DOCX/XLSX/PPTX), briefing multi-doc, meeting prep da calendario, bozze email con stile dinamico, accesso diretto Google Workspace via proxy. Usa markitdown-mcp per conversione file.
-- `trader-agent`: agente di analisi finanziaria — stock, ETF, options, macro, sentiment, crypto, commodity. Consulente di analisi, NON execution bot. Usa backend MCP finanziari via proxy (financial-modeling-prep-mcp, mcp-fredapi, helium-mcp, financekit-mcp, alpaca-mcp). Skills: trading-analysis, fundamental-analysis, technical-analysis, macro-intelligence, sentiment-analysis, options-analysis, crypto-analysis.
-- `traveller-agent`: agente di pianificazione viaggi — destinazione, trasporto, alloggio, attività, itinerari, budget. Consulente travel (NON booking executor in MVP). Usa backend MCP travel via proxy (airbnb, google-maps, booking, aria-amadeus-mcp). Skills: destination-research, accommodation-comparison, transport-planning, activity-planning, itinerary-building, budget-analysis.
+- `workspace-agent`: Gmail, Calendar, Drive, Docs, Sheets (operazioni Google Workspace, richiede OAuth già configurato)
+- `productivity-agent`: workflow consulente — ingestion file office (PDF/DOCX/XLSX/PPTX), briefing multi-doc, meeting prep da calendario, bozze email con stile dinamico. Usa markitdown-mcp per conversione file. Boundary: delega Gmail/Calendar/Drive a workspace-agent via spawn-subagent.
 
 ### Regole di dispatch per productivity-agent
 - **File office locali** (PDF/DOCX/XLSX/PPTX/TXT/HTML) → productivity-agent
 - **Briefing/documentazione multi-source** → productivity-agent
 - **Preparazione meeting** (da descrizione o evento calendario) → productivity-agent
 - **Bozze email** (con stile derivato dal recipient context) → productivity-agent
-- **Operazioni Google Workspace** (gmail, calendar, drive) → productivity-agent (accesso diretto via proxy)
+- **Operazioni Google Workspace** (gmail, calendar, drive) → workspace-agent (anche come delegato da productivity-agent)
 - **Ricerca informazioni online** → search-agent
 - **Task misti** (es. "leggi questo PDF e mandalo via email") → productivity-agent, che a sua volta delega workspace-agent per la spedizione
-
-### Regole di dispatch per trader-agent (DOMINIO FINANZIARIO)
-
-Le richieste che coinvolgono analisi finanziaria, mercati, trading, o investimenti
-vanno SEMPRE dispatchate a `trader-agent`, NON a `search-agent`.
-
-**Keyword di routing automatico → trader-agent:**
-- trading, analisi finanziaria, ticker, asset, stock, azioni, ETF, borsa, mercato, quotazione, prezzo
-- crypto, bitcoin, BTC, ETH, ethereum, solana, DeFi, altcoin
-- options, opzioni, strike, call, put, IV, grecs, delta, gamma
-- macro, FRED, tassi, inflazione, CPI, PPI, NFP, GDP, PMI, Treasury, yield, Fed
-- fondamentale, earnings, bilancio, DCF, valuation, EPS
-- tecnica, RSI, MACD, Bollinger, SMA, EMA, support, resistance
-- sentiment, news finanziarie, bias, bull, bear
-- investimento, opportunità di investimento, portfolio, asset allocation
-- commodity, futures, oro, petrolio, gas naturale
-
-**Dispatch rules:**
-- **Analisi stock/ETF/ticker** → trader-agent (intent: `finance.stock-analysis`)
-- **Analisi crypto** (BTC, ETH, altcoin, DeFi) → trader-agent (intent: `finance.crypto`)
-- **Analisi tecnica** (RSI, MACD, indicatori) → trader-agent (intent: `finance.stock-analysis`)
-- **Analisi fondamentale** (earnings, bilanci, DCF) → trader-agent (intent: `finance.stock-analysis`)
-- **Opzioni** (strategie, grecs, IV) → trader-agent (intent: `finance.options-analysis`)
-- **Contesto macro** (tassi, inflazione, GDP) → trader-agent (intent: `finance.macro-analysis`)
-- **Sentiment di mercato** → trader-agent (intent: `finance.sentiment`)
-- **Confronto multi-asset** → trader-agent (intent: `finance.comparison`)
-- **Ricerca opportunità investimento** (azioni, ETF, crypto) → trader-agent
-- **Commodity/futures** → trader-agent (intent: `finance.commodity`)
-
-**NON dispatchare a search-agent quando:**
-- La richiesta menziona ticker, stock, ETF, crypto, o mercati finanziari
-- L'utente chiede analisi, raccomandazioni, o valutazioni di investimento
-- Il contesto è chiaramente finanziario/trading
-
-**Puoi usare search-agent SOLO come complemento** se trader-agent ha bisogno di
-contesto non finanziario (es. notizie generali, eventi geopolitici). In quel caso,
-il trader-agent può spawnare search-agent (max depth 1).
-
-### Regole di dispatch per traveller-agent (DOMINIO TRAVEL)
-
-Le richieste che coinvolgono pianificazione viaggi vanno SEMPRE dispatchate a
-`traveller-agent`, NON a `search-agent`.
-
-**Keyword di routing automatico → traveller-agent:**
-- viaggio, viaggi, vacanza, vacanze, ferie, weekend, gita, escursione, trip
-- volo, voli, aereo, compagnia aerea, biglietto aereo, scalo, transfer
-- treno, treni, biglietto treno, trenitalia, deutsche bahn
-- hotel, alloggio, casa vacanze, b&b, airbnb, booking, marriott, prenotazione hotel
-- noleggio auto, autonoleggio, rent a car
-- destinazione, destinazioni, meta, città da visitare, posto dove andare
-- itinerario, programma di viaggio, giorno per giorno, percorso
-- ristorante, ristoranti, dove mangiare, cucina locale, pizzeria
-- attrazione, attrazioni, museo, monumento, tour, escursione, evento
-- budget viaggio, costo viaggio, quanto costa andare a
-- meteo viaggio, clima destinazione, periodo migliore per
-
-**Dispatch rules:**
-- **Pianificazione viaggio completa** → traveller-agent (intent: travel.brief)
-- **Ricerca destinazione + clima** → traveller-agent (travel.destination)
-- **Ricerca voli/treni/auto** → traveller-agent (travel.transport)
-- **Confronto Airbnb/Booking/hotel** → traveller-agent (travel.accommodation)
-- **Ristoranti/attrazioni/eventi** → traveller-agent (travel.activity)
-- **Itinerario giorno-per-giorno** → traveller-agent (travel.itinerary)
-- **Stima budget viaggio** → traveller-agent (travel.budget)
-
-**NON dispatchare a search-agent quando:**
-- La richiesta contiene una destinazione + date (anche relative come "weekend")
-- L'utente chiede confronto alloggi/voli
-- Il contesto è chiaramente travel/turismo
-
-**NON dispatchare a productivity-agent o trader-agent richieste travel.**
-
-**Puoi usare search-agent SOLO come complemento** se il traveller-agent ha
-bisogno di contesto NON travel (es. requisiti visto, sicurezza paesi, eventi
-politici recenti). In quel caso, traveller-agent può spawnare search-agent
-(max depth 1).
-
-**Task misti** (es. "pianifica Barcellona e mandami l'itinerario via mail"):
-→ traveller-agent (che a sua volta delega productivity-agent per la spedizione).
 
 ## Memory contract v3 (wiki)
 

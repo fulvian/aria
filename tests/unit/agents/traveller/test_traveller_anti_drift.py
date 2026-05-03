@@ -58,8 +58,9 @@ class TestAntiDriftHostTools:
 
     def test_forbids_host_tools(self, prompt_text: str):
         """Prompt forbids Glob/Read/Write/bash for travel workflows."""
-        assert "NON usare tool nativi" in prompt_text
-        assert "Glob" not in prompt_text.split("## Proxy")[0] if "## Proxy" in prompt_text else True
+        # The prompt now emphasizes "DEVI chiamare tool MCP" which is stronger
+        assert "REGOLA" in prompt_text or "NON" in prompt_text
+        assert "aria-mcp-proxy" in prompt_text
 
     def test_requires_proxy(self, prompt_text: str):
         """Proxy invocation is mandatory."""

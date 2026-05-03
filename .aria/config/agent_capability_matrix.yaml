@@ -140,6 +140,11 @@ agents:
       - hitl-queue__ask
       - sequential-thinking__*
       - spawn-subagent
+      # Travel backend tools (accessible via aria-mcp-proxy__call_tool)
+      - airbnb__*
+      - osm-mcp__*
+      - aria-amadeus-mcp__*
+      - booking__*
     mcp_dependencies:
       - aria-mcp-proxy
       - aria-memory

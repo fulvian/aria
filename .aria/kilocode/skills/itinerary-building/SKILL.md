@@ -19,49 +19,57 @@ Costruire un itinerario giorno-per-giorno ottimizzato per una destinazione,
 combinando trasporto, alloggio, attività e ristoranti in una sequenza logica
 con waypoint ottimizzati.
 
-## Proxy invocation
-Tutte le chiamate ai backend MCP passano dal proxy con `_caller_id: "traveller-agent"`.
+## ⚠️ REGOLA: DEVI chiamare tool, non descrivere
+Chiama OGNI tool elencato. Non pianificare astrattamente.
 
-## Pipeline
-
-### 1. Raccolta ingredienti
-Prima di costruire l'itinerario, assicurati di avere:
-- **Destinazione** e coordinate (via osm-mcp__geocode_address)
-- **Alloggi** (via accommodation-comparison skill)
-- **Attività/ristoranti** (via activity-planning skill)
-- **Trasporto** (via transport-planning skill)
-
-### 2. Route optimization (se l'itinerario ha più punti)
-Usa `osm-mcp__get_route_directions` per ottimizzare spostamenti tra waypoint:
+## Proxy invocation pattern
 ```
-name: "osm-mcp__get_route_directions"
-arguments: {
-  "start_lat": <lat>,
-  "start_lon": <lon>,
-  "end_lat": <lat>,
-  "end_lon": <lon>,
-  "mode": "walking"  # o "car", "cycling" a seconda della distanza
-}
+aria-mcp-proxy__call_tool(name="call_tool", arguments={
+  "name": "<server>__<tool>",
+  "arguments": {<parametri>},
+  "_caller_id": "traveller-agent"
+})
 ```
 
-### 3. Costruzione giorno-per-giorno
-Organizza le attività in ordine logico:
-- **Mattina**: attività culturali/musei (aperti presto)
-- **Pranzo**: ristorante nella zona
-- **Pomeriggio**: tour/passeggiate/attività all'aperto
-- **Sera**: cena + intrattenimento
+## Pipeline — CHIAMATA OBBLIGATORIA
 
-Usa `osm-mcp__suggest_meeting_point` per trovare punti d'incontro ottimali:
+### 1. Raccolta ingredienti — DEVI chiamare osm-mcp__geocode_address
+Prima di costruire l'itinerario, DEVI avere coordinate reali:
 ```
-name: "osm-mcp__suggest_meeting_point"
-arguments: {
-  "locations": [
-    {"latitude": <lat1>, "longitude": <lon1>},
-    {"latitude": <lat2>, "longitude": <lon2>}
-  ],
-  "category": "cafe",
-  "limit": 3
-}
+aria-mcp-proxy__call_tool(name="call_tool", arguments={
+  "name": "osm-mcp__geocode_address",
+  "arguments": {"address": "<città>"},
+  "_caller_id": "traveller-agent"
+})
+```
+
+### 2. Route optimization (se multi-waypoint) — DEVI chiamare
+```
+aria-mcp-proxy__call_tool(name="call_tool", arguments={
+  "name": "osm-mcp__get_route_directions",
+  "arguments": {
+    "start_lat": <lat>, "start_lon": <lon>,
+    "end_lat": <lat>, "end_lon": <lon>,
+    "mode": "walking"
+  },
+  "_caller_id": "traveller-agent"
+})
+```
+
+### 3. Meeting point (se richiesto) — DEVI chiamare
+```
+aria-mcp-proxy__call_tool(name="call_tool", arguments={
+  "name": "osm-mcp__suggest_meeting_point",
+  "arguments": {
+    "locations": [
+      {"latitude": <lat1>, "longitude": <lon1>},
+      {"latitude": <lat2>, "longitude": <lon2>}
+    ],
+    "category": "cafe",
+    "limit": 3
+  },
+  "_caller_id": "traveller-agent"
+})
 ```
 
 ### 4. Sintesi

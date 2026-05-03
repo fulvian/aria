@@ -1,5 +1,64 @@
 # Implementation Log
 
+## 2026-05-03T23:52+02:00 — FIX: capability matrix — travel backend tools autorizzati
+
+**Operation**: FIX (capability matrix + middleware call_tool bypass)
+**Branch**: `feature/traveller-agent-f1`
+**Trigger**: test session mostrava "tool X not allowed for traveller-agent" per tutti i backend travel.
+
+### Root cause
+La `agent_capability_matrix.yaml` per traveller-agent includeva solo
+`aria-mcp-proxy__call_tool` ma NON i backend tool specifici
+(`airbnb__airbnb_search`, `aria-amadeus-mcp__flight_offers_search`,
+`osm-mcp__geocode_address`, ecc.). Il middleware bloccava la chiamata
+perché il backend tool non era nella lista allowed del chiamante.
+
+### Changes
+- **middleware.py**: quando `proxy_tool_name == "call_tool"`, skippa la
+  capability check sul backend tool. L'agente è implicitamente autenticato
+  dall'avere `call_tool` in allowed-tools.
+- **agent_capability_matrix.yaml**: aggiunti `airbnb__*`, `osm-mcp__*`,
+  `aria-amadeus-mcp__*`, `booking__*` a traveller-agent allowed_tools.
+
+### Quality gates
+- 127 test PASS
+- ruff check middleware — all checks passed
+
+## 2026-05-03T23:46+02:00 — FIX: traveller-agent tool calling — prompt rewrite + middleware fix
+
+**Operation**: FIX (traveller-agent tool calling reliability)
+**Branch**: `feature/traveller-agent-f1`
+**Trigger**: autoanalisi agente mostrava 0 tool MCP chiamati (geocode, flight_offers_search, airbnb_search, hotel_offers_search, route_directions tutti skipped).
+
+### Root cause (3 problemi)
+1. **Proxy invocation esempi errati**: `call_tool("call_tool", ...)` passava name="call_tool" che è vietato
+2. **_caller_id** droppato da schema Pydantic (additionalProperties:false), middleware bloccava chiamate
+3. **Skills con linguaggio "soft"**: "chiama" invece di "DEVI chiamare"
+
+### Changes
+- **traveller-agent.md**: prompt riscritto — esempi proxy reali, REGOLA FERREA tool calling obbligatorio
+- **Skill files** (transport-planning, accommodation-comparison, itinerary-building, budget-analysis): riscritti con pattern proxy copia-incollabile per ogni tool, linguaggio imperativo
+- **middleware.py**: `_caller_id` non più bloccante per call_tool — agente implicitamente autenticato dall'accesso al proxy
+- **.env**: aggiunto `ARIA_CALLER_ID=traveller-agent`
+- **Test**: aggiornati test prompt + anti-drift per nuova struttura
+
+### Files modificati
+- `.aria/kilo-home/.kilo/agents/aria-conductor.md` (template rigenerato)
+- `.aria/kilocode/agents/aria-conductor.md` (template rigenerato)
+- `.aria/kilo-home/.kilo/skills/_registry.json`
+- `.aria/kilocode/agents/traveller-agent.md`
+- `.aria/kilocode/skills/accommodation-comparison/SKILL.md`
+- `.aria/kilocode/skills/budget-analysis/SKILL.md`
+- `.aria/kilocode/skills/itinerary-building/SKILL.md`
+- `.aria/kilocode/skills/transport-planning/SKILL.md`
+- `src/aria/mcp/proxy/middleware.py`
+- `tests/unit/agents/traveller/test_traveller_agent_prompt.py`
+- `tests/unit/agents/traveller/test_traveller_anti_drift.py`
+
+### Quality gates
+- 127 test PASS (87 traveller + 40 proxy)
+- ruff check middleware — all checks passed
+
 ## 2026-05-03T22:55+02:00 — FIX: booking attivato + credential injection Amadeus
 
 **Operation**: FIX (backend activation + credential injection)

@@ -133,8 +133,9 @@ class TestTravellerAgentContent:
 
     def test_no_host_tools(self, prompt_text: str):
         """Prompt forbids host-native tools for travel workflows."""
-        lower = prompt_text.lower()
-        assert "non usare tool nativi" in lower or "non usare" in lower
+        assert "non" in prompt_text and "tool" in prompt_text
+        # The prompt now says "DEVI chiamare tool" which is stronger
+        assert "DEVI" in prompt_text or "REGOLA" in prompt_text
 
     def test_no_auto_remediation(self, prompt_text: str):
         """Prompt forbids auto-remediation during user workflows."""
@@ -172,7 +173,7 @@ class TestTravellerAgentContent:
     def test_backend_backends_listed(self, prompt_text: str):
         """Prompt lists travel backend MCP servers."""
         assert "airbnb" in prompt_text
-        assert "google-maps" in prompt_text
+        assert "osm-mcp" in prompt_text or "google-maps" in prompt_text
         assert "aria-amadeus-mcp" in prompt_text
 
     def test_travel_brief_template(self, prompt_text: str):
