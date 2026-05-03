@@ -1,6 +1,6 @@
 # MCP Proxy (aria-mcp-proxy)
 
-**Last Updated**: 2026-05-03T16:42+02:00
+**Last Updated**: 2026-05-03T17:04+02:00
 **Status**: Active ✅ — naming convention unified to single underscore `server_tool` (v7.0)
 **Source**: `src/aria/mcp/proxy/`, `.aria/config/proxy.yaml`, `.aria/kilocode/mcp.json`, `.aria/config/agent_capability_matrix.yaml`, `docs/superpowers/specs/2026-05-01-mcp-tool-search-design.md`, `docs/foundation/decisions/ADR-0015-fastmcp-native-proxy.md`, `docs/foundation/decisions/ADR-0008-productivity-agent-introduction.md`
 
@@ -207,6 +207,27 @@ MCP esclusivamente dai parametri della funzione. Client MCP strict scartano
 **Fix**: Aggiunto `_caller_id: str | None = None` come parametro esplicito in entrambe
 le funzioni. Il parametro è ignorato dal corpo ma incluso nello schema MCP.
 Prompt trader-agent aggiornato: `_caller_id` va come parametro separato.
+
+### ~~C1-C2 — Catalog/backend tool mismatches~~ ✅ FIXED (d559451)
+
+**File**: `.aria/config/mcp_catalog.yaml`
+
+`financekit-mcp`: 6 tool names errati rimossi, 12 tool mancanti aggiunti (17 totali).
+`mcp-fredapi`: 2 tool inesistenti (`get_fred_series_info`, `get_fred_series_search`) rimossi.
+
+### ~~C3 — search_tools max_results=5 nascondeva 143/148 tool~~ ✅ FIXED
+
+**File**: `transforms/hybrid.py`
+
+`HybridSearchTransform._search()` in discovery mode (query vuota) restituisce
+l'intero catalogo invece di troncare a 5. Verificato: `search_tools(query="")` → 148 tool.
+
+### ~~C4 — broker.call() errore opaco~~ ✅ FIXED
+
+**File**: `broker.py`
+
+Cattura `Unknown tool` e restituisce backend name + lista tool disponibili + hint
+`search_tools`. Evita loop di retry dell'agente.
 
 ## Residual caveats
 2. `workspace-agent` esiste ancora per compatibilità; non è più il target architetturale di lungo periodo.

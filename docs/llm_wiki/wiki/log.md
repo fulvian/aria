@@ -4361,3 +4361,41 @@ Il middleware del proxy non trovava l'identità del chiamante e fail-claudeva.
 - Nessun cambiamento architetturale — solo aggiunta di parametro nella firma Python
 
 **Test**: 965 passanti (78 proxy tests OK)
+
+## 2026-05-03T17:04+02:00 — Sprint C: catalog/backend allineamento + tool discovery fix
+
+**Commit**: `d559451`
+**Branch**: `fix/trader-agent-recovery`
+**Trigger**: Agente chiamava `treasury_rates` → `Unknown tool` → 16 retry → analisi senza dati live
+
+### Bug C1 — financekit-mcp expected_tools errati (6/12 inesistenti)
+
+| Catalog (old) | Backend reale | Stato |
+|---------------|---------------|-------|
+| `stock_price` | `stock_quote` | ❌ rimosso |
+| `stock_historical` | `price_history` | ❌ rimosso |
+| `etf_info`, `market_indices`, `sector_performance`, `treasury_rates` | non esistono | ❌ rimossi |
+| `multi_quote`, `company_info`, `compare_assets`, ... (12 nuovi) | esistono | ✅ aggiunti |
+
+### Bug C2 — mcp-fredapi expected_tools gonfiati (3 dichiarati, 1 reale)
+
+`get_fred_series_info` e `get_fred_series_search` non esistono nel server → rimossi.
+
+### Bug C3 — search_tools max_results=5 nascondeva 143/148 tool
+
+`HybridSearchTransform._search()` con `max_results=5` restituiva solo filesystem tool
+con query vuote. Fix: in discovery mode (query vuota), restituisce l'intero catalogo.
+
+### Bug C4 — broker.call() dava errore opaco
+
+`ToolError: Unknown tool: 'get_fred_series_info'` senza spiegazione. Fix: ora
+cattura l'errore e restituisce backend name + lista tool disponibili + hint
+`search_tools`.
+
+### Verifica end-to-end
+
+- `search_tools(query="")` → 148 risultati (inclusi 17 financekit + 1 fredapi)
+- `call_tool(name="mcp-fredapi_get_fred_series_observations", ...)` → dati FRED live ✅
+- Verificato: tutti e 3 i backend finanziari funzionanti
+
+**Test**: 965 passanti (0 regressions)
