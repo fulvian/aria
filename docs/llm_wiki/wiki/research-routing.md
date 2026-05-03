@@ -1,7 +1,7 @@
 # Research Routing — Tier Policy
 
-**Last Updated**: 2026-04-29T10:41 (v3 Implementata — Reddit keyless live, OAuth wrapper rimosso)
-**Status**: ✅ **7 provider attivi** (searxng, tavily, exa, brave, pubmed, scientific_papers, **reddit-keyless**) + Reddit da OAuth-gated a **keyless attivo**. Vedi § v3 Implementation.
+**Last Updated**: 2026-05-03T18:35+02:00 (v4 — DEVELOPMENT intent: context7 + github-discovery integration)
+**Status**: ✅ **9 provider attivi** (searxng, tavily, exa, brave, pubmed, scientific_papers, **reddit-keyless**, **context7**, **github-discovery**) + Reddit da OAuth-gated a **keyless attivo**. Vedi § v3 Implementation. DEVELOPMENT intent aggiunto v4.
 
 ## Purpose
 
@@ -25,6 +25,7 @@ Entrambi sono gratuiti e illimitati — **non passare mai a provider a pagamento
 | `academic` | **searxng** | **reddit** | **pubmed** | **scientific_papers** | **tavily** | **exa** | **brave** | **fetch** |
 | `social` | **reddit** | **searxng** | **tavily** | **brave** | — | — | — | — |
 | `deep_scrape` | **fetch** | **webfetch** | — | — | — | — | — | — |
+| `development` | **context7** | **github-discovery** | **searxng** | **tavily** | **exa** | **brave** | **fetch** | — |
 
 ### Tier Definitions
 
@@ -38,9 +39,11 @@ Entrambi sono gratuiti e illimitati — **non passare mai a provider a pagamento
 | `pubmed` | Accademico biomedico (NCBI E-utilities) | Opt (10 req/s con chiave) | Free | academic 2 | 9 MCP tool; `NCBI_API_KEY` opzionale via SOPS+CredentialManager |
 | `scientific_papers` | Accademico multi-source (arXiv, Europe PMC, OpenAlex, etc.) | No | Gratuito (rate limit: 10 req/min Europe PMC) | academic 3 | 6 sorgenti; keyless; npm: `@futurelab-studio/latest-science-mcp` |
 | `fetch` | HTTP fetch (readabilipy) | No | Zero | 5+ | Fallback finale |
+| `context7` | Live library documentation (HTTP MCP) | Yes (header Bearer) | Freemium | development 1 | 2 tool: resolve-library-id, query-docs. Auth via `Authorization: Bearer ${CONTEXT7_API_KEY}` |
+| `github-discovery` | GitHub repo discovery/screening/evaluation | Yes (env) | Free (GitHub PAT) | development 2 | 16 tool: discover, screen, assess, compare, etc. Auth via `GHDISC_GITHUB_TOKEN` env |
 | ~~`firecrawl`~~ | ~~Commercial scraping API~~ | ~~Yes~~ | **REMOVED** | — | ~~6 chiavi~~ — vedi Removed Providers |
 
-### Rationale (v3 — Dual Tier 1 gratuito)
+### Rationale (v4 — Dual Tier 1 gratuito + development specialization)
 
 Order follows "free/unlimited first, key-based commercial fallback" principle:
 1a. **SearXNG** — self-hosted, unlimited, no API key required; sempre primo tentativo
@@ -50,7 +53,14 @@ Order follows "free/unlimited first, key-based commercial fallback" principle:
 4. **Brave** — last fallback (has $5/mo free)
 5. **Fetch** — HTTP fallback finale, zero cost
 
+**Per intent DEVELOPMENT**, l'ordine cambia perché la priorità è documentazione ufficiale/grounded:
+1. **Context7** — docs ufficiali version-aware, massima autorevolezza
+2. **github-discovery** — repo quality assessment, screening
+3. **SearXNG** — fallback ricerca web generale
+4. **Tavily/Exa/Brave/Fetch** — fallback aggiuntivi
+
 **REGOLA**: Non passare mai a provider a pagamento senza prima aver tentato searxng E reddit-search.
+**REGOLA DEVELOPMENT**: Non passare mai a fallback web senza prima aver tentato context7 E github-discovery.
 
 ## Implementation
 
@@ -191,6 +201,7 @@ class Intent(StrEnum):
     ACADEMIC = "academic"
     DEEP_SCRAPE = "deep_scrape"
     SOCIAL = "social"        # NUOVO v2
+    DEVELOPMENT = "development"  # NUOVO v4 — development-oriented research
     UNKNOWN = "unknown"
 ```
 

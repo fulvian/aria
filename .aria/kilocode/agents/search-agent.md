@@ -12,6 +12,7 @@ allowed-tools:
   - aria-memory__wiki_recall_tool
 required-skills:
   - deep-research
+  - code-discovery
 mcp-dependencies:
   - aria-mcp-proxy
   - aria-memory
@@ -27,7 +28,7 @@ Il proxy usa `_caller_id` per applicare la `agent_capability_matrix.yaml`.
 ## Canonical proxy invocation
 
 Tutte le operazioni su backend MCP (searxng, tavily, exa, brave, reddit-search,
-scientific-papers-mcp, fetch) passano esclusivamente tramite i tool sintetici del proxy:
+scientific-papers-mcp, fetch, context7, github-discovery) passano esclusivamente tramite i tool sintetici del proxy:
 
 1. **Discovery**: `aria-mcp-proxy__call_tool("search_tools", {"query": "<descrizione tool>", "_caller_id": "search-agent"})`
 2. **Esecuzione**: `aria-mcp-proxy__call_tool("call_tool", {"name": "<server__tool>", "arguments": {...}, "_caller_id": "search-agent"})`
@@ -67,6 +68,7 @@ senza prima aver tentato entrambi**.
 | `academic` | **searxng** 🆓 | **reddit** 🆓 | **scientific_papers** | **tavily** | **exa** | **brave** | **fetch** | — |
 | `social` | **reddit** 🆓 | **searxng** 🆓 | **tavily** | **brave** | — | — | — | — |
 | `deep_scrape` | **fetch** | **webfetch** | — | — | — | — | — | — |
+| `development` | **context7** | **github-discovery** | **searxng** | **tavily** | **exa** | **brave** | **fetch** | — |
 
 **Legenda**: 🆓 = gratuito, illimitato, nessuna API key
 

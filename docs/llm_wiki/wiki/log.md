@@ -1,5 +1,70 @@
 # Implementation Log
 
+## 2026-05-03T19:30+02:00 — RESEARCH: traveller-agent comprehensive ecosystem analysis
+
+**Operation**: RESEARCH  
+**Branch**: `feat/code-discovery-proxy-integration`  
+**Trigger**: Richiesta di ricerca definitiva per traveller-agent, partendo da `docs/plans/traveller_agent_first_research.md` e approfondendo con github-discovery, context7, web research.
+
+### Output creati
+
+- `docs/analysis/traveller_agent_analysis.md` — Report definitivo di ricerca (380+ righe, 19 sezioni)
+- `docs/llm_wiki/wiki/traveller-agent.md` — Wiki page per traveller-agent
+
+### Ricerca eseguita
+
+**github-discovery**:
+- Creata sessione `traveller-agent-mcp-ecosystem` per discovery
+- Scoperti 30 candidati su 3 canali (search, registry, awesome_list)
+- Screening di 15 candidati con gate analysis
+- I threshold Gate 1/2 sono alti per repo agenti AI — ricerca manuale via README più produttiva
+
+**context7 verifiche** (8 risoluzioni + 7 query-docs):
+- `/openbnb-org/mcp-server-airbnb` (78.4 benchmark, 48 snippets) — Airbnb search tool verificato
+- `/prefecthq/fastmcp` (90.01 benchmark, 2352 snippets) — Framework MCP Python
+- `/websites/langchain_oss_python_langgraph` (87.68, 666 snippets) — LangGraph orchestratore
+- `/amadeus4dev/amadeus-python` (47 benchmark) — Amadeus Python SDK endpoints
+- `/amadeus4dev/developer-guides` (83.55, 909 snippets) — Documentazione API completa
+- `/langchain-ai/langgraph` (74.16, 228 snippets) — HITL con interrupt, agent loop
+
+**Web research via README GitHub**:
+- openbnb-org/mcp-server-airbnb (442⭐) — Airbnb MCP: airbnb_search + airbnb_listing_details
+- cablate/mcp-google-map (285⭐) — 18 tools (14 atomic + 4 composite), skill AI integrato
+- Haohao-end/Ctrip-Style-AI-Travel-Assistant (55⭐) — Hub-and-spoke multi-agente, permission control, HITL, dialog stack
+- ArturDragunov/travel-agent (20⭐) — LangGraph pipeline sequenziale
+- aymen-000/travel_agent (18⭐) — TravelMate AI multi-agent FastAPI+React
+- shaheennabi/Production-Ready-TripPlanner-Multi-AI-Agents-Project (63⭐) — TaskflowAI multi-agent
+- ellisp97/FlightFinderMCP (1⭐) — Flight search multi-provider con caching
+- shadyvb/mcp-skyscanner (5⭐) — Skyscanner flights (sperimentale/educativo)
+- SayamAlt/Travel-Planning-Assistant-using-LangGraph-and-FastMCP (2⭐) — LangGraph+FastMCP+Streamlit
+
+**API research**:
+- Amadeus: Free tier 2K/mese, poi €0.0008-0.025/chiamata
+- Google Places: $200/mese credito (~40K+ chiamate free)
+- Kiwi/Tequila: 500 req/giorno free
+- OpenTripMap: 5K req/giorno free
+- Car rental: Amadeus Car API (stessa chiave), Booking Cars API, Kayak Cars API
+
+### Pattern architetturale raccomandato
+
+**Hub-and-Spoke multi-agente** con LangGraph + FastMCP:
+- Ctrip-Style come pattern di riferimento (55⭐)
+- MCP server core: Airbnb, Booking, Google Maps, Marriott, FlightFinder/Amadeus
+- API backend: Amadeus SDK Python
+- Permission control: Safe Tools (auto-approved) vs Sensitive Tools (HITL con interrupt)
+- Dialog stack management per multi-turno conversazione
+
+### Quality gates
+- Scope: solo documentazione, nessun codice modificato
+- Report salvato in `docs/analysis/traveller_agent_analysis.md`
+
+### Wiki updates
+- `docs/llm_wiki/wiki/traveller-agent.md` — nuova pagina wiki
+- `docs/llm_wiki/wiki/index.md` — v7.4 aggiornato
+- `docs/llm_wiki/wiki/log.md` — this entry
+
+---
+
 ## 2026-05-02T01:30+02:00 — FIX: trader-agent runtime integration + protocollo Fase L
 
 **Operation**: FIX (trader-agent routing + protocol gap)
@@ -3707,4 +3772,64 @@ mypy src/aria/mcp/proxy/ → Success: no issues found ✅
 pytest unit        → 35 passed ✅
 pytest integration → 3 passed ✅
 Drift validator    → All checks passed ✅
+```
+
+---
+
+## 2026-05-03T18:10+02:00 — IMPLEMENT: code-discovery integration — proxy HTTP headers, github-discovery + context7 ARIA integration, DEVELOPMENT intent, code-discovery skill
+
+**Operation**: IMPLEMENT (Phase 0-5)
+**Branch**: `feat/code-discovery-proxy-integration`
+**Trigger**: implementazione del piano `docs/plans/mcp_discovery_context7_search_integration_plan.md` v1.1.0.
+
+### Phase 0 — Proxy capability gap closure
+- `BackendSpec`: added `headers: dict[str, str]` field
+- `to_mcp_entry()`: includes `headers` for HTTP/SSE backends
+- `_parse_entry()`: reads `headers` from YAML entries; handles HTTP/SSE URL extraction
+- `CredentialInjector._resolve()`: now handles inline `${VAR}` placeholders (e.g. `Bearer ${TOKEN}`)
+- `CredentialInjector.inject()`: resolves placeholders in both `env` and `headers`
+- `CredentialManager`: added `get()` method, `_register_secret_aliases()`, `env_name` override per key item
+
+### Phase 1 — github-discovery real ARIA integration
+- Added `env.GHDISC_GITHUB_TOKEN: ${GHDISC_GITHUB_TOKEN}` to catalog entry
+- Added `github-discovery__*` to search-agent capability matrix
+- GitHub PAT added to `.env`, SOPS credential store (`ghdisc` provider), `.env.example`
+
+### Phase 2 — context7 real ARIA integration
+- New catalog entry: `transport: http`, `url: https://mcp.context7.com/mcp`, `headers.Authorization: Bearer ${CONTEXT7_API_KEY}`
+- Added `context7__*` to search-agent capability matrix
+- CONTEXT7_API_KEY added to SOPS credential store (`context7` provider), `.env.example`
+
+### Phase 3 — search-agent semantic extension
+- Added `development` intent to search-agent `intent_categories`
+- Updated tier ladder with DEVELOPMENT row: context7 → github-discovery → searxng → tavily → exa → brave → fetch
+- Added `code-discovery` to required-skills
+
+### Phase 4 — code-discovery skill
+- Created `.aria/kilocode/skills/code-discovery/SKILL.md` v1.0.0
+- 4-phase workflow: Context7 docs lookup → github-discovery repo analysis → synthesis → fallback
+
+### Phase 5 — Docs / ADR / Wiki
+- ADR-0016: "Proxy HTTP Headers Support + Development Search Capability"
+- Updated wiki log and index
+
+### Files modified/created
+- `src/aria/mcp/proxy/catalog.py` — headers support
+- `src/aria/mcp/proxy/credential.py` — inline placeholder resolution
+- `src/aria/credentials/manager.py` — get() + alias registration
+- `.aria/config/mcp_catalog.yaml` — github-discovery env + context7 entry
+- `.aria/config/agent_capability_matrix.yaml` — new tool wildcards + intent
+- `.aria/kilocode/agents/search-agent.md` — DEVELOPMENT ladder + code-discovery skill
+- `.aria/kilocode/skills/code-discovery/SKILL.md` — NEW skill
+- `.env` — GHDISC_GITHUB_TOKEN
+- `.env.example` — GHDISC_GITHUB_TOKEN, CONTEXT7_API_KEY
+- `.aria/credentials/secrets/api-keys.enc.yaml` — ghdisc + context7 providers
+- `tests/unit/mcp/proxy/test_catalog.py` — 9 new tests
+- `tests/unit/mcp/proxy/test_credential.py` — 5 new tests
+- `docs/foundation/decisions/ADR-0016-proxy-http-headers-code-discovery.md` — NEW ADR
+
+### Quality gates
+```text
+ruff check .          → All checks passed ✅
+pytest -q tests/unit/mcp/proxy/ tests/integration/mcp/proxy/ → 59 passed ✅
 ```

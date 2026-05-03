@@ -1,6 +1,6 @@
 # MCP Architecture
 
-**Last Updated**: 2026-05-01T18:36+02:00  
+**Last Updated**: 2026-05-03T18:35+02:00  
 **Status**: Active ✅ — proxy-native architecture is now the runtime baseline  
 **Primary sources**: `.aria/kilocode/mcp.json`, `.aria/config/mcp_catalog.yaml`, `.aria/config/agent_capability_matrix.yaml`, `src/aria/mcp/proxy/`, `docs/foundation/aria_foundation_blueprint.md`, `docs/foundation/decisions/ADR-0015-fastmcp-native-proxy.md`
 
@@ -13,12 +13,13 @@ runtime baseline is now:
 - `aria-mcp-proxy` as the single MCP aggregation/search/execution surface for the
   rest of the tool ecosystem
 
-### Inventory observed on 2026-05-01
+### Inventory observed on 2026-05-03
 - Runtime entries in `.aria/kilocode/mcp.json`: **2**
-- Catalog-governed backend inventory: **14 servers**
+- Catalog-governed backend inventory: **16 servers** (14 pre-esistenti + context7 + github-discovery credentials cablati)
 - Live architectural split:
   - **out of proxy**: `aria-memory`
-  - **behind proxy**: search, productivity, system backends from the catalog
+  - **behind proxy**: search, productivity, system, finance, **development-research** backends from the catalog
+  - **HTTP backends with headers**: `context7` (new v7.3), `helium-mcp` (pre-existing, now with proper transport support)
 
 ## Structural properties
 
@@ -52,7 +53,11 @@ KiloCode
  └─ aria-mcp-proxy         (synthetic surface)
       ├─ search_tools
       └─ call_tool
-           └─ catalog-selected backend MCP servers
+           ├─ search: searxng, tavily, exa, brave, reddit-search, scientific-papers-mcp, fetch
+           ├─ development: context7 (HTTP + headers), github-discovery (stdio + env)
+           ├─ finance: financekit-mcp, mcp-fredapi, alpaca-mcp, helium-mcp (HTTP)
+           ├─ productivity: google_workspace, markitdown-mcp
+           └─ system: filesystem, sequential-thinking
 ```
 
 ## Governance model
@@ -68,7 +73,10 @@ KiloCode
 - `.aria/config/agent_capability_matrix.yaml` is the effective source of truth for
   which backend families an agent can call.
 - `productivity-agent` now includes `google_workspace__*`.
-- `search-agent` remains isolated to search-domain providers.
+- `search-agent` includes search-domain providers plus `development`-oriented backends:
+  - `github-discovery__*` (repo analysis)
+  - `context7__*` (docs lookup)
+- `trader-agent` includes finance backends (`financekit-mcp__*`, `mcp-fredapi__*`, `alpaca-mcp__*`, `helium-mcp__*`).
 
 ### Enforcement layer
 - Missing caller identity on non-synthetic proxy calls is denied.
@@ -97,8 +105,9 @@ operations into `productivity-agent` while keeping `search-agent` separate.
 ## Provenance
 
 - Source: `.aria/kilocode/mcp.json` (read 2026-05-01)
-- Source: `.aria/config/mcp_catalog.yaml` (proxy backend source of truth)
-- Source: `.aria/config/agent_capability_matrix.yaml` (read 2026-05-01)
-- Source: `src/aria/mcp/proxy/` (read 2026-05-01)
+- Source: `.aria/config/mcp_catalog.yaml` (read 2026-05-03 — 16 servers, context7 + github-discovery)
+- Source: `.aria/config/agent_capability_matrix.yaml` (read 2026-05-03 — +development intent)
+- Source: `src/aria/mcp/proxy/` (read 2026-05-03 — headers support in catalog/credential)
 - Source: `docs/foundation/aria_foundation_blueprint.md` (updated 2026-05-01)
 - Source: ADR-0015 + ADR-0008 amendment (read 2026-05-01)
+- Source: ADR-0016 (read 2026-05-03 — proxy HTTP headers + code-discovery)

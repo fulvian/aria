@@ -286,6 +286,8 @@ servers:
   lifecycle: enabled
   auth_mode: api_key
   statefulness: stateful
+  env:
+    GHDISC_GITHUB_TOKEN: ${GHDISC_GITHUB_TOKEN}
   expected_tools:
   - discover_repos
   - get_candidate_pool
@@ -311,3 +313,24 @@ servers:
   baseline_status: lkg
   notes: KiloOrg github-discovery MCP, uses GitHub PAT (GHDISC_GITHUB_TOKEN), stateful
     via pools.db + sessions.db, 16 tools
+
+- name: context7
+  domain: search
+  owner_agent: search-agent
+  tier: 1
+  transport: http
+  lifecycle: enabled
+  auth_mode: api_key
+  statefulness: stateless
+  url: https://mcp.context7.com/mcp
+  headers:
+    Authorization: Bearer ${CONTEXT7_API_KEY}
+  expected_tools:
+  - resolve-library-id
+  - query-docs
+  risk_level: low
+  cost_class: freemium
+  source_of_truth: https://mcp.context7.com/mcp
+  rollback_class: server
+  baseline_status: lkg
+  notes: Context7 MCP — live library documentation lookup via HTTP MCP transport. 2 tools. Requires CONTEXT7_API_KEY.

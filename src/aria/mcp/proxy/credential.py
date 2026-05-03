@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 logger = get_logger("aria.mcp.proxy.credential")
 
 _PLACEHOLDER = re.compile(r"^\$\{([A-Z0-9_]+)\}$")
+_INLINE_PLACEHOLDER = re.compile(r"\$\{([A-Z0-9_]+)\}")
 
 
 class _SecretSource(Protocol):
@@ -31,11 +32,15 @@ class CredentialInjector:
         self._manager = manager
 
     def inject(self, spec: BackendSpec) -> BackendSpec:
-        if not spec.env:
-            return spec
-        resolved: dict[str, str] = {}
+        resolved_env: dict[str, str] = {}
         for key, value in spec.env.items():
-            resolved[key] = self._resolve(value)
+            resolved_env[key] = self._resolve(value)
+        resolved_headers: dict[str, str] = {}
+        for key, value in spec.headers.items():
+            resolved_headers[key] = self._resolve(value)
+        # Short-circuit if nothing changed
+        if resolved_env == spec.env and resolved_headers == spec.headers:
+            return spec
         return BackendSpec(
             name=spec.name,
             domain=spec.domain,
@@ -43,7 +48,9 @@ class CredentialInjector:
             transport=spec.transport,
             command=spec.command,
             args=spec.args,
-            env=resolved,
+            url=spec.url,
+            headers=resolved_headers,
+            env=resolved_env,
             expected_tools=spec.expected_tools,
             notes=spec.notes,
         )
@@ -64,13 +71,24 @@ class CredentialInjector:
 
     def _resolve(self, value: str) -> str:
         m = _PLACEHOLDER.match(value)
-        if not m:
-            return value
-        var = m.group(1)
-        result = self._lookup(var)
-        if result is None:
-            raise KeyError(var)
-        return result
+        if m:
+            var = m.group(1)
+            result = self._lookup(var)
+            if result is None:
+                raise KeyError(var)
+            return result
+        # Partial/inline placeholder: Bearer ${TOKEN}, url?key=${KEY}
+        if "${" in value:
+
+            def _replacer(m: re.Match[str]) -> str:
+                var = m.group(1)
+                res = self._lookup(var)
+                if res is None:
+                    raise KeyError(var)
+                return res
+
+            return _INLINE_PLACEHOLDER.sub(_replacer, value)
+        return value
 
     def _lookup(self, var: str) -> str | None:
         if self._manager is not None:

@@ -85,9 +85,10 @@ class CredentialManager:
 
         # Load API keys (decrypted once at startup)
         self._api_keys: dict[str, list[dict[str, str | int | None]]] = {}
+        self._secret_env_map: dict[str, str] = {}
         self._load_api_keys()
 
-    def _load_api_keys(self) -> None:
+    def _load_api_keys(self) -> None:  # noqa: PLR0912
         """Load API keys from encrypted storage."""
         api_keys_path = self._config.paths.credentials / "secrets" / "api-keys.enc.yaml"
         self._api_keys = {}
@@ -129,6 +130,16 @@ class CredentialManager:
                             }
                         )
 
+                    for item in raw_keys:
+                        if isinstance(item, dict):
+                            key_value = item.get("key") or item.get("api_key") or item.get("token")
+                            if isinstance(key_value, str) and key_value:
+                                self._register_secret_aliases(
+                                    provider.upper().replace("-", "_"),
+                                    item,
+                                    key_value,
+                                )
+
                     self._api_keys[provider] = normalized
             except SopsError as e:
                 # Log but don't fail - keys may be added later
@@ -145,6 +156,48 @@ class CredentialManager:
             if str(item.get("key_id")) == key_id and isinstance(item.get("key"), str):
                 return SecretStr(str(item["key"]))
         return None
+
+    def _register_secret_aliases(
+        self,
+        provider_env_prefix: str,
+        item: dict[str, object],
+        normalized_key_value: str,
+    ) -> None:
+        """Register env-style aliases for decrypted provider secrets.
+
+        The proxy catalog uses placeholders like ``${FRED_API_KEY}`` and
+        ``${ALPACA_API_SECRET}``, while the encrypted credential file stores
+        provider-centric records. This bridge keeps the credential storage model
+        intact while exposing a simple ``get(VAR)`` lookup API for the proxy.
+        """
+        env_map = self._secret_env_map
+
+        def _set(name: str, value: object | None) -> None:
+            if isinstance(value, str) and value:
+                env_map.setdefault(name, value)
+
+        _set(f"{provider_env_prefix}_API_KEY", normalized_key_value)
+        _set(f"{provider_env_prefix}_KEY", normalized_key_value)
+        _set(f"{provider_env_prefix}_TOKEN", normalized_key_value)
+
+        _set(f"{provider_env_prefix}_API_SECRET", item.get("secret"))
+        _set(f"{provider_env_prefix}_SECRET", item.get("secret"))
+        _set(f"{provider_env_prefix}_CLIENT_SECRET", item.get("client_secret"))
+
+        # Support custom env_name override — if the key item specifies a
+        # different env var name, register it directly.
+        # Example: github-discovery backend expects GHDISC_GITHUB_TOKEN.
+        custom_env = item.get("env_name")
+        if isinstance(custom_env, str) and custom_env.strip():
+            _set(custom_env.strip(), normalized_key_value)
+
+    def get(self, key: str) -> str | None:
+        """Return a decrypted secret by env-style key name.
+
+        This supports proxy placeholder resolution for values like
+        ``${FRED_API_KEY}`` and ``${ALPACA_API_SECRET}``.
+        """
+        return self._secret_env_map.get(key)
 
     # === API Key Rotation ===
 

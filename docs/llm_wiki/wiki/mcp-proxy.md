@@ -1,6 +1,6 @@
 # MCP Proxy (aria-mcp-proxy)
 
-**Last Updated**: 2026-05-01T18:35+02:00
+**Last Updated**: 2026-05-03T18:35+02:00
 **Status**: Active ✅ — remediation complete; canonical proxy contract is now the live baseline
 **Source**: `src/aria/mcp/proxy/`, `.aria/config/proxy.yaml`, `.aria/kilocode/mcp.json`, `.aria/config/agent_capability_matrix.yaml`, `docs/superpowers/specs/2026-05-01-mcp-tool-search-design.md`, `docs/foundation/decisions/ADR-0015-fastmcp-native-proxy.md`, `docs/foundation/decisions/ADR-0008-productivity-agent-introduction.md`
 
@@ -17,7 +17,7 @@ reduced the MCP surface presented to KiloCode to a stable 2-entry runtime:
 |---|---|
 | `src/aria/mcp/proxy/server.py` | wires catalog + transform + middleware |
 | `src/aria/mcp/proxy/catalog.py` | loads `mcp_catalog.yaml`, yields `BackendSpec`s |
-| `src/aria/mcp/proxy/credential.py` | resolves `${VAR}` placeholders via `CredentialManager` |
+| `src/aria/mcp/proxy/credential.py` | resolves `${VAR}` placeholders in `env` and `headers` (v7.3 adds inline placeholder support) |
 | `src/aria/mcp/proxy/config.py` | `ProxyConfig` pydantic model (search/embedding/cache config) |
 | `src/aria/mcp/proxy/middleware.py` | per-agent allowed-tools enforcement (`_caller_id`) |
 | `src/aria/mcp/proxy/transforms/hybrid.py` | BM25 + mxbai-embed-large-v1 blend |
@@ -79,6 +79,7 @@ reduced the MCP surface presented to KiloCode to a stable 2-entry runtime:
 | F6 | ✅ | Debug & stabilizzazione: stdio filter, naming fix (single/double underscore), wildcard matrix |
 | F7 | ✅ | Search-flow stabilization: caller-aware backend boot filtering |
 | F8 | ✅ | Remediation: fail-closed middleware, canonical proxy contract, productivity/workspace convergence |
+| F9 | ✅ | **HTTP Headers support**: `BackendSpec.headers`, inline `${VAR}` resolution in CredentialInjector, catalog parsing of headers from YAML, context7 + github-discovery ARIA integration, code-discovery skill |
 
 ## Known issues and fixes history
 
@@ -120,6 +121,21 @@ reduced the MCP surface presented to KiloCode to a stable 2-entry runtime:
 **Docs/governance**
 - ADR-0008 è stato emendato.
 - Blueprint P9 è stato formalmente riscritto come **Scoped Active Capabilities**.
+
+### F9 — HTTP headers support for backend auth (2026-05-03)
+**Problema**: Context7 (e altri HTTP MCP backend come Helium) richiedono un header `Authorization: Bearer <token>` per autenticazione, ma `BackendSpec` non supportava il campo `headers`.
+
+**Fix**: 
+- `BackendSpec` esteso con `headers: dict[str, str]`
+- `to_mcp_entry()` include `headers` per backend HTTP/SSE
+- `_parse_entry()` legge `headers` dal YAML
+- `CredentialInjector.inject()` risolve `${VAR}` anche in `headers` (non solo `env`)
+- `_resolve()` ora gestisce placeholder inline (`Bearer ${TOKEN}`)
+
+**Backend integrati**:
+- `github-discovery`: `env.GHDISC_GITHUB_TOKEN` cablato nel catalogo, SOPS credential store
+- `context7`: nuova entry nel catalogo con `transport: http`, `url`, `headers.Authorization: Bearer ${CONTEXT7_API_KEY}`
+- `code-discovery` skill creata per orchestrazione development-oriented
 
 ## Residual caveats
 

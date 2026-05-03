@@ -39,6 +39,8 @@ agents:
       - brave-mcp__*
       - reddit-search__*
       - scientific-papers-mcp__*
+      - github-discovery__*
+      - context7__*
       - aria-memory__wiki_update_tool
       - aria-memory__wiki_recall_tool
       - fetch__*
@@ -52,6 +54,7 @@ agents:
       - academic
       - social
       - deep_scrape
+      - development
     max_tools: 20
     max_spawn_depth: 0
 

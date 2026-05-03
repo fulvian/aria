@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-05-02T01:30 (v6.5 — trader-agent runtime integration + protocollo Fase L)
-**Status**: ✅ **v6.5** — Il trader-agent è ora completamente integrato nel runtime ARIA: capability matrix, conductor dispatch rules con keyword routing, prompt canonico, e 28 test. Il protocollo di creazione agenti è stato aggiornato con la Fase L (Runtime Integration Checklist) per prevenire future integrazioni parziali.
+**Last Updated**: 2026-05-03T19:30 (v7.4 — traveller-agent research complete: comprehensive ecosystem analysis with github-discovery, context7, and web research. Travel MCP ecosystem documented in detail.)
+**Status**: ✅ **v7.4** — Completata la ricerca definitiva per il traveller-agent. Analizzati 16+ repo GitHub, 5+ framework con context7, API Amadeus/Google/Kiwi/Ticketmaster/OpenTripMap. Prodotto report `docs/analysis/traveller_agent_analysis.md` (380+ righe di analisi dettagliata). Architettura proposta: hub-and-spoke multi-agente con LangGraph + FastMCP + Amadeus SDK. Pattern Ctrip-Style come riferimento. 4 MCP server core identificati (Airbnb, Booking, Google Maps, Marriott).
 
 ## Purpose
 
@@ -23,6 +23,7 @@ docs/llm_wiki/
 │   ├── mcp-api-key-operations.md
 │   ├── aria-launcher-cli-compatibility.md
 │   ├── productivity-agent.md
+│   ├── code-discovery.md            # NEW v7.3 — code-discovery skill: Context7 + github-discovery
 │   ├── mcp-architecture.md
 │   ├── agent-capability-matrix.md
 │   ├── agent-coordination.md       # NEW v5.0 — L1 Coordinamento Agenti
@@ -149,6 +150,7 @@ docs/llm_wiki/
 | **[[mcp-refoundation]]** | **NEW v5.0**: L2 — MCP Catalog (14 server), Drift validator, Capability probe, Lazy loader | **✅ v1.0** |
 | **[[observability]]** | **NEW v5.0**: L4 — Logger structured JSON, Prometheus metrics, Events tipati, Trace_id UUIDv7 | **✅ v1.0** |
 | **[[llm-routing]]** | **NEW v5.0**: L3 — Matrice dichiarativa YAML, Router Python, Budget gate, Cache strategy | **✅ v1.0** |
+| [[traveller-agent]] | **NEW v7.4**: Traveller agent research — ecosistema MCP viaggi, API, architettura hub-and-spoke | **✅ Research Complete** |
 | [[log]] | Implementation log with timestamps | Active |
 
 ## Implementation Branch
@@ -190,6 +192,7 @@ docs/llm_wiki/
 - 2026-05-01: **v6.3e** — Added definitive proxy/runtime hardening: middleware now extracts nested `_caller_id` for synthetic `call_tool`, stale Kilo-home conductor artifacts were restored, and conductor/productivity prompts now explicitly forbid code edits, config edits, process killing, and runtime self-remediation during ordinary user workflows.
 - 2026-05-01: **v6.4** — Creato `docs/protocols/protocollo_creazione_agenti.md`: workflow unico per nuovi agenti/sub-agenti, con intake, wiki-first reconstruction, ricerca repo + `github-discovery`, branch di ricerca manuale via ARIA, decision ladder P8, guardrail P9/HITL/wiki.db/proxy, e output obbligatorio dei piani in `docs/plans/agents/`.
 - 2026-05-02: **v6.5** — **trader-agent runtime integration**. Il trader-agent (esistente in `.aria/kilo-home/.kilo/agents/` con 7 skill) era invisibile al conductor perché mancava da tutti i touchpoint runtime. Fix: capability matrix entry, conductor dispatch rules con keyword routing per 40+ termini finanziari, prompt canonico in `.aria/kilocode/agents/trader-agent.md`, delegation chain aggiornata. Aggiornato `protocollo_creazione_agenti.md` con **Fase L (Runtime Integration Checklist)** — 8 touchpoint obbligatori per prevenire integrazioni parziali future. 28 nuovi test trader-agent.
+- 2026-05-03: **v7.3** — **code-discovery integration**: proxy HTTP headers support (BackendSpec.headers + CredentialInjector inline resolution), github-discovery real ARIA integration (env + SOPS credentials + capability matrix), context7 real ARIA integration (catalog entry con headers Bearer auth + SOPS credentials + capability matrix), search-agent DEVELOPMENT intent e tier ladder, skill code-discovery v1.0.0, ADR-0016 ratificato. 59 test proxy passanti.
 
 ## Git & GitHub Rules
 
@@ -214,3 +217,6 @@ Definite in `AGENTS.md` § "Git & GitHub Workflow Rules". Regole chiave:
 - `docs/llm_wiki/wiki/agent-capability-matrix.md` — capability matrix
 - `docs/protocols/protocollo_creazione_agenti.md` — protocollo prescrittivo per nuovi agenti/sub-agenti
 - `docs/operations/rollback_matrix.md` — rollback matrix completa
+- `.aria/kilocode/skills/code-discovery/SKILL.md` — **v7.3**: code-discovery skill (Context7 + github-discovery workflow)
+- `docs/foundation/decisions/ADR-0016-proxy-http-headers-code-discovery.md` — **v7.3**: ADR proxy HTTP headers + development search capability
+- `docs/llm_wiki/wiki/code-discovery.md` — **v7.3**: wiki page for code-discovery skill, Context7 + github-discovery integration details

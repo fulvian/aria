@@ -32,16 +32,28 @@ class BackendSpec:
     transport: str
     command: str
     args: tuple[str, ...]
+    url: str = ""
+    headers: dict[str, str] = field(default_factory=dict)
     env: dict[str, str] = field(default_factory=dict)
     expected_tools: tuple[str, ...] = ()
     notes: str = ""
 
     def to_mcp_entry(self) -> dict[str, Any]:
-        """Render to FastMCP-compatible mcpServers entry."""
-        entry: dict[str, Any] = {"command": self.command, "args": list(self.args)}
+        """Render to FastMCP-compatible mcpServers entry.
+
+        For HTTP/SSE backends, produces ``{"url": ..., "transport": ...}``
+        with optional ``headers`` dict.
+        For stdio backends, produces ``{"command": ..., "args": [...]}``.
+        """
+        if self.url and self.transport in ("http", "sse"):
+            result: dict[str, Any] = {"url": self.url, "transport": self.transport}
+            if self.headers:
+                result["headers"] = dict(self.headers)
+            return result
+        result = {"command": self.command, "args": list(self.args)}
         if self.env:
-            entry["env"] = dict(self.env)
-        return entry
+            result["env"] = dict(self.env)
+        return result
 
 
 def load_backends(catalog_path: Path) -> list[BackendSpec]:
@@ -75,19 +87,35 @@ def _parse_entry(entry: dict[str, Any]) -> BackendSpec | None:
     source = str(entry.get("source_of_truth", "")).strip()
     if not source:
         return None
-    parts = shlex.split(source)
-    if not parts:
-        return None
-    command = parts[0]
-    args = tuple(parts[1:])
+    transport = str(entry.get("transport", "stdio"))
+
+    # For HTTP/SSE backends, source_of_truth may be a URL
+    url = ""
+    if transport in ("http", "sse"):
+        url = str(entry.get("url", "")).strip() or ""
+        if not url and source.startswith("http"):
+            url = source
+
+    if url:
+        command = ""
+        args: tuple[str, ...] = ()
+    else:
+        parts = shlex.split(source)
+        if not parts:
+            return None
+        command = parts[0]
+        args = tuple(parts[1:])
+
     return BackendSpec(
         name=name,
         domain=str(entry.get("domain", "")),
         owner_agent=str(entry.get("owner_agent", "")),
-        transport=str(entry.get("transport", "stdio")),
+        transport=transport,
         command=command,
         args=args,
-        env={},  # populated later by CredentialInjector
+        url=url,
+        headers={k: str(v) for k, v in entry.get("headers", {}).items()},
+        env={k: str(v) for k, v in entry.get("env", {}).items()},
         expected_tools=tuple(str(t) for t in entry.get("expected_tools", [])),
         notes=str(entry.get("notes", "")),
     )
