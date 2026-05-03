@@ -4329,3 +4329,35 @@ Drift validator    → All checks passed ✅
 - 6 nuovi test: formato, version nibble, variant, unicità, timestamp monotonic, short format
 
 **Test results**: 965 passed, 21 skipped (+6 new trace_id tests)
+
+## 2026-05-03T16:42+02:00 — Hotfix: _caller_id schema exposed (proxy deny fix per tutti gli agenti)
+
+**Commit**: `99b3f37`
+**Branch**: `fix/trader-agent-recovery`
+**Trigger**: Tutti gli agenti fallivano con `"tool denied: no caller identity provided"`
+
+### Diagnosi
+
+Le funzioni `_call_tool(name, arguments)` e `_search_tools(query)` dichiaravano
+solo i parametri `name`/`arguments`/`query`. FastMCP `Tool.from_function()`
+genera lo schema MCP **esclusivamente** dai parametri della funzione.
+
+I client MCP strict (KiloCode) scartano `_caller_id` perché non è nello schema.
+Il middleware del proxy non trovava l'identità del chiamante e fail-claudeva.
+
+### Fix
+
+| File | Cosa cambia |
+|------|------------|
+| `src/aria/mcp/proxy/server.py` | `_call_tool()` e `_search_tools()` ora dichiarano `_caller_id: str \| None = None` come parametro esplicito. Il parametro è ignorato dalla funzione ma incluso nello schema MCP. |
+| `src/aria/mcp/proxy/middleware.py` | Error message migliorato: menziona `ARIA_CALLER_ID` env var come fallback. Warning logger ampliato. |
+| `.aria/kilocode/agents/trader-agent.md` | Prompt aggiornato: `_caller_id` va come parametro SEPARATO in cima, NON dentro `arguments`. Sintassi: `call_tool(name=..., arguments={...}, _caller_id="trader-agent")` |
+
+### Impatto
+
+- Il fix si applica a **TUTTI gli agenti** che usano il proxy, non solo trader-agent
+- I client MCP ora vedono `_caller_id` nello schema e lo includono nelle chiamate
+- Il middleware identifica correttamente il chiamante e applica la capability matrix
+- Nessun cambiamento architetturale — solo aggiunta di parametro nella firma Python
+
+**Test**: 965 passanti (78 proxy tests OK)

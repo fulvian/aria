@@ -1,6 +1,6 @@
 # MCP Proxy (aria-mcp-proxy)
 
-**Last Updated**: 2026-05-03T12:30+02:00
+**Last Updated**: 2026-05-03T16:42+02:00
 **Status**: Active ✅ — naming convention unified to single underscore `server_tool` (v7.0)
 **Source**: `src/aria/mcp/proxy/`, `.aria/config/proxy.yaml`, `.aria/kilocode/mcp.json`, `.aria/config/agent_capability_matrix.yaml`, `docs/superpowers/specs/2026-05-01-mcp-tool-search-design.md`, `docs/foundation/decisions/ADR-0015-fastmcp-native-proxy.md`, `docs/foundation/decisions/ADR-0008-productivity-agent-introduction.md`
 
@@ -195,9 +195,20 @@ Utilizzare sempre il singolo underscore in:
 
 **Test**: 12 nuovi test per B1 (5) + B2 (7). 959 totali pass.
 
-## Residual caveats
+### ~~B3 — _caller_id non passato dal client MCP~~ ✅ FIXED (99b3f37)
 
-1. `ARIA_CALLER_ID` resta utile per boot-time backend filtering, ma il modello condiviso usa `_caller_id` come meccanismo primario di enforcement per request.
+**File**: `server.py:116-128`, `middleware.py:74-134`
+
+**Problema**: `_call_tool(name, arguments)` e `_search_tools(query)` dichiaravano
+solo `name`/`arguments`/`query`. FastMCP `Tool.from_function()` genera lo schema
+MCP esclusivamente dai parametri della funzione. Client MCP strict scartano
+`_caller_id` perché non nello schema → middleware fail-chiudeva per TUTTI gli agenti.
+
+**Fix**: Aggiunto `_caller_id: str | None = None` come parametro esplicito in entrambe
+le funzioni. Il parametro è ignorato dal corpo ma incluso nello schema MCP.
+Prompt trader-agent aggiornato: `_caller_id` va come parametro separato.
+
+## Residual caveats
 2. `workspace-agent` esiste ancora per compatibilità; non è più il target architetturale di lungo periodo.
 3. Futuri cleanup potranno rimuovere riferimenti residui a percorsi legacy collegati a `workspace-agent`.
 4. Catalog-driven tool descriptions derivano da `expected_tools` + `notes` in `mcp_catalog.yaml`; i tool description specifici per tool (parametri, ecc.) sono disponibili solo dopo la prima chiamata al backend.
