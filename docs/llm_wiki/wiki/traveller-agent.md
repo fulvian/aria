@@ -16,7 +16,7 @@ Sub-agente ARIA domain-primary per pianificazione e assistenza viaggi. Copre l'i
 | Foundation plan | ✅ Ratificato (v7.5) |
 | **Fase 1 — capability matrix + prompt + conductor** | **✅ Completa (v7.6)** |
 | Fase 2 — backend MCP (airbnb + osm-mcp + aria-amadeus-mcp catalog) | ✅ Completa (v7.7) |
-| Fase 3 — `aria-amadeus-mcp` (FastMCP wrapper) | ⏳ Pending |
+| Fase 3 — `aria-amadeus-mcp` (FastMCP wrapper) | ✅ Completa (v7.8) |
 | Fase 4 — skill core (destination + accommodation) | ⏳ Pending |
 | Fase 5 — skill complementari + booking gated | ⏳ Pending |
 | Fase 6 — export integration via productivity-agent | ⏳ Pending |
@@ -24,13 +24,13 @@ Sub-agente ARIA domain-primary per pianificazione e assistenza viaggi. Copre l'i
 | Fase 8 — ADR-0017 + ADR-0018 + wiki sync | ⏳ Pending |
 | Fase 9 — smoke E2E | ⏳ Pending |
 
-## Backend MCP registrati (Fase 2 completata)
+## Backend MCP registrati (Fase 2 + 3 completata)
 
 | Backend | Sorgente | Tool | Auth | Costo | Lifecycle |
 |---------|----------|------|------|-------|-----------|
 | `airbnb` | `npx @openbnb/mcp-server-airbnb` (⭐442, MIT) | `airbnb_search`, `airbnb_listing_details` | keyless | gratuito | enabled |
 | `osm-mcp` | `uvx osm-mcp-server` | 12 tool (geocoding, POI, routes, explore) | keyless | gratuito | enabled |
-| `aria-amadeus-mcp` | `scripts/wrappers/aria-amadeus-wrapper.sh` | 6 tool read-only | AMADEUS_CLIENT_ID/SECRET (SOPS) | gratuito (2K/mese) | shadow (Fase 3) |
+| `aria-amadeus-mcp` | `scripts/wrappers/aria-amadeus-wrapper.sh` (FastMCP in `src/aria/tools/amadeus/mcp_server.py`) | 6 tool read-only | AMADEUS_CLIENT_ID/SECRET (SOPS) | gratuito (2K/mese) | enabled |
 
 **Nota**: Google Maps Platform (`@cablate/mcp-google-map`) **escluso** — richiedeva billing account Google Cloud non attivabile. Sostituito con `osm-mcp-server` basato su OpenStreetMap (100% free, no API key, no billing).
 

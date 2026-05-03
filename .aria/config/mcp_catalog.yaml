@@ -363,7 +363,7 @@ servers:
   owner_agent: traveller-agent
   tier: 1
   transport: stdio
-  lifecycle: shadow
+  lifecycle: enabled
   auth_mode: api_key
   statefulness: stateless
   env:
@@ -380,5 +380,5 @@ servers:
   cost_class: free
   source_of_truth: scripts/wrappers/aria-amadeus-wrapper.sh
   rollback_class: server
-  baseline_status: shadow
-  notes: ARIA locale FastMCP wrapper per Amadeus Self-Service API. 6 tool read-only MVP. Free tier 2000 chiamate/mese. Lifecycle shadow fino a creazione wrapper script e test server.
+  baseline_status: lkg
+  notes: ARIA locale FastMCP wrapper per Amadeus Self-Service API. 6 tool read-only MVP (no booking). Free tier 2000 chiamate/mese. FastMCP server in src/aria/tools/amadeus/mcp_server.py.

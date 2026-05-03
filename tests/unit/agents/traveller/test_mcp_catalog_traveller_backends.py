@@ -76,8 +76,8 @@ class TestMCPCatalogAriaAmadeus:
         s = _by_name(servers, "aria-amadeus-mcp")
         assert s["domain"] == "travel"
         assert s["owner_agent"] == "traveller-agent"
-        # lifecycle is shadow until wrapper script is created in Fase 3
-        assert s["lifecycle"] in ("shadow", "enabled"), "aria-amadeus-mcp lifecycle"
+        # Fase 3: FastMCP server implemented → lifecycle enabled
+        assert s["lifecycle"] == "enabled", "aria-amadeus-mcp lifecycle"
         assert s["transport"] == "stdio"
         assert s["auth_mode"] == "api_key"
         assert s["cost_class"] == "free"

@@ -43,6 +43,56 @@ Google Maps Platform (`@cablate/mcp-google-map`) è stato **escluso** perché ri
 - Tutti i 74 traveller test: PASS
 - ruff/mypy/format: OK
 
+## 2026-05-03T20:50+02:00 — FEAT: traveller-agent Fase 3 (aria-amadeus-mcp FastMCP)
+
+**Operation**: FEAT (aria-amadeus-mcp server implementation)
+**Branch**: `feature/traveller-agent-f1`
+**Trigger**: implementazione traveller-agent Fase 3: wrapper FastMCP per Amadeus Self-Service API.
+
+### Changes
+- Creato `src/aria/tools/amadeus/mcp_server.py` — FastMCP server con 6 tool read-only:
+  - `flight_offers_search`: ricerca voli con parametri (origin, destination, date, adults, class, currency, max, nonStop)
+  - `hotel_offers_search`: ricerca hotel per city code, hotel IDs o geolocation
+  - `hotel_list_by_geocode`: elenco hotel vicino a coordinate
+  - `locations_search`: ricerca aeroporti/città per keyword (con subtype AIRPORT/CITY/ANY)
+  - `nearest_airport`: aeroporto più vicino a coordinate
+  - `flight_status`: stato volo real-time per carrier+flight+date
+- Tutti i tool con `ToolAnnotations(readOnlyHint=True, destructiveHint=False)`
+- Error handling: `ResponseError` Amadeus → dict strutturato; credenziali mancanti → 401 error dict
+- Client lazy-init con pattern dict-based (no `global`)
+- Aggiornato `scripts/wrappers/aria-amadeus-wrapper.sh` per lanciare il modulo Python
+- Aggiornato `.aria/config/mcp_catalog.yaml`: lifecycle `shadow` → `enabled`
+- Creati 18 test integrazione in `tests/integration/agents/traveller/test_aria_amadeus_mcp_server.py`:
+  - Tool surface (tool count, function existence, callability)
+  - Missing credentials handling (None return, error dict)
+  - ResponseError handling (structured error dict)
+  - Tool annotations verification
+  - Stdio protocol test (initialize → tools/list)
+
+### Dependencies
+- Aggiunte: `fastmcp==3.2.4`, `amadeus==12.0.0`
+- mypy override per `amadeus` e `mcp` (missing stubs)
+
+### Files created
+- `src/aria/tools/amadeus/__init__.py`
+- `src/aria/tools/amadeus/mcp_server.py` (400+ righe)
+- `tests/integration/agents/traveller/__init__.py`
+- `tests/integration/agents/traveller/test_aria_amadeus_mcp_server.py`
+
+### Files modified
+- `scripts/wrappers/aria-amadeus-wrapper.sh` (da placeholder a server reale)
+- `.aria/config/mcp_catalog.yaml` (lifecycle: shadow → enabled)
+- `pyproject.toml` (mypy override per amadeus/mcp)
+- `docs/llm_wiki/wiki/index.md` (v7.8)
+- `docs/llm_wiki/wiki/log.md` (questa entry)
+- `docs/llm_wiki/wiki/traveller-agent.md` (Fase 3 status)
+
+### Quality gate
+- ruff: All checks passed
+- ruff format: 91 files OK
+- mypy: Success (92 source files)
+- 48 unit + 18 integration + 26 conductor dispatch: 92 traveller test PASS
+
 ## 2026-05-03T20:00+02:00 — FEAT: traveller-agent Fase 1 (Foundation)
 
 **Operation**: FEAT (traveller-agent foundation)
