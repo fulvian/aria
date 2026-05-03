@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-05-02T01:30 (v6.5 — trader-agent runtime integration + protocollo Fase L)
-**Status**: ✅ **v6.5** — Il trader-agent è ora completamente integrato nel runtime ARIA: capability matrix, conductor dispatch rules con keyword routing, prompt canonico, e 28 test. Il protocollo di creazione agenti è stato aggiornato con la Fase L (Runtime Integration Checklist) per prevenire future integrazioni parziali.
+**Last Updated**: 2026-05-03T20:00 (v7.6 — traveller-agent Fase 1 completata: foundation runtime integration. Prompt canonico, entry in capability matrix, conductor dispatch rules travel domain. 41 test unitari.)
+**Status**: ✅ **v7.6** — **traveller-agent Fase 1 (Foundation) completata**. Prompt canonico in `.aria/kilocode/agents/traveller-agent.md`, entry in `agent_capability_matrix.yaml`, conductor dispatch rules con keyword routing per 30+ keyword travel. 41 test unitari per traveller-agent + 26 test di integrazione conductor dispatch. Pre-existing: 9 test conductor dispatch su sezioni non-travel rimangono in rosso su main (da fixare separatamente).
 
 ## Purpose
 
@@ -121,6 +121,7 @@ docs/llm_wiki/
 | `.aria/kilocode/agents/search-agent.md` | **v5.0**: canonical proxy model, no backend wildcards in frontmatter | 2026-05-01 |
 | `.aria/kilocode/agents/productivity-agent.md` | **v5.0**: unified work-domain agent, proxy canonical, direct GW access | 2026-05-01 |
 | `.aria/kilocode/agents/trader-agent.md` | **NEW v6.5**: finance domain agent, proxy canonical, 7 skills, 8 intent categories | 2026-05-02 |
+| `.aria/kilocode/agents/traveller-agent.md` | **NEW v7.6**: travel domain agent, proxy canonical, 6 skills, 7 intent categories, max-spawn-depth 1 | 2026-05-03 |
 | `.aria/kilocode/agents/workspace-agent.md` | **TRANSITIONAL**: compatibility stub, to be deprecated | 2026-05-01 |
 
 ### Config & Runtime
@@ -149,6 +150,7 @@ docs/llm_wiki/
 | **[[mcp-refoundation]]** | **NEW v5.0**: L2 — MCP Catalog (14 server), Drift validator, Capability probe, Lazy loader | **✅ v1.0** |
 | **[[observability]]** | **NEW v5.0**: L4 — Logger structured JSON, Prometheus metrics, Events tipati, Trace_id UUIDv7 | **✅ v1.0** |
 | **[[llm-routing]]** | **NEW v5.0**: L3 — Matrice dichiarativa YAML, Router Python, Budget gate, Cache strategy | **✅ v1.0** |
+| [[traveller-agent]] | **v7.6**: Fase 1 completata — prompt, capability matrix, conductor dispatch, 41 test | **✅ v1.0** |
 | [[log]] | Implementation log with timestamps | Active |
 
 ## Implementation Branch
@@ -190,6 +192,7 @@ docs/llm_wiki/
 - 2026-05-01: **v6.3e** — Added definitive proxy/runtime hardening: middleware now extracts nested `_caller_id` for synthetic `call_tool`, stale Kilo-home conductor artifacts were restored, and conductor/productivity prompts now explicitly forbid code edits, config edits, process killing, and runtime self-remediation during ordinary user workflows.
 - 2026-05-01: **v6.4** — Creato `docs/protocols/protocollo_creazione_agenti.md`: workflow unico per nuovi agenti/sub-agenti, con intake, wiki-first reconstruction, ricerca repo + `github-discovery`, branch di ricerca manuale via ARIA, decision ladder P8, guardrail P9/HITL/wiki.db/proxy, e output obbligatorio dei piani in `docs/plans/agents/`.
 - 2026-05-02: **v6.5** — **trader-agent runtime integration**. Il trader-agent (esistente in `.aria/kilo-home/.kilo/agents/` con 7 skill) era invisibile al conductor perché mancava da tutti i touchpoint runtime. Fix: capability matrix entry, conductor dispatch rules con keyword routing per 40+ termini finanziari, prompt canonico in `.aria/kilocode/agents/trader-agent.md`, delegation chain aggiornata. Aggiornato `protocollo_creazione_agenti.md` con **Fase L (Runtime Integration Checklist)** — 8 touchpoint obbligatori per prevenire integrazioni parziali future. 28 nuovi test trader-agent.
+- 2026-05-03: **v7.6** — **traveller-agent Fase 1 (Foundation) completata**. Prompt canonico `.aria/kilocode/agents/traveller-agent.md`, entry in `agent_capability_matrix.yaml`, conductor dispatch rules per travel domain con 30+ keyword. 41 test unitari traveller-agent + 26 test integrazione conductor dispatch. Branch: `feature/traveller-agent-f1`.
 
 ## Git & GitHub Rules
 

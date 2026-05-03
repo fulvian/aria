@@ -22,6 +22,7 @@ agents:
       - workspace-agent
       - productivity-agent
       - trader-agent
+      - traveller-agent
     hitl_triggers:
       - destructive
       - costly
@@ -125,3 +126,36 @@ agents:
       - finance.brief
     max_tools: 20
     max_spawn_depth: 0
+
+  - name: traveller-agent
+    type: worker
+    description: Agente di pianificazione viaggi — destinazione, trasporto, alloggio, attività, itinerario, budget. Consulente travel, NON booking executor.
+    allowed_tools:
+      - aria-mcp-proxy__search_tools
+      - aria-mcp-proxy__call_tool
+      - aria-memory__wiki_update_tool
+      - aria-memory__wiki_recall_tool
+      - aria-memory__wiki_show_tool
+      - aria-memory__wiki_list_tool
+      - hitl-queue__ask
+      - sequential-thinking__*
+      - spawn-subagent
+    mcp_dependencies:
+      - aria-mcp-proxy
+      - aria-memory
+    delegation_targets:
+      - productivity-agent
+      - search-agent
+    hitl_triggers:
+      - destructive
+      - costly
+    intent_categories:
+      - travel.destination
+      - travel.transport
+      - travel.accommodation
+      - travel.activity
+      - travel.itinerary
+      - travel.budget
+      - travel.brief
+    max_tools: 20
+    max_spawn_depth: 1

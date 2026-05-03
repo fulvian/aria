@@ -15,6 +15,12 @@ After trader-agent integration (2026-05-02), also verifies:
 - financial dispatch rules exist with keyword routing
 - trader-agent is in delegation chain
 - financial queries do NOT route to search-agent
+
+After traveller-agent integration (2026-05-03), also verifies:
+- traveller-agent is listed in sub-agenti disponibili
+- travel dispatch rules exist with keyword routing
+- traveller-agent is in delegation chain
+- travel queries do NOT route to search-agent
 """
 
 from __future__ import annotations
@@ -565,5 +571,245 @@ class TestTraderAgentInCapabilityMatrix:
         )
         assert trader is not None
         deps = trader.get("mcp_dependencies", [])
+        assert "aria-mcp-proxy" in deps
+        assert "aria-memory" in deps
+
+
+# === Traveller-Agent Integration Tests ===
+
+
+class TestConductorTravellerAgentRegistry:
+    """Conductor must declare traveller-agent and have travel dispatch rules."""
+
+    def test_traveller_agent_listed_in_subagenti(self, conductor_text: str):
+        """Conductor lists traveller-agent in sub-agenti disponibili."""
+        assert "traveller-agent" in conductor_text
+
+    def test_traveller_agent_described_as_travel(self, conductor_text: str):
+        """Traveller-agent description mentions travel domain."""
+        found = False
+        for line in conductor_text.splitlines():
+            if "traveller-agent" in line and "viaggi" in line.lower():
+                found = True
+                break
+            if "traveller-agent" in line and "travel" in line.lower():
+                found = True
+                break
+        assert found, "traveller-agent must be described as a travel domain agent"
+
+    def test_travel_dispatch_rules_exist(self, conductor_text: str):
+        """Conductor has dispatch rules for traveller-agent."""
+        assert "Regole di dispatch per traveller-agent" in conductor_text
+
+    def test_travel_keyword_routing_exists(self, conductor_text: str):
+        """Conductor has keyword routing section for travel."""
+        assert "Keyword di routing automatico" in conductor_text
+        assert "traveller-agent" in conductor_text
+
+    def test_viaggio_routes_to_traveller(self, conductor_text: str):
+        """Travel planning dispatches to traveller-agent."""
+        found = False
+        for line in conductor_text.splitlines():
+            if "viaggio" in line.lower() and "traveller-agent" in line:
+                found = True
+                break
+            if "Pianificazione viaggio" in line and "traveller-agent" in line:
+                found = True
+                break
+        assert found, "Viaggio must route to traveller-agent"
+
+    def test_volo_routes_to_traveller(self, conductor_text: str):
+        """Flight search dispatches to traveller-agent."""
+        found = False
+        for line in conductor_text.splitlines():
+            if "vol" in line.lower() and "traveller-agent" in line:
+                found = True
+                break
+            if "Ricerca voli" in line and "traveller-agent" in line:
+                found = True
+                break
+        assert found, "Volo search must route to traveller-agent"
+
+    def test_hotel_routes_to_traveller(self, conductor_text: str):
+        """Accommodation comparison dispatches to traveller-agent."""
+        found = False
+        for line in conductor_text.splitlines():
+            if "airbnb" in line.lower() and "traveller-agent" in line:
+                found = True
+                break
+            if "Confronto" in line and "traveller-agent" in line:
+                found = True
+                break
+        assert found, "Hotel/Accommodation must route to traveller-agent"
+
+    def test_traveller_agent_in_delegation_chain(self, conductor_text: str):
+        """Traveller-agent is in the delegation chains section."""
+        assert "traveller-agent" in conductor_text
+        assert "traveller-agent → productivity-agent" in conductor_text or (
+            "traveller-agent" in conductor_text
+        )
+
+    def test_travel_not_to_search_agent(self, conductor_text: str):
+        """Conductor explicitly says NOT to use search-agent for travel queries."""
+        assert "NON dispatchare a search-agent" in conductor_text
+        assert "traveller-agent" in conductor_text
+
+
+class TestTravellerAgentPromptExists:
+    """Traveller-agent prompt file exists in canonical location."""
+
+    def test_traveller_agent_file_exists(self):
+        """Traveller-agent prompt exists in .aria/kilocode/agents/."""
+        path = Path(".aria/kilocode/agents/traveller-agent.md")
+        assert path.exists(), "traveller-agent prompt missing"
+
+    @pytest.fixture(scope="class")
+    def traveller_text(self) -> str:
+        """Full text content of traveller-agent.md."""
+        path = Path(".aria/kilocode/agents/traveller-agent.md")
+        if not path.exists():
+            pytest.skip("traveller-agent.md not found")
+        content = path.read_text(encoding="utf-8")
+        parts = content.split("---", 2)
+        assert len(parts) >= 3, "traveller-agent.md: YAML frontmatter not found"
+        return parts[2]
+
+    @pytest.fixture(scope="class")
+    def traveller_yaml(self) -> dict:
+        """YAML frontmatter of traveller-agent.md."""
+        path = Path(".aria/kilocode/agents/traveller-agent.md")
+        if not path.exists():
+            pytest.skip("traveller-agent.md not found")
+        content = path.read_text(encoding="utf-8")
+        parts = content.split("---", 2)
+        return yaml.safe_load(parts[1])
+
+    def test_traveller_agent_type_is_subagent(self, traveller_yaml: dict):
+        """Traveller-agent type is subagent."""
+        assert traveller_yaml.get("type") == "subagent"
+
+    def test_traveller_agent_category_is_travel(self, traveller_yaml: dict):
+        """Traveller-agent category is travel."""
+        assert traveller_yaml.get("category") == "travel"
+
+    def test_traveller_agent_has_proxy_tools(self, traveller_yaml: dict):
+        """Traveller-agent has proxy tools in allowed-tools."""
+        tools = traveller_yaml.get("allowed-tools", [])
+        assert any("aria-mcp-proxy" in t for t in tools), (
+            "traveller-agent must have aria-mcp-proxy tools"
+        )
+
+    def test_traveller_agent_has_memory_tools(self, traveller_yaml: dict):
+        """Traveller-agent has memory tools."""
+        tools = traveller_yaml.get("allowed-tools", [])
+        assert any("aria-memory" in t for t in tools), (
+            "traveller-agent must have aria-memory tools"
+        )
+
+    def test_traveller_agent_has_spawn_depth_one(self, traveller_yaml: dict):
+        """Traveller-agent has max-spawn-depth 1 (can delegate)."""
+        assert traveller_yaml.get("max-spawn-depth") == 1, (
+            "traveller-agent must have max-spawn-depth: 1"
+        )
+
+    def test_traveller_agent_has_required_skills(self, traveller_yaml: dict):
+        """Traveller-agent lists all 6 required skills."""
+        skills = traveller_yaml.get("required-skills", [])
+        expected_skills = [
+            "destination-research",
+            "accommodation-comparison",
+            "transport-planning",
+            "activity-planning",
+            "itinerary-building",
+            "budget-analysis",
+        ]
+        for skill in expected_skills:
+            assert skill in skills, f"traveller-agent missing required skill: {skill}"
+
+    def test_traveller_agent_has_intent_categories(self, traveller_yaml: dict):
+        """Traveller-agent declares travel intent categories."""
+        intents = traveller_yaml.get("intent-categories", [])
+        expected_intents = [
+            "travel.destination",
+            "travel.transport",
+            "travel.accommodation",
+        ]
+        for intent in expected_intents:
+            assert intent in intents, f"traveller-agent missing intent category: {intent}"
+
+    def test_traveller_agent_has_disclaimer(self, traveller_text: str):
+        """Traveller-agent prompt contains mandatory disclaimer."""
+        assert "Nessuna prenotazione" in traveller_text
+
+    def test_traveller_agent_has_caller_id_rule(self, traveller_text: str):
+        """Traveller-agent prompt specifies _caller_id rule."""
+        assert "_caller_id" in traveller_text
+        assert "traveller-agent" in traveller_text
+
+    def test_traveller_agent_forbids_host_tools(self, traveller_text: str):
+        """Traveller-agent prompt forbids host-native tools."""
+        assert "NON usare tool nativi" in traveller_text or "NON usare" in traveller_text
+
+    def test_traveller_agent_forbids_booking_execution(self, traveller_text: str):
+        """Traveller-agent explicitly says it does NOT execute bookings."""
+        assert "NON" in traveller_text and "booking executor" in traveller_text.lower()
+
+
+class TestTravellerAgentInCapabilityMatrix:
+    """Traveller-agent is registered in the capability matrix."""
+
+    @pytest.fixture(scope="class")
+    def matrix_agents(self) -> list[dict]:
+        """Load agent entries from capability matrix."""
+        path = CAPABILITY_MATRIX_FILE
+        if not path.exists():
+            pytest.skip("capability matrix not found")
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        return data.get("agents", [])
+
+    def test_traveller_agent_in_matrix(self, matrix_agents: list[dict]):
+        """Traveller-agent is listed in the capability matrix."""
+        names = [a.get("name") for a in matrix_agents]
+        assert "traveller-agent" in names, (
+            "traveller-agent not found in agent_capability_matrix.yaml"
+        )
+
+    def test_conductor_delegates_to_traveller(self, matrix_agents: list[dict]):
+        """Conductor's delegation_targets includes traveller-agent."""
+        conductor = next(
+            (a for a in matrix_agents if a.get("name") == "aria-conductor"), None
+        )
+        assert conductor is not None
+        targets = conductor.get("delegation_targets", [])
+        assert "traveller-agent" in targets, (
+            "conductor delegation_targets missing traveller-agent"
+        )
+
+    def test_traveller_agent_type_is_worker(self, matrix_agents: list[dict]):
+        """Traveller-agent is type worker."""
+        traveller = next(
+            (a for a in matrix_agents if a.get("name") == "traveller-agent"), None
+        )
+        assert traveller is not None
+        assert traveller.get("type") == "worker"
+
+    def test_traveller_agent_has_travel_intents(self, matrix_agents: list[dict]):
+        """Traveller-agent has travel intent categories."""
+        traveller = next(
+            (a for a in matrix_agents if a.get("name") == "traveller-agent"), None
+        )
+        assert traveller is not None
+        intents = traveller.get("intent_categories", [])
+        assert len(intents) > 0, "traveller-agent must have intent categories"
+        assert "travel.destination" in intents
+        assert "travel.transport" in intents
+
+    def test_traveller_agent_mcp_dependencies(self, matrix_agents: list[dict]):
+        """Traveller-agent depends on aria-mcp-proxy and aria-memory."""
+        traveller = next(
+            (a for a in matrix_agents if a.get("name") == "traveller-agent"), None
+        )
+        assert traveller is not None
+        deps = traveller.get("mcp_dependencies", [])
         assert "aria-mcp-proxy" in deps
         assert "aria-memory" in deps

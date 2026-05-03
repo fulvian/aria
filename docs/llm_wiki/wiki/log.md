@@ -1,5 +1,51 @@
 # Implementation Log
 
+## 2026-05-03T20:00+02:00 — FEAT: traveller-agent Fase 1 (Foundation)
+
+**Operation**: FEAT (traveller-agent foundation)
+**Branch**: `feature/traveller-agent-f1`
+**Trigger**: implementazione traveller-agent foundation plan Fase 1: capability matrix + prompt + conductor wiring.
+
+### Changes
+- Creato `.aria/kilocode/agents/traveller-agent.md` (prompt canonico, modellato su trader-agent)
+- Creato mirror in `.aria/kilo-home/.kilo/agents/traveller-agent.md` (gitignored, runtime Kilo template)
+- Aggiunta entry `traveller-agent` in `.aria/config/agent_capability_matrix.yaml` (type: worker, 7 intent travel categories, 4 backend MCP via proxy, delegation a productivity-agent e search-agent, max_spawn_depth: 1)
+- Aggiornato `aria-conductor` delegation_targets in capability matrix
+- Aggiornato `.aria/kilocode/agents/aria-conductor.md` con:
+  - traveller-agent in sub-agenti disponibili
+  - 2 nuove catene dispatch (traveller → productivity, traveller → search)
+  - Regole di dispatch per traveller-agent con 30+ keyword travel italiane
+  - Dispatch rules per 7 intent travel categories
+  - Protezione: NON dispatchare travel a search-agent
+- Creati 41 test unitari in `tests/unit/agents/traveller/`:
+  - `test_traveller_agent_prompt.py` (27 test: frontmatter + content validation)
+  - `test_traveller_capability_matrix.py` (14 test: matrix entry validation)
+- Estesi `tests/unit/agents/test_conductor_dispatch.py` con 26 nuovi test:
+  - TestConductorTravellerAgentRegistry (9 test)
+  - TestTravellerAgentPromptExists (11 test)
+  - TestTravellerAgentInCapabilityMatrix (6 test)
+
+### Files modified
+- `.aria/config/agent_capability_matrix.yaml` (+29 righe + 1 modifica conductor delegation)
+- `.aria/kilocode/agents/aria-conductor.md` (sezioni dispatch travel aggiunte)
+- `tests/unit/agents/test_conductor_dispatch.py` (+26 test traveller)
+
+### Files created
+- `.aria/kilocode/agents/traveller-agent.md` (canonical prompt)
+- `tests/unit/agents/traveller/__init__.py`
+- `tests/unit/agents/traveller/test_traveller_agent_prompt.py`
+- `tests/unit/agents/traveller/test_traveller_capability_matrix.py`
+
+### Pre-existing failures
+9 failure in `test_conductor_dispatch.py` sono pre-esistenti su `main` (sezioni conductor non-travel). Non sono regressioni.
+
+### Quality gate
+- ruff: All checks passed
+- ruff format: 90 files left unchanged
+- mypy: Success (90 source files)
+- 41 traveller test: PASS
+- 67 traveller-related tests (incl. conductor dispatch): PASS
+
 ## 2026-05-02T01:30+02:00 — FIX: trader-agent runtime integration + protocollo Fase L
 
 **Operation**: FIX (trader-agent routing + protocol gap)

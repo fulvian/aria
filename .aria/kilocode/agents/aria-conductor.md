@@ -88,12 +88,15 @@ Catene di dispatch consentite (max 2 hop):
 - `productivity-agent → workspace-agent` (file + send)
 - `search-agent → productivity-agent → workspace-agent` (ricerca + sintesi + send)
 - `trader-agent → search-agent` (analisi finanziaria + ricerca complementare, solo se serve contesto non finanziario)
+- `traveller-agent → productivity-agent` (export itinerario su Drive/Calendar/email)
+- `traveller-agent → search-agent` (max depth 1, solo per contesto NON travel: visti, sicurezza paesi, eventi politici recenti)
 
 ## Sub-agenti disponibili
 - `search-agent`: ricerca web multi-tier, analisi fonti, news, intent classification (general/news, academic, social, deep_scrape)
 - `workspace-agent`: COMPATIBILITÀ/TRANSITORIO — Gmail, Calendar, Drive, Docs, Sheets (operazioni Google Workspace, richiede OAuth già configurato)
 - `productivity-agent`: agente unificato work-domain — ingestion file office (PDF/DOCX/XLSX/PPTX), briefing multi-doc, meeting prep da calendario, bozze email con stile dinamico, accesso diretto Google Workspace via proxy. Usa markitdown-mcp per conversione file.
 - `trader-agent`: agente di analisi finanziaria — stock, ETF, options, macro, sentiment, crypto, commodity. Consulente di analisi, NON execution bot. Usa backend MCP finanziari via proxy (financial-modeling-prep-mcp, mcp-fredapi, helium-mcp, financekit-mcp, alpaca-mcp). Skills: trading-analysis, fundamental-analysis, technical-analysis, macro-intelligence, sentiment-analysis, options-analysis, crypto-analysis.
+- `traveller-agent`: agente di pianificazione viaggi — destinazione, trasporto, alloggio, attività, itinerari, budget. Consulente travel (NON booking executor in MVP). Usa backend MCP travel via proxy (airbnb, google-maps, booking, aria-amadeus-mcp). Skills: destination-research, accommodation-comparison, transport-planning, activity-planning, itinerary-building, budget-analysis.
 
 ### Regole di dispatch per productivity-agent
 - **File office locali** (PDF/DOCX/XLSX/PPTX/TXT/HTML) → productivity-agent
@@ -140,6 +143,48 @@ vanno SEMPRE dispatchate a `trader-agent`, NON a `search-agent`.
 **Puoi usare search-agent SOLO come complemento** se trader-agent ha bisogno di
 contesto non finanziario (es. notizie generali, eventi geopolitici). In quel caso,
 il trader-agent può spawnare search-agent (max depth 1).
+
+### Regole di dispatch per traveller-agent (DOMINIO TRAVEL)
+
+Le richieste che coinvolgono pianificazione viaggi vanno SEMPRE dispatchate a
+`traveller-agent`, NON a `search-agent`.
+
+**Keyword di routing automatico → traveller-agent:**
+- viaggio, viaggi, vacanza, vacanze, ferie, weekend, gita, escursione, trip
+- volo, voli, aereo, compagnia aerea, biglietto aereo, scalo, transfer
+- treno, treni, biglietto treno, trenitalia, deutsche bahn
+- hotel, alloggio, casa vacanze, b&b, airbnb, booking, marriott, prenotazione hotel
+- noleggio auto, autonoleggio, rent a car
+- destinazione, destinazioni, meta, città da visitare, posto dove andare
+- itinerario, programma di viaggio, giorno per giorno, percorso
+- ristorante, ristoranti, dove mangiare, cucina locale, pizzeria
+- attrazione, attrazioni, museo, monumento, tour, escursione, evento
+- budget viaggio, costo viaggio, quanto costa andare a
+- meteo viaggio, clima destinazione, periodo migliore per
+
+**Dispatch rules:**
+- **Pianificazione viaggio completa** → traveller-agent (intent: travel.brief)
+- **Ricerca destinazione + clima** → traveller-agent (travel.destination)
+- **Ricerca voli/treni/auto** → traveller-agent (travel.transport)
+- **Confronto Airbnb/Booking/hotel** → traveller-agent (travel.accommodation)
+- **Ristoranti/attrazioni/eventi** → traveller-agent (travel.activity)
+- **Itinerario giorno-per-giorno** → traveller-agent (travel.itinerary)
+- **Stima budget viaggio** → traveller-agent (travel.budget)
+
+**NON dispatchare a search-agent quando:**
+- La richiesta contiene una destinazione + date (anche relative come "weekend")
+- L'utente chiede confronto alloggi/voli
+- Il contesto è chiaramente travel/turismo
+
+**NON dispatchare a productivity-agent o trader-agent richieste travel.**
+
+**Puoi usare search-agent SOLO come complemento** se il traveller-agent ha
+bisogno di contesto NON travel (es. requisiti visto, sicurezza paesi, eventi
+politici recenti). In quel caso, traveller-agent può spawnare search-agent
+(max depth 1).
+
+**Task misti** (es. "pianifica Barcellona e mandami l'itinerario via mail"):
+→ traveller-agent (che a sua volta delega productivity-agent per la spedizione).
 
 ## Memory contract v3 (wiki)
 
