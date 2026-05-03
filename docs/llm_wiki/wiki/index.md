@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
 **Last Updated**: 2026-05-03T21:00 (v7.8 — traveller-agent Fase 3 completata: aria-amadeus-mcp FastMCP server. Airbnb + osm-mcp (OSM free, sostituisce Google Maps). Credenziali Amadeus cifrate in SOPS. 7 test catalog.
-**Status**: ✅ **v8.2** — **traveller-agent Fase 7 (observability + anti-drift) completata**. Eventi traveller in events.py, quota circuit breaker amadeus, 16 test anti-drift. 124 test totali. Handoff chain traveller → productivity-agent testata. 19 test integrazione handoff. 108 test totali. Tutte le 6 skill implementate: activity-planning, itinerary-building, budget-analysis. Booking MCP registrato (shadow). 89 test. 3 SKILL.md: destination-research, accommodation-comparison, transport-planning. Registrate in skill registry. 12 test skill. 78 test totali traveller. FastMCP server Python in `src/aria/tools/amadeus/mcp_server.py` con 6 tool read-only (flight_offers_search, hotel_offers_search, hotel_list_by_geocode, locations_search, nearest_airport, flight_status). 18 test integrazione (incl. stdio protocol). Lifecycle catalog: enabled. Credenziali via SOPS. 92 test totali traveller. 3 backend registrati in `mcp_catalog.yaml`: `airbnb` (keyless, enabled), `osm-mcp` (keyless, enabled — OpenStreetMap gratuito), `aria-amadeus-mcp` (api_key, shadow — in attesa Fase 3). Google Maps escluso (richiedeva billing account non attivabile). Sostituito con osm-mcp-server (OpenStreetMap, 12 tool, 100% free). Credenziali Amadeus cifrate in SOPS. 7 test catalog traveller-backends. Fase 1: 41+26=67 test. Fase 2: +7 test = 74 test totali traveller.
+**Status**: ✅ **v8.3** — **traveller-agent Fase 8 (ADR + wiki sync) completata**. ADR-0017 (traveller-agent), ADR-0018 (aria-amadeus-mcp). 124 test. Wiki sync completato. Eventi traveller in events.py, quota circuit breaker amadeus, 16 test anti-drift. 124 test totali. Handoff chain traveller → productivity-agent testata. 19 test integrazione handoff. 108 test totali. Tutte le 6 skill implementate: activity-planning, itinerary-building, budget-analysis. Booking MCP registrato (shadow). 89 test. 3 SKILL.md: destination-research, accommodation-comparison, transport-planning. Registrate in skill registry. 12 test skill. 78 test totali traveller. FastMCP server Python in `src/aria/tools/amadeus/mcp_server.py` con 6 tool read-only (flight_offers_search, hotel_offers_search, hotel_list_by_geocode, locations_search, nearest_airport, flight_status). 18 test integrazione (incl. stdio protocol). Lifecycle catalog: enabled. Credenziali via SOPS. 92 test totali traveller. 3 backend registrati in `mcp_catalog.yaml`: `airbnb` (keyless, enabled), `osm-mcp` (keyless, enabled — OpenStreetMap gratuito), `aria-amadeus-mcp` (api_key, shadow — in attesa Fase 3). Google Maps escluso (richiedeva billing account non attivabile). Sostituito con osm-mcp-server (OpenStreetMap, 12 tool, 100% free). Credenziali Amadeus cifrate in SOPS. 7 test catalog traveller-backends. Fase 1: 41+26=67 test. Fase 2: +7 test = 74 test totali traveller.
 
 ## Purpose
 
@@ -161,7 +161,7 @@ docs/llm_wiki/
   - `5a4e242` — quality fixes (21 ruff, 12 mypy, 6 test failures)
   - `a117904` — F1+F2 (audit + coordination modules + 86 test)
   - `4ecc42c` — F3+F4 (MCP catalog, observability, LLM routing)
-- **ADR ratificati**: ADR-0008 (productivity-agent), ADR-0009 (MCP catalog), ADR-0010 (lazy loading), ADR-0012 (cutover/rollback), ADR-0013 (LLM routing), ADR-0014 (observability)
+- **ADR ratificati**: ADR-0008 (productivity-agent), ADR-0009 (MCP catalog), ADR-0010 (lazy loading), ADR-0012 (cutover/rollback), ADR-0013 (LLM routing), ADR-0014 (observability), ADR-0017 (traveller-agent), ADR-0018 (aria-amadeus-mcp)
 - **Quality gate finale**: ruff 0, mypy 0 (81 files), pytest 634/634 pass
 
 ## Bootstrap Log
@@ -199,6 +199,7 @@ docs/llm_wiki/
 - 2026-05-03: **v8.0** — **traveller-agent Fase 5 (skill complementari + booking gated) completata**. 3 skill aggiuntive: activity-planning (POI/ristoranti), itinerary-building (giorno-per-giorno), budget-analysis (breakdown costi). Booking MCP registrato in catalog (lifecycle: shadow, gated — Playwright fragile). 89 test totali traveller.
 - 2026-05-03: **v8.1** — **traveller-agent Fase 6 (export integration) completata**. Handoff chain traveller → productivity-agent verificata con 19 test integrazione. Include: regole delega export (Drive/Calendar/email), HITL gate per write esterne, depth guard 2 hop, capability matrix delegation. 108 test totali traveller.
 - 2026-05-03: **v8.2** — **traveller-agent Fase 7 (observability + anti-drift) completata**. Eventi traveller tipati in events.py (TravellerEvent, TravellerEventKind). Quota circuit breaker in aria-amadeus-mcp server (free tier 2K/mese, auto-quarantine a 100%, warning a 90%). 16 test anti-drift (source-of-truth, host tools, HITL, memory, self-remediation, naming). 124 test totali traveller.
+- 2026-05-03: **v8.3** — **traveller-agent Fase 8 (ADR + wiki sync) completata**. ADR-0017 (traveller-agent introduction), ADR-0018 (aria-amadeus-mcp). Wiki sync completato per tutte le fasi.
 
 ## Git & GitHub Rules
 

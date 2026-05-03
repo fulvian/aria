@@ -21,7 +21,7 @@ Sub-agente ARIA domain-primary per pianificazione e assistenza viaggi. Copre l'i
 | Fase 5 — skill complementari + booking gated | ✅ Completa (v8.0) |
 | Fase 6 — export integration via productivity-agent | ✅ Completa (v8.1) |
 | Fase 7 — observability + cost circuit breaker | ✅ Completa (v8.2) |
-| Fase 8 — ADR-0017 + ADR-0018 + wiki sync | ⏳ Pending |
+| Fase 8 — ADR-0017 + ADR-0018 + wiki sync | ✅ Completa (v8.3) |
 | Fase 9 — smoke E2E | ⏳ Pending |
 
 ## Backend MCP registrati (Fase 2 + 3 completata)
@@ -33,6 +33,17 @@ Sub-agente ARIA domain-primary per pianificazione e assistenza viaggi. Copre l'i
 | `aria-amadeus-mcp` | `scripts/wrappers/aria-amadeus-wrapper.sh` (FastMCP in `src/aria/tools/amadeus/mcp_server.py`) | 6 tool read-only | AMADEUS_CLIENT_ID/SECRET (SOPS) | gratuito (2K/mese) | enabled |
 
 **Nota**: Google Maps Platform (`@cablate/mcp-google-map`) **escluso** — richiedeva billing account Google Cloud non attivabile. Sostituito con `osm-mcp-server` basato su OpenStreetMap (100% free, no API key, no billing).
+
+## ADR ratificati (Fase 8 completata)
+
+| ADR | Titolo | File |
+|-----|--------|------|
+| ADR-0017 | traveller-agent — travel domain sub-agent introduction | `docs/foundation/decisions/ADR-0017-traveller-agent-introduction.md` |
+| ADR-0018 | aria-amadeus-mcp — local FastMCP wrapper for Amadeus | `docs/foundation/decisions/ADR-0018-aria-amadeus-mcp.md` |
+
+Entrambi gli ADR sono marcati `Status: Implemented` e coprono: decisioni
+architetturali, razionale, conseguenze, mitigazioni e riferimenti a file
+di implementazione.
 
 ## Observability + anti-drift (Fase 7 completata)
 
@@ -55,6 +66,12 @@ Integrato nel server FastMCP `mcp_server.py`:
 - Memory: 1 wiki_update per turn, wiki_recall a inizio
 - Self-remediation: no edit codice/config/kill
 - Naming: server__tool wildcard
+
+### ADR ratificati
+| ADR | File | Stato |
+|-----|------|-------|
+| ADR-0017 | `docs/foundation/decisions/ADR-0017-traveller-agent-introduction.md` | ✅ Implementato |
+| ADR-0018 | `docs/foundation/decisions/ADR-0018-aria-amadeus-mcp.md` | ✅ Implementato |
 
 ## Handoff chain (Fase 6 completata)
 
