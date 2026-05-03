@@ -26,10 +26,9 @@ Tutte le chiamate ai backend MCP passano dal proxy. Ogni chiamata deve includere
 
 ```
 aria-mcp-proxy__call_tool(
-  name="call_tool",
+  name="<server__tool>",
   arguments={
-    "name": "<server__tool>",
-    "arguments": {<tool params>},
+    <tool params>,
     "_caller_id": "search-agent"
   }
 )
@@ -37,10 +36,7 @@ aria-mcp-proxy__call_tool(
 
 Per scoprire tool disponibili:
 ```
-aria-mcp-proxy__call_tool(
-  name="search_tools",
-  arguments={"query": "<descrizione>", "_caller_id": "search-agent"}
-)
+aria-mcp-proxy__search_tools(query="<descrizione>")
 ```
 
 ## REGOLA FISSA — Dual Tier 1 (gratuiti e illimitati)

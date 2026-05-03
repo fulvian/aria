@@ -1,5 +1,33 @@
 # Implementation Log
 
+## 2026-05-04T00:45+02:00 — FIX: traveller-agent proxy contract + middleware hardening
+
+**Operation**: FIX (traveller live runtime remediation)
+**Branch**: `feature/traveller-agent-f1`
+**Trigger**: live logs still showed malformed proxy usage (`search_tools` wrapped via `call_tool`, double-nested `name="call_tool"`) plus backend execution drift and an unavailable Amadeus backend.
+
+### Root cause
+1. **Prompt/skill contract wrong**: traveller prompt and all travel skills documented `aria-mcp-proxy__call_tool(name="call_tool", arguments={...})`, but FastMCP exposes `call_tool` with schema `{name, arguments}` and `search_tools` as a separate synthetic tool with schema `{query}`.
+2. **Middleware bypass**: `CapabilityMatrixMiddleware` skipped backend authorization for proxy `call_tool` requests and tolerated caller-less proxy execution.
+3. **Runtime availability gap**: `scripts/wrappers/aria-amadeus-wrapper.sh` was not executable, so the enabled Amadeus backend could not boot.
+4. **Catalog/docs drift**: Booking remained marked as shadow/gated in notes even after lifecycle `enabled`; traveller wiki page still contained stale status and `google-maps` wording.
+
+### Changes
+- **traveller-agent prompt**: corrected discovery to direct `aria-mcp-proxy__search_tools(query=...)`; corrected backend execution to direct `aria-mcp-proxy__call_tool(name="server__tool", arguments={..., "_caller_id": "traveller-agent"})`; explicitly forbids wrapping synthetic tools through `call_tool`.
+- **All 6 travel skills**: normalized examples to the real proxy schema; destination/activity skills now show full proxy invocations instead of bare `name:`/`arguments:` fragments; destination skill no longer permits unverifiable “conoscenza propria” for unsupported facts.
+- **middleware.py**:
+  - `tools/list` without caller now leaks only synthetic tools
+  - `call_tool` without caller now fails closed
+  - `call_tool` targeting `search_tools`/`call_tool` is rejected
+  - backend authorization is enforced again for proxy-mediated execution
+- **mcp_catalog.yaml**: booking notes aligned with lifecycle `enabled`
+- **tests**: strengthened traveller prompt/skill anti-drift checks, proxy middleware tests, proxy schema integration test, and Amadeus wrapper executability coverage.
+
+### Verified impact
+- Traveller logs should stop drifting toward `name="call_tool"` / wrapped `search_tools`
+- Proxy backend execution once again requires caller identity + capability match
+- Enabled Amadeus backend no longer fails at process spawn due to missing execute bit
+
 ## 2026-05-04T00:30+02:00 — FIX: TimeoutProxyProvider — proxy non bloccante su list_tools
 
 **Operation**: FIX (proxy hangs on tools/list with 17 backends)

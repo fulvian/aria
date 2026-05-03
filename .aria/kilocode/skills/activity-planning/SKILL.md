@@ -20,27 +20,31 @@ per una destinazione. Produrre lista strutturata con descrizione, posizione,
 fascia di prezzo e link.
 
 ## Proxy invocation
-Tutte le chiamate ai backend MCP passano dal proxy con `_caller_id: "traveller-agent"`.
+Per discovery usa direttamente `aria-mcp-proxy__search_tools(query="...")`.
+
+Tutte le chiamate ai backend MCP passano dal proxy con `_caller_id: "traveller-agent"` dentro `arguments`.
 
 ## Pipeline
 
 ### 1. Geocoding destinazione
 ```
-name: "osm-mcp__geocode_address"
-arguments: {"address": "<città, paese>"}
+aria-mcp-proxy__call_tool(name="osm-mcp__geocode_address", arguments={
+  "address": "<città, paese>",
+  "_caller_id": "traveller-agent"
+})
 ```
 
 ### 2. Ricerca per categoria
 Usa `osm-mcp__find_nearby_places` per trovare POI vicini:
 ```
-name: "osm-mcp__find_nearby_places"
-arguments: {
+aria-mcp-proxy__call_tool(name="osm-mcp__find_nearby_places", arguments={
   "latitude": <lat>,
   "longitude": <lon>,
   "radius": 1000,
   "category": "restaurant",
-  "limit": 10
-}
+  "limit": 10,
+  "_caller_id": "traveller-agent"
+})
 ```
 
 Categorie consigliate:
@@ -55,14 +59,14 @@ Categorie consigliate:
 
 Oppure usa `osm-mcp__search_category` per ricerca più mirata:
 ```
-name: "osm-mcp__search_category"
-arguments: {
+aria-mcp-proxy__call_tool(name="osm-mcp__search_category", arguments={
   "latitude": <lat>,
   "longitude": <lon>,
   "radius": 2000,
   "category": "ristorante",
-  "limit": 5
-}
+  "limit": 5,
+  "_caller_id": "traveller-agent"
+})
 ```
 
 ### 3. Arricchimento (opzionale)

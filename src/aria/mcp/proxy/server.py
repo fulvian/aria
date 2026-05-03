@@ -7,6 +7,7 @@ it via `await proxy.run_async(transport="stdio")`.
 
 from __future__ import annotations
 
+import importlib
 import os
 from pathlib import Path
 from typing import Any
@@ -24,9 +25,9 @@ from aria.mcp.proxy.transforms.lmstudio_embedder import LMStudioEmbedder
 from aria.utils.logging import get_logger
 
 try:
-    from fastmcp.server.providers.proxy import _create_client_factory
+    fastmcp_proxy_provider: Any | None = importlib.import_module("fastmcp.server.providers.proxy")
 except ImportError:
-    _create_client_factory = None  # pragma: no cover
+    fastmcp_proxy_provider = None  # pragma: no cover
 
 logger = get_logger("aria.mcp.proxy.server")
 
@@ -55,13 +56,11 @@ def build_proxy(
         backends = []
 
     composite = FastMCP(name=PROXY_NAME)
-    if backends and _create_client_factory is not None:
-        client_factory = _create_client_factory(
+    if backends and fastmcp_proxy_provider is not None:
+        client_factory = fastmcp_proxy_provider._create_client_factory(
             {"mcpServers": {b.name: b.to_mcp_entry() for b in backends}}
         )
-        composite.add_provider(
-            TimeoutProxyProvider(client_factory, list_timeout_s=30.0)
-        )
+        composite.add_provider(TimeoutProxyProvider(client_factory, list_timeout_s=30.0))
 
     composite.add_transform(_build_transform(cfg))
     composite.add_middleware(CapabilityMatrixMiddleware(registry))

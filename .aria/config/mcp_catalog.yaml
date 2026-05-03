@@ -399,5 +399,5 @@ servers:
   cost_class: free
   source_of_truth: npx -y @striderlabs/mcp-booking
   rollback_class: server
-  baseline_status: shadow
-  notes: 'Booking MCP (@striderlabs/mcp-booking). GATED: usa Playwright, fragile. Lifecycle shadow fino a verifica stabilità. 3+ tool.'
+  baseline_status: lkg
+  notes: 'Booking MCP (@striderlabs/mcp-booking). Enabled per traveller-agent, ma da usare in degraded mode se instabile. 3+ tool.'

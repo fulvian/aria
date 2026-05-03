@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -66,8 +65,7 @@ def server_module():
     """Import the server module to access tools."""
     import importlib
 
-    mod = importlib.import_module(SERVER_PATH)
-    return mod
+    return importlib.import_module(SERVER_PATH)
 
 
 class TestAriaAmadeusMcpToolSurface:
@@ -188,34 +186,36 @@ class TestAriaAmadeusMcpStdio:
         )
 
         # MCP protocol requires initialize handshake before tools/list
-        init_request = json.dumps({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {
-                "protocolVersion": "2024-11-05",
-                "capabilities": {},
-                "clientInfo": {"name": "test", "version": "1.0"},
-            },
-        })
-        list_request = json.dumps({
-            "jsonrpc": "2.0",
-            "id": 2,
-            "method": "tools/list",
-            "params": {},
-        })
+        init_request = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {},
+                    "clientInfo": {"name": "test", "version": "1.0"},
+                },
+            }
+        )
+        list_request = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/list",
+                "params": {},
+            }
+        )
 
         # FastMCP processes one line at a time from stdin
         payload = init_request + "\n" + list_request + "\n"
         stdout, stderr = proc.communicate(input=payload, timeout=10)
         proc.wait(timeout=5)
 
-        # Parse multi-line JSON response
-        import re
         # FastMCP outputs each JSON-RPC response on its own line
         responses = []
-        for line in stdout.strip().split("\n"):
-            line = line.strip()
+        for raw_line in stdout.strip().split("\n"):
+            line = raw_line.strip()
             if line:
                 try:
                     responses.append(json.loads(line))
@@ -223,8 +223,7 @@ class TestAriaAmadeusMcpStdio:
                     continue
 
         assert len(responses) >= 2, (
-            f"Expected >=2 responses, got {len(responses)}. "
-            f"stdout: {stdout[:1000]}"
+            f"Expected >=2 responses, got {len(responses)}. stdout: {stdout[:1000]}"
         )
 
         # Second response should be tools/list

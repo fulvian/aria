@@ -28,3 +28,16 @@ async def test_proxy_search_finds_tool(monkeypatch, minimal_catalog, tmp_path) -
     async with Client(proxy) as client:
         result = await client.call_tool("search_tools", {"query": "read"})
         assert result is not None
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_proxy_synthetic_tool_schemas_match_direct_invocation(monkeypatch) -> None:
+    monkeypatch.setenv("ARIA_PROXY_DISABLE_BACKENDS", "1")
+    proxy = build_proxy(strict=False)
+    async with Client(proxy) as client:
+        tools = await client.list_tools()
+        by_name = {tool.name: tool for tool in tools}
+        assert by_name["search_tools"].inputSchema["required"] == ["query"]
+        assert set(by_name["call_tool"].inputSchema["required"]) == {"name"}
+        assert set(by_name["call_tool"].inputSchema["properties"]) == {"name", "arguments"}

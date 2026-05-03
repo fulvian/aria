@@ -93,6 +93,54 @@ async def test_on_call_tool_denies_when_caller_absent() -> None:
 
 
 @pytest.mark.asyncio
+async def test_on_call_tool_proxy_requires_caller() -> None:
+    reg = _Reg({})
+    mw = CapabilityMatrixMiddleware(reg)
+    ctx = _ctx(
+        args={"name": "filesystem__read", "arguments": {"path": "/tmp/x"}},
+        tool_name="call_tool",
+    )
+    call_next = AsyncMock(return_value="ok")
+    with pytest.raises(ToolError, match="denied: no caller identity"):
+        await mw.on_call_tool(ctx, call_next)
+    call_next.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_on_call_tool_proxy_denies_synthetic_recursion() -> None:
+    reg = _Reg({"search-agent": ["tavily-mcp__search"]})
+    mw = CapabilityMatrixMiddleware(reg)
+    ctx = _ctx(
+        args={
+            "name": "search_tools",
+            "arguments": {"query": "tavily", "_caller_id": "search-agent"},
+        },
+        tool_name="call_tool",
+    )
+    call_next = AsyncMock(return_value="ok")
+    with pytest.raises(ToolError, match="must be invoked directly"):
+        await mw.on_call_tool(ctx, call_next)
+    call_next.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_on_call_tool_proxy_checks_backend_authorization() -> None:
+    reg = _Reg({"search-agent": ["tavily-mcp__search"]})
+    mw = CapabilityMatrixMiddleware(reg)
+    ctx = _ctx(
+        args={
+            "name": "google_workspace__gmail_send",
+            "arguments": {"_caller_id": "search-agent", "to": "x@example.com"},
+        },
+        tool_name="call_tool",
+    )
+    call_next = AsyncMock(return_value="ok")
+    with pytest.raises(ToolError, match="not allowed"):
+        await mw.on_call_tool(ctx, call_next)
+    call_next.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_on_call_tool_allows_synthetic_when_caller_absent() -> None:
     """Synthetic tools (search_tools, call_tool) are allowed even without caller."""
     reg = _Reg({})
@@ -140,13 +188,15 @@ async def test_on_list_tools_filters_per_caller() -> None:
 async def test_on_list_tools_passthrough_when_no_caller() -> None:
     reg = _Reg({})
     mw = CapabilityMatrixMiddleware(reg)
+    tool_s = MagicMock()
+    tool_s.name = "search_tools"
     tool_a = MagicMock()
     tool_a.name = "filesystem__read"
-    call_next = AsyncMock(return_value=[tool_a])
+    call_next = AsyncMock(return_value=[tool_a, tool_s])
     ctx = _ctx()
     ctx.fastmcp_context = None  # no caller info
     out = await mw.on_list_tools(ctx, call_next)
-    assert out == [tool_a]
+    assert out == [tool_s]
 
 
 @pytest.mark.asyncio

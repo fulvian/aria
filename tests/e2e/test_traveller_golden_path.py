@@ -6,7 +6,8 @@ un flusso completo di pianificazione viaggio (golden path):
 "5 giorni a Barcellona, famiglia 4 persone, budget 3000€"
 
 Il test verifica a livello di contratto:
-1. Prompt: contiene pipeline end-to-end (destination → transport → accommodation → activities → itinerary → budget)
+1. Prompt: contiene pipeline end-to-end
+   (destination → transport → accommodation → activities → itinerary → budget)
 2. Skills: tutte le 6 skill sono registrate e hanno SKILL.md
 3. Backend: i 3 backend principali sono registrati (airbnb, osm-mcp, aria-amadeus-mcp)
 4. Output: il prompt specifica il formato Travel Brief strutturato
@@ -257,9 +258,7 @@ class TestGoldenPathSkillComposition:
             parts = text.split("---", 2)
             sf = yaml.safe_load(parts[1])
             tools = sf.get("allowed-tools", [])
-            assert any("proxy" in t for t in tools), (
-                f"Skill {skill} missing proxy tools"
-            )
+            assert any("proxy" in t for t in tools), f"Skill {skill} missing proxy tools"
 
 
 # ── Golden Path — Backend Readiness ──────────────────────────────────────────

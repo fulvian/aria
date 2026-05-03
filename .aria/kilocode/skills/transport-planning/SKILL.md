@@ -24,9 +24,8 @@ Non saltare passi. Usa il pattern ESATTO qui sotto per ogni chiamata.
 
 ## Proxy invocation pattern
 ```
-aria-mcp-proxy__call_tool(name="call_tool", arguments={
-  "name": "<server>__<tool>",
-  "arguments": {<parametri>},
+aria-mcp-proxy__call_tool(name="<server>__<tool>", arguments={
+  <parametri>,
   "_caller_id": "traveller-agent"
 })
 ```
@@ -36,66 +35,54 @@ aria-mcp-proxy__call_tool(name="call_tool", arguments={
 ### 1. Location resolution — DEVI chiamare questi tool
 Ottieni coordinate della destinazione e trova aeroporti vicini:
 ```
-aria-mcp-proxy__call_tool(name="call_tool", arguments={
-  "name": "osm-mcp__geocode_address",
-  "arguments": {"address": "<città, paese>"},
+aria-mcp-proxy__call_tool(name="osm-mcp__geocode_address", arguments={
+  "address": "<città, paese>",
   "_caller_id": "traveller-agent"
 })
 ```
 
 Poi trova aeroporti (via Amadeus):
 ```
-aria-mcp-proxy__call_tool(name="call_tool", arguments={
-  "name": "aria-amadeus-mcp__nearest_airport",
-  "arguments": {"latitude": <lat>, "longitude": <lon>},
+aria-mcp-proxy__call_tool(name="aria-amadeus-mcp__nearest_airport", arguments={
+  "latitude": <lat>, "longitude": <lon>,
   "_caller_id": "traveller-agent"
 })
 ```
 Oppure:
 ```
-aria-mcp-proxy__call_tool(name="call_tool", arguments={
-  "name": "aria-amadeus-mcp__locations_search",
-  "arguments": {"keyword": "<città>", "sub_type": "AIRPORT"},
+aria-mcp-proxy__call_tool(name="aria-amadeus-mcp__locations_search", arguments={
+  "keyword": "<città>", "sub_type": "AIRPORT",
   "_caller_id": "traveller-agent"
 })
 ```
 
 ### 2. Ricerca voli — DEVI chiamare
 ```
-aria-mcp-proxy__call_tool(name="call_tool", arguments={
-  "name": "aria-amadeus-mcp__flight_offers_search",
-  "arguments": {
-    "origin_location_code": "<IATA>",
-    "destination_location_code": "<IATA>",
-    "departure_date": "<YYYY-MM-DD>",
-    "adults": <numero>
-  },
+aria-mcp-proxy__call_tool(name="aria-amadeus-mcp__flight_offers_search", arguments={
+  "origin_location_code": "<IATA>",
+  "destination_location_code": "<IATA>",
+  "departure_date": "<YYYY-MM-DD>",
+  "adults": <numero>,
   "_caller_id": "traveller-agent"
 })
 ```
 
 ### 3. Stato volo (se richiesto) — DEVI chiamare
 ```
-aria-mcp-proxy__call_tool(name="call_tool", arguments={
-  "name": "aria-amadeus-mcp__flight_status",
-  "arguments": {
-    "carrier_code": "<IATA>",
-    "flight_number": "<numero>",
-    "scheduled_departure_date": "<YYYY-MM-DD>"
-  },
+aria-mcp-proxy__call_tool(name="aria-amadeus-mcp__flight_status", arguments={
+  "carrier_code": "<IATA>",
+  "flight_number": "<numero>",
+  "scheduled_departure_date": "<YYYY-MM-DD>",
   "_caller_id": "traveller-agent"
 })
 ```
 
 ### 4. Route optimization (se richiesto) — DEVI chiamare
 ```
-aria-mcp-proxy__call_tool(name="call_tool", arguments={
-  "name": "osm-mcp__get_route_directions",
-  "arguments": {
-    "start_lat": <lat>, "start_lon": <lon>,
-    "end_lat": <lat>, "end_lon": <lon>,
-    "mode": "car"
-  },
+aria-mcp-proxy__call_tool(name="osm-mcp__get_route_directions", arguments={
+  "start_lat": <lat>, "start_lon": <lon>,
+  "end_lat": <lat>, "end_lon": <lon>,
+  "mode": "car",
   "_caller_id": "traveller-agent"
 })
 ```

@@ -187,3 +187,22 @@
 ### User-approved naming constraint
 - The converged single work-domain agent must retain the name **`productivity-agent`**.
 - `workspace-agent` should be considered transitional and later deprecated/removed, not the surviving canonical name.
+
+## 2026-05-04 — Traveller-agent runtime remediation findings
+
+### Verified proxy schema contract
+- Context7 + local proxy inspection confirm FastMCP exposes:
+  - `search_tools` with schema `{query}` only
+  - `call_tool` with schema `{name, arguments}`
+- Consequence: the prompt/skill pattern `aria-mcp-proxy__call_tool(name="call_tool", arguments={...})` was structurally wrong.
+
+### Root causes fixed
+1. **Traveller prompt drift** — discovery wrapped via `call_tool`; backend execution double-nested.
+2. **Travel skill drift** — all 6 traveller skills trained the same wrong proxy payload shape; two skills also used partial `name:` / `arguments:` snippets instead of full proxy calls.
+3. **Middleware bypass** — `call_tool` could execute backend tools without reliable caller gating and skipped backend capability checks.
+4. **Amadeus runtime availability** — `scripts/wrappers/aria-amadeus-wrapper.sh` lacked execute permission, making the enabled backend intermittently unavailable at runtime.
+5. **Catalog/wiki drift** — booking notes still described shadow lifecycle; traveller wiki page still referenced stale status and `google-maps` wording.
+
+### Residual platform issues discovered but not introduced here
+- Repository-wide `ruff check .` and `ruff format --check .` are currently red for pre-existing files outside the traveller remediation scope (`src/aria/mcp/proxy/provider.py`, several historical tests, conductor prompt contract tests).
+- Repository-wide `pytest -q` is red mainly because the checked-in conductor prompt no longer matches legacy tests; targeted traveller/proxy suites are green.

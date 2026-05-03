@@ -117,9 +117,19 @@ class TestAntiDriftNaming:
 
     def test_backend_names_correct(self, prompt_text: str):
         """Backend names follow server__tool convention."""
-        props = ["airbnb__", "google-maps__", "aria-amadeus-mcp__"]
+        props = ["airbnb__", "osm-mcp__", "aria-amadeus-mcp__"]
         found = any(p in prompt_text for p in props)
         assert found, "No server__tool pattern found for travel backends"
+
+    def test_discovery_uses_direct_search_tool(self, prompt_text: str):
+        """Prompt must call search_tools directly, not via call_tool."""
+        assert "aria-mcp-proxy__search_tools" in prompt_text
+        assert 'name: "search_tools"' not in prompt_text
+
+    def test_call_tool_examples_are_not_double_nested(self, prompt_text: str):
+        """Prompt must not use name=call_tool wrapper examples."""
+        assert 'aria-mcp-proxy__call_tool(name="call_tool"' not in prompt_text
+        assert 'name="call_tool"' not in prompt_text
 
 
 class TestAntiDriftPromptSurface:
@@ -143,10 +153,12 @@ class TestAntiDriftPromptSurface:
                 continue
             if stripped.startswith("```") or "aria-mcp-proxy" in stripped:
                 continue
-            if stripped.startswith("NON") or stripped.startswith("non"):
+            if stripped.startswith(("NON", "non")):
                 continue
             # Check only positive imperative instructions for bare backend names
-            if ("`airbnb/" in stripped or "`google-maps/" in stripped or
-                "`aria-amadeus-mcp/" in stripped):
-                if "proxy" not in stripped.lower():
-                    pytest.fail(f"Direct invocation without proxy: {stripped}")
+            if (
+                "`airbnb/" in stripped
+                or "`osm-mcp/" in stripped
+                or "`aria-amadeus-mcp/" in stripped
+            ) and "proxy" not in stripped.lower():
+                pytest.fail(f"Direct invocation without proxy: {stripped}")

@@ -1,7 +1,7 @@
 # Traveller Agent
 
-**Status**: ✅ Fase 2 completata (v7.7) — Backend MCP registrati
-**Ultimo aggiornamento**: 2026-05-03T20:40
+**Status**: ✅ v8.7 — prompt/skill proxy contract corretto, middleware fail-closed su `call_tool`, wrapper Amadeus eseguibile
+**Ultimo aggiornamento**: 2026-05-04T00:45
 **Source**: `docs/plans/agents/traveller_agent_plan.md` (canonical), `docs/analysis/traveller_agent_analysis.md` (research v7.4)
 
 ## Overview
@@ -132,8 +132,19 @@ Tutte le 6 skill sono state implementate (Fase 4 + Fase 5 completate).
 **Pattern**: ARIA-native hub-and-spoke. **NO** LangGraph runtime.
 
 ```
-ARIA Conductor → traveller-agent → proxy (airbnb, google-maps, booking, aria-amadeus-mcp) → backend
+ARIA Conductor → traveller-agent → proxy (airbnb, osm-mcp, booking, aria-amadeus-mcp) → backend
 ```
+
+## Remediation v8.7 — runtime contract riallineato
+
+- `search_tools` va invocato direttamente come `aria-mcp-proxy__search_tools(query=...)`
+- `call_tool` va invocato direttamente come `aria-mcp-proxy__call_tool(name="server__tool", arguments={..., "_caller_id": "traveller-agent"})`
+- Pattern errato rimosso: `aria-mcp-proxy__call_tool(name="call_tool", arguments={...})`
+- `CapabilityMatrixMiddleware` ora:
+  - nega `call_tool` senza caller identity
+  - nega `call_tool` verso tool sintetici (`search_tools`, `call_tool`)
+  - reintroduce il controllo capability sul backend target
+- `scripts/wrappers/aria-amadeus-wrapper.sh` deve essere eseguibile; aggiunto test statico dedicato
 
 ## Riferimenti
 

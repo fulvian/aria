@@ -8,6 +8,7 @@ Verifica che:
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -107,6 +108,12 @@ class TestMCPCatalogAriaAmadeus:
         sot = s.get("source_of_truth", "")
         assert "wrapper" in sot.lower() or "scripts/" in sot
 
+    def test_aria_amadeus_wrapper_is_executable(self, servers):
+        s = _by_name(servers, "aria-amadeus-mcp")
+        wrapper = Path(s["source_of_truth"])
+        assert wrapper.exists(), f"wrapper missing: {wrapper}"
+        assert os.access(wrapper, os.X_OK), f"wrapper not executable: {wrapper}"
+
 
 class TestMCPCatalogBooking:
     """Booking MCP server (@striderlabs/mcp-booking, gated)."""
@@ -118,6 +125,11 @@ class TestMCPCatalogBooking:
         assert s["lifecycle"] == "enabled"
         assert s["auth_mode"] == "keyless"
         assert s["cost_class"] == "free"
+
+    def test_booking_notes_match_enabled_state(self, servers):
+        s = _by_name(servers, "booking")
+        notes = s.get("notes", "")
+        assert "Lifecycle shadow" not in notes
 
     def test_booking_has_search_tools(self, servers):
         s = _by_name(servers, "booking")

@@ -160,7 +160,7 @@ servers:
             ),
         ),
         patch(
-            "aria.mcp.proxy.server._create_client_factory",
+            "aria.mcp.proxy.server.fastmcp_proxy_provider._create_client_factory",
             side_effect=_fake_client_factory,
         ),
     ):

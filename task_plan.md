@@ -3,7 +3,17 @@
 ## Goal
 Remediate the MCP proxy integration drift identified in the 2026-05-01 audit, implementing the approved hybrid capability-scoped architectural direction.
 
-## Status: 🔄 FOLLOW-UP DEBUG IN PROGRESS
+## Status: ✅ TRAVELLER REMEDIATION IMPLEMENTED / VERIFICATION COMPLETE
+
+## 2026-05-04 — Traveller-agent remediation addendum
+- [x] Reconstruct traveller-specific context from LLM wiki index/log + traveller wiki page
+- [x] Verify FastMCP synthetic tool schemas with Context7 and local proxy inspection
+- [x] Audit traveller prompt + 6 travel skills for proxy contract drift
+- [x] Harden proxy middleware fail-closed behavior for backend execution
+- [x] Restore Amadeus wrapper executability and add regression coverage
+- [x] Update traveller wiki/index/log with provenance
+- [x] Run targeted traveller/proxy regression suite
+- [x] Run repository-wide gates and record unrelated pre-existing failures
 
 ## Phases
 

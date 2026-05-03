@@ -24,9 +24,8 @@ Chiama OGNI tool elencato sotto in sequenza. Usa SEMPRE il pattern esatto.
 
 ## Proxy invocation pattern
 ```
-aria-mcp-proxy__call_tool(name="call_tool", arguments={
-  "name": "<server>__<tool>",
-  "arguments": {<parametri>},
+aria-mcp-proxy__call_tool(name="<server>__<tool>", arguments={
+  <parametri>,
   "_caller_id": "traveller-agent"
 })
 ```
@@ -35,23 +34,19 @@ aria-mcp-proxy__call_tool(name="call_tool", arguments={
 
 ### 1. Geocoding destinazione — DEVI chiamare
 ```
-aria-mcp-proxy__call_tool(name="call_tool", arguments={
-  "name": "osm-mcp__geocode_address",
-  "arguments": {"address": "<nome città, paese>"},
+aria-mcp-proxy__call_tool(name="osm-mcp__geocode_address", arguments={
+  "address": "<nome città, paese>",
   "_caller_id": "traveller-agent"
 })
 ```
 
 ### 2. Ricerca Airbnb — DEVI chiamare
 ```
-aria-mcp-proxy__call_tool(name="call_tool", arguments={
-  "name": "airbnb__airbnb_search",
-  "arguments": {
-    "location": "<città>",
-    "checkIn": "<YYYY-MM-DD>",
-    "checkOut": "<YYYY-MM-DD>",
-    "adults": <numero>
-  },
+aria-mcp-proxy__call_tool(name="airbnb__airbnb_search", arguments={
+  "location": "<città>",
+  "checkIn": "<YYYY-MM-DD>",
+  "checkOut": "<YYYY-MM-DD>",
+  "adults": <numero>,
   "_caller_id": "traveller-agent"
 })
 ```
@@ -60,22 +55,18 @@ Poi arricchisci top 3 con `airbnb__airbnb_listing_details`.
 ### 3. Ricerca Hotel Amadeus — DEVI chiamare
 Prima hotel list per geocode:
 ```
-aria-mcp-proxy__call_tool(name="call_tool", arguments={
-  "name": "aria-amadeus-mcp__hotel_list_by_geocode",
-  "arguments": {"latitude": <lat>, "longitude": <lon>},
+aria-mcp-proxy__call_tool(name="aria-amadeus-mcp__hotel_list_by_geocode", arguments={
+  "latitude": <lat>, "longitude": <lon>,
   "_caller_id": "traveller-agent"
 })
 ```
 Poi cerca offerte per i primi hotel:
 ```
-aria-mcp-proxy__call_tool(name="call_tool", arguments={
-  "name": "aria-amadeus-mcp__hotel_offers_search",
-  "arguments": {
-    "hotel_ids": "<id1,id2>",
-    "check_in_date": "<YYYY-MM-DD>",
-    "check_out_date": "<YYYY-MM-DD>",
-    "adults": <numero>
-  },
+aria-mcp-proxy__call_tool(name="aria-amadeus-mcp__hotel_offers_search", arguments={
+  "hotel_ids": "<id1,id2>",
+  "check_in_date": "<YYYY-MM-DD>",
+  "check_out_date": "<YYYY-MM-DD>",
+  "adults": <numero>,
   "_caller_id": "traveller-agent"
 })
 ```

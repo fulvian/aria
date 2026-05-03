@@ -64,75 +64,64 @@ Il proxy espone DUE tool MCP. Usali COSÌ:
 
 ### Discovery (SOLO se non conosci il nome esatto del tool)
 ```
-aria-mcp-proxy__call_tool
-  name: "search_tools"
-  arguments: {"query": "<cosa cerchi>", "_caller_id": "traveller-agent"}
+aria-mcp-proxy__search_tools
+  query: "<cosa cerchi>"
 ```
+
+`search_tools` accetta SOLO `query`. NON avvolgerlo in `call_tool` e NON
+passare campi extra.
 
 ### Esecuzione tool backend (QUESTO È QUELLO CHE DEVI USARE)
 ```
 aria-mcp-proxy__call_tool
-  name: "call_tool"
-  arguments: {
-    "name": "<server>__<tool>",
-    "arguments": {<parametri del tool>},
-    "_caller_id": "traveller-agent"
-  }
+  name: "<server>__<tool>"
+  arguments: {<parametri del tool>, "_caller_id": "traveller-agent"}
 ```
+
+`aria-mcp-proxy__call_tool` ha schema reale `{name, arguments}`. NON usare
+mai `name: "call_tool"` e NON annidare un secondo campo `name` dentro
+`arguments`.
 
 ESEMPI REALI (usa questi pattern, copia-incolla i parametri):
 ```
 # Geocoding destinazione
-aria-mcp-proxy__call_tool(name="call_tool", arguments={
-  "name": "osm-mcp__geocode_address",
-  "arguments": {"address": "Trento, Italia"},
+aria-mcp-proxy__call_tool(name="osm-mcp__geocode_address", arguments={
+  "address": "Trento, Italia",
   "_caller_id": "traveller-agent"
 })
 
 # Cerca voli
-aria-mcp-proxy__call_tool(name="call_tool", arguments={
-  "name": "aria-amadeus-mcp__flight_offers_search",
-  "arguments": {
-    "origin_location_code": "CTA",
-    "destination_location_code": "BCN",
-    "departure_date": "2026-08-01",
-    "adults": 2
-  },
+aria-mcp-proxy__call_tool(name="aria-amadeus-mcp__flight_offers_search", arguments={
+  "origin_location_code": "CTA",
+  "destination_location_code": "BCN",
+  "departure_date": "2026-08-01",
+  "adults": 2,
   "_caller_id": "traveller-agent"
 })
 
 # Cerca Airbnb
-aria-mcp-proxy__call_tool(name="call_tool", arguments={
-  "name": "airbnb__airbnb_search",
-  "arguments": {
-    "location": "Trento",
-    "checkIn": "2026-08-01",
-    "checkOut": "2026-08-07",
-    "adults": 2
-  },
+aria-mcp-proxy__call_tool(name="airbnb__airbnb_search", arguments={
+  "location": "Trento",
+  "checkIn": "2026-08-01",
+  "checkOut": "2026-08-07",
+  "adults": 2,
   "_caller_id": "traveller-agent"
 })
 
 # Route directions
-aria-mcp-proxy__call_tool(name="call_tool", arguments={
-  "name": "osm-mcp__get_route_directions",
-  "arguments": {
-    "start_lat": 46.07,
-    "start_lon": 11.12,
-    "end_lat": 46.15,
-    "end_lon": 11.10,
-    "mode": "car"
-  },
+aria-mcp-proxy__call_tool(name="osm-mcp__get_route_directions", arguments={
+  "start_lat": 46.07,
+  "start_lon": 11.12,
+  "end_lat": 46.15,
+  "end_lon": 11.10,
+  "mode": "car",
   "_caller_id": "traveller-agent"
 })
 
 # Hotel by geocode
-aria-mcp-proxy__call_tool(name="call_tool", arguments={
-  "name": "aria-amadeus-mcp__hotel_list_by_geocode",
-  "arguments": {
-    "latitude": 46.07,
-    "longitude": 11.12
-  },
+aria-mcp-proxy__call_tool(name="aria-amadeus-mcp__hotel_list_by_geocode", arguments={
+  "latitude": 46.07,
+  "longitude": 11.12,
   "_caller_id": "traveller-agent"
 })
 ```

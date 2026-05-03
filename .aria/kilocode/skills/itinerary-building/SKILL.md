@@ -24,9 +24,8 @@ Chiama OGNI tool elencato. Non pianificare astrattamente.
 
 ## Proxy invocation pattern
 ```
-aria-mcp-proxy__call_tool(name="call_tool", arguments={
-  "name": "<server>__<tool>",
-  "arguments": {<parametri>},
+aria-mcp-proxy__call_tool(name="<server>__<tool>", arguments={
+  <parametri>,
   "_caller_id": "traveller-agent"
 })
 ```
@@ -36,38 +35,31 @@ aria-mcp-proxy__call_tool(name="call_tool", arguments={
 ### 1. Raccolta ingredienti — DEVI chiamare osm-mcp__geocode_address
 Prima di costruire l'itinerario, DEVI avere coordinate reali:
 ```
-aria-mcp-proxy__call_tool(name="call_tool", arguments={
-  "name": "osm-mcp__geocode_address",
-  "arguments": {"address": "<città>"},
+aria-mcp-proxy__call_tool(name="osm-mcp__geocode_address", arguments={
+  "address": "<città>",
   "_caller_id": "traveller-agent"
 })
 ```
 
 ### 2. Route optimization (se multi-waypoint) — DEVI chiamare
 ```
-aria-mcp-proxy__call_tool(name="call_tool", arguments={
-  "name": "osm-mcp__get_route_directions",
-  "arguments": {
-    "start_lat": <lat>, "start_lon": <lon>,
-    "end_lat": <lat>, "end_lon": <lon>,
-    "mode": "walking"
-  },
+aria-mcp-proxy__call_tool(name="osm-mcp__get_route_directions", arguments={
+  "start_lat": <lat>, "start_lon": <lon>,
+  "end_lat": <lat>, "end_lon": <lon>,
+  "mode": "walking",
   "_caller_id": "traveller-agent"
 })
 ```
 
 ### 3. Meeting point (se richiesto) — DEVI chiamare
 ```
-aria-mcp-proxy__call_tool(name="call_tool", arguments={
-  "name": "osm-mcp__suggest_meeting_point",
-  "arguments": {
-    "locations": [
-      {"latitude": <lat1>, "longitude": <lon1>},
-      {"latitude": <lat2>, "longitude": <lon2>}
-    ],
-    "category": "cafe",
-    "limit": 3
-  },
+aria-mcp-proxy__call_tool(name="osm-mcp__suggest_meeting_point", arguments={
+  "locations": [
+    {"latitude": <lat1>, "longitude": <lon1>},
+    {"latitude": <lat2>, "longitude": <lon2>}
+  ],
+  "category": "cafe",
+  "limit": 3,
   "_caller_id": "traveller-agent"
 })
 ```

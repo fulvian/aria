@@ -44,9 +44,7 @@ class TestTravellerSkillRegistration:
     def test_traveller_agent_declares_skills(self):
         """Traveller-agent declares required-skills in frontmatter."""
         skills = _required_travel_skills()
-        assert len(skills) >= 6, (
-            f"Expected >=6 skills, got {len(skills)}: {skills}"
-        )
+        assert len(skills) >= 6, f"Expected >=6 skills, got {len(skills)}: {skills}"
         expected = [
             "destination-research",
             "accommodation-comparison",
@@ -62,34 +60,38 @@ class TestTravellerSkillRegistration:
         """Every travel skill with a SKILL.md is registered in _registry.json."""
         skills = _required_travel_skills()
         # Only check skills that have a SKILL.md file (implemented ones)
-        implemented = [
-            s for s in skills if (SKILLS_DIR / s / "SKILL.md").exists()
-        ]
+        implemented = [s for s in skills if (SKILLS_DIR / s / "SKILL.md").exists()]
         registered = {s["name"] for s in registry["skills"]}
         missing = set(implemented) - registered
         assert not missing, f"Implemented skills not in registry: {missing}"
 
-    @pytest.mark.parametrize("skill_name", [
-        "destination-research",
-        "accommodation-comparison",
-        "transport-planning",
-        "activity-planning",
-        "itinerary-building",
-        "budget-analysis",
-    ])
+    @pytest.mark.parametrize(
+        "skill_name",
+        [
+            "destination-research",
+            "accommodation-comparison",
+            "transport-planning",
+            "activity-planning",
+            "itinerary-building",
+            "budget-analysis",
+        ],
+    )
     def test_skill_has_skill_file(self, skill_name: str):
         """Each implemented skill has a SKILL.md file."""
         skill_file = SKILLS_DIR / skill_name / "SKILL.md"
         assert skill_file.exists(), f"Missing SKILL.md for {skill_name}"
 
-    @pytest.mark.parametrize("skill_name", [
-        "destination-research",
-        "accommodation-comparison",
-        "transport-planning",
-        "activity-planning",
-        "itinerary-building",
-        "budget-analysis",
-    ])
+    @pytest.mark.parametrize(
+        "skill_name",
+        [
+            "destination-research",
+            "accommodation-comparison",
+            "transport-planning",
+            "activity-planning",
+            "itinerary-building",
+            "budget-analysis",
+        ],
+    )
     def test_skill_frontmatter_valid(self, skill_name: str):
         """Each SKILL.md has valid YAML frontmatter."""
         skill_file = SKILLS_DIR / skill_name / "SKILL.md"
@@ -104,14 +106,17 @@ class TestTravellerSkillRegistration:
         assert "description" in fm
         assert "version" in fm
 
-    @pytest.mark.parametrize("skill_name", [
-        "destination-research",
-        "accommodation-comparison",
-        "transport-planning",
-        "activity-planning",
-        "itinerary-building",
-        "budget-analysis",
-    ])
+    @pytest.mark.parametrize(
+        "skill_name",
+        [
+            "destination-research",
+            "accommodation-comparison",
+            "transport-planning",
+            "activity-planning",
+            "itinerary-building",
+            "budget-analysis",
+        ],
+    )
     def test_skill_in_registry(self, registry, skill_name: str):
         """Each skill is registered in _registry.json."""
         registered = {s["name"]: s for s in registry["skills"]}
@@ -122,11 +127,34 @@ class TestTravellerSkillRegistration:
 
     def test_registry_entry_format(self, registry):
         """Registry entries have required fields."""
-        travel_skills = [
-            s for s in registry["skills"] if s["category"] == "travel"
-        ]
+        travel_skills = [s for s in registry["skills"] if s["category"] == "travel"]
         for s in travel_skills:
             assert "name" in s
             assert "path" in s
             assert "version" in s
             assert "category" in s
+
+    @pytest.mark.parametrize(
+        "skill_name",
+        [
+            "destination-research",
+            "accommodation-comparison",
+            "transport-planning",
+            "activity-planning",
+            "itinerary-building",
+            "budget-analysis",
+        ],
+    )
+    def test_skill_uses_direct_proxy_call_contract(self, skill_name: str):
+        """Travel skills must use direct search_tools/call_tool proxy syntax."""
+        skill_file = SKILLS_DIR / skill_name / "SKILL.md"
+        text = skill_file.read_text(encoding="utf-8")
+        assert 'name="call_tool"' not in text
+        assert 'name: "call_tool"' not in text
+        assert 'name: "search_tools"' not in text
+        assert "aria-mcp-proxy__call_tool(" in text
+
+    def test_destination_skill_forbids_unverified_self_knowledge(self):
+        """Unsupported travel facts must be escalated or marked unverified."""
+        text = (SKILLS_DIR / "destination-research" / "SKILL.md").read_text(encoding="utf-8")
+        assert "usa conoscenza propria" not in text

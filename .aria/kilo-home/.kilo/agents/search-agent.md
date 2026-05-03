@@ -29,8 +29,8 @@ Il proxy usa `_caller_id` per applicare la `agent_capability_matrix.yaml`.
 Tutte le operazioni su backend MCP (searxng, tavily, exa, brave, reddit-search,
 scientific-papers-mcp, fetch) passano esclusivamente tramite i tool sintetici del proxy:
 
-1. **Discovery**: `aria-mcp-proxy__call_tool("search_tools", {"query": "<descrizione tool>", "_caller_id": "search-agent"})`
-2. **Esecuzione**: `aria-mcp-proxy__call_tool("call_tool", {"name": "<server__tool>", "arguments": {...}, "_caller_id": "search-agent"})`
+1. **Discovery**: `aria-mcp-proxy__search_tools(query="<descrizione tool>")`
+2. **Esecuzione**: `aria-mcp-proxy__call_tool(name="<server__tool>", arguments={..., "_caller_id": "search-agent"})`
 
 NON invocare mai direttamente tool backend come `searxng-script__search_web`
 o `tavily-mcp__tavily_search` — passa sempre dal proxy.

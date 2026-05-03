@@ -127,9 +127,11 @@ class TestTravellerAgentContent:
 
     def test_canonical_proxy_invocation(self, prompt_text: str):
         """Prompt contains search_tools → call_tool pattern."""
-        assert "search_tools" in prompt_text
-        assert "call_tool" in prompt_text
+        assert "aria-mcp-proxy__search_tools" in prompt_text
+        assert 'aria-mcp-proxy__call_tool\n  name: "<server>__<tool>"' in prompt_text
         assert "aria-mcp-proxy" in prompt_text
+        assert 'name: "search_tools"' not in prompt_text
+        assert 'aria-mcp-proxy__call_tool(name="call_tool"' not in prompt_text
 
     def test_no_host_tools(self, prompt_text: str):
         """Prompt forbids host-native tools for travel workflows."""

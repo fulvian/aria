@@ -1,12 +1,13 @@
 """Per-agent capability enforcement on top of FastMCP's middleware pipeline.
 
 The conventions:
-- Agent prompts pass `_caller_id: "<agent>"` as an extra argument to
-  search_tools / call_tool. The middleware strips it before forwarding.
-- `tools/list` filtering uses the caller hint from a request header
-  (`X-ARIA-Caller-Id`) when available, otherwise falls back to the
-  `ARIA_CALLER_ID` env var.
-- Synthetic tools (`search_tools`, `call_tool`) are always visible.
+- Agent prompts pass `_caller_id: "<agent>"` inside `call_tool.arguments`
+  because the synthetic `call_tool` schema accepts only `name` and
+  `arguments`.
+- `search_tools` accepts only `query`, so caller-aware discovery can only rely
+  on transport metadata (`X-ARIA-Caller-Id`) or the proxy process env var.
+- Synthetic tools (`search_tools`, `call_tool`) are always visible in
+  `tools/list`, but backend execution remains capability-scoped.
 """
 
 from __future__ import annotations
@@ -62,7 +63,7 @@ class CapabilityMatrixMiddleware(Middleware):
                 "proxy.caller_missing_list_tools",
                 extra={"tool_count": len(tools)},
             )
-            return tools
+            return [t for t in tools if t.name in ALWAYS_VISIBLE]
         allowed = set(self._registry.get_allowed_tools(caller))
         return [t for t in tools if t.name in ALWAYS_VISIBLE or self._matches(t.name, allowed)]
 
@@ -72,9 +73,6 @@ class CapabilityMatrixMiddleware(Middleware):
         call_next: Callable[..., Any],  # noqa: ANN401
     ) -> Any:  # noqa: ANN401
         args = dict(context.message.arguments or {})
-        # _caller_id may live at top-level (when schema allows it) or nested
-        # inside the "arguments" dict (when the MCP client strips unknown
-        # top-level keys due to additionalProperties:false).
         nested = args.get("arguments")
         caller = (
             args.pop("_caller_id", None)
@@ -89,42 +87,32 @@ class CapabilityMatrixMiddleware(Middleware):
         clean_params = CallToolRequestParams(name=proxy_tool_name, arguments=args)
         clean_ctx = context.copy(message=clean_params)
 
-        # Fail-closed: deny when caller identity is absent and the target
-        # tool is not a synthetic proxy tool.  Synthetic tools (search_tools,
-        # call_tool) are always allowed since they are the proxy's own
-        # entry-points and perform their own policy checks.
-        #
-        # IMPORTANT: When the call arrives via the call_tool proxy tool,
-        # the agent is implicitly authenticated — having access to call_tool
-        # in allowed-tools means the agent is authorized to invoke backend
-        # tools through the proxy. In this case, skip the caller identity
-        # check and fall back to the default env var.
-        if not caller:
-            if tool_to_check not in ALWAYS_VISIBLE and proxy_tool_name != "call_tool":
-                logger.warning(
-                    "proxy.caller_missing",
-                    extra={
-                        "tool": tool_to_check,
-                        "proxy_tool": proxy_tool_name,
-                    },
-                )
-                raise ToolError(f"tool {tool_to_check} denied: no caller identity provided")
-            # For call_tool proxy invocations, use a default caller hint
-            # from env or "unknown" so the capability check below can still
-            # function as a best-effort gate.
-            caller = os.environ.get(self._env) or "unknown"
+        if proxy_tool_name == "search_tools" and not caller:
+            logger.warning("proxy.caller_missing_search_tools")
+            return await call_next(clean_ctx)
 
-        # When the call arrives via the call_tool proxy tool, the agent is
-        # implicitly authenticated — having access to call_tool in its
-        # allowed-tools means the agent is authorized to invoke any backend
-        # tool that the proxy has loaded. Skip the individual tool check
-        # in this case to avoid duplicate policy enforcement and to work
-        # around the _caller_id reliability issue.
-        if (
-            proxy_tool_name != "call_tool"
-            and caller
-            and tool_to_check not in ALWAYS_VISIBLE
-            and not self._registry.is_tool_allowed(caller, tool_to_check)
+        if not caller:
+            logger.warning(
+                "proxy.caller_missing",
+                extra={
+                    "tool": tool_to_check,
+                    "proxy_tool": proxy_tool_name,
+                },
+            )
+            raise ToolError(
+                f"tool {tool_to_check or proxy_tool_name} denied: no caller identity provided"
+            )
+
+        if proxy_tool_name == "call_tool" and tool_to_check in ALWAYS_VISIBLE:
+            logger.warning(
+                "proxy.synthetic_tool_via_call_tool_denied",
+                extra={"agent": caller, "tool": tool_to_check},
+            )
+            raise ToolError(f"synthetic proxy tool {tool_to_check} must be invoked directly")
+
+        if tool_to_check not in ALWAYS_VISIBLE and not self._registry.is_tool_allowed(
+            caller,
+            tool_to_check,
         ):
             logger.warning(
                 "proxy.tool_denied",
@@ -145,7 +133,8 @@ class CapabilityMatrixMiddleware(Middleware):
             value = headers.get(self._header)
             if value:
                 return str(value)
-        return os.environ.get(self._env)
+        value = os.environ.get(self._env)
+        return value or None
 
     @staticmethod
     def _matches(tool_name: str, allowed: Iterable[str]) -> bool:  # noqa: PLR0911

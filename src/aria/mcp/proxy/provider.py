@@ -20,18 +20,17 @@ Rispetta:
 from __future__ import annotations
 
 import asyncio
-import time
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-from fastmcp.exceptions import ToolError
 from fastmcp.server.providers.proxy import ProxyProvider
-from fastmcp.tools.base import Tool, ToolResult
 
 from aria.utils.logging import get_logger
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from fastmcp.server.providers.proxy import ClientFactoryT
+    from fastmcp.tools.base import Tool
 
 logger = get_logger("aria.mcp.proxy.provider")
 
@@ -73,15 +72,15 @@ class TimeoutProxyProvider(ProxyProvider):
                 super()._list_tools(),
                 timeout=self._list_timeout_s,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(
                 "proxy.list_tools_timeout",
                 extra={"timeout_s": self._list_timeout_s},
             )
             # Non fare cache: la prossima chiamata riprova
-            self._tools_cache = None  # type: ignore[assignment]
+            self._tools_cache = None
             return []
         except Exception:
             logger.exception("proxy.list_tools_error")
-            self._tools_cache = None  # type: ignore[assignment]
+            self._tools_cache = None
             return []

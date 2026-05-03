@@ -110,3 +110,27 @@
 ## Pending
 - Produce a concise audit PRD / design delta for approval before any code changes.
 - Do not implement until the target canonical contract is explicitly chosen and approved.
+
+## 2026-05-04T00:31+02:00 — Traveller remediation session start
+- Recovered branch context `feature/traveller-agent-f1` and verified clean working tree.
+- Re-read wiki `index.md` and `log.md` first, then `traveller-agent.md`, `.workflow/state.md`, and planning files.
+
+## 2026-05-04T00:36+02:00 — Context7 + local contract verification complete
+- Verified FastMCP search transform contract via Context7 (`/prefecthq/fastmcp/v3.2.4`).
+- Inspected live proxy tool schemas locally: `search_tools` requires only `query`; `call_tool` requires `name` plus optional `arguments`.
+- Confirmed traveller prompt/skills were instructing the wrong payload shape.
+
+## 2026-05-04T00:44+02:00 — Traveller runtime fixes implemented
+- Rewrote traveller prompt and all 6 travel skills to use the real direct proxy contract.
+- Hardened `CapabilityMatrixMiddleware` so backend execution via `call_tool` fails closed without caller identity, rejects synthetic recursion, and restores backend capability checks.
+- Corrected booking catalog note drift and updated traveller wiki/index/log.
+- Restored execute permission on `scripts/wrappers/aria-amadeus-wrapper.sh` and added regression coverage.
+
+## 2026-05-04T00:46+02:00 — Verification complete
+- Targeted traveller/proxy suite: `99 passed`.
+- Targeted `ruff check` on changed code/tests: PASS.
+- Repository-wide gates executed for transparency:
+  - `ruff check .` fails for pre-existing unrelated issues (`src/aria/mcp/proxy/provider.py`, legacy traveller/conductor tests)
+  - `ruff format --check .` fails for pre-existing unrelated files
+  - `mypy src` fails for pre-existing unrelated proxy typing issue in `server.py` and stale ignores in `provider.py`
+  - `pytest -q` fails mainly on pre-existing conductor prompt contract tests unrelated to the traveller remediation

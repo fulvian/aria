@@ -21,14 +21,15 @@ Ricercare informazioni su una destinazione turistica: coordinate, clima,
 info pratiche (valuta, lingua, fuso orario), requisiti visto, cultura locale.
 
 ## Proxy invocation
-Tutte le chiamate ai backend MCP passano dal proxy con `_caller_id: "traveller-agent"`:
+Per discovery usa direttamente `aria-mcp-proxy__search_tools(query="...")`.
+
+Tutte le chiamate ai backend MCP passano dal proxy con `_caller_id: "traveller-agent"` dentro `arguments`:
 
 ```
 aria-mcp-proxy__call_tool(
-  name="call_tool",
+  name="<server__tool>",
   arguments={
-    "name": "<server__tool>",
-    "arguments": {<parametri>},
+    <parametri>,
     "_caller_id": "traveller-agent"
   }
 )
@@ -43,15 +44,24 @@ Recupera preferenze persistenti (es. "preferisco voli diretti", "compagnia prefe
 ### 2. Geocoding destinazione
 Usa `osm-mcp__geocode_address` via proxy per ottenere coordinate della destinazione:
 ```
-name: "osm-mcp__geocode_address"
-arguments: {"address": "<città, paese>"}
+aria-mcp-proxy__call_tool(
+  name="osm-mcp__geocode_address",
+  arguments={"address": "<città, paese>", "_caller_id": "traveller-agent"}
+)
 ```
 
 ### 3. Informazioni pratiche
 Usa `osm-mcp__explore_area` via proxy per esplorare la zona:
 ```
-name: "osm-mcp__explore_area"
-arguments: {"latitude": <lat>, "longitude": <lon>, "radius": 5000}
+aria-mcp-proxy__call_tool(
+  name="osm-mcp__explore_area",
+  arguments={
+    "latitude": <lat>,
+    "longitude": <lon>,
+    "radius": 5000,
+    "_caller_id": "traveller-agent"
+  }
+)
 ```
 Interpreta i risultati per estrarre info su ristoranti, attrazioni, servizi.
 
@@ -73,6 +83,6 @@ politici), spawna `search-agent` (max depth 1) con goal specifico.
 ```
 
 ## Limiti
-- OSM non ha dati clima/valuta/visti — usa conoscenza propria o search-agent
+- OSM non ha dati clima/valuta/visti — usa `search-agent` o dichiara il dato non verificato
 - Non inventare coordinate: usa sempre osm-mcp__geocode_address
 - Non salvare automaticamente in wiki — solo su richiesta utente

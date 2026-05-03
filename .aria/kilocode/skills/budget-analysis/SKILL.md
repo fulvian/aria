@@ -23,9 +23,8 @@ Non inventare prezzi. Chiama i tool per ottenere dati reali.
 
 ## Proxy invocation pattern
 ```
-aria-mcp-proxy__call_tool(name="call_tool", arguments={
-  "name": "<server>__<tool>",
-  "arguments": {<parametri>},
+aria-mcp-proxy__call_tool(name="<server>__<tool>", arguments={
+  <parametri>,
   "_caller_id": "traveller-agent"
 })
 ```
@@ -36,40 +35,31 @@ aria-mcp-proxy__call_tool(name="call_tool", arguments={
 DEVI chiamare questi tool per ottenere PREZZI VERI:
 - **Voli**:
 ```
-aria-mcp-proxy__call_tool(name="call_tool", arguments={
-  "name": "aria-amadeus-mcp__flight_offers_search",
-  "arguments": {
-    "origin_location_code": "<IATA>",
-    "destination_location_code": "<IATA>",
-    "departure_date": "<YYYY-MM-DD>",
-    "adults": <numero>
-  },
+aria-mcp-proxy__call_tool(name="aria-amadeus-mcp__flight_offers_search", arguments={
+  "origin_location_code": "<IATA>",
+  "destination_location_code": "<IATA>",
+  "departure_date": "<YYYY-MM-DD>",
+  "adults": <numero>,
   "_caller_id": "traveller-agent"
 })
 ```
 - **Alloggi Airbnb**:
 ```
-aria-mcp-proxy__call_tool(name="call_tool", arguments={
-  "name": "airbnb__airbnb_search",
-  "arguments": {
-    "location": "<città>",
-    "checkIn": "<YYYY-MM-DD>",
-    "checkOut": "<YYYY-MM-DD>",
-    "adults": <numero>
-  },
+aria-mcp-proxy__call_tool(name="airbnb__airbnb_search", arguments={
+  "location": "<città>",
+  "checkIn": "<YYYY-MM-DD>",
+  "checkOut": "<YYYY-MM-DD>",
+  "adults": <numero>,
   "_caller_id": "traveller-agent"
 })
 ```
 - **Alloggi Hotel Amadeus**:
 ```
-aria-mcp-proxy__call_tool(name="call_tool", arguments={
-  "name": "aria-amadeus-mcp__hotel_offers_search",
-  "arguments": {
-    "hotel_ids": "<id1,id2>",
-    "check_in_date": "<YYYY-MM-DD>",
-    "check_out_date": "<YYYY-MM-DD>",
-    "adults": <numero>
-  },
+aria-mcp-proxy__call_tool(name="aria-amadeus-mcp__hotel_offers_search", arguments={
+  "hotel_ids": "<id1,id2>",
+  "check_in_date": "<YYYY-MM-DD>",
+  "check_out_date": "<YYYY-MM-DD>",
+  "adults": <numero>,
   "_caller_id": "traveller-agent"
 })
 ```
