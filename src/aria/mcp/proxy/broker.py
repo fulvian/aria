@@ -22,6 +22,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from fastmcp import Client, FastMCP
+from fastmcp.exceptions import ToolError
 from fastmcp.server import create_proxy
 from fastmcp.tools import Tool
 
@@ -147,8 +148,38 @@ class LazyBackendBroker:
         if server_name not in self._backends:
             raise ValueError(f"Unknown backend: {server_name}")
         proxy = self._get_or_create(server_name)
-        async with Client(proxy) as client:
-            return await client.call_tool(tool_name, arguments)
+        try:
+            async with Client(proxy) as client:
+                return await client.call_tool(tool_name, arguments)
+        except Exception as exc:
+            err_msg = str(exc).lower()
+            if "unknown tool" in err_msg or "not found" in err_msg:
+                # Map the backend tool name back to the catalog namespaced form
+                catalog_namespaced = f"{server_name}_{tool_name}"
+                logger.warning(
+                    "broker.unknown_tool",
+                    extra={
+                        "server": server_name,
+                        "tool": tool_name,
+                        "catalog_name": catalog_namespaced,
+                    },
+                )
+                # Try to list available tools to help the caller
+                try:
+                    async with Client(proxy) as client:
+                        available_tools = await client.list_tools()
+                        available_names = [t.name for t in available_tools]
+                except Exception:
+                    available_names = []
+                available_str = ", ".join(available_names) if available_names else "unknown"
+                hint = (
+                    f"Backend '{server_name}' has no tool '{tool_name}'. "
+                    f"Available: {available_str}. "
+                    f"Use `aria-mcp-proxy_search_tools(query=..., "
+                    f'_caller_id="<agent>")` to discover actual tool names.'
+                )
+                raise ToolError(hint) from None
+            raise
 
     def resolve_tool(self, namespaced_name: str) -> tuple[str, str] | None:
         """Resolve a namespaced tool name to ``(server_name, tool_name)``."""

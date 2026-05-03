@@ -349,25 +349,32 @@ servers:
   auth_mode: keyless
   statefulness: stateless
   expected_tools:
-  - stock_price
   - stock_quote
-  - stock_historical
-  - technical_analysis
+  - multi_quote
   - crypto_price
-  - crypto_trending
+  - price_history
+  - technical_analysis
+  - company_info
+  - compare_assets
+  - correlation_matrix
   - crypto_search
   - crypto_top_coins
-  - etf_info
-  - market_indices
-  - sector_performance
-  - treasury_rates
+  - crypto_trending
+  - earnings_calendar
+  - market_overview
+  - options_chain
+  - portfolio_analysis
+  - risk_metrics
+  - sector_rotation
   risk_level: low
   cost_class: free
   source_of_truth: uvx --from financekit-mcp financekit
   rollback_class: server
   baseline_status: lkg
-  notes: FinanceKit MCP — free financial data, 12+ tools, no API key required.
-    Primary source for stock quotes, technicals, crypto prices, ETF data.
+  notes: "FinanceKit MCP — free financial data, 17 tools, no API key required.
+    Verificato 2026-05-03 stock_quote, multi_quote, price_history, risk_metrics,
+    technical_analysis, crypto_*, market_overview, earnings_calendar, options_chain.
+    Primary source for stock quotes, technicals, crypto prices, ETF data."
 
 - name: mcp-fredapi
   domain: finance
@@ -381,8 +388,6 @@ servers:
     FRED_API_KEY: ${FRED_API_KEY}
   expected_tools:
   - get_fred_series_observations
-  - get_fred_series_search
-  - get_fred_series_info
   risk_level: low
   cost_class: free
   source_of_truth: /home/fulvio/coding/mcp-fredapi/.venv/bin/python /home/fulvio/coding/mcp-fredapi/server.py

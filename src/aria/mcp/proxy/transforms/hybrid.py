@@ -61,6 +61,8 @@ class HybridSearchTransform(BM25SearchTransform):
         blend: float = 0.6,
         max_results: int = 5,
     ) -> None:
+        # Increase default for catalog-sized result sets; callers can override
+        self._catalog_max_results = 50
         super().__init__(max_results=max_results)
         self._embedder = embedder
         self._blend = blend
@@ -72,9 +74,16 @@ class HybridSearchTransform(BM25SearchTransform):
         tools: Sequence[Tool],
         query: str,
     ) -> Sequence[Tool]:
-        """Override _search to blend BM25 with semantic similarity."""
+        """Override _search to blend BM25 with semantic similarity.
+
+        When the query is empty (discovery mode), returns all tools up to
+        ``_catalog_max_results`` (50) instead of the truncating to the
+        default ``max_results`` (5).  This ensures ``search_tools`` with
+        an empty or generic query is useful for tool discovery.
+        """
         if not tools:
             return tools
+        effective_limit = len(tools) if not query.strip() else self._max_results
 
         # Build/rebuild BM25 index if catalog changed
         current_hash = _catalog_hash(tools)
@@ -133,4 +142,4 @@ class HybridSearchTransform(BM25SearchTransform):
             scored.append((combined, tool))
 
         scored.sort(key=lambda x: x[0], reverse=True)
-        return [t for _, t in scored[: self._max_results]]
+        return [t for _, t in scored[:effective_limit]]
