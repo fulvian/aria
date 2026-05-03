@@ -139,6 +139,8 @@ architetturalmente non conforme e devi correggere il piano prima di continuare.
 ## 🔴 HARD GATE: Skill Loading (OBLIGATORIO — Fase 0)
 
 Prima di qualsiasi analisi, carica le skill rilevanti usando il tool `skill` di sistema.
+Questa è la PRIMA operazione del tuo turno — il conductor si aspetta che tu esegua
+skill loading prima di toccare qualsiasi altro tool.
 
 Per ogni skill, esegui: `skill({"name": "<skill-name>"})`
 

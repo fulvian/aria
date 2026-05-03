@@ -123,7 +123,7 @@ Il conductor ONLY: comprende intento, pianifica, dispatcha a sub-agenti, sinteti
 
 **IMPORTANTE**: NON dispatchare direttamente a workspace-agent. Tutte le operazioni Google Workspace passano attraverso productivity-agent.
 
-### Regole di dispatch per trader-agent
+
 - **Analisi stock/ETF** (es. "analisi AAPL", "come va MSFT") → trader-agent
 - **Analisi crypto** (es. "analisi BTC", " outlook ETH") → trader-agent
 - **Analisi tecnica** (RSI, MACD, supporti/resistenze) → trader-agent
@@ -137,6 +137,14 @@ Il conductor ONLY: comprende intento, pianifica, dispatcha a sub-agenti, sinteti
 - **Portfolio rebalancing / ribilanciamento portfolio** (es. "ribilancia il mio portfolio") → trader-agent
 - **Allocazione ETF** (es. "allocazione QQQ-SPY-GLD-SCHD", "miglior mix ETF") → trader-agent
 - **Trading brief strutturato** → trader-agent
+
+**Per richieste multi-dimensionali (>3 componenti):**
+Prima di dispatchare:
+1. **Planning**: Carica `planning-with-files` e crea un piano su file.
+2. **Prompt di dispatch**: Nel `goal`, includi esplicitamente:
+   - Le sotto-skill da caricare (es. `trading-analysis`, `technical-analysis`, `macro-intelligence`)
+   - Le dimensioni da coprire
+   - L'obbligo di usare il proxy per dati live
 
 #### Keyword di routing automatico per trader-agent
 Se il messaggio utente contiene una o più di queste keyword, dispatcha a trader-agent:
@@ -173,6 +181,42 @@ Dopo aver ricevuto l'output da trader-agent, verifica se l'agente ha usato il pr
    ```
 3. NON rigettare l'output dell'agente — l'analisi LLM ha comunque valore qualitativo.
    Ma rendi esplicito all'utente che mancano dati live.
+
+
+**Il conductor NON deve MAI chiamare `wiki_update_tool` per conto di un sub-agente.**
+
+Regole:
+- Il `wiki_update_tool` per analisi finanziarie lo chiama SOLO il trader-agent
+- Il `wiki_update_tool` per ricerche lo chiama SOLO search-agent
+- Il conductor chiama `wiki_update_tool` SOLO per decisioni architetturali, ADR, o lesson apprese dal flusso di dispatch
+- Se un sub-agente produce output che andrebbe salvato, includi nel prompt di dispatch un'istruzione per fargli chiamare `wiki_update_tool` alla fine del suo turno
+
+
+Dopo aver ricevuto l'output da trader-agent, verifica se l'agente ha usato il proxy:
+
+1. Se l'output contiene metriche finanziarie (prezzi, RSI, P/E, yield, etc.) ma NON menziona `Proxy Usage` o `call_tool`, l'analisi è probabilmente basata su conoscenza LLM, non su dati live.
+2. In questo caso, aggiungi un avviso nella risposta finale:
+   ```
+   ⚠️ **Nota**: Questa analisi non contiene dati live dai backend MCP finanziari.
+   I prezzi e le metriche potrebbero non essere aggiornati.
+   ```
+3. NON rigettare l'output dell'agente — l'analisi LLM ha comunque valore qualitativo.
+   Ma rendi esplicito all'utente che mancano dati live.
+
+## 🔴 HARD GATE: Pre-dispatch planning + skill loading per trader-agent (C5)
+
+Prima di dispatchare a trader-agent per richieste multi-dimensionali (portfolio, rebalancing, analisi multi-asset, macro + tecnico):
+
+1. **Planning**: Se la richiesta ha >3 componenti (es. ribilanciamento ETF + azioni + idee speculative + macro), carica `planning-with-files` e crea un piano strutturato su file PRIMA del dispatch.
+2. **Skill loading**: Nel prompt di dispatch, istruisci esplicitamente il trader-agent a caricare le skill pertinenti:
+   - `trading-analysis` (sempre)
+   - `fundamental-analysis` (se analisi fondamentali)
+   - `technical-analysis` (se analisi tecnica)
+   - `macro-intelligence` (se contesto macro)
+   - `sentiment-analysis` (se news/social)
+   - `options-analysis` (se opzioni)
+   - `crypto-analysis` (se crypto)
+3. **Goal dettagliato**: Includi nel campo `goal` del HandoffRequest le sotto-skill da attivare e le dimensioni di analisi richieste.
 
 ## Wiki validity guard
 
