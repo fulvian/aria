@@ -107,6 +107,21 @@ async def test_on_call_tool_proxy_requires_caller() -> None:
 
 
 @pytest.mark.asyncio
+async def test_on_call_tool_proxy_does_not_borrow_ambient_legacy_env_caller(monkeypatch) -> None:
+    reg = _Reg({"traveller-agent": ["airbnb__airbnb_search"]})
+    mw = CapabilityMatrixMiddleware(reg)
+    monkeypatch.setenv("ARIA_CALLER_ID", "traveller-agent")
+    ctx = _ctx(
+        args={"name": "fetch__fetch", "arguments": {"url": "https://example.com"}},
+        tool_name="call_tool",
+    )
+    call_next = AsyncMock(return_value="ok")
+    with pytest.raises(ToolError, match="denied: no caller identity"):
+        await mw.on_call_tool(ctx, call_next)
+    call_next.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_on_call_tool_proxy_denies_synthetic_recursion() -> None:
     reg = _Reg({"search-agent": ["tavily-mcp__search"]})
     mw = CapabilityMatrixMiddleware(reg)

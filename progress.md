@@ -157,3 +157,42 @@
 ## 2026-05-04T01:22+02:00 — Deep-debug verification complete
 - `uv run ruff check ...` on changed traveller/Amadeus files: PASS
 - `uv run pytest -q tests/integration/agents/traveller/test_aria_amadeus_mcp_server.py tests/unit/agents/traveller/test_traveller_agent_prompt.py tests/unit/agents/traveller/test_traveller_skills.py`: `80 passed`
+
+## 2026-05-04T07:34+02:00 — New live evidence: search-agent still touched Amadeus path
+- User provided live logs showing `search-agent` attempted `aria-amadeus-mcp_flight_offers_search` before falling back to web search.
+- This indicated a second-class problem beyond traveller degraded mode: search-agent needed a stronger explicit prompt boundary against travel MCP backends.
+
+## 2026-05-04T07:38+02:00 — Local reproduction of persistent Amadeus failure completed
+- Reproduced with real local credentials under project venv:
+  - `nearest_airport`, `locations_search`, `hotel_list_by_geocode`, `flight_offers_search` all return `500` / provider code `38189`
+- Confirmed with Context7 that the Python client methods and parameter shapes currently used are formally correct.
+- Compared environments:
+  - default test env → systematic `38189 Internal error`
+  - `hostname='production'` → `401 invalid_client`
+- Conclusion: credentials are not valid for production and the test environment/application state is unhealthy, not merely mis-parameterized.
+
+## 2026-05-04T07:43+02:00 — Final remediation for persistent Amadeus 38189
+- Added backend self-quarantine when Amadeus repeats provider code `38189`.
+- Reclassified `38189` as `upstream_internal_error` non-retryable, with `upstream_service_quarantined` local cooldown after threshold.
+- Added explicit `search-agent` prompt boundary forbidding travel MCP backends via proxy.
+- Verification:
+  - `uv run ruff check ...` PASS
+  - `uv run pytest -q tests/integration/agents/traveller/test_aria_amadeus_mcp_server.py tests/unit/agents/search/test_prompt_grounding.py` → `25 passed`
+
+## 2026-05-04T09:15+02:00 — Proxy caller contamination root fix completed
+- User supplied live logs showing research sessions correctly tagged as `search-agent` but proxy behavior still acting as `traveller-agent`.
+- Root cause isolated to legacy ambient `ARIA_CALLER_ID` fallback:
+  - boot-time backend filtering in `src/aria/mcp/proxy/server.py`
+  - request-time caller fallback in `src/aria/mcp/proxy/middleware.py`
+- Implemented fix:
+  - boot-time filtering moved to explicit `ARIA_PROXY_BOOT_CALLER_ID`
+  - legacy `ARIA_CALLER_ID` ignored unless explicitly re-enabled
+  - `call_tool` no longer borrows ambient env caller identity
+  - search/discovery prompt examples now include `_caller_id`
+- Verification:
+  - `pytest -q tests/unit/mcp/proxy/test_server.py tests/unit/mcp/proxy/test_middleware.py tests/unit/agents/search/test_prompt_grounding.py` → `21 passed`
+  - `pytest -q tests/integration/mcp/proxy/test_proxy_e2e_stdio.py` → `3 passed`
+  - `uv run ruff check .` → PASS
+  - `uv run ruff format --check ...` on modified files → PASS
+  - `uv run mypy src` → PASS
+  - `uv run pytest -q` → still red for pre-existing conductor-prompt drift tests unrelated to this fix

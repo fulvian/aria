@@ -235,4 +235,54 @@
 - skill travel critiche + runtime mirrors
   - `transport-planning`: fallback esplicito `nearest_airport -> locations_search`, no 4 flight calls in parallelo
   - `accommodation-comparison`: gestione `robots.txt`, fallback `hotel_offers_search(city_code)`, uso sort/filter Booking
-  - `budget-analysis`: budget parziale dichiarato e fallback web grounded per i voli quando Amadeus è instabile
+- `budget-analysis`: budget parziale dichiarato e fallback web grounded per i voli quando Amadeus è instabile
+
+## 2026-05-04 — Amadeus persistent 38189 + search-agent travel-boundary findings
+
+### Riproduzione locale verificata
+- Con credenziali correnti, il client Amadeus locale riproduce errori sistematici:
+  - `nearest_airport` → `500`, codice provider `38189`
+  - `locations_search` (`AIRPORT`, `CITY`, `ANY`) → `500`, codice provider `38189`
+  - `hotel_list_by_geocode` → `500`, codice provider `38189`
+  - `flight_offers_search` → `500`, codice provider `38189`
+- La documentazione ufficiale Amadeus conferma che i metodi Python usati sono formalmente corretti.
+
+### Root cause aggiornato
+
+## 2026-05-04 — Proxy caller contamination RCA
+
+### Live failure reconstructed from user logs
+1. `search-agent` research sessions were spawned correctly, but proxy discovery/results still behaved as if the caller were `traveller-agent`.
+2. The smoking gun was `ToolError: tool fetch__fetch not allowed for traveller-agent` emitted while a research session was trying to use search/web tooling.
+3. The same transcript also showed `search_tools` discovering mainly travel backends, consistent with a proxy boot filtered for the wrong agent.
+
+### Root cause
+1. A legacy ambient env var `ARIA_CALLER_ID=traveller-agent` was present in local runtime config (`.env`).
+2. `src/aria/mcp/proxy/server.py` used that env var at proxy boot to filter loaded backends, so a shared proxy process could start in a traveller-scoped shape even for later `search-agent` work.
+3. `src/aria/mcp/proxy/middleware.py` also used env fallback during request authorization, so a missing per-request `_caller_id` on `call_tool` could be silently reinterpreted as `traveller-agent` instead of failing closed.
+4. Prompt/skill examples still showed `search_tools(query=...)` without `_caller_id`, which increased the probability of caller-less discovery in real sessions.
+
+### Fix applied
+- `server.py`: boot-time caller filtering now reads only `ARIA_PROXY_BOOT_CALLER_ID`; legacy `ARIA_CALLER_ID` is ignored unless an explicit opt-in flag is set.
+- `middleware.py`: proxy `call_tool` no longer borrows ambient env caller identity; it now requires explicit `_caller_id` in the request path.
+- Prompt/skill examples normalized so discovery calls also include `_caller_id` explicitly.
+- `.env.example` updated to deprecate global `ARIA_CALLER_ID` usage in shared sessions.
+1. **Amadeus test environment / application state unhealthy**
+   - Le credenziali attuali sono valide per il test environment ma il test env risponde con `38189 Internal error` in modo sistemico su tutti gli endpoint provati.
+   - Le stesse credenziali in `hostname='production'` restituiscono `401 invalid_client`, quindi non sono credenziali production-ready.
+2. **Retry class troppo permissiva per 38189**
+   - Un `500` generico poteva ancora apparire retryable; in presenza di `38189` ripetuto bisogna trattarlo come failure sistemico e mettere in quarantena il backend.
+3. **Search-agent boundary insufficiente**
+   - Nei log reali il `search-agent` ha tentato `aria-amadeus-mcp_flight_offers_search` e poi è stato bloccato dalla capability matrix.
+   - Anche senza leak locale riprodotto in `search_tools`, serviva un vincolo prompt-level esplicito: `search-agent` non deve usare backend travel via proxy.
+
+### Fix aggiuntivi applicati
+- `src/aria/tools/amadeus/mcp_server.py`
+  - quarantena temporanea del backend quando si ripete il codice provider `38189`
+  - nuovo reason `upstream_service_quarantined`
+  - `38189` trattato come `upstream_internal_error` non retryable
+- `search-agent` source + runtime mirror
+  - nuova sezione boundary: vietato usare `aria-amadeus-mcp__*`, `booking__*`, `airbnb__*`, `osm-mcp__*` per task travel
+
+### Implicazione operativa
+- Finché l'app Amadeus resta in questo stato, il traveller deve considerare Amadeus **session-degraded** rapidamente e passare a Booking + web fallback grounded senza continuare a martellare gli endpoint.

@@ -44,7 +44,7 @@ class CapabilityMatrixMiddleware(Middleware):
         self,
         registry: _Registry,
         *,
-        default_caller_env: str = "ARIA_CALLER_ID",
+        default_caller_env: str = "ARIA_PROXY_REQUEST_CALLER_ID",
         caller_header: str = "X-ARIA-Caller-Id",
     ) -> None:
         self._registry = registry
@@ -73,13 +73,14 @@ class CapabilityMatrixMiddleware(Middleware):
         call_next: Callable[..., Any],  # noqa: ANN401
     ) -> Any:  # noqa: ANN401
         args = dict(context.message.arguments or {})
-        nested = args.get("arguments")
-        caller = (
-            args.pop("_caller_id", None)
-            or (isinstance(nested, dict) and nested.pop("_caller_id", None))
-            or self._resolve_caller(context)
-        )
         proxy_tool_name = getattr(context.message, "name", "")
+        nested = args.get("arguments")
+        caller_from_args = args.pop("_caller_id", None) or (
+            isinstance(nested, dict) and nested.pop("_caller_id", None)
+        )
+        caller = caller_from_args
+        if caller is None and proxy_tool_name != "call_tool":
+            caller = self._resolve_caller(context)
 
         tool_to_check = args.get("name", "") if proxy_tool_name == "call_tool" else proxy_tool_name
 

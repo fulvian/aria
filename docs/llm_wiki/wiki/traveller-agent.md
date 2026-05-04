@@ -1,8 +1,10 @@
 # Traveller Agent
 
-**Status**: ✅ v8.8 — degraded-mode traveller esplicito, Amadeus retry/fallback semantics migliorate, Booking fallback più utile
-**Ultimo aggiornamento**: 2026-05-04T01:22
+**Status**: ✅ v8.10 — shared-proxy caller contamination neutralized after research/travel cross-session drift
+**Ultimo aggiornamento**: 2026-05-04T09:15
 **Source**: `docs/plans/agents/traveller_agent_plan.md` (canonical), `docs/analysis/traveller_agent_analysis.md` (research v7.4)
+
+**External analysis tracked**: `docs/analysis/traveller_amadeus_airbnb_issues.md` (2026-05-04, source-backed review of Airbnb robots blocking, Amadeus July 2026 sunset, candidate replacements)
 
 ## Overview
 
@@ -163,9 +165,44 @@ ARIA Conductor → traveller-agent → proxy (airbnb, osm-mcp, booking, aria-ama
   - `fallback_hint`
   - un retry leggero su `429/5xx`
 
+## Remediation v8.9 — persistent Amadeus 38189
+
+- Riprodotto localmente che le credenziali Amadeus correnti, sul test environment,
+  restituiscono `500` provider code `38189 Internal error` su tutti gli endpoint
+  travel principali provati (`locations`, `airports`, `hotels`, `flight offers`).
+- Verificato via documentazione ufficiale che i metodi Python usati sono corretti;
+  il problema non è un semplice errore di parametri nel wrapper.
+- Le stesse credenziali in `hostname='production'` restituiscono `401 invalid_client`:
+  non sono credenziali production-ready.
+- `aria-amadeus-mcp` ora:
+  - tratta `38189` come `upstream_internal_error` non retryable
+  - entra in quarantena temporanea locale dopo failure sistemiche ripetute
+  - restituisce `upstream_service_quarantined` per evitare retry inutili nella stessa sessione
+- `search-agent` ora ha un boundary esplicito: non deve mai usare backend MCP travel
+  (`aria-amadeus-mcp`, `booking`, `airbnb`, `osm-mcp`) via proxy.
+
+## Remediation v8.10 — shared proxy caller contamination
+
+- Una sessione research `search-agent` poteva ancora comportarsi come `traveller-agent`
+  se il proxy ereditava un `ARIA_CALLER_ID=traveller-agent` dal `.env` locale.
+- Effetto osservato nei log: discovery centrata su tool travel e denial come
+  `fetch__fetch not allowed for traveller-agent` durante task di ricerca.
+- Fix applicato nel proxy:
+  - il boot filtering ora usa solo `ARIA_PROXY_BOOT_CALLER_ID`
+  - `call_tool` richiede `_caller_id` esplicito e non prende più il caller
+    da env legacy condivise
+  - esempi prompt/skill di discovery aggiornati con `_caller_id`
+
+## Stato strategico backend traveller (2026-05-04)
+
+- **Airbnb MCP**: funzionalmente fragile per dipendenza da scraping e controllo `robots.txt`; l'analisi dettagliata e le opzioni correttive sono archiviate in `docs/analysis/traveller_amadeus_airbnb_issues.md`.
+- **Amadeus Self-Service**: oltre all'instabilità corrente del test env (`38189`), il backend ha rischio di obsolescenza strutturale per sunset del portale Self-Service a luglio 2026; la wiki mantiene qui lo stato operativo corrente, mentre il documento di analisi raccoglie le alternative candidate (Duffel, LetsFly/LetsFG, toolkit travel-hacking, Booking-first fallback).
+- **Implicazione di governance**: il fix odierno risolve il misrouting tra agenti, ma non elimina il debito architetturale dei backend travel upstream; le prossime decisioni dovranno separare chiaramente remediation runtime da migrazione provider.
+
 ## Riferimenti
 
 - `docs/plans/agents/traveller_agent_plan.md` — foundation plan completo (9 fasi TDD)
+- `docs/analysis/traveller_amadeus_airbnb_issues.md` — analisi estesa di fragilità Airbnb + sunset Amadeus + alternative provider
 - `.aria/kilocode/agents/traveller-agent.md` — prompt canonico
 - `.aria/config/agent_capability_matrix.yaml` — capability matrix
 - `.aria/kilocode/agents/aria-conductor.md` — conductor dispatch rules

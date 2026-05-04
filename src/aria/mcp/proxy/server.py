@@ -34,7 +34,9 @@ logger = get_logger("aria.mcp.proxy.server")
 DEFAULT_CATALOG = Path(".aria/config/mcp_catalog.yaml")
 DEFAULT_PROXY_CONFIG = Path(".aria/config/proxy.yaml")
 PROXY_NAME = "aria-mcp-proxy"
-CALLER_ENV = "ARIA_CALLER_ID"
+BOOT_CALLER_ENV = "ARIA_PROXY_BOOT_CALLER_ID"
+LEGACY_CALLER_ENV = "ARIA_CALLER_ID"
+ALLOW_LEGACY_CALLER_ENV = "ARIA_PROXY_ALLOW_LEGACY_CALLER_ENV"
 DIRECT_SERVER_ALLOWLIST = frozenset({"spawn-subagent"})
 SEPARATE_SERVERS = frozenset({"aria-memory"})
 
@@ -68,8 +70,15 @@ def build_proxy(
 
 
 def _proxy_caller() -> str | None:
-    caller = os.environ.get(CALLER_ENV, "").strip()
-    return caller or None
+    caller = os.environ.get(BOOT_CALLER_ENV, "").strip()
+    if caller:
+        return caller
+
+    if os.environ.get(ALLOW_LEGACY_CALLER_ENV) == "1":
+        legacy_caller = os.environ.get(LEGACY_CALLER_ENV, "").strip()
+        return legacy_caller or None
+
+    return None
 
 
 def _load_backends(

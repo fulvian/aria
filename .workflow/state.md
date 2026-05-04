@@ -1,13 +1,13 @@
 # Project State
 
-## Current Phase: Phase 5 — Traveller deep-debug remediation verified
+## Current Phase: Phase 5 — Proxy caller-contamination remediation verified
 ## Started: 2026-05-01T17:14+02:00
 ## Branch: `feat/mcp-tool-search-proxy`
 ## PRD: approved direction — hybrid capability-scoped model, with `productivity-agent` as the surviving unified work-domain agent
 ## TDD: implemented — conductor delegation discipline, runtime/source-of-truth alignment, nested `_caller_id` proxy handling, productivity-agent proxy-only discipline, real HITL wording, single valid wiki update rule, no self-remediation during user workflows
-## Implementation: traveller prompt + runtime mirrors now codify degraded mode; Amadeus MCP server emits retryable/fallback-aware errors with lightweight retry; critical travel skills encode Session 8 fallback order and anti-burst guidance
-## Tests: targeted traveller deep-debug suites PASS (131 passed); full source lint+mypy PASS; repository-wide non-traveller conductor baseline drift remains separate
-## Deployment: ready for user-driven traveller CLI re-test focused on Session 8 scenarios
+## Implementation: shared proxy no longer inherits legacy ambient `ARIA_CALLER_ID` by default; `call_tool` requires explicit `_caller_id`; search/runtime prompt examples include caller identity for discovery too
+## Tests: targeted proxy/search suites PASS (24 targeted passes in latest cycles); full source lint+mypy PASS; full pytest still red on pre-existing conductor prompt drift suite
+## Deployment: ready for user-driven ARIA CLI re-test on research sessions mentioning Amadeus/Airbnb
 
 ## Agent History
 | Timestamp | Agent | Action | Status |
@@ -29,6 +29,8 @@
 | 2026-05-04T00:31+02:00 | General Manager | Reconstructed traveller context from wiki/logs, verified FastMCP synthetic tool schemas, and isolated traveller-specific drift | Done |
 | 2026-05-04T00:44+02:00 | General Manager | Corrected traveller prompt + travel skills, re-hardened proxy middleware, restored Amadeus wrapper executability, and synced wiki | Done |
 | 2026-05-04T01:18+02:00 | General Manager | Applied Session 8 deep-debug fixes: Amadeus retry/fallback semantics, degraded mode prompt/skills, Booking-only fallback guidance | Done |
+| 2026-05-04T07:43+02:00 | General Manager | Reproduced systemic Amadeus `38189`, added backend quarantine, and enforced search-agent travel MCP boundary | Done |
+| 2026-05-04T09:15+02:00 | General Manager | Isolated legacy `ARIA_CALLER_ID` contamination across shared proxy sessions and hardened boot/request caller resolution | Done |
 
 ## Skills Invoked
 | Phase | Skill | Outcome |
@@ -39,6 +41,7 @@
 | Remediation | planning-with-files | Logged traveller-specific root causes, fixes, and verification outcomes |
 | Remediation | Context7 docs check | Verified live `search_tools` / `call_tool` schemas before prompt and skill fixes |
 | Deep Debug | planning-with-files | Captured Session 8 missed-tool/fallback evidence and encoded remediation in wiki/planning files |
+| Root fix | yagni-enforcement | Chose minimal shared-proxy remediation instead of re-architecting per-agent proxy instances |
 
 ## Quality Gates
 | Check | Status |

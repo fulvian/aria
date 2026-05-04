@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 from aria.mcp.proxy.catalog import BackendSpec
-from aria.mcp.proxy.server import _filter_backends_for_caller, build_proxy
+from aria.mcp.proxy.server import _filter_backends_for_caller, _proxy_caller, build_proxy
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -150,7 +150,7 @@ servers:
         captured["config"] = config
         return lambda: None
 
-    monkeypatch.setenv("ARIA_CALLER_ID", "search-agent")
+    monkeypatch.setenv("ARIA_PROXY_BOOT_CALLER_ID", "search-agent")
 
     with (
         patch(
@@ -170,3 +170,13 @@ servers:
     assert captured["config"] == {
         "mcpServers": {"searxng-script": {"command": "searxng", "args": []}}
     }
+
+
+def test_proxy_caller_ignores_legacy_aria_caller_id_without_opt_in(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ARIA_CALLER_ID", "traveller-agent")
+    monkeypatch.delenv("ARIA_PROXY_BOOT_CALLER_ID", raising=False)
+    monkeypatch.delenv("ARIA_PROXY_ALLOW_LEGACY_CALLER_ENV", raising=False)
+
+    assert _proxy_caller() is None

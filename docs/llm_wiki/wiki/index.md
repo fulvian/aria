@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-05-04T01:22+02:00 (v8.8 — traveller deep-debug: explicit degraded mode, Amadeus retry/fallback-aware errors, Booking-only fallback guidance, Sessione 8 gaps codified.)
-**Status**: ✅ **v8.8** — traveller-agent now documents and enforces degraded-mode continuation when only a subset of travel backends fails, reduces Amadeus burst-risk at prompt/skill level, and exposes structured Amadeus retry/fallback metadata for `429/5xx` instead of opaque failures.
+**Last Updated**: 2026-05-04T09:15+02:00 (v8.10 — shared proxy no longer inherits legacy ambient `ARIA_CALLER_ID`; research/travel caller contamination fixed at root.)
+**Status**: ✅ **v8.10** — the shared proxy now ignores legacy ambient caller env by default, `call_tool` requires explicit per-request `_caller_id`, and research sessions no longer get reinterpreted as `traveller-agent` when they mention Amadeus/Airbnb.
 
 ## Purpose
 
@@ -79,6 +79,7 @@ docs/llm_wiki/
 | `docs/foundation/agent-capability-matrix.md` | Capability Matrix canonica + handoff protocol | 2026-04-30 |
 | `docs/foundation/decisions/ADR-0008-productivity-agent-introduction.md` | ADR productivity-agent austere MVP | 2026-04-29 |
 | `docs/protocols/protocollo_creazione_agenti.md` | **NEW**: protocollo unico per intake → ricerca → decision ladder → piano agenti | 2026-05-01 |
+| `docs/analysis/traveller_amadeus_airbnb_issues.md` | Analisi dettagliata dei backend traveller: Airbnb robots.txt, sunset Amadeus Self-Service, alternative e raccomandazioni | 2026-05-04 |
 
 ### Coordination (L1)
 | Source | Description | Last Updated |
@@ -118,7 +119,7 @@ docs/llm_wiki/
 | Source | Description | Last Updated |
 |--------|-------------|--------------|
 | `.aria/kilocode/agents/aria-conductor.md` | conductor dispatch rules + productivity/workspace/trader boundary | 2026-05-02 |
-| `.aria/kilocode/agents/search-agent.md` | **v5.0**: canonical proxy model, no backend wildcards in frontmatter | 2026-05-01 |
+| `.aria/kilocode/agents/search-agent.md` | **v8.10**: canonical proxy model + explicit `_caller_id` in discovery examples + hard travel boundary | 2026-05-04 |
 | `.aria/kilocode/agents/productivity-agent.md` | **v5.0**: unified work-domain agent, proxy canonical, direct GW access | 2026-05-01 |
 | `.aria/kilocode/agents/trader-agent.md` | **NEW v6.5**: finance domain agent, proxy canonical, 7 skills, 8 intent categories | 2026-05-02 |
 | `.aria/kilocode/agents/traveller-agent.md` | **NEW v7.6**: travel domain agent, proxy canonical, 6 skills, 7 intent categories, max-spawn-depth 1 | 2026-05-03 |
@@ -202,6 +203,7 @@ docs/llm_wiki/
 - 2026-05-03: **v8.3** — **traveller-agent Fase 8 (ADR + wiki sync) completata**. ADR-0017 (traveller-agent introduction), ADR-0018 (aria-amadeus-mcp). Wiki sync completato per tutte le fasi.
 - 2026-05-03: **v8.4** — **traveller-agent COMPLETATO (Fase 9 Smoke E2E)**. 33 smoke test golden path: pipeline, skills, backend, output, HITL, memory. 157 test totali. Tutte le 9 fasi del foundation plan completate.
 - 2026-05-03: **v8.5** — **traveller-agent: booking attivato + credential injection**. booking MCP lifecycle da shadow a enabled. Wrapper script aria-amadeus-mcp con auto-acquire credenziali da SOPS (pattern brave-wrapper). 4 backend traveller tutti enabled. 157 test.
+- 2026-05-04: **v8.10** — **shared proxy caller contamination fix**. Legacy ambient `ARIA_CALLER_ID` no longer shapes shared proxy sessions by default; `call_tool` requires explicit per-request `_caller_id`; research prompt/skill discovery examples updated.
 
 ## Git & GitHub Rules
 
@@ -221,7 +223,7 @@ Definite in `AGENTS.md` § "Git & GitHub Workflow Rules". Regole chiave:
 - `docs/llm_wiki/wiki/observability.md` — L4 logging, metrics, events
 - `docs/llm_wiki/wiki/research-routing.md` — tier policy
 - `docs/llm_wiki/wiki/mcp-architecture.md` — MCP architecture
-- `docs/llm_wiki/wiki/mcp-proxy.md` — **v6.3**: canonical proxy contract + fail-closed enforcement + work-domain convergence.
+- `docs/llm_wiki/wiki/mcp-proxy.md` — **v8.10**: canonical proxy contract + fail-closed enforcement + ambient caller contamination fix.
 - `pyproject.toml` — **v6.2**: per-file ignores Ruff mirati, pytest bootstrap path, override mypy per `croniter`.
 - `docs/llm_wiki/wiki/agent-capability-matrix.md` — capability matrix
 - `docs/protocols/protocollo_creazione_agenti.md` — protocollo prescrittivo per nuovi agenti/sub-agenti

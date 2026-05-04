@@ -3,7 +3,16 @@
 ## Goal
 Remediate the MCP proxy integration drift identified in the 2026-05-01 audit, implementing the approved hybrid capability-scoped architectural direction.
 
-## Status: ✅ TRAVELLER REMEDIATION IMPLEMENTED / VERIFICATION COMPLETE
+## Status: ✅ PROXY CALLER-CONTAMINATION RCA + REMEDIATION IMPLEMENTED
+
+## 2026-05-04 — Search/traveller proxy caller contamination addendum
+- [x] Reconstruct new failure from live research-session logs
+- [x] Confirm root cause in proxy caller resolution and ambient `.env` coupling
+- [x] Remove unsafe legacy `ARIA_CALLER_ID` fallback from shared proxy runtime path
+- [x] Harden proxy so `call_tool` requires explicit per-request `_caller_id`
+- [x] Normalize search/discovery prompt examples to include `_caller_id`
+- [x] Add regression coverage for legacy-env contamination
+- [x] Re-run targeted proxy/search tests and repository quality gates
 
 ## 2026-05-04 — Traveller-agent remediation addendum
 - [x] Reconstruct traveller-specific context from LLM wiki index/log + traveller wiki page
@@ -21,6 +30,13 @@ Remediate the MCP proxy integration drift identified in the 2026-05-01 audit, im
 - [x] Harden Amadeus MCP server with retryable/fallback-aware structured errors
 - [x] Encode degraded-mode rules in traveller prompt + critical travel skills
 - [x] Add regression tests for degraded-mode guidance and Amadeus retry/quota behavior
+
+## 2026-05-04 — Persistent Amadeus failure addendum
+- [x] Reproduce real Amadeus endpoint failures with local credentials
+- [x] Verify method correctness against official Amadeus docs
+- [x] Distinguish test-env/systemic upstream failure from local parameter bug
+- [x] Add backend quarantine for repeated provider code `38189`
+- [x] Add explicit search-agent boundary against travel MCP backends
 
 ## Phases
 

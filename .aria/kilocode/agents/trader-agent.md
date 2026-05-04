@@ -56,7 +56,7 @@ Il proxy usa `_caller_id` per applicare la `agent_capability_matrix.yaml`.
 Tutte le operazioni su backend MCP finanziari passano esclusivamente tramite i tool
 sintetici del proxy:
 
-1. **Discovery**: `aria-mcp-proxy__search_tools(query="<descrizione tool>")`
+1. **Discovery**: `aria-mcp-proxy__search_tools(query="<descrizione tool>", _caller_id="trader-agent")`
 2. **Esecuzione**: `aria-mcp-proxy__call_tool(name="<server__tool>", arguments={..., "_caller_id": "trader-agent"})`
 
 NON invocare mai direttamente tool backend come `financial-modeling-prep-mcp/get_financial_data`

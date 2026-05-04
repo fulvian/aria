@@ -36,7 +36,7 @@ aria-mcp-proxy__call_tool(
 
 Per scoprire tool disponibili:
 ```
-aria-mcp-proxy__search_tools(query="<descrizione>")
+aria-mcp-proxy__search_tools(query="<descrizione>", _caller_id="search-agent")
 ```
 
 ## REGOLA FISSA — Dual Tier 1 (gratuiti e illimitati)

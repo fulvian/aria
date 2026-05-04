@@ -1,5 +1,61 @@
 # Implementation Log
 
+## 2026-05-04T09:15+02:00 — FIX: shared proxy caller contamination (search-agent ↔ traveller-agent)
+
+**Operation**: FIX (root-cause remediation in shared proxy caller resolution)
+**Branch**: `feature/traveller-agent-f1`
+**Trigger**: live research sessions mentioning Amadeus/Airbnb were spawned as `search-agent` but proxy discovery and authorization still behaved as `traveller-agent`.
+
+### Root cause
+1. Local runtime config still had legacy `ARIA_CALLER_ID=traveller-agent` in `.env`.
+2. `src/aria/mcp/proxy/server.py` used that env var for boot-time backend filtering, so the shared proxy could start already traveller-scoped.
+3. `src/aria/mcp/proxy/middleware.py` also used env fallback for request caller resolution, so a caller-less `call_tool` could be misattributed to `traveller-agent` instead of failing closed.
+4. Discovery examples in prompts/skills still omitted `_caller_id`, increasing the probability of caller-less proxy usage in real sessions.
+
+### Changes
+- **proxy runtime**:
+  - boot-time filtering now uses `ARIA_PROXY_BOOT_CALLER_ID`
+  - legacy `ARIA_CALLER_ID` ignored by default unless explicitly re-enabled
+  - `call_tool` no longer borrows ambient env caller identity
+- **prompt / skill guidance**:
+  - search/productivity/trader/travel discovery examples now include explicit `_caller_id`
+- **docs**:
+  - `.env.example` now warns against global `ARIA_CALLER_ID` in shared sessions
+  - wiki proxy/traveller pages updated with provenance
+
+### Verified impact
+- Research sessions that mention travel providers no longer inherit traveller-scoped proxy behavior by ambient env alone.
+- Missing `_caller_id` on `call_tool` now fails as missing caller identity instead of producing misleading `...not allowed for traveller-agent` denials.
+- Targeted proxy/search tests and proxy stdio integration tests pass; repo-wide lint + mypy pass.
+
+## 2026-05-04T07:43+02:00 — FIX: persistent Amadeus 38189 + search-agent travel boundary
+
+**Operation**: FIX (systemic backend-health handling)
+**Branch**: `feature/traveller-agent-f1`
+**Trigger**: live logs still showed Amadeus failing broadly and `search-agent` attempting an Amadeus tool path before falling back to web search.
+
+### Root cause
+1. Local reproduction with real credentials showed that the Amadeus test environment is returning provider code `38189 Internal error` across multiple endpoint families (`locations`, `airports`, `hotels`, `flight offers`).
+2. Context7 verification confirmed the Python client methods/parameters in ARIA are formally correct, so the failure is not explained by a simple wrapper parameter bug.
+3. The current credentials are not valid for `hostname='production'` (`401 invalid_client`), so production cutover is not available as an immediate runtime workaround.
+4. `search-agent` still lacked an explicit prompt-level prohibition against travel MCP backends, so it could still attempt those paths when prompted by context/logs.
+
+### Changes
+- **aria-amadeus-mcp**:
+  - added systemic failure tracking for provider code `38189`
+  - added local temporary backend quarantine after repeated systemic failures
+  - reclassified `38189` as `upstream_internal_error` non-retryable
+  - added `upstream_service_quarantined` error path to stop repeated useless retries inside a session
+- **search-agent source + runtime mirror**:
+  - explicit MCP boundary forbidding `aria-amadeus-mcp__*`, `booking__*`, `airbnb__*`, and travel `osm-mcp__*`
+- **tests**:
+  - regression coverage for systemic 38189 classification and quarantine
+  - regression coverage for search-agent travel-backend prohibition
+
+### Verified impact
+- Repeated Amadeus `38189` failures should now degrade quickly into local quarantine instead of continued endpoint hammering.
+- `search-agent` is now explicitly web/research-only and should not attempt travel MCP backends even if context/logs mention them.
+
 ## 2026-05-04T01:22+02:00 — FIX: traveller deep debug Sessione 8 (fallback gaps + Amadeus retry semantics)
 
 **Operation**: FIX (traveller fallback/remediation hardening)

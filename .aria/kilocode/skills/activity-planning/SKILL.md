@@ -20,7 +20,7 @@ per una destinazione. Produrre lista strutturata con descrizione, posizione,
 fascia di prezzo e link.
 
 ## Proxy invocation
-Per discovery usa direttamente `aria-mcp-proxy__search_tools(query="...")`.
+Per discovery usa direttamente `aria-mcp-proxy__search_tools(query="...", _caller_id="traveller-agent")`.
 
 Tutte le chiamate ai backend MCP passano dal proxy con `_caller_id: "traveller-agent"` dentro `arguments`.
 

@@ -1,7 +1,7 @@
 # MCP Proxy (aria-mcp-proxy)
 
-**Last Updated**: 2026-05-01T18:35+02:00
-**Status**: Active ✅ — remediation complete; canonical proxy contract is now the live baseline
+**Last Updated**: 2026-05-04T09:15+02:00
+**Status**: Active ✅ — caller contamination root-caused and shared-proxy fallback hardened
 **Source**: `src/aria/mcp/proxy/`, `.aria/config/proxy.yaml`, `.aria/kilocode/mcp.json`, `.aria/config/agent_capability_matrix.yaml`, `docs/superpowers/specs/2026-05-01-mcp-tool-search-design.md`, `docs/foundation/decisions/ADR-0015-fastmcp-native-proxy.md`, `docs/foundation/decisions/ADR-0008-productivity-agent-introduction.md`
 
 ## Purpose
@@ -29,7 +29,7 @@ reduced the MCP surface presented to KiloCode to a stable 2-entry runtime:
 - Proxy synthetic entrypoints exposed to KiloCode: `search_tools`, `call_tool`
 - Agent-facing canonical prompt tool names: `aria-mcp-proxy__search_tools`, `aria-mcp-proxy__call_tool`
 - Emergency rollback path: `bin/aria start --emergency-direct`
-- Backend boot filtering: when `ARIA_CALLER_ID` is set, proxy boot loads only backend servers referenced by that agent's `allowed_tools`; `aria-memory` stays out-of-proxy and remains a separate MCP dependency
+- Backend boot filtering: manual single-agent filtering is now opt-in via `ARIA_PROXY_BOOT_CALLER_ID`; legacy ambient `ARIA_CALLER_ID` is ignored by default in shared ARIA sessions
 - Embeddings cache: `.aria/runtime/proxy/embeddings/`
 - Metrics namespace: `aria_proxy_*`
 - Proxy events: `proxy.start`, `proxy.shutdown`, `proxy.backend_quarantine`, `proxy.cutover`, `proxy.emergency_rollback`, `proxy.caller_anomaly`
@@ -40,12 +40,14 @@ reduced the MCP surface presented to KiloCode to a stable 2-entry runtime:
 - Agents do **not** expose backend MCP wildcards in frontmatter anymore.
 - Agents expose only the proxy synthetic tools plus direct non-proxy tools (memory, sequential-thinking, spawn-subagent, HITL where needed).
 - Every proxy call must include `_caller_id` in the arguments.
+- Discovery examples should include `_caller_id` too, even if the underlying schema only requires `query`.
 - Canonical pattern:
   1. discovery via `aria-mcp-proxy__search_tools`
   2. execution via `aria-mcp-proxy__call_tool`
 
 ### 2. Enforcement model
 - `on_call_tool`: **fail-closed** for non-synthetic calls when no caller identity is present.
+- `call_tool` must carry an explicit per-request `_caller_id`; it must not inherit a shared ambient agent identity.
 - `on_list_tools`: synthetic tools are always visible; missing caller identity is logged as anomaly/warning.
 - Capability matrix remains the source of truth for backend reachability.
 - Search transforms improve discovery only; they are **not** factual validation controls.
@@ -100,7 +102,7 @@ reduced the MCP surface presented to KiloCode to a stable 2-entry runtime:
 ### F7 — caller-aware backend boot filtering (2026-05-01)
 **Problema**: Il proxy bootava tutti i backend enabled anche in sessioni search-only, avviando server irrilevanti come `google_workspace`.
 
-**Fix**: `build_proxy()` filtra i backend caricati quando `ARIA_CALLER_ID` è presente.
+**Fix**: `build_proxy()` filtra i backend caricati quando `ARIA_PROXY_BOOT_CALLER_ID` è presente.
 
 ### F8 — remediation completed (2026-05-01)
 **Runtime/policy hardening**
@@ -123,9 +125,30 @@ reduced the MCP surface presented to KiloCode to a stable 2-entry runtime:
 
 ## Residual caveats
 
-1. `ARIA_CALLER_ID` resta utile per boot-time backend filtering, ma il modello condiviso usa `_caller_id` come meccanismo primario di enforcement per request.
+1. In sessioni ARIA condivise non bisogna impostare globalmente `ARIA_CALLER_ID` nel `.env`; per boot filtering manuale usare `ARIA_PROXY_BOOT_CALLER_ID` e solo per debug one-agent.
 2. `workspace-agent` esiste ancora per compatibilità; non è più il target architetturale di lungo periodo.
 3. Futuri cleanup potranno rimuovere riferimenti residui a percorsi legacy collegati a `workspace-agent`.
+
+## 2026-05-04 — Caller contamination remediation
+
+**Problema**: una ricerca `search-agent` che menzionava Amadeus/Airbnb poteva vedere il proxy comportarsi come `traveller-agent`, con discovery travel-centric e errori del tipo `fetch__fetch not allowed for traveller-agent`.
+
+**Root cause**:
+- `.env` locale conteneva `ARIA_CALLER_ID=traveller-agent`
+- `server.py` lo usava per boot-time backend filtering
+- `middleware.py` lo riusava come fallback implicito per request prive di `_caller_id`
+
+**Fix**:
+- boot caller env rinominato a `ARIA_PROXY_BOOT_CALLER_ID`
+- compatibilità legacy disponibile solo via opt-in esplicito
+- `call_tool` non eredita più un caller ambientale implicito
+- esempi prompt/skill aggiornati per includere `_caller_id` anche in discovery
+
+**Runbook operativo**:
+- In runtime ARIA condivisi lasciare **non impostati** `ARIA_CALLER_ID` e `ARIA_PROXY_REQUEST_CALLER_ID`.
+- Per sessioni normali fare affidamento solo su `_caller_id` per request.
+- Usare `ARIA_PROXY_BOOT_CALLER_ID` solo per debug/manual boot di un proxy dedicato a un singolo agente.
+- Se ricompaiono denial incoerenti del tipo `tool X not allowed for traveller-agent` dentro sessioni `search-agent`, controllare prima l'ambiente del processo proxy e la presenza di `_caller_id` nella request reale.
 
 ## Spec and ADR provenance
 

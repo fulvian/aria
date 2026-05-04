@@ -159,6 +159,27 @@ class TestAriaAmadeusMcpErrorHandling:
         assert result["reason"] == "upstream_rate_limited"
         assert result["fallback_hint"] == "Use search-agent fallback."
 
+    def test_handle_systemic_internal_error_is_not_retryable(self, server_module):
+        """38189 internal errors are treated as systemic and not retryable."""
+        error = _response_error(500, "Internal error")
+        error.response.result = {
+            "errors": [
+                {
+                    "code": 38189,
+                    "title": "Internal error",
+                    "detail": "An internal error occurred",
+                    "status": 500,
+                }
+            ]
+        }
+
+        result = server_module._handle_amadeus_error(
+            error,
+            fallback_hint="Use Booking fallback.",
+        )
+        assert result["retryable"] is False
+        assert result["reason"] == "upstream_internal_error"
+
 
 class TestAriaAmadeusMcpRetryAndQuota:
     """Retry and local quota behavior for transient Amadeus failures."""
@@ -194,6 +215,40 @@ class TestAriaAmadeusMcpRetryAndQuota:
         assert result["retryable"] is False
         assert result["reason"] == "local_quota_exhausted"
         request.assert_not_called()
+
+    def test_systemic_internal_errors_trip_service_quarantine(self, server_module):
+        """Repeated 38189 errors quarantine the backend temporarily."""
+        server_module._reset_quota()
+        error = _response_error(500, "Internal error")
+        error.response.result = {
+            "errors": [
+                {
+                    "code": 38189,
+                    "title": "Internal error",
+                    "detail": "An internal error occurred",
+                    "status": 500,
+                }
+            ]
+        }
+        request = MagicMock(side_effect=[error, error])
+
+        first = server_module._execute_amadeus_call(
+            request,
+            fallback_hint="Use Booking fallback.",
+        )
+        second = server_module._execute_amadeus_call(
+            request,
+            fallback_hint="Use Booking fallback.",
+        )
+        third = server_module._execute_amadeus_call(
+            request,
+            fallback_hint="Use Booking fallback.",
+        )
+
+        assert first["reason"] == "upstream_internal_error"
+        assert second["reason"] == "upstream_internal_error"
+        assert third["reason"] == "upstream_service_quarantined"
+        assert third["status_code"] == 503
 
 
 class TestAriaAmadeusMcpAnnotations:

@@ -21,7 +21,7 @@ Ricercare informazioni su una destinazione turistica: coordinate, clima,
 info pratiche (valuta, lingua, fuso orario), requisiti visto, cultura locale.
 
 ## Proxy invocation
-Per discovery usa direttamente `aria-mcp-proxy__search_tools(query="...")`.
+Per discovery usa direttamente `aria-mcp-proxy__search_tools(query="...", _caller_id="traveller-agent")`.
 
 Tutte le chiamate ai backend MCP passano dal proxy con `_caller_id: "traveller-agent"` dentro `arguments`:
 

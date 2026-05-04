@@ -16,3 +16,11 @@ def test_search_agent_grounding_rules_are_explicit() -> None:
     ]
     for fragment in required_fragments:
         assert fragment in agent_text
+
+
+def test_search_agent_forbids_travel_backends() -> None:
+    agent_text = SEARCH_AGENT_FILE.read_text(encoding="utf-8")
+    assert "Boundary MCP — vietato usare backend travel" in agent_text
+    assert "aria-amadeus-mcp__*" in agent_text
+    assert "booking__*" in agent_text
+    assert "airbnb__*" in agent_text

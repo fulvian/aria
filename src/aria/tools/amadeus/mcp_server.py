@@ -43,6 +43,9 @@ mcp = FastMCP(
 
 _FREE_TIER_LIMIT = 2000  # Amadeus free tier calls per month
 _RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+_SYSTEMIC_INTERNAL_ERROR_CODE = 38189
+_SYSTEMIC_FAILURE_THRESHOLD = 2
+_SYSTEMIC_QUARANTINE_SECONDS = 300
 _MAX_RETRIES = 1
 
 _state: dict[str, Any] = {
@@ -50,6 +53,8 @@ _state: dict[str, Any] = {
     "call_count": 0,
     "quota_warning_emitted": False,
     "quarantined": False,
+    "service_failure_count": 0,
+    "service_quarantined_until": 0.0,
 }
 
 
@@ -59,6 +64,24 @@ def _check_quota() -> dict[str, Any] | None:
     Returns an error dict if quota exceeded or warning info.
     Must be called before each tool invocation.
     """
+    service_quarantined_until = float(_state.get("service_quarantined_until", 0.0))
+    now = time.time()
+    if service_quarantined_until > now:
+        remaining_s = int(service_quarantined_until - now)
+        return {
+            "error": True,
+            "status_code": 503,
+            "retryable": False,
+            "provider": "aria-amadeus-mcp",
+            "reason": "upstream_service_quarantined",
+            "fallback_hint": "Usa Booking o search-agent finché Amadeus resta in quarantena.",
+            "message": (
+                "Amadeus test environment in persistent internal-error state. "
+                "Backend temporaneamente quarantinato per evitare retry inutili."
+            ),
+            "details": {"retry_after_seconds": remaining_s},
+        }
+
     if _state["quarantined"] or _state["call_count"] >= _FREE_TIER_LIMIT:
         _state["quarantined"] = True
         return {
@@ -120,6 +143,8 @@ def _reset_quota() -> None:
     _state["call_count"] = 0
     _state["quota_warning_emitted"] = False
     _state["quarantined"] = False
+    _state["service_failure_count"] = 0
+    _state["service_quarantined_until"] = 0.0
 
 
 # ── Client ────────────────────────────────────────────────────────────────────
@@ -164,6 +189,15 @@ def _retry_delay_seconds(error: ResponseError) -> float:
     return 1.0
 
 
+def _extract_error_code(error: ResponseError) -> int | None:
+    """Extract provider-specific error code from an Amadeus ResponseError."""
+    result = getattr(getattr(error, "response", None), "result", None)
+    errors = result.get("errors") if isinstance(result, dict) else None
+    first = errors[0] if isinstance(errors, list) and errors else None
+    code = first.get("code") if isinstance(first, dict) else None
+    return code if isinstance(code, int) else None
+
+
 def _handle_amadeus_error(
     error: ResponseError,
     *,
@@ -171,13 +205,16 @@ def _handle_amadeus_error(
 ) -> dict[str, Any]:
     """Convert Amadeus ResponseError to a structured error dict."""
     status = _extract_status_code(error)
+    error_code = _extract_error_code(error)
     details = None
     if hasattr(error, "response") and error.response is not None:
         details = getattr(error.response, "result", None)
-    retryable = status in _RETRYABLE_STATUS_CODES
+    retryable = status in _RETRYABLE_STATUS_CODES and error_code != _SYSTEMIC_INTERNAL_ERROR_CODE
     reason = "upstream_rate_limited" if status == 429 else "upstream_error"
     if status < 500 and status != 429:
         reason = "request_error"
+    if error_code == _SYSTEMIC_INTERNAL_ERROR_CODE:
+        reason = "upstream_internal_error"
     return {
         "error": True,
         "status_code": status,
@@ -188,6 +225,22 @@ def _handle_amadeus_error(
         "message": str(error),
         "details": details,
     }
+
+
+def _record_service_failure(error: ResponseError) -> None:
+    """Track systemic upstream failures and quarantine the backend if needed."""
+    if _extract_error_code(error) != _SYSTEMIC_INTERNAL_ERROR_CODE:
+        return
+    failures = int(_state.get("service_failure_count", 0)) + 1
+    _state["service_failure_count"] = failures
+    if failures >= _SYSTEMIC_FAILURE_THRESHOLD:
+        _state["service_quarantined_until"] = time.time() + _SYSTEMIC_QUARANTINE_SECONDS
+
+
+def _clear_service_failure_state() -> None:
+    """Clear systemic failure counters after a successful upstream call."""
+    _state["service_failure_count"] = 0
+    _state["service_quarantined_until"] = 0.0
 
 
 def _missing_credentials_error() -> dict[str, Any]:
@@ -223,10 +276,15 @@ def _execute_amadeus_call(
         if quota_err:
             return quota_err
         try:
-            return request()
+            result = request()
+            _clear_service_failure_state()
+            return result
         except ResponseError as error:
             last_error = error
+            _record_service_failure(error)
             status = _extract_status_code(error)
+            if _extract_error_code(error) == _SYSTEMIC_INTERNAL_ERROR_CODE:
+                break
             if status not in _RETRYABLE_STATUS_CODES or attempt >= _MAX_RETRIES:
                 break
             time.sleep(_retry_delay_seconds(error))
