@@ -90,7 +90,6 @@ def test_filter_backends_for_search_agent_excludes_workspace_and_memory() -> Non
 def test_build_proxy_applies_caller_backend_filter(
     tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
-    """build_proxy with caller filter excludes backends not in the matrix."""
     catalog = tmp_path / "catalog.yaml"
     catalog.write_text(
         """
@@ -143,22 +142,34 @@ servers:
 """.lstrip()
     )
     proxy_yaml = tmp_path / "proxy.yaml"
-    proxy_yaml.write_text("search:\n  transform: bm25\ntier:\n  default_lifecycle: lazy\n")
+    proxy_yaml.write_text("search:\n  transform: bm25\n")
+
+    captured: dict[str, object] = {}
+
+    def _fake_client_factory(config: dict[str, object]) -> object:
+        captured["config"] = config
+        return lambda: None
 
     monkeypatch.setenv("ARIA_PROXY_BOOT_CALLER_ID", "search-agent")
 
-    with patch(
-        "aria.mcp.proxy.server.YamlCapabilityRegistry",
-        return_value=_Registry(
-            {"search-agent": ["searxng-script__*", "aria-memory__wiki_recall_tool"]}
+    with (
+        patch(
+            "aria.mcp.proxy.server.YamlCapabilityRegistry",
+            return_value=_Registry(
+                {"search-agent": ["searxng-script__*", "aria-memory__wiki_recall_tool"]}
+            ),
+        ),
+        patch(
+            "aria.mcp.proxy.server.fastmcp_proxy_provider._create_client_factory",
+            side_effect=_fake_client_factory,
         ),
     ):
         proxy = build_proxy(catalog_path=catalog, proxy_config_path=proxy_yaml, strict=False)
 
     assert proxy.name == "aria-mcp-proxy"
-
-    # build_proxy should succeed with caller filter — filtering is tested
-    # independently in test_filter_backends_for_search_agent_excludes_workspace_and_memory
+    assert captured["config"] == {
+        "mcpServers": {"searxng-script": {"command": "searxng", "args": []}}
+    }
 
 
 def test_proxy_caller_ignores_legacy_aria_caller_id_without_opt_in(

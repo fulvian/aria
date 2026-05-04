@@ -36,13 +36,6 @@ class BackendSpec:
     expected_tools: tuple[str, ...] = ()
     notes: str = ""
 
-    # Tier-based proxy lifecycle fields
-    proxy_lifecycle: str = "lazy"  # "warm" | "lazy"
-    proxy_concurrency: int = 4
-    proxy_idle_ttl_s: int = 300
-    proxy_breaker_threshold: int = 3
-    proxy_breaker_cooldown_s: int = 60
-
     def to_mcp_entry(self) -> dict[str, Any]:
         """Render to FastMCP-compatible mcpServers entry."""
         entry: dict[str, Any] = {"command": self.command, "args": list(self.args)}
@@ -97,9 +90,4 @@ def _parse_entry(entry: dict[str, Any]) -> BackendSpec | None:
         env={},  # populated later by CredentialInjector
         expected_tools=tuple(str(t) for t in entry.get("expected_tools", [])),
         notes=str(entry.get("notes", "")),
-        proxy_lifecycle=str(entry.get("proxy_lifecycle", "lazy")),
-        proxy_concurrency=int(entry.get("proxy_concurrency", 4)),
-        proxy_idle_ttl_s=int(entry.get("proxy_idle_ttl_s", 300)),
-        proxy_breaker_threshold=int(entry.get("proxy_breaker_threshold", 3)),
-        proxy_breaker_cooldown_s=int(entry.get("proxy_breaker_cooldown_s", 60)),
     )

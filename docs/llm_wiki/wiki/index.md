@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-05-04T12:01+02:00 (v9.0 — Tier-based proxy architecture)
-**Status**: ✅ **v9.0** — `TimeoutProxyProvider` replaced by `TieredProxyProvider` with warm pool (6 backends), lazy registry (12 backends, idle TTL 300s), per-backend circuit breaker, concurrency semaphore, auto-recovery retry queue, and persistent metadata cache. `provider.py` removed. 8 new modules under `src/aria/mcp/proxy/tier/`. 14 new proxy tier events. 7 new Prometheus metrics. 31 new tests (80 proxy total). Ruff/mypy clean.
+**Last Updated**: 2026-05-04T09:15+02:00 (v8.10 — shared proxy no longer inherits legacy ambient `ARIA_CALLER_ID`; research/travel caller contamination fixed at root.)
+**Status**: ✅ **v8.10** — the shared proxy now ignores legacy ambient caller env by default, `call_tool` requires explicit per-request `_caller_id`, and research sessions no longer get reinterpreted as `traveller-agent` when they mention Amadeus/Airbnb.
 
 ## Purpose
 

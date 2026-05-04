@@ -124,51 +124,6 @@ class MetricsCollector:
             registry=self._registry,
         )
 
-        # Proxy Tier metrics (v2 — tier-based architecture)
-        self._proxy_circuit_open = Counter(
-            "aria_proxy_circuit_open_total",
-            "Circuit breaker opened",
-            labelnames=["backend"],
-            registry=self._registry,
-        )
-        self._proxy_lazy_spawn = Counter(
-            "aria_proxy_lazy_spawn_total",
-            "Lazy backend cold spawns",
-            labelnames=["backend"],
-            registry=self._registry,
-        )
-        self._proxy_idle_shutdown = Counter(
-            "aria_proxy_idle_shutdown_total",
-            "Idle backend shutdowns",
-            labelnames=["backend"],
-            registry=self._registry,
-        )
-        self._proxy_list_tools_latency = Histogram(
-            "aria_proxy_list_tools_latency_seconds",
-            "Latency of tools/list requests",
-            buckets=_MCP_BUCKETS,
-            registry=self._registry,
-        )
-        self._proxy_call_tool_queue_wait = Histogram(
-            "aria_proxy_call_tool_queue_wait_seconds",
-            "Time spent waiting on concurrency semaphore",
-            labelnames=["backend"],
-            buckets=_MCP_BUCKETS,
-            registry=self._registry,
-        )
-        self._proxy_warm_pool_size = Counter(
-            "aria_proxy_warm_pool_size",
-            "Current warm pool size (use as gauge via _last_value)",
-            labelnames=["action"],
-            registry=self._registry,
-        )
-        self._proxy_lazy_pool_size = Counter(
-            "aria_proxy_lazy_pool_size",
-            "Current lazy pool size (use as gauge via _last_value)",
-            labelnames=["action"],
-            registry=self._registry,
-        )
-
     def inc_agent_spawn(self, agent: str, parent: str = "") -> None:
         if not self._enabled:
             return
@@ -224,43 +179,6 @@ class MetricsCollector:
         if not self._enabled:
             return
         self._proxy_caller_missing.labels(tool=tool).inc()
-
-    # ---- Proxy Tier metrics (v2) ----
-
-    def inc_proxy_circuit_open(self, backend: str) -> None:
-        if not self._enabled:
-            return
-        self._proxy_circuit_open.labels(backend=backend).inc()
-
-    def inc_proxy_lazy_spawn(self, backend: str) -> None:
-        if not self._enabled:
-            return
-        self._proxy_lazy_spawn.labels(backend=backend).inc()
-
-    def inc_proxy_idle_shutdown(self, backend: str) -> None:
-        if not self._enabled:
-            return
-        self._proxy_idle_shutdown.labels(backend=backend).inc()
-
-    def observe_proxy_list_tools_latency(self, seconds: float) -> None:
-        if not self._enabled:
-            return
-        self._proxy_list_tools_latency.observe(seconds)
-
-    def observe_proxy_call_tool_queue_wait(self, backend: str, seconds: float) -> None:
-        if not self._enabled:
-            return
-        self._proxy_call_tool_queue_wait.labels(backend=backend).observe(seconds)
-
-    def set_warm_pool_size(self, size: int) -> None:
-        if not self._enabled:
-            return
-        self._proxy_warm_pool_size.labels(action="set").inc(size)
-
-    def set_lazy_pool_size(self, size: int) -> None:
-        if not self._enabled:
-            return
-        self._proxy_lazy_pool_size.labels(action="set").inc(size)
 
     def flush(self) -> None:
         if not self._enabled:

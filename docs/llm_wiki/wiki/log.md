@@ -1,44 +1,5 @@
 # Implementation Log
 
-## 2026-05-04T12:01+02:00 — FEAT: tier-based proxy architecture v2 (proxy-tier cutover)
-
-**Operation**: FEAT (tier-based connection lifecycle)
-**Branch**: `fix/proxy-tier-architecture`
-**Trigger**: `TimeoutProxyProvider` hang su `tools/list` con 16 backend. Soluzione
-definitiva: tier architecture con warm pool, lazy registry, circuit breaker,
-concurrency semaphore, auto-recovery, metadata cache persistente.
-
-### Architecture changes
-- **NEW** `src/aria/mcp/proxy/tier/` sottopackage con 8 moduli:
-  - `tiered_provider.py` — orchestratore FastMCP Provider
-  - `backend_client.py` — wrapper mono-server per `fastmcp.Client`
-  - `warm_pool.py` — connessioni always-on con healthcheck (30s)
-  - `lazy_registry.py` — on-demand spawn + idle TTL sweep (300s)
-  - `breaker.py` — circuit breaker state machine (closed/open/half_open)
-  - `semaphore.py` — per-backend asyncio.Semaphore con acquire timeout
-  - `metadata_cache.py` — JSON cache persistente su disk
-  - `retry_queue.py` — background retry con exponential backoff
-- **DEL** `src/aria/mcp/proxy/provider.py` — `TimeoutProxyProvider` rimosso
-- **MOD** `server.py` — `build_proxy()` usa `TieredProxyProvider`
-- **MOD** `catalog.py` — `BackendSpec` esteso con campi tier
-- **MOD** `config.py` — `ProxyConfig` esteso con `TierConfig`
-- **MOD** `.aria/config/proxy.yaml` — sezione `tier:` aggiunta
-- **MOD** `.aria/config/mcp_catalog.yaml` — `proxy_lifecycle` per ogni server (6 warm, 12 lazy)
-- **MOD** `events.py` — `ProxyTierEventKind` con 14 valori
-- **MOD** `metrics.py` — 7 nuove metriche tier
-
-### Quality gates
-- ruff check: 0 errors
-- mypy src: 0 errors (80 source files)
-- pytest tests/unit/mcp/proxy/ tests/integration/mcp/proxy/: 80/80 PASS (49 legacy + 31 new)
-
-### Files created
-`tests/fixtures/mock_mcp_backend.py`, `tests/unit/mcp/proxy/test_tier_breaker.py`,
-`tests/unit/mcp/proxy/test_tier_semaphore.py`, `tests/unit/mcp/proxy/test_tier_metadata_cache.py`
-
-### Files modified
-12 source files + 2 config YAML files
-
 ## 2026-05-04T09:15+02:00 — FIX: shared proxy caller contamination (search-agent ↔ traveller-agent)
 
 **Operation**: FIX (root-cause remediation in shared proxy caller resolution)

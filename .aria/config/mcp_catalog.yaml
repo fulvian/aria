@@ -5,7 +5,6 @@ servers:
   tier: 0
   transport: stdio
   lifecycle: enabled
-  proxy_lifecycle: warm
   auth_mode: keyless
   statefulness: stateful
   expected_tools:
@@ -35,7 +34,6 @@ servers:
   tier: 0
   transport: stdio
   lifecycle: enabled
-  proxy_lifecycle: warm
   auth_mode: keyless
   statefulness: stateless
   expected_tools:
@@ -52,7 +50,6 @@ servers:
   tier: 0
   transport: stdio
   lifecycle: enabled
-  proxy_lifecycle: warm
   auth_mode: keyless
   statefulness: stateful
   expected_tools:
@@ -78,7 +75,6 @@ servers:
   tier: 2
   transport: stdio
   lifecycle: enabled
-  proxy_lifecycle: warm
   auth_mode: keyless
   statefulness: stateless
   expected_tools:
@@ -95,7 +91,6 @@ servers:
   tier: 1
   transport: stdio
   lifecycle: enabled
-  proxy_lifecycle: warm
   auth_mode: keyless
   statefulness: stateless
   expected_tools:
@@ -112,7 +107,6 @@ servers:
   tier: 1
   transport: stdio
   lifecycle: enabled
-  proxy_lifecycle: warm
   auth_mode: keyless
   statefulness: stateless
   expected_tools:
@@ -134,7 +128,6 @@ servers:
   tier: 2
   transport: stdio
   lifecycle: enabled
-  proxy_lifecycle: lazy
   auth_mode: keyless
   statefulness: stateless
   expected_tools:
@@ -156,7 +149,6 @@ servers:
   tier: 2
   transport: stdio
   lifecycle: enabled
-  proxy_lifecycle: lazy
   auth_mode: api_key
   statefulness: stateless
   expected_tools:
@@ -178,7 +170,6 @@ servers:
   tier: 2
   transport: stdio
   lifecycle: enabled
-  proxy_lifecycle: lazy
   auth_mode: api_key
   statefulness: stateless
   expected_tools:
@@ -196,7 +187,6 @@ servers:
   tier: 2
   transport: stdio
   lifecycle: enabled
-  proxy_lifecycle: lazy
   auth_mode: api_key
   statefulness: stateless
   expected_tools:
@@ -215,7 +205,6 @@ servers:
   tier: 1
   transport: stdio
   lifecycle: enabled
-  proxy_lifecycle: lazy
   auth_mode: oauth
   statefulness: stateful
   expected_tools:
@@ -278,7 +267,6 @@ servers:
   tier: 1
   transport: stdio
   lifecycle: enabled
-  proxy_lifecycle: lazy
   auth_mode: keyless
   statefulness: stateless
   expected_tools:
@@ -296,7 +284,6 @@ servers:
   tier: 2
   transport: stdio
   lifecycle: enabled
-  proxy_lifecycle: lazy
   auth_mode: api_key
   statefulness: stateful
   expected_tools:
@@ -331,7 +318,6 @@ servers:
   tier: 2
   transport: stdio
   lifecycle: enabled
-  proxy_lifecycle: lazy
   auth_mode: keyless
   statefulness: stateless
   expected_tools:
@@ -350,7 +336,6 @@ servers:
   tier: 2
   transport: stdio
   lifecycle: enabled
-  proxy_lifecycle: lazy
   auth_mode: keyless
   statefulness: stateless
   expected_tools:
@@ -379,7 +364,6 @@ servers:
   tier: 1
   transport: stdio
   lifecycle: enabled
-  proxy_lifecycle: lazy
   auth_mode: api_key
   statefulness: stateless
   env:
@@ -405,7 +389,6 @@ servers:
   tier: 2
   transport: stdio
   lifecycle: enabled
-  proxy_lifecycle: lazy
   auth_mode: keyless
   statefulness: stateless
   expected_tools:
