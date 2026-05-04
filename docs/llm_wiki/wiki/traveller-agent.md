@@ -1,7 +1,7 @@
 # Traveller Agent
 
-**Status**: ✅ v8.7 — prompt/skill proxy contract corretto, middleware fail-closed su `call_tool`, wrapper Amadeus eseguibile
-**Ultimo aggiornamento**: 2026-05-04T00:45
+**Status**: ✅ v8.8 — degraded-mode traveller esplicito, Amadeus retry/fallback semantics migliorate, Booking fallback più utile
+**Ultimo aggiornamento**: 2026-05-04T01:22
 **Source**: `docs/plans/agents/traveller_agent_plan.md` (canonical), `docs/analysis/traveller_agent_analysis.md` (research v7.4)
 
 ## Overview
@@ -145,6 +145,23 @@ ARIA Conductor → traveller-agent → proxy (airbnb, osm-mcp, booking, aria-ama
   - nega `call_tool` verso tool sintetici (`search_tools`, `call_tool`)
   - reintroduce il controllo capability sul backend target
 - `scripts/wrappers/aria-amadeus-wrapper.sh` deve essere eseguibile; aggiunto test statico dedicato
+
+## Remediation v8.8 — deep debug su Sessione 8
+
+- Il traveller non deve più fermarsi al primo backend fallito: continua in **degraded mode** se almeno un backend travel utile sopravvive.
+- `transport-planning` ora codifica fallback esplicito:
+  - `nearest_airport` fallisce → provare `locations_search`
+  - `flight_offers_search` instabile → evitare burst paralleli e delegare a `search-agent` solo come fallback grounded
+- `accommodation-comparison` ora codifica fallback esplicito:
+  - `airbnb` `robots.txt` → proseguire con Booking + Amadeus superstite
+  - `hotel_list_by_geocode` fallisce → tentare `hotel_offers_search(city_code=...)`
+  - Booking come unico backend superstite → usare anche sort/filter tools
+- `budget-analysis` ora ammette budget parziale esplicito quando i provider di pricing live falliscono.
+- `aria-amadeus-mcp` ora restituisce errori strutturati con:
+  - `retryable`
+  - `reason` (`upstream_rate_limited`, `upstream_error`, `local_quota_exhausted`, ...)
+  - `fallback_hint`
+  - un retry leggero su `429/5xx`
 
 ## Riferimenti
 

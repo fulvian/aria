@@ -172,6 +172,12 @@ class TestTravellerAgentContent:
         """Prompt specifies delegation chain to productivity-agent."""
         assert "productivity-agent" in prompt_text or "productivity" in prompt_text
 
+    def test_degraded_mode_guidance_present(self, prompt_text: str):
+        """Prompt allows partial continuation when only some backends fail."""
+        assert "degraded mode" in prompt_text
+        assert "risultati parziali" in prompt_text
+        assert "TUTTI i backend" in prompt_text
+
     def test_backend_backends_listed(self, prompt_text: str):
         """Prompt lists travel backend MCP servers."""
         assert "airbnb" in prompt_text

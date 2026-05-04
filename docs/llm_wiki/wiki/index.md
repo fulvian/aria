@@ -1,7 +1,7 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-05-04T00:45+02:00 (v8.7 — traveller-agent proxy contract corrected: direct `search_tools` / direct `call_tool(name=<server__tool>)`, middleware fail-closed on backend execution, Amadeus wrapper executable, traveller docs/tests synced.)
-**Status**: ✅ **v8.7** — traveller-agent runtime hardening after live debug: corrected proxy invocation contract across prompt + all 6 travel skills, restored backend authorization in middleware for `call_tool`, denied synthetic recursion, reduced caller-less `tools/list` leakage to synthetic tools only, aligned booking catalog notes with enabled lifecycle, and added static coverage for wrapper executability and proxy schemas.
+**Last Updated**: 2026-05-04T01:22+02:00 (v8.8 — traveller deep-debug: explicit degraded mode, Amadeus retry/fallback-aware errors, Booking-only fallback guidance, Sessione 8 gaps codified.)
+**Status**: ✅ **v8.8** — traveller-agent now documents and enforces degraded-mode continuation when only a subset of travel backends fails, reduces Amadeus burst-risk at prompt/skill level, and exposes structured Amadeus retry/fallback metadata for `429/5xx` instead of opaque failures.
 
 ## Purpose
 

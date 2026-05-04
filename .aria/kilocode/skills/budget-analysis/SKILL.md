@@ -120,3 +120,12 @@ Produci budget breakdown:
 - Pasti/attività: stima basata su conoscenza generale, non su API reali
 - Non includere spese impreviste oltre il 10% di buffer
 - Disclaimer obbligatorio: "Stima indicativa — verifica prezzi sui provider"
+
+## Degraded mode
+- `flight_offers_search` → `429/5xx`: usa Booking/alloggi superstiti +
+  `search-agent` per fallback voli grounded, marcando il costo voli come
+  fallback web e non da MCP travel pricing.
+- `airbnb_search` → `robots.txt`: escludi Airbnb e continua con Booking +
+  Amadeus hotel se disponibili.
+- `hotel_offers_search` non disponibile: costruisci budget parziale con Booking
+  o Airbnb e dichiara chiaramente la copertura residua.

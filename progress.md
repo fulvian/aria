@@ -134,3 +134,26 @@
   - `ruff format --check .` fails for pre-existing unrelated files
   - `mypy src` fails for pre-existing unrelated proxy typing issue in `server.py` and stale ignores in `provider.py`
   - `pytest -q` fails mainly on pre-existing conductor prompt contract tests unrelated to the traveller remediation
+
+## 2026-05-04T01:10+02:00 — Sessione 8 deep-debug: fallback gaps confirmed
+- User provided live autoanalysis showing:
+  - Amadeus `nearest_airport` failed but `locations_search` fallback was not attempted
+  - 4 parallel `flight_offers_search` calls amplified `500/429`
+  - `hotel_offers_search(city_code=...)` fallback not attempted after `hotel_list_by_geocode` failure
+  - OSM route tools were skipped, so itinerary timings were estimated rather than computed
+  - Booking remained the only healthy accommodation backend but sort/filter tools were not used
+
+## 2026-05-04T01:18+02:00 — Deep-debug remediation implemented
+- Hardened `aria-amadeus-mcp` server error semantics:
+  - added retryable metadata, fallback hints, provider reason classification
+  - added one lightweight retry on transient `429/5xx`
+  - separated quota pre-check from actual outbound call accounting
+- Updated traveller prompt + runtime mirror to continue in degraded mode when partial backend coverage survives.
+- Updated travel skill runtime/source mirrors for explicit fallback order:
+  - transport: `nearest_airport -> locations_search`, no aggressive parallel Amadeus burst
+  - accommodation: `robots.txt` handling, `city_code` retry path, Booking sort/filter fallback
+  - budget: partial budget mode + grounded web fallback for flight pricing
+
+## 2026-05-04T01:22+02:00 — Deep-debug verification complete
+- `uv run ruff check ...` on changed traveller/Amadeus files: PASS
+- `uv run pytest -q tests/integration/agents/traveller/test_aria_amadeus_mcp_server.py tests/unit/agents/traveller/test_traveller_agent_prompt.py tests/unit/agents/traveller/test_traveller_skills.py`: `80 passed`

@@ -67,6 +67,9 @@ aria-mcp-proxy__call_tool(name="aria-amadeus-mcp__flight_offers_search", argumen
 })
 ```
 
+Se `nearest_airport` fallisce, DEVI provare anche `locations_search` prima di
+concludere che Amadeus è down per quella fase.
+
 ### 3. Stato volo (se richiesto) — DEVI chiamare
 ```
 aria-mcp-proxy__call_tool(name="aria-amadeus-mcp__flight_status", arguments={
@@ -117,3 +120,11 @@ Produci tabella comparativa:
 - Nessun booking live: solo ricerca e link.
 - Treni/auto non coperti da Amadeus MVP. Se richiesti, segnalare limite.
 - Amadeus non copre low-cost (Ryanair/Wizz). Se richiesti, spawnare search-agent.
+
+## Degraded mode
+- `nearest_airport` → `500/429`: prova `locations_search` con keyword città.
+- `flight_offers_search` → `429/5xx`: NON lanciare 4 chiamate in parallelo.
+  Limita a 1 richiesta per tratta/variante alla volta e, se fallisce ancora,
+  passa a `search-agent` per fallback web grounded sui voli.
+- Se Amadeus resta indisponibile ma OSM funziona, completa comunque transfer e
+  route optimization via `osm-mcp__get_route_directions`.

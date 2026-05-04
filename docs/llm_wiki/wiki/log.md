@@ -1,5 +1,30 @@
 # Implementation Log
 
+## 2026-05-04T01:22+02:00 — FIX: traveller deep debug Sessione 8 (fallback gaps + Amadeus retry semantics)
+
+**Operation**: FIX (traveller fallback/remediation hardening)
+**Branch**: `feature/traveller-agent-f1`
+**Trigger**: live Sessione 8 autoanalysis showed that the agent still skipped prescribed fallback steps (`locations_search`, `hotel_offers_search(city_code)`, OSM route tools), over-parallelized Amadeus flight search, and underused Booking when it was the only healthy accommodation backend.
+
+### Root cause
+1. Prompt and skills did not codify **partial-backend survival** strongly enough: they still left room to stop too early or to skip fallback tools.
+2. `aria-amadeus-mcp` returned opaque errors without `retryable` / `fallback_hint`, so the agent had weak signal for robust degraded-mode decisions.
+3. Amadeus request bursts were not discouraged explicitly enough, leading to avoidable `500/429` amplification.
+4. Booking success paths existed but did not force sort/filter enrichment when Booking was the only surviving accommodation backend.
+
+### Changes
+- **traveller prompt + runtime mirror**: continue in degraded mode when at least one backend survives; stop only when all relevant travel backends fail.
+- **transport-planning**: added explicit fallback order `nearest_airport -> locations_search`, plus rule to avoid 4 parallel `flight_offers_search` bursts.
+- **accommodation-comparison**: added explicit `robots.txt` handling, `hotel_offers_search(city_code)` retry path, and Booking sort/filter fallback guidance.
+- **budget-analysis**: added partial-budget and grounded web fallback guidance when live flight/hotel pricing is unavailable.
+- **aria-amadeus-mcp**: added retryable structured errors, fallback hints, provider reason classification, and one lightweight retry for transient `429/5xx`.
+- **tests**: added prompt/skill degraded-mode assertions and Amadeus retry/quota regression coverage.
+
+### Verified impact
+- Traveller should now attempt more of the prescribed pipeline before giving up.
+- Amadeus transient failures are no longer opaque to the agent.
+- Booking-only survival is now a richer, explicitly guided degraded mode instead of a weak partial success.
+
 ## 2026-05-04T00:45+02:00 — FIX: traveller-agent proxy contract + middleware hardening
 
 **Operation**: FIX (traveller live runtime remediation)

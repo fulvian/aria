@@ -15,11 +15,15 @@ Requires env vars:
 from __future__ import annotations
 
 import os
-from typing import Any
+import time
+from typing import TYPE_CHECKING, Any, cast
 
 from amadeus import Client, ResponseError
 from fastmcp import FastMCP
 from mcp.types import ToolAnnotations
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # ── Server setup ──────────────────────────────────────────────────────────────
 
@@ -38,6 +42,8 @@ mcp = FastMCP(
 # ── Quota / circuit breaker ───────────────────────────────────────────────────
 
 _FREE_TIER_LIMIT = 2000  # Amadeus free tier calls per month
+_RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+_MAX_RETRIES = 1
 
 _state: dict[str, Any] = {
     "client": None,
@@ -53,10 +59,15 @@ def _check_quota() -> dict[str, Any] | None:
     Returns an error dict if quota exceeded or warning info.
     Must be called before each tool invocation.
     """
-    if _state["quarantined"]:
+    if _state["quarantined"] or _state["call_count"] >= _FREE_TIER_LIMIT:
+        _state["quarantined"] = True
         return {
             "error": True,
             "status_code": 429,
+            "retryable": False,
+            "provider": "aria-amadeus-mcp",
+            "reason": "local_quota_exhausted",
+            "fallback_hint": "Usa Booking o search-agent per proseguire.",
             "message": (
                 "Amadeus API quota esaurita per questo mese. "
                 "Il backend è in auto-quarantine fino al prossimo ciclo di fatturazione."
@@ -67,6 +78,11 @@ def _check_quota() -> dict[str, Any] | None:
             },
         }
 
+    return None
+
+
+def _record_api_call() -> dict[str, Any] | None:
+    """Track an actual outbound Amadeus API call attempt."""
     _state["call_count"] += 1
     used = _state["call_count"]
     pct = (used / _FREE_TIER_LIMIT) * 100
@@ -76,6 +92,10 @@ def _check_quota() -> dict[str, Any] | None:
         return {
             "error": True,
             "status_code": 429,
+            "retryable": False,
+            "provider": "aria-amadeus-mcp",
+            "reason": "local_quota_exhausted",
+            "fallback_hint": "Usa Booking o search-agent per proseguire.",
             "message": "Amadeus API quota esaurita (100%). Auto-quarantine attivata.",
             "details": {"call_count": used, "limit": _FREE_TIER_LIMIT},
         }
@@ -124,16 +144,47 @@ def _get_client() -> Client | None:
 # ── Tool helpers ──────────────────────────────────────────────────────────────
 
 
-def _handle_amadeus_error(error: ResponseError) -> dict[str, Any]:
-    """Convert Amadeus ResponseError to a structured error dict."""
+def _extract_status_code(error: ResponseError) -> int:
+    """Extract the HTTP status code from an Amadeus ResponseError."""
     status = 500
-    details = None
     if hasattr(error, "response") and error.response is not None:
         status = getattr(error.response, "status_code", 500)
+    return status
+
+
+def _retry_delay_seconds(error: ResponseError) -> float:
+    """Best-effort retry delay for retryable Amadeus failures."""
+    headers = getattr(getattr(error, "response", None), "headers", None) or {}
+    retry_after = headers.get("Retry-After") or headers.get("retry-after")
+    if retry_after is not None:
+        try:
+            return max(0.0, min(float(retry_after), 2.0))
+        except (TypeError, ValueError):
+            pass
+    return 1.0
+
+
+def _handle_amadeus_error(
+    error: ResponseError,
+    *,
+    fallback_hint: str,
+) -> dict[str, Any]:
+    """Convert Amadeus ResponseError to a structured error dict."""
+    status = _extract_status_code(error)
+    details = None
+    if hasattr(error, "response") and error.response is not None:
         details = getattr(error.response, "result", None)
+    retryable = status in _RETRYABLE_STATUS_CODES
+    reason = "upstream_rate_limited" if status == 429 else "upstream_error"
+    if status < 500 and status != 429:
+        reason = "request_error"
     return {
         "error": True,
         "status_code": status,
+        "retryable": retryable,
+        "provider": "aria-amadeus-mcp",
+        "reason": reason,
+        "fallback_hint": fallback_hint,
         "message": str(error),
         "details": details,
     }
@@ -148,8 +199,40 @@ def _missing_credentials_error() -> dict[str, Any]:
             "Amadeus credentials not configured. "
             "Set AMADEUS_CLIENT_ID and AMADEUS_CLIENT_SECRET env vars."
         ),
+        "retryable": False,
+        "provider": "aria-amadeus-mcp",
+        "reason": "missing_credentials",
+        "fallback_hint": "Usa Booking o search-agent per proseguire.",
         "details": None,
     }
+
+
+def _execute_amadeus_call(
+    request: Callable[[], list[dict[str, Any]]],
+    *,
+    fallback_hint: str,
+) -> list[dict[str, Any]] | dict[str, Any]:
+    """Execute an Amadeus request with lightweight retry and structured fallback."""
+    quota_err = _check_quota()
+    if quota_err:
+        return quota_err
+
+    last_error: ResponseError | None = None
+    for attempt in range(_MAX_RETRIES + 1):
+        quota_err = _record_api_call()
+        if quota_err:
+            return quota_err
+        try:
+            return request()
+        except ResponseError as error:
+            last_error = error
+            status = _extract_status_code(error)
+            if status not in _RETRYABLE_STATUS_CODES or attempt >= _MAX_RETRIES:
+                break
+            time.sleep(_retry_delay_seconds(error))
+
+    assert last_error is not None
+    return _handle_amadeus_error(last_error, fallback_hint=fallback_hint)
 
 
 # ── Tools ─────────────────────────────────────────────────────────────────────
@@ -192,31 +275,28 @@ def flight_offers_search(
     amadeus = _get_client()
     if amadeus is None:
         return _missing_credentials_error()
-    quota_err = _check_quota()
-    if quota_err:
-        return quota_err
-    try:
-        params: dict[str, Any] = {
-            "originLocationCode": origin_location_code,
-            "destinationLocationCode": destination_location_code,
-            "departureDate": departure_date,
-            "adults": adults,
-        }
-        if return_date:
-            params["returnDate"] = return_date
-        if travel_class:
-            params["travelClass"] = travel_class
-        if currency_code:
-            params["currencyCode"] = currency_code
-        if max_results is not None:
-            params["max"] = max_results
-        if non_stop is not None:
-            params["nonStop"] = "true" if non_stop else "false"
 
-        response = amadeus.shopping.flight_offers_search.get(**params)
-        return response.data  # type: ignore[no-any-return]
-    except ResponseError as e:
-        return _handle_amadeus_error(e)
+    params: dict[str, Any] = {
+        "originLocationCode": origin_location_code,
+        "destinationLocationCode": destination_location_code,
+        "departureDate": departure_date,
+        "adults": adults,
+    }
+    if return_date:
+        params["returnDate"] = return_date
+    if travel_class:
+        params["travelClass"] = travel_class
+    if currency_code:
+        params["currencyCode"] = currency_code
+    if max_results is not None:
+        params["max"] = max_results
+    if non_stop is not None:
+        params["nonStop"] = "true" if non_stop else "false"
+
+    return _execute_amadeus_call(
+        lambda: amadeus.shopping.flight_offers_search.get(**params).data,
+        fallback_hint="Usa search-agent per fallback voli grounded se Amadeus resta instabile.",
+    )
 
 
 @mcp.tool(
@@ -254,9 +334,7 @@ def hotel_offers_search(
     amadeus = _get_client()
     if amadeus is None:
         return _missing_credentials_error()
-    quota_err = _check_quota()
-    if quota_err:
-        return quota_err
+    fallback_hint = "Usa Booking o Airbnb se Amadeus hotel offers resta instabile."
 
     # Build common search params
     def _hotel_params() -> dict[str, Any]:
@@ -273,23 +351,47 @@ def hotel_offers_search(
         if hotel_ids:
             params = _hotel_params()
             params["hotelIds"] = hotel_ids
-            response = amadeus.shopping.hotel_offers_search.get(**params)
+
+            def request() -> list[dict[str, Any]]:
+                return cast(
+                    "list[dict[str, Any]]",
+                    amadeus.shopping.hotel_offers_search.get(**params).data,
+                )
+
         elif city_code and check_in_date and check_out_date:
             params = _hotel_params()
             params["cityCode"] = city_code
-            response = amadeus.shopping.hotel_offers_search.get(**params)
+
+            def request() -> list[dict[str, Any]]:
+                return cast(
+                    "list[dict[str, Any]]",
+                    amadeus.shopping.hotel_offers_search.get(**params).data,
+                )
+
         elif latitude is not None and longitude is not None:
-            hotels_resp = amadeus.reference_data.locations.hotels.by_geocode.get(
-                latitude=latitude,
-                longitude=longitude,
+            hotels = _execute_amadeus_call(
+                lambda: (
+                    amadeus.reference_data.locations.hotels.by_geocode.get(
+                        latitude=latitude,
+                        longitude=longitude,
+                    ).data
+                ),
+                fallback_hint="Prova hotel_offers_search con city_code o usa Booking/Airbnb.",
             )
-            hotels = hotels_resp.data
+            if isinstance(hotels, dict):
+                return hotels
             if not hotels:
                 return {"error": True, "message": "No hotels found at this location"}
             params = _hotel_params()
             h_ids = [h["hotelId"] for h in hotels[:5]]
             params["hotelIds"] = ",".join(h_ids)
-            response = amadeus.shopping.hotel_offers_search.get(**params)
+
+            def request() -> list[dict[str, Any]]:
+                return cast(
+                    "list[dict[str, Any]]",
+                    amadeus.shopping.hotel_offers_search.get(**params).data,
+                )
+
         else:
             return {
                 "error": True,
@@ -298,9 +400,12 @@ def hotel_offers_search(
                     "hotel_ids, or latitude+longitude."
                 ),
             }
-        return response.data  # type: ignore[no-any-return]
+        return _execute_amadeus_call(request, fallback_hint=fallback_hint)
     except ResponseError as e:
-        return _handle_amadeus_error(e)
+        return _handle_amadeus_error(
+            e,
+            fallback_hint="Prova hotel_offers_search con city_code o usa Booking/Airbnb.",
+        )
 
 
 @mcp.tool(
@@ -330,23 +435,20 @@ def hotel_list_by_geocode(
     amadeus = _get_client()
     if amadeus is None:
         return _missing_credentials_error()
-    quota_err = _check_quota()
-    if quota_err:
-        return quota_err
-    try:
-        params: dict[str, Any] = {
-            "latitude": latitude,
-            "longitude": longitude,
-        }
-        if radius is not None:
-            params["radius"] = radius
-        if radius_unit:
-            params["radiusUnit"] = radius_unit
 
-        response = amadeus.reference_data.locations.hotels.by_geocode.get(**params)
-        return response.data  # type: ignore[no-any-return]
-    except ResponseError as e:
-        return _handle_amadeus_error(e)
+    params: dict[str, Any] = {
+        "latitude": latitude,
+        "longitude": longitude,
+    }
+    if radius is not None:
+        params["radius"] = radius
+    if radius_unit:
+        params["radiusUnit"] = radius_unit
+
+    return _execute_amadeus_call(
+        lambda: amadeus.reference_data.locations.hotels.by_geocode.get(**params).data,
+        fallback_hint="Prova hotel_offers_search con city_code o usa Booking/Airbnb.",
+    )
 
 
 @mcp.tool(
@@ -376,31 +478,27 @@ def locations_search(
     amadeus = _get_client()
     if amadeus is None:
         return _missing_credentials_error()
-    quota_err = _check_quota()
-    if quota_err:
-        return quota_err
-    try:
-        from amadeus import Location
+    from amadeus import Location
 
-        # Map string sub_type to Amadeus Location constant
-        type_map = {
-            "AIRPORT": Location.AIRPORT,
-            "CITY": Location.CITY,
-            "ANY": Location.ANY,
-        }
-        st = type_map.get(sub_type.upper(), Location.ANY)
+    # Map string sub_type to Amadeus Location constant
+    type_map = {
+        "AIRPORT": Location.AIRPORT,
+        "CITY": Location.CITY,
+        "ANY": Location.ANY,
+    }
+    st = type_map.get(sub_type.upper(), Location.ANY)
 
-        params: dict[str, Any] = {
-            "keyword": keyword,
-            "subType": st,
-        }
-        if country_code:
-            params["countryCode"] = country_code
+    params: dict[str, Any] = {
+        "keyword": keyword,
+        "subType": st,
+    }
+    if country_code:
+        params["countryCode"] = country_code
 
-        response = amadeus.reference_data.locations.get(**params)
-        return response.data  # type: ignore[no-any-return]
-    except ResponseError as e:
-        return _handle_amadeus_error(e)
+    return _execute_amadeus_call(
+        lambda: amadeus.reference_data.locations.get(**params).data,
+        fallback_hint="Usa search-agent se locations_search non restituisce aeroporti utili.",
+    )
 
 
 @mcp.tool(
@@ -426,17 +524,16 @@ def nearest_airport(
     amadeus = _get_client()
     if amadeus is None:
         return _missing_credentials_error()
-    quota_err = _check_quota()
-    if quota_err:
-        return quota_err
-    try:
-        response = amadeus.reference_data.locations.airports.get(
-            latitude=latitude,
-            longitude=longitude,
-        )
-        return response.data  # type: ignore[no-any-return]
-    except ResponseError as e:
-        return _handle_amadeus_error(e)
+
+    return _execute_amadeus_call(
+        lambda: (
+            amadeus.reference_data.locations.airports.get(
+                latitude=latitude,
+                longitude=longitude,
+            ).data
+        ),
+        fallback_hint="Prova locations_search con la città o usa search-agent per fallback voli.",
+    )
 
 
 @mcp.tool(
@@ -464,18 +561,17 @@ def flight_status(
     amadeus = _get_client()
     if amadeus is None:
         return _missing_credentials_error()
-    quota_err = _check_quota()
-    if quota_err:
-        return quota_err
-    try:
-        response = amadeus.schedule.flights.get(
-            carrierCode=carrier_code,
-            flightNumber=flight_number,
-            scheduledDepartureDate=scheduled_departure_date,
-        )
-        return response.data  # type: ignore[no-any-return]
-    except ResponseError as e:
-        return _handle_amadeus_error(e)
+
+    return _execute_amadeus_call(
+        lambda: (
+            amadeus.schedule.flights.get(
+                carrierCode=carrier_code,
+                flightNumber=flight_number,
+                scheduledDepartureDate=scheduled_departure_date,
+            ).data
+        ),
+        fallback_hint="Riprova più tardi o usa search-agent solo per verifica status grounded.",
+    )
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────

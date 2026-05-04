@@ -15,6 +15,13 @@ Remediate the MCP proxy integration drift identified in the 2026-05-01 audit, im
 - [x] Run targeted traveller/proxy regression suite
 - [x] Run repository-wide gates and record unrelated pre-existing failures
 
+## 2026-05-04 — Traveller deep-debug addendum (Sessione 8)
+- [x] Analyze live autoanalysis log for missed tool calls vs prescribed pipeline
+- [x] Freeze new root causes: incomplete fallback order, excessive Amadeus parallelism, weak error semantics
+- [x] Harden Amadeus MCP server with retryable/fallback-aware structured errors
+- [x] Encode degraded-mode rules in traveller prompt + critical travel skills
+- [x] Add regression tests for degraded-mode guidance and Amadeus retry/quota behavior
+
 ## Phases
 
 ### Phase 1: Audit / forensic analysis

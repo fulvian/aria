@@ -18,6 +18,22 @@ import pytest
 # Module path
 SERVER_PATH = "src.aria.tools.amadeus.mcp_server"
 
+
+def _response_error(status_code: int, message: str, headers: dict | None = None):
+    """Build a real ResponseError instance with a mocked response."""
+    from amadeus import ResponseError
+
+    mock_response = MagicMock()
+    mock_response.status_code = status_code
+    mock_response.result = {"errors": [{"title": message}]}
+    mock_response.headers = headers or {}
+
+    error = ResponseError.__new__(ResponseError)
+    error.response = mock_response
+    error.args = (f"Amadeus API error: {status_code} {message}",)
+    return error
+
+
 # Expected tool definitions
 EXPECTED_TOOLS = {
     "flight_offers_search": {
@@ -118,26 +134,66 @@ class TestAriaAmadeusMcpErrorHandling:
     @pytest.fixture
     def mock_response_error(self):
         """Create a mock ResponseError with response attribute."""
-        from amadeus import ResponseError
-
-        # Cannot mock spec=ResponseError because __init__ sets response attr
-        # Use a plain MagicMock with the right structure
-        mock_response = MagicMock()
-        mock_response.status_code = 400
-        mock_response.result = {"errors": [{"code": 1234, "title": "Bad request"}]}
-
-        error = MagicMock(spec=ResponseError)
-        error.response = mock_response
-        error.__str__ = lambda self: "Amadeus API error: 400 Bad request"
-        return error
+        return _response_error(400, "Bad request")
 
     def test_handle_amadeus_error_structure(self, server_module, mock_response_error):
         """_handle_amadeus_error returns structured error dict."""
-        result = server_module._handle_amadeus_error(mock_response_error)
+        result = server_module._handle_amadeus_error(
+            mock_response_error,
+            fallback_hint="Use Booking fallback.",
+        )
         assert isinstance(result, dict)
         assert result["error"] is True
         assert result["status_code"] == 400
         assert "Amadeus API error" in result["message"]
+
+    def test_handle_amadeus_429_is_retryable(self, server_module):
+        """429 responses are tagged as retryable upstream rate limits."""
+        error = _response_error(429, "Rate limit", headers={"Retry-After": "1"})
+
+        result = server_module._handle_amadeus_error(
+            error,
+            fallback_hint="Use search-agent fallback.",
+        )
+        assert result["retryable"] is True
+        assert result["reason"] == "upstream_rate_limited"
+        assert result["fallback_hint"] == "Use search-agent fallback."
+
+
+class TestAriaAmadeusMcpRetryAndQuota:
+    """Retry and local quota behavior for transient Amadeus failures."""
+
+    def test_execute_retries_once_on_transient_500(self, server_module):
+        server_module._reset_quota()
+        error = _response_error(500, "Server error")
+
+        request = MagicMock(side_effect=[error, [{"id": "ok"}]])
+
+        with patch("src.aria.tools.amadeus.mcp_server.time.sleep") as sleep_mock:
+            result = server_module._execute_amadeus_call(
+                request,
+                fallback_hint="Use Booking fallback.",
+            )
+
+        assert result == [{"id": "ok"}]
+        assert request.call_count == 2
+        sleep_mock.assert_called_once()
+
+    def test_execute_returns_local_quota_error_without_retry(self, server_module):
+        server_module._reset_quota()
+        server_module._state["call_count"] = 2000
+
+        request = MagicMock(return_value=[{"id": "ok"}])
+        result = server_module._execute_amadeus_call(
+            request,
+            fallback_hint="Use Booking fallback.",
+        )
+
+        assert result["error"] is True
+        assert result["status_code"] == 429
+        assert result["retryable"] is False
+        assert result["reason"] == "local_quota_exhausted"
+        request.assert_not_called()
 
 
 class TestAriaAmadeusMcpAnnotations:
@@ -206,9 +262,16 @@ class TestAriaAmadeusMcpStdio:
                 "params": {},
             }
         )
+        initialized_notification = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "method": "notifications/initialized",
+                "params": {},
+            }
+        )
 
         # FastMCP processes one line at a time from stdin
-        payload = init_request + "\n" + list_request + "\n"
+        payload = init_request + "\n" + initialized_notification + "\n" + list_request + "\n"
         stdout, stderr = proc.communicate(input=payload, timeout=10)
         proc.wait(timeout=5)
 

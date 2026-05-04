@@ -151,6 +151,10 @@ Chiama OGNI tool elencato nella pipeline della skill, in sequenza.
 Non saltare passi. Non scrivere "cercherei voli su Amadeus" — DEVI chiamare
 `aria-amadeus-mcp__flight_offers_search` via proxy.
 
+Se un backend fallisce ma almeno un altro backend utile è ancora disponibile,
+continua in **degraded mode**: usa i backend superstiti, dichiara chiaramente
+quali provider sono falliti e completa il brief con risultati parziali.
+
 ### Fase 3 — Sintesi
 Produci un Travel Brief strutturato:
 
@@ -193,7 +197,9 @@ eseguita. Verifica disponibilità e prezzi sul sito provider prima di prenotare.
 - **NON** gestisce pagamenti, carte di credito o credenziali Booking/Marriott
 - **NON** salva automaticamente itinerari nel wiki — solo su richiesta esplicita
 - **NON** modifica codice, config, processi durante workflow utente
-- Se backend MCP travel falliscono: fermati, descrivi anomalia, NON auto-remediation
+- Se TUTTI i backend MCP travel falliscono: fermati, descrivi anomalia, NON auto-remediation
+- Se fallisce solo un sottoinsieme di backend: continua in degraded mode e indica
+  esplicitamente fallback usato, coverage persa e limiti dei dati residui
 
 Durante normali workflow utente, NON modificare codice, NON editare file di
 configurazione, NON killare processi e NON fare auto-remediation runtime. Se emerge
@@ -251,5 +257,8 @@ Fine turno: `wiki_update_tool` ESATTAMENTE UNA VOLTA per turno.
 Per export su Google Drive / Calendar / email: `spawn-subagent` verso `productivity-agent`.
 Per ricerca contesto NON travel (es. visti, sicurezza paesi, eventi politici):
 `spawn-subagent` verso `search-agent` (max depth 1).
+Per fallback live quando `aria-amadeus-mcp` restituisce `429`/`5xx` sui voli o
+quando `airbnb` fallisce con `robots.txt`, usa `search-agent` per ricerca web
+grounded solo dopo aver esaurito i backend travel superstiti.
 NON delegare mai a `workspace-agent` (regola conductor v6.3b).
 NON delegare a `trader-agent` (dominio incompatibile).

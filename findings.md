@@ -206,3 +206,33 @@
 ### Residual platform issues discovered but not introduced here
 - Repository-wide `ruff check .` and `ruff format --check .` are currently red for pre-existing files outside the traveller remediation scope (`src/aria/mcp/proxy/provider.py`, several historical tests, conductor prompt contract tests).
 - Repository-wide `pytest -q` is red mainly because the checked-in conductor prompt no longer matches legacy tests; targeted traveller/proxy suites are green.
+
+## 2026-05-04 — Sessione 8 deep-debug findings
+
+### Nuovi root cause emersi dai log reali
+1. **Fallback incompleto nelle skill**
+   - `transport-planning` non imponeva esplicitamente `locations_search` come fallback di `nearest_airport`.
+   - `accommodation-comparison` non esplicitava il retry via `hotel_offers_search(city_code=...)` quando fallisce `hotel_list_by_geocode`.
+   - `budget-analysis` non guidava il comportamento quando i prezzi MCP live falliscono e restano solo Booking/web fallback.
+2. **Concorrenza Amadeus troppo aggressiva**
+   - 4 `flight_offers_search` parallele hanno aumentato i `500/429` live.
+   - La remediation deve favorire richieste seriali o a bassa parallelizzazione.
+3. **Amadeus error model troppo povero**
+   - Il server restituiva solo `{error,status_code,message,details}` senza distinguere errori retryable, rate limit upstream, quota locale e hint di fallback.
+4. **Quota locale fragile**
+   - Il contatore locale veniva incrementato prima della chiamata API, senza semantica chiara di degraded mode / retry.
+5. **Booking underused despite survival**
+   - Quando Airbnb/Amadeus fallivano, la skill non imponeva sort/filter Booking per massimizzare il valore dell'unico backend superstite.
+
+### Fix applicati nel deep debug
+- `src/aria/tools/amadeus/mcp_server.py`
+  - introdotti `retryable`, `reason`, `provider`, `fallback_hint` negli error dict
+  - aggiunto retry leggero su `429/5xx`
+  - separati controllo quota e registrazione delle vere chiamate outbound
+- traveller prompt + runtime mirror
+  - continua in **degraded mode** se almeno un backend travel utile sopravvive
+  - ferma solo quando falliscono **tutti** i backend travel rilevanti
+- skill travel critiche + runtime mirrors
+  - `transport-planning`: fallback esplicito `nearest_airport -> locations_search`, no 4 flight calls in parallelo
+  - `accommodation-comparison`: gestione `robots.txt`, fallback `hotel_offers_search(city_code)`, uso sort/filter Booking
+  - `budget-analysis`: budget parziale dichiarato e fallback web grounded per i voli quando Amadeus è instabile

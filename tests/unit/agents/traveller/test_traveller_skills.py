@@ -158,3 +158,25 @@ class TestTravellerSkillRegistration:
         """Unsupported travel facts must be escalated or marked unverified."""
         text = (SKILLS_DIR / "destination-research" / "SKILL.md").read_text(encoding="utf-8")
         assert "usa conoscenza propria" not in text
+
+    def test_transport_skill_has_degraded_mode(self):
+        """Transport skill must cover sequential Amadeus fallback behavior."""
+        text = (SKILLS_DIR / "transport-planning" / "SKILL.md").read_text(encoding="utf-8")
+        assert "Degraded mode" in text
+        assert "locations_search" in text
+        assert "NON lanciare 4 chiamate in parallelo" in text
+
+    def test_accommodation_skill_mentions_airbnb_robots_and_booking_tools(self):
+        """Accommodation degraded mode must handle robots.txt and Booking-only fallback."""
+        text = (SKILLS_DIR / "accommodation-comparison" / "SKILL.md").read_text(encoding="utf-8")
+        assert "robots.txt" in text
+        assert "city_code" in text
+        assert "sort_results" in text
+        assert "filter_results" in text
+
+    def test_budget_skill_has_partial_fallback_guidance(self):
+        """Budget skill must allow partial coverage when live pricing backends fail."""
+        text = (SKILLS_DIR / "budget-analysis" / "SKILL.md").read_text(encoding="utf-8")
+        assert "Degraded mode" in text
+        assert "fallback web" in text
+        assert "copertura residua" in text

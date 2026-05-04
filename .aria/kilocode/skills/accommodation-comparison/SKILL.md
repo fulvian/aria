@@ -84,10 +84,15 @@ Combina risultati in tabella:
 | Booking | ... | ... | ... | ... | [link](#) |
 
 ## Degraded mode
-- Airbnb down → confronta solo Amadeus + Booking
-- Amadeus down → confronta solo Airbnb + Booking
+- Airbnb down / `robots.txt` → confronta solo Amadeus + Booking
+- Amadeus hotel list down → prova comunque `hotel_offers_search` con `city_code`
+  se la città ha codice noto o recuperabile
+- Amadeus down completo → confronta solo Airbnb + Booking
 - Booking down → confronta solo Airbnb + Amadeus (Booking è gated)
 - Tutti down → "Backend alloggi non disponibili"
+
+Se Booking è l'unico backend superstite, usa anche `booking__*_sort_results` e
+`booking__*_filter_results` per produrre un confronto utile invece di fermarti.
 
 ## Output atteso
 
