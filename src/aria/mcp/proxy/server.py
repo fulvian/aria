@@ -3,11 +3,14 @@ into a runnable proxy server.
 
 `build_proxy()` returns a fully configured `FastMCP` instance. Callers run
 it via `await proxy.run_async(transport="stdio")`.
+
+Uses TieredProxyProvider for tier-based connection lifecycle management:
+warm pool (always-on), lazy registry (on-demand), circuit breaker,
+concurrency semaphore, auto-recovery, and persistent metadata cache.
 """
 
 from __future__ import annotations
 
-import importlib
 import os
 from pathlib import Path
 from typing import Any
@@ -16,18 +19,14 @@ from fastmcp import FastMCP
 
 from aria.agents.coordination.registry import YamlCapabilityRegistry
 from aria.mcp.proxy.catalog import BackendSpec, load_backends
+from aria.mcp.proxy.catalog import catalog_hash as _catalog_hash
 from aria.mcp.proxy.config import ProxyConfig
 from aria.mcp.proxy.credential import CredentialInjector
 from aria.mcp.proxy.middleware import CapabilityMatrixMiddleware
-from aria.mcp.proxy.provider import TimeoutProxyProvider
+from aria.mcp.proxy.tier import TieredProxyProvider
 from aria.mcp.proxy.transforms.hybrid import HybridSearchTransform
 from aria.mcp.proxy.transforms.lmstudio_embedder import LMStudioEmbedder
 from aria.utils.logging import get_logger
-
-try:
-    fastmcp_proxy_provider: Any | None = importlib.import_module("fastmcp.server.providers.proxy")
-except ImportError:
-    fastmcp_proxy_provider = None  # pragma: no cover
 
 logger = get_logger("aria.mcp.proxy.server")
 
@@ -47,6 +46,12 @@ def build_proxy(
     proxy_config_path: Path | None = None,
     strict: bool = False,
 ) -> FastMCP:
+    """Build a fully configured FastMCP proxy with tier-based lifecycle.
+
+    Loads the catalog, resolves credentials, filters backends per caller,
+    then wires a TieredProxyProvider with circuit breaker, concurrency
+    semaphore, auto-recovery, and metadata cache.
+    """
     catalog_path = catalog_path or DEFAULT_CATALOG
     proxy_config_path = proxy_config_path or DEFAULT_PROXY_CONFIG
 
@@ -58,11 +63,14 @@ def build_proxy(
         backends = []
 
     composite = FastMCP(name=PROXY_NAME)
-    if backends and fastmcp_proxy_provider is not None:
-        client_factory = fastmcp_proxy_provider._create_client_factory(
-            {"mcpServers": {b.name: b.to_mcp_entry() for b in backends}}
+    if backends:
+        current_hash = _catalog_hash(catalog_path) if catalog_path.exists() else ""
+        provider = TieredProxyProvider(
+            backends=backends,
+            config=cfg,
+            catalog_hash=current_hash,
         )
-        composite.add_provider(TimeoutProxyProvider(client_factory, list_timeout_s=30.0))
+        composite.add_provider(provider)
 
     composite.add_transform(_build_transform(cfg))
     composite.add_middleware(CapabilityMatrixMiddleware(registry))

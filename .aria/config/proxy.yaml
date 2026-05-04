@@ -14,3 +14,14 @@ search:
     persist: true
     path: .aria/runtime/proxy/embeddings/
     invalidate_on: catalog_change
+
+# Tier-based connection lifecycle defaults (per-backend overrides in catalog)
+tier:
+  default_lifecycle: lazy
+  default_concurrency: 4
+  default_idle_ttl_s: 300
+  default_breaker_threshold: 3
+  default_breaker_cooldown_s: 60
+  warm_boot_timeout_s: 5.0
+  healthcheck_interval_s: 30.0
+  max_retry_attempts: 10

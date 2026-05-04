@@ -17,6 +17,16 @@ DEFAULT_EMBED_MODEL = "mxbai-embed-large-v1"
 DEFAULT_EMBED_DIM = 1024
 DEFAULT_CACHE_DIR = Path(".aria/runtime/proxy/embeddings")
 
+# Tier defaults
+DEFAULT_TIER_LIFECYCLE: str = "lazy"
+DEFAULT_TIER_CONCURRENCY: int = 4
+DEFAULT_TIER_IDLE_TTL_S: int = 300
+DEFAULT_TIER_BREAKER_THRESHOLD: int = 3
+DEFAULT_TIER_BREAKER_COOLDOWN_S: int = 60
+DEFAULT_TIER_WARM_BOOT_TIMEOUT_S: float = 5.0
+DEFAULT_TIER_HEALTHCHECK_INTERVAL_S: float = 30.0
+DEFAULT_TIER_MAX_RETRY_ATTEMPTS: int = 10
+
 
 class EmbeddingConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -54,10 +64,31 @@ class SearchConfig(BaseModel):
         return v
 
 
+class TierConfig(BaseModel):
+    """Global tier default overrides for the tier-based proxy lifecycle.
+
+    Per-backend values in catalog take precedence over these defaults.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    default_lifecycle: Literal["warm", "lazy"] = DEFAULT_TIER_LIFECYCLE  # type: ignore[assignment]
+    default_concurrency: int = Field(default=DEFAULT_TIER_CONCURRENCY, ge=1)
+    default_idle_ttl_s: int = Field(default=DEFAULT_TIER_IDLE_TTL_S, ge=10)
+    default_breaker_threshold: int = Field(default=DEFAULT_TIER_BREAKER_THRESHOLD, ge=1)
+    default_breaker_cooldown_s: int = Field(default=DEFAULT_TIER_BREAKER_COOLDOWN_S, ge=5)
+    warm_boot_timeout_s: float = Field(default=DEFAULT_TIER_WARM_BOOT_TIMEOUT_S, ge=1.0, le=60.0)
+    healthcheck_interval_s: float = Field(
+        default=DEFAULT_TIER_HEALTHCHECK_INTERVAL_S, ge=5.0, le=300.0
+    )
+    max_retry_attempts: int = Field(default=DEFAULT_TIER_MAX_RETRY_ATTEMPTS, ge=1, le=100)
+
+
 class ProxyConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     search: SearchConfig = Field(default_factory=SearchConfig)
+    tier: TierConfig = Field(default_factory=TierConfig)
 
     @classmethod
     def load(cls, path: Path) -> ProxyConfig:

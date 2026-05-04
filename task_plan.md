@@ -1,7 +1,7 @@
-# Task Plan: MCP proxy integration audit → remediation
+# Task Plan: MCP Proxy Tier Architecture (v9.0)
 
 ## Goal
-Remediate the MCP proxy integration drift identified in the 2026-05-01 audit, implementing the approved hybrid capability-scoped architectural direction.
+Replace `TimeoutProxyProvider` with a tier-based architecture (warm pool + lazy registry + circuit breaker + concurrency semaphore + auto-recovery + metadata cache) following `docs/plans/ripristino_mcp-proxy_plan.md`.
 
 ## Status: ✅ PROXY CALLER-CONTAMINATION RCA + REMEDIATION IMPLEMENTED
 
@@ -91,6 +91,18 @@ Remediate the MCP proxy integration drift identified in the 2026-05-01 audit, im
 - [x] Align core work-domain skills with the same proxy/HITL contract
 - [x] Add static contract tests for productivity-agent + core skills
 - [x] Re-run full gates after the hardening
+
+## Phase 9: Proxy Tier Architecture (v9.0) — IMPLEMENTED 2026-05-04
+- [x] Fase 0: Create branch `fix/proxy-tier-architecture` from `feature/traveller-agent-f1`
+- [x] Fase 1: Extend BackendSpec + ProxyConfig + YAML configs
+- [x] Fase 2: Implement breaker, semaphore, metadata_cache, backend_client, retry_queue
+- [x] Fase 3: Implement warm_pool + lazy_registry
+- [x] Fase 4: Implement TieredProxyProvider
+- [x] Fase 5: Wire server.py, delete provider.py
+- [x] Fase 6: Add ProxyTierEventKind (14 events) + 7 tier metrics
+- [x] Fase 7: Create mock backend fixture + 31 tier tests
+- [x] Fase 8: Wiki updates + ADR-0019
+- [x] Fase 9: Quality gate — ruff/mypy/pytest all green
 
 ## Constraints
 - Follow `AGENTS.md` strictly.

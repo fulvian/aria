@@ -82,6 +82,33 @@ class TravellerEvent(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+# Proxy Tier Events (v2 — tier-based architecture)
+ProxyTierEventKind = Literal[
+    "proxy.backend_warm_pool_demote",
+    "proxy.backend_circuit_open",
+    "proxy.backend_circuit_closed",
+    "proxy.backend_circuit_half_open",
+    "proxy.backend_lazy_spawn",
+    "proxy.backend_idle_shutdown",
+    "proxy.backend_backpressure",
+    "proxy.backend_quarantine",
+    "proxy.metadata_cache_hit",
+    "proxy.metadata_cache_miss",
+    "proxy.list_tools_latency_ms",
+    "proxy.call_tool_queued",
+    "proxy.tier_recovery_attempt",
+    "proxy.embedding_degraded",
+]
+
+
+class ProxyTierEvent(BaseModel):
+    ts: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
+    event_type: ProxyTierEventKind
+    agent: str = "aria-mcp-proxy"
+    trace_id: str = Field(default_factory=new_trace_id)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 _EVENT_MARKER = "aria_event"
 
 
@@ -91,7 +118,8 @@ def emit_event(  # noqa: E501
     | DriftDetected
     | QuarantineTriggered
     | ProxyEvent
-    | TravellerEvent,
+    | TravellerEvent
+    | ProxyTierEvent,
 ) -> None:
     logger = get_aria_logger(f"aria.events.{event.agent}")
     logger.info(

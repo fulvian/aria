@@ -196,3 +196,26 @@
   - `uv run ruff format --check ...` on modified files → PASS
   - `uv run mypy src` → PASS
   - `uv run pytest -q` → still red for pre-existing conductor-prompt drift tests unrelated to this fix
+
+## 2026-05-04T12:01+02:00 — proxy tier architecture implementation (cutover v9.0)
+
+**Operation**: IMPLEMENT (tier-based proxy architecture)
+**Branch**: `fix/proxy-tier-architecture`
+**Plan**: `docs/plans/ripristino_mcp-proxy_plan.md`
+
+### Summary
+- Created `src/aria/mcp/proxy/tier/` with 8 new modules
+- Extended `BackendSpec` with tier fields (`proxy_lifecycle`, `proxy_concurrency`, etc.)
+- Extended `ProxyConfig` with `TierConfig`
+- Replaced `TimeoutProxyProvider` with `TieredProxyProvider`
+- Removed `provider.py`
+- Updated `server.py`, `catalog.py`, `config.py`, `events.py`, `metrics.py`
+- Updated `proxy.yaml` and `mcp_catalog.yaml`
+- Created mock backend fixture + 31 new tests
+- 80 proxy tests total — ALL PASS
+
+### Quality gate
+- ruff check: 0 errors
+- ruff format: clean
+- mypy src: 0 errors
+- pytest proxy: 80/80 pass
