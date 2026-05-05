@@ -15,6 +15,17 @@ Quality: ruff 0, pytest 98/98 proxy tests, 18 new provider tests.
 
 This wiki is the single source of project knowledge for LLMs working in this repository. Per AGENTS.md, all meaningful changes must update the wiki. Ogni fatto qui riportato ha provenienza tracciata (source path + data).
 
+### ⚠️ Distinzione importante: LLM Wiki vs wiki.db
+
+Questo repository ha **due sistemi wiki distinti**:
+- **LLM Wiki** (questi file `.md`): documentazione architetturale per coding agents.
+  Si accede via Read/Glob sui file in `docs/llm_wiki/wiki/*.md`.
+- **wiki.db** (`.aria/runtime/wiki.db`): memoria runtime interrogata dal conductor ARIA
+  a inizio/fine turno via `aria-memory/wiki_recall_tool` e `aria-memory/wiki_update_tool`.
+  Contiene profilo utente, preferenze, lezioni apprese, entità e decisioni di sessione.
+
+Non confondere i due sistemi. Hanno scopi, formati e modalità di accesso completamente diversi.
+
 ## Wiki Structure
 
 ```
@@ -212,7 +223,7 @@ docs/llm_wiki/
 - 2026-05-03: **v8.4** — **traveller-agent COMPLETATO (Fase 9 Smoke E2E)**. 33 smoke test golden path: pipeline, skills, backend, output, HITL, memory. 157 test totali. Tutte le 9 fasi del foundation plan completate.
 - 2026-05-03: **v8.5** — **traveller-agent: booking attivato + credential injection**. booking MCP lifecycle da shadow a enabled. Wrapper script aria-amadeus-mcp con auto-acquire credenziali da SOPS (pattern brave-wrapper). 4 backend traveller tutti enabled. 157 test.
 - 2026-05-04: **v8.10** — **shared proxy caller contamination fix**. Legacy ambient `ARIA_CALLER_ID` no longer shapes shared proxy sessions by default; `call_tool` requires explicit per-request `_caller_id`; research prompt/skill discovery examples updated.
-- 2026-05-05: **v9.2** — **AGENTS.md**: added mandatory "LLM Wiki-First Reconstruction Rule" for conductor, codifying the rule that the conductor must always first read the LLM wiki thoroughly before any operation. Includes: ordered reading checklist, architecture overview (4 livelli), sub-agent table, dispatch chains, proxy tool contract, wiki memory contract, Context7 verification requirement, anti-pattern list, and wiki validity guard.
+- 2026-05-05: **v9.2** — **AGENTS.md**: added mandatory "LLM Wiki-First Reconstruction Rule" for coding agents, distinguishing LLM Wiki (`docs/llm_wiki/wiki/*.md`) from wiki.db (runtime memory via MCP). Corrected from earlier draft that conflated the two systems.
 
 ## Git & GitHub Rules
 

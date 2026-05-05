@@ -4205,29 +4205,38 @@ Drift validator    → All checks passed ✅
 
 ### Changes summary
 
+### ⚠️ CORREZIONE SUCCESSIVA (2026-05-05T15:30+02:00)
+
+La versione iniziale di questa sezione confondeva due sistemi wiki distinti:
+- **LLM Wiki** (`docs/llm_wiki/wiki/*.md`) = documentazione architetturale per coding agent che modificano il repository
+- **wiki.db** (`.aria/runtime/wiki.db`, via `wiki_recall_tool`) = memoria runtime interrogata dal conductor ARIA a ogni turno
+
+La regola è stata corretta per applicarsi al **coding agent** (non al conductor ARIA a runtime), con una distinzione esplicita dei due sistemi wiki. Vedi sezione "Premessa: LLM Wiki vs wiki.db" in AGENTS.md.
+
 **AGENTS.md** — 3 sections modified:
-1. **Source of Truth** — added LLM wiki as "Primary operational reference (PRIMA di qualsiasi interazione)" with reference to the new rule section.
-2. **NEW section: LLM Wiki-First Reconstruction Rule** — comprehensive section codifying:
-   - Principle: conductor must read LLM wiki before any operation
+1. **Source of Truth** — added explicit LLM Wiki vs wiki.db distinction table.
+2. **NEW section: LLM Wiki-First Reconstruction Rule** — rewritten for coding agents (not runtime conductor):
+   - Premessa: LLM Wiki vs wiki.db comparison table
+   - Principle: coding agent must read LLM Wiki .md files before any repo modification
    - Ordered reading list: index.md → log.md → 7 architectural pages → agent-specific pages → protocols
    - Architecture 4 livelli (L1-L4)
    - Sub-agent table (search, productivity, trader, traveller) with domain, tools, spawn depth
    - Dispatch chains (max 2 hop)
    - MCP proxy tool contract (search_tools + call_tool)
-   - Wiki memory v3 contract (recall/update)
+   - **Runtime** wiki memory v3 contract (wiki.db, conductor-level, via MCP tools)
    - HITL gate rules
    - Context7 mandatory verification for libraries/SDKs
-   - Anti-pattern to prevent (drift, host-native tools, pseudo-HITL, self-remediation, duplicate updates)
-   - Wiki validity guard
+   - Anti-pattern list (added "confusione LLM Wiki / wiki.db" as new anti-pattern)
+   - Wiki validity guard (clarified: LLM Wiki, not wiki.db)
    - Consequence for failure modes
-3. **Agent Working Rules** — added cross-reference: "LLM Wiki-First Reconstruction obbligatoria" before any operation.
+3. **Agent Working Rules** — cross-reference updated: "prima di qualsiasi modifica a codice, configurazione o documentazione".
 
-**docs/llm_wiki/wiki/index.md** — version bumped to v9.2, bootstrap log entry added.
-**docs/llm_wiki/wiki/log.md** — this entry.
+**docs/llm_wiki/wiki/index.md** — version bumped to v9.2, added "⚠️ Distinzione importante: LLM Wiki vs wiki.db" section, bootstrap log corrected.
+**docs/llm_wiki/wiki/log.md** — this correction entry.
 
 ### Files modified
-- `AGENTS.md` — 3 sections (Source of Truth, NEW rule section, Agent Working Rules)
-- `docs/llm_wiki/wiki/index.md` — version + bootstrap log
-- `docs/llm_wiki/wiki/log.md` — this entry
+- `AGENTS.md` — 3 sections (Source of Truth, rewritten rule section, Agent Working Rules)
+- `docs/llm_wiki/wiki/index.md` — LLM Wiki vs wiki.db section + corrected bootstrap log
+- `docs/llm_wiki/wiki/log.md` — this correction entry
 
 ### Quality gate (N/A — documentation only, no code changes)
