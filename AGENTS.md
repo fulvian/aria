@@ -31,22 +31,33 @@
   - HITL for destructive/irreversible actions.
   - Tool priority ladder: MCP > skill > local script.
 
-## LLM Wiki-First Reconstruction Rule (obbligatoria per coding agents)
+## LLM Wiki-First Reconstruction Rule (obbligatoria per il conductor)
 
 ### Premessa: LLM Wiki vs wiki.db
 Questo repository ha **due sistemi wiki distinti** che non vanno confusi:
 
 | Sistema | Cosa contiene | Dove | Chi lo usa | Come si accede |
 |---------|--------------|------|-----------|----------------|
-| **LLM Wiki** | Documentazione architetturale: architettura 4 livelli, sub-agenti, skill, tool MCP, decisioni ADR, protocolli | `docs/llm_wiki/wiki/*.md` | Coding agent che modificano il repository | Lettura diretta dei file `.md` (Read/Glob) |
+| **LLM Wiki** | Documentazione architetturale: architettura 4 livelli, sub-agenti, skill, tool MCP, decisioni ADR, protocolli | `docs/llm_wiki/wiki/*.md` | Coding agent + conductor ARIA (lettura architetturale) | Lettura diretta dei file `.md` (Read/Glob) |
 | **wiki.db** | Memoria runtime: profilo utente, preferenze, lezioni, entità, decisioni di sessione | `.aria/runtime/wiki.db` | Conductor ARIA a runtime (inizio/fine turno) | `aria-memory/wiki_recall_tool` e `aria-memory/wiki_update_tool` via MCP |
 
 ### Principio
-Ogni coding agent che opera su questo repository DEVE sempre e per primo leggere
+Il **conductor** (agente orchestratore ARIA) DEVE sempre e per primo leggere
 approfonditamente la **LLM Wiki** (`docs/llm_wiki/wiki/*.md`) per comprendere
-l'architettura corrente, i sub-agenti, le skill e i tool MCP prima di qualsiasi
-modifica a codice, configurazione o documentazione.
+l'architettura corrente, i sub-agenti, le skill e i tool MCP attraverso il proxy
+e utilizzarli sempre in maniera corretta.
 Questa regola è inderogabile e precede qualsiasi altra fonte di verità.
+
+**Motivazione**: il sistema è ancora instabile. Se il conductor comprende come
+funziona l'architettura — 4 livelli, proxy MCP, capability matrix, catene di
+dispatch — guiderà la risoluzione di eventuali malfunzionamenti della pipeline
+in modo coerente con l'architettura, evitando workaround non canonici e
+deriva architetturale.
+
+La lettura della LLM Wiki è **complementare** alla `wiki_recall_tool` che il
+conductor già esegue a inizio turno per il contesto di sessione (wiki.db):
+- **wiki_recall** (inizio turno) → contesto utente e sessionale da wiki.db
+- **LLM Wiki read** (prima di operare) → comprensione architetturale del sistema
 
 La LLM Wiki è la fonte di verità **operativa** per:
 - Architettura 4 livelli (L1 coordinamento → L2 MCP → L3 routing → L4 observability)
@@ -59,8 +70,8 @@ La LLM Wiki è la fonte di verità **operativa** per:
 - HITL gate reali per operazioni write/distruttive/costose
 
 ### Ordine di lettura obbligatorio
-Prima di rispondere all'utente o proporre modifiche al repository, il coding agent
-DEVE leggere, nell'ordine:
+Prima di rispondere all'utente o delegare a un sub-agente, il conductor DEVE
+leggere, nell'ordine:
 
 1. **index.md**: `docs/llm_wiki/wiki/index.md` — architettura, stato corrente,
    pagine disponibili, provenienza fonti
@@ -90,7 +101,7 @@ DEVE leggere, nell'ordine:
    - `docs/protocols/protocollo_creazione_agenti.md` — procedura creazione nuovi agenti
      con le fasi A-M (wiki-first reconstruction, Fase L runtime integration checklist)
 
-### Cosa il coding agent DEVE apprendere dalla LLM Wiki
+### Cosa il conductor DEVE apprendere dalla LLM Wiki
 
 #### 1. Architettura 4 livelli
 ```
@@ -168,6 +179,23 @@ o skill:
 - **Confusione LLM Wiki / wiki.db**: non confondere la documentazione architetturale
   (`docs/llm_wiki/wiki/*.md`) con la memoria runtime (wiki.db via MCP). Sono due sistemi
   con scopi, formati e modalità di accesso completamente diversi.
+
+### Wiki validity guard
+La LLM Wiki NON deve contenere descrizioni di percorsi architetturalmente
+invalidi (es. esecuzione diretta di task operativi da parte del conductor, bypass del
+proxy, routing errato a workspace-agent). Se un task viene eseguito in modo non
+canonico per contingenza:
+1. NON memorializzarlo nella LLM Wiki come comportamento valido;
+2. Registrare un evento di drift in observability;
+3. Segnalare all'utente la necessità di remediation con data di scadenza.
+
+### Conseguenza per failure modes
+Se un sub-agente produce deliverable che violano le regole sopra (es. codice che
+usa un SDK senza verifica Context7, prompt che espongono backend direttamente invece
+che via proxy), il conductor DEVE:
+1. Rifiutare il deliverable con motivazione esplicita;
+2. Richiedere la correzione con riferimento alla sezione violata;
+3. Non accettare workaround non verificati.
 
 ### Wiki validity guard
 La LLM Wiki NON deve contenere descrizioni di percorsi architetturalmente
@@ -459,10 +487,10 @@ Format: `<type>(<scope>): <description>`
 - Do not modify unrelated files.
 - If repository scaffolding is incomplete, create only the minimal required structure for the requested task.
 - **LLM Wiki-First Reconstruction obbligatoria**: prima di qualsiasi modifica a
-  codice, configurazione o documentazione del repository, il coding agent DEVE
-  applicare la regola descritta nella sezione "LLM Wiki-First Reconstruction Rule" —
-  leggere index.md, log.md, pagine architetturali e pagine specifiche per agente, e
-  verificare tutte le librerie/SDK via Context7.
+  codice, configurazione o documentazione del repository, applicare la regola
+  descritta nella sezione "LLM Wiki-First Reconstruction Rule" — leggere index.md,
+  log.md, pagine architetturali e pagine specifiche per agente, e verificare tutte
+  le librerie/SDK via Context7.
 - In completion notes, distinguish:
   - commands actually executed,
   - commands recommended but not executable in current repo state.

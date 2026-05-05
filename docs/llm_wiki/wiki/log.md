@@ -4239,4 +4239,20 @@ La regola è stata corretta per applicarsi al **coding agent** (non al conductor
 - `docs/llm_wiki/wiki/index.md` — LLM Wiki vs wiki.db section + corrected bootstrap log
 - `docs/llm_wiki/wiki/log.md` — this correction entry
 
+### ⚠️ CORREZIONE (2026-05-05T15:45+02:00) — ripristinato conductor come destinatario della regola
+
+La versione intermedia della regola era stata erroneamente riscritta per applicarsi
+a "coding agents" invece che al conductor. La regola originale è stata ripristinata:
+la LLM Wiki-First Reconstruction Rule si applica al **conductor** (agente
+orchestratore ARIA), non ai coding agent.
+
+**Motivazione** (utente): il sistema è ancora instabile. Se il conductor comprende
+l'architettura — 4 livelli, proxy MCP, capability matrix, catene di dispatch —
+guiderà la risoluzione di malfunzionamenti della pipeline in modo coerente con
+l'architettura, evitando workaround non canonici e deriva architetturale.
+
+**Distinzione mantenuta**: la LLM Wiki vs wiki.db rimane come chiarimento
+essenziale, ma il destinatario della regola è il conductor. La lettura della
+LLM Wiki (file `.md`) è complementare alla `wiki_recall_tool` su wiki.db.
+
 ### Quality gate (N/A — documentation only, no code changes)

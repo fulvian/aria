@@ -16,15 +16,12 @@ Quality: ruff 0, pytest 98/98 proxy tests, 18 new provider tests.
 This wiki is the single source of project knowledge for LLMs working in this repository. Per AGENTS.md, all meaningful changes must update the wiki. Ogni fatto qui riportato ha provenienza tracciata (source path + data).
 
 ### ⚠️ Distinzione importante: LLM Wiki vs wiki.db
+Questo repository ha **due sistemi wiki distinti** che non vanno confusi:
 
-Questo repository ha **due sistemi wiki distinti**:
-- **LLM Wiki** (questi file `.md`): documentazione architetturale per coding agents.
-  Si accede via Read/Glob sui file in `docs/llm_wiki/wiki/*.md`.
-- **wiki.db** (`.aria/runtime/wiki.db`): memoria runtime interrogata dal conductor ARIA
-  a inizio/fine turno via `aria-memory/wiki_recall_tool` e `aria-memory/wiki_update_tool`.
-  Contiene profilo utente, preferenze, lezioni apprese, entità e decisioni di sessione.
-
-Non confondere i due sistemi. Hanno scopi, formati e modalità di accesso completamente diversi.
+| Sistema | Cosa contiene | Dove | Chi lo usa | Come si accede |
+|---------|--------------|------|-----------|----------------|
+| **LLM Wiki** | Documentazione architetturale: architettura 4 livelli, sub-agenti, skill, tool MCP, decisioni ADR, protocolli | `docs/llm_wiki/wiki/*.md` | Coding agent + conductor ARIA (lettura architetturale) | Lettura diretta dei file `.md` (Read/Glob) |
+| **wiki.db** | Memoria runtime: profilo utente, preferenze, lezioni, entità, decisioni di sessione | `.aria/runtime/wiki.db` | Conductor ARIA a runtime (inizio/fine turno) | `aria-memory/wiki_recall_tool` e `aria-memory/wiki_update_tool` via MCP |
 
 ## Wiki Structure
 
@@ -223,7 +220,7 @@ docs/llm_wiki/
 - 2026-05-03: **v8.4** — **traveller-agent COMPLETATO (Fase 9 Smoke E2E)**. 33 smoke test golden path: pipeline, skills, backend, output, HITL, memory. 157 test totali. Tutte le 9 fasi del foundation plan completate.
 - 2026-05-03: **v8.5** — **traveller-agent: booking attivato + credential injection**. booking MCP lifecycle da shadow a enabled. Wrapper script aria-amadeus-mcp con auto-acquire credenziali da SOPS (pattern brave-wrapper). 4 backend traveller tutti enabled. 157 test.
 - 2026-05-04: **v8.10** — **shared proxy caller contamination fix**. Legacy ambient `ARIA_CALLER_ID` no longer shapes shared proxy sessions by default; `call_tool` requires explicit per-request `_caller_id`; research prompt/skill discovery examples updated.
-- 2026-05-05: **v9.2** — **AGENTS.md**: added mandatory "LLM Wiki-First Reconstruction Rule" for coding agents, distinguishing LLM Wiki (`docs/llm_wiki/wiki/*.md`) from wiki.db (runtime memory via MCP). Corrected from earlier draft that conflated the two systems.
+- 2026-05-05: **v9.2** — **AGENTS.md**: added mandatory "LLM Wiki-First Reconstruction Rule" for conductor. Codified that the conductor reads LLM Wiki `.md` files for architectural understanding (4 livelli, sub-agenti, proxy MCP) complementary to `wiki_recall_tool` for runtime context. Added explicit LLM Wiki vs wiki.db distinction table.
 
 ## Git & GitHub Rules
 
