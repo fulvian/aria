@@ -13,12 +13,156 @@
 
 ## Source of Truth
 - Primary technical reference: `docs/foundation/aria_foundation_blueprint.md`.
+- **Primary operational reference (PRIMA di qualsiasi interazione)**: `docs/llm_wiki/wiki/index.md`
+  e pagine correlate. La LLM Wiki è la fonte di verità per architettura corrente, sub-agenti,
+  skill, tool MCP via proxy e stato del runtime. Vedi § "LLM Wiki-First Reconstruction Rule".
 - Respect the "Ten Commandments" (Section 16), especially:
   - Isolation first.
   - Upstream invariance (do not fork/modify KiloCode source directly).
   - Local-first privacy.
   - HITL for destructive/irreversible actions.
   - Tool priority ladder: MCP > skill > local script.
+
+## LLM Wiki-First Reconstruction Rule (obbligatoria per il conductor)
+
+### Principio
+Il conductor (agente orchestratore ARIA) DEVE sempre e per primo leggere
+approfonditamente la LLM Wiki del repository ARIA per comprendere l'architettura
+corrente, i sub-agenti, le skill e i tool MCP prima di qualsiasi operazione.
+Questa regola è inderogabile e precede qualsiasi altra fonte di verità.
+
+La LLM Wiki è la fonte di verità **operativa** per:
+- Architettura 4 livelli (L1 coordinamento → L2 MCP → L3 routing → L4 observability)
+- Sub-agenti disponibili e loro dominio, capability, boundary
+- Skill registrate e pattern di invocazione proxy
+- Tool MCP accessibili via proxy (`aria-mcp-proxy__search_tools` / `aria-mcp-proxy__call_tool`)
+- Catene di dispatch consentite (max 2 hop)
+- Contratto wiki memory (`wiki_recall` / `wiki_update`)
+- Stato runtime corrente (fix, rollback, remediation in corso)
+- HITL gate reali per operazioni write/distruttive/costose
+
+### Ordine di lettura obbligatorio
+Prima di rispondere all'utente o delegare a un sub-agente, il conductor DEVE
+leggere, nell'ordine:
+
+1. **index.md**: `docs/llm_wiki/wiki/index.md` — architettura, stato corrente,
+   pagine disponibili, provenienza fonti
+2. **log.md**: `docs/llm_wiki/wiki/log.md` — implementazioni recenti, bug fix,
+   rollback, remediation attive
+3. **Pagine architetturali** (almeno le prime 7):
+   - `docs/llm_wiki/wiki/mcp-architecture.md` — baseline runtime proxy-native
+   - `docs/llm_wiki/wiki/mcp-refoundation.md` — L2 MCP plane, catalog MCP, governance
+   - `docs/llm_wiki/wiki/agent-coordination.md` — L1 handoff Pydantic, ContextEnvelope,
+     AgentRegistry, SpawnValidator, depth guard
+   - `docs/llm_wiki/wiki/agent-capability-matrix.md` — capability matrix YAML,
+     allowed_tools per agente, delegazioni consentite
+   - `docs/llm_wiki/wiki/mcp-proxy.md` — contratto proxy canonico: synthetic
+     `search_tools`, `call_tool` con `_caller_id`, fail-closed enforcement
+   - `docs/llm_wiki/wiki/llm-routing.md` — L3 matrice dichiarativa YAML routing LLM,
+     fallback, budget gate
+   - `docs/llm_wiki/wiki/observability.md` — L4 logging JSON strutturato, metriche
+     Prometheus, eventi tipati, trace_id end-to-end
+4. **Pagine specifiche per agente** (almeno quelle rilevanti al task corrente):
+   - `docs/llm_wiki/wiki/productivity-agent.md` — agente unificato dominio lavoro
+   - `docs/llm_wiki/wiki/traveller-agent.md` — agente dominio viaggi
+   - `docs/llm_wiki/wiki/research-routing.md` — policy ricerca multi-tier
+   - `docs/llm_wiki/wiki/memory-v3.md` — memoria wiki.db, 4 MCP tool wiki
+   - `docs/llm_wiki/wiki/memory-subsystem.md` — sottosistema memoria 5D
+   - `docs/llm_wiki/wiki/aria-launcher-cli-compatibility.md` — CLI launcher
+5. **Protocolli** (se pertinenti):
+   - `docs/protocols/protocollo_creazione_agenti.md` — procedura creazione nuovi agenti
+     con le fasi A-M (wiki-first reconstruction, Fase L runtime integration checklist)
+
+### Cosa il conductor DEVE apprendere dalla wiki
+
+#### 1. Architettura 4 livelli
+```
+L4 — Observability (logging JSON, metriche Prometheus, eventi tipati)
+L3 — LLM Routing (matrice dichiarativa, fallback, budget gate)
+L2 — MCP Plane / Proxy (aria-mcp-proxy: search_tools + call_tool, 14+ backend catalog)
+L1 — Coordinamento Agenti (handoff, envelope, registry, spawn depth ≤2 hop)
+```
+
+#### 2. Sub-agenti e dominio
+| Agente | Tipo | Dominio | Tool proxy | Spawn depth |
+|--------|------|---------|------------|:-----------:|
+| search-agent | worker | Ricerca web multi-tier | `aria-mcp-proxy__*` | 1 |
+| productivity-agent | worker | Lavoro unificato (file office, GW, briefing, email) | `aria-mcp-proxy__*` + `google_workspace__*` | 1 |
+| trader-agent | worker | Finanza (7 skill, 8 intent) | `aria-mcp-proxy__*` | 0 |
+| traveller-agent | worker | Viaggi (6 skill, 7 intent, 4 backend) | `aria-mcp-proxy__*` | 1 |
+
+#### 3. Catene di dispatch consentite (max 2 hop)
+- `search-agent → productivity-agent` (ricerca + sintesi)
+- `productivity-agent → workspace-agent` (operazioni GW)
+- `search-agent → productivity-agent → workspace-agent` (ricerca + sintesi + send)
+- `traveller-agent → productivity-agent` (export viaggio → Drive/Calendar/email)
+- `traveller-agent → search-agent` (ricerca web complementare)
+
+**Vincoli**: depth massima 2 hop. Il conductor non esegue mai lavoro operativo diretto.
+
+#### 4. Tool MCP via proxy
+Il runtime espone solo 2 entry MCP:
+- `aria-memory` (diretto: wiki_recall, wiki_update, hitl_ask)
+- `aria-mcp-proxy` (sintetico: `search_tools`, `call_tool`)
+
+I backend operativi si raggiungono ESCLUSIVAMENTE via proxy:
+- `aria-mcp-proxy__search_tools(query=...)` — scoperta tool backend
+- `aria-mcp-proxy__call_tool(name="server__tool", arguments={..., "_caller_id": "<agent>"})`
+  — esecuzione tool backend con identità chiamante
+
+#### 5. Contratto wiki memory v3
+- **Inizio turno**: `aria-memory/wiki_recall_tool(query=..., max_pages=5, min_score=0.3)`
+- **Fine turno**: `aria-memory/wiki_update_tool(patches_json='...')` esattamente UNA volta
+- Profilo utente auto-iniettato in `<profile>` nel prompt conductor
+- Salience trigger: fatto stabile, preferenza, correzione, validazione, scelta archit.
+- Skip rules: casual, tool_only, recall_only
+
+#### 6. HITL gate reali
+- Ogni operazione write/distruttiva/costosa/esterna non idempotente richiede gate reale
+  (`hitl-queue/ask`), non pseudo-HITL testuale
+- HITL triggers per agente definiti nella capability matrix
+
+### Context7 mandatory verification
+Prima di utilizzare una libreria, SDK o MCP server esterno in qualsiasi sub-agente
+o skill:
+
+1. Usare SEMPRE `context7_resolve-library-id` + `context7_query-docs` per verificare
+   la documentazione ufficiale, gli API pattern e i code snippet corretti.
+2. Non basarsi su conoscenza pregressa, documentazione cache, o codice di esempio
+   non verificato dalla fonte ufficiale.
+3. Rifiutare qualsiasi deliverable da sub-agenti che saltano la verifica Context7.
+4. Documentare nella wiki eventuali discrepanze tra documentazione ufficiale e
+   comportamento reale osservato, con data e provenienza.
+
+### Anti-pattern da prevenire
+- **Runtime/source-of-truth drift**: file live diversi dai template canonici. La wiki
+  è la fonte di verità, non il runtime. Ogni agente deve allineare template, file
+  attivi e documentazione.
+- **Host-native tool drift**: usare `Glob`, `Read`, `Write` del tool host invece del
+  proxy MCP canonico. I backend operativi si raggiungono solo via proxy.
+- **Pseudo-HITL**: conferma testuale "vuoi procedere?" invece di un gate reale
+  (`hitl-queue/ask`). Non è HITL se non usa il tool MCP formale.
+- **Self-remediation leakage**: durante workflow utente ordinari, il conductor NON
+  deve editare codice, configurazioni, né killare processi. I bug si segnalano,
+  non si correggono live.
+- **Duplicate wiki updates**: chiamare `wiki_update_tool` più di una volta per turno
+  o con payload schema-invalido.
+
+### Wiki validity guard
+Il conductor NON deve scrivere wiki entries che descrivano percorsi architetturalmente
+invalidi (es. esecuzione diretta di task operativi, bypass del proxy, routing errato
+a workspace-agent). Se un task viene eseguito in modo non canonico per contingenza:
+1. NON memorializzarlo in wiki come comportamento valido;
+2. Registrare un evento di drift in observability;
+3. Segnalare all'utente la necessità di remediation con data di scadenza.
+
+### Conseguenza per failure modes
+Se un sub-agente produce deliverable che violano le regole sopra (es. codice che
+usa un SDK senza verifica Context7, prompt che espongono backend direttamente invece
+che via proxy), il conductor DEVE:
+1. Rifiutare il deliverable con motivazione esplicita;
+2. Richiedere la correzione con riferimento alla sezione violata;
+3. Non accettare workaround non verificati.
 
 ## Cursor / Copilot Rules
 - `.cursorrules`: not found.
@@ -292,6 +436,10 @@ Format: `<type>(<scope>): <description>`
 - Do not perform destructive git actions without explicit user instruction.
 - Do not modify unrelated files.
 - If repository scaffolding is incomplete, create only the minimal required structure for the requested task.
+- **LLM Wiki-First Reconstruction obbligatoria**: prima di qualsiasi operazione, il
+  conductor DEVE applicare la regola descritta nella sezione "LLM Wiki-First
+  Reconstruction Rule" — leggere index.md, log.md, pagine architetturali e pagine
+  specifiche per agente, e verificare tutte le librerie/SDK via Context7.
 - In completion notes, distinguish:
   - commands actually executed,
   - commands recommended but not executable in current repo state.

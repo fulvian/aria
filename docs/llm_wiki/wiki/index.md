@@ -1,7 +1,15 @@
 # ARIA LLM Wiki — Index
 
-**Last Updated**: 2026-05-04T09:15+02:00 (v8.10 — shared proxy no longer inherits legacy ambient `ARIA_CALLER_ID`; research/travel caller contamination fixed at root.)
-**Status**: ✅ **v8.10** — the shared proxy now ignores legacy ambient caller env by default, `call_tool` requires explicit per-request `_caller_id`, and research sessions no longer get reinterpreted as `traveller-agent` when they mention Amadeus/Airbnb.
+**Last Updated**: 2026-05-05T15:17+02:00 (v9.2 — AGENTS.md: added mandatory "LLM Wiki-First Reconstruction Rule" per conductor)
+**Status**: ⚠️ **v9.1** — Phase 0: Tier architecture `5217a05` rolled back (cold-start regression). \
+Phase 1: Forward fix complete — 4 cold-start fixes applied to tier code behind `tier.enabled: true|false` (default `false`).
+- FIX 1: Cold-start pre-population (transient spawn of lazy backends at startup)
+- FIX 2: Live-discovery fallback in `_list_tools()` when cache miss (1-shot guard)
+- FIX 3: `_get_tool` preserves full prefixed name `"server__tool"` in ProxyTool
+- FIX 4: ProxyTool publishes real parameter schema from metadata cache
+- Toggle: `tier.enabled: false` = `TimeoutProxyProvider` (30s timeout, production safe)
+- Toggle: `tier.enabled: true` = `TieredProxyProvider` with all fixes (validation pending)
+Quality: ruff 0, pytest 98/98 proxy tests, 18 new provider tests.
 
 ## Purpose
 
@@ -204,6 +212,7 @@ docs/llm_wiki/
 - 2026-05-03: **v8.4** — **traveller-agent COMPLETATO (Fase 9 Smoke E2E)**. 33 smoke test golden path: pipeline, skills, backend, output, HITL, memory. 157 test totali. Tutte le 9 fasi del foundation plan completate.
 - 2026-05-03: **v8.5** — **traveller-agent: booking attivato + credential injection**. booking MCP lifecycle da shadow a enabled. Wrapper script aria-amadeus-mcp con auto-acquire credenziali da SOPS (pattern brave-wrapper). 4 backend traveller tutti enabled. 157 test.
 - 2026-05-04: **v8.10** — **shared proxy caller contamination fix**. Legacy ambient `ARIA_CALLER_ID` no longer shapes shared proxy sessions by default; `call_tool` requires explicit per-request `_caller_id`; research prompt/skill discovery examples updated.
+- 2026-05-05: **v9.2** — **AGENTS.md**: added mandatory "LLM Wiki-First Reconstruction Rule" for conductor, codifying the rule that the conductor must always first read the LLM wiki thoroughly before any operation. Includes: ordered reading checklist, architecture overview (4 livelli), sub-agent table, dispatch chains, proxy tool contract, wiki memory contract, Context7 verification requirement, anti-pattern list, and wiki validity guard.
 
 ## Git & GitHub Rules
 

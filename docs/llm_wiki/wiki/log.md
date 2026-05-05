@@ -1,5 +1,94 @@
 # Implementation Log
 
+## 2026-05-04T17:50+02:00 — Phase 1 complete: tier forward fix (config toggle + 4 fixes + 18 tests)
+
+**Operation**: FEAT (Phase 1 forward fix on tier architecture)
+**Branch**: `fix/proxy-tier-architecture`
+**Trigger**: Phase 0 revert restored `TimeoutProxyProvider`. Phase 1 re-applies the tier
+architecture behind `tier.enabled: true|false` toggle (default `false`), with all 4
+cold-start fixes.
+
+### Changes summary
+
+**FIX 1 — Cold-start pre-population** (`tiered_provider.py:_prepopulate_cache()`):
+Transiently spawns lazy backends with empty metadata cache at `lifespan()` startup.
+Bounded concurrency: 4 in parallel, 30s wall clock, 10s per backend.
+
+**FIX 2 — Live-discovery fallback in `_list_tools()`** (`_collect_lazy_tools()`):
+When a lazy backend has zero cached tools, transiently spawn it, call `list_tools()`,
+cache results, disconnect. Protected by a 1-shot `_lazy_fallback_attempted` set per
+backend to prevent thrashing on repeated `tools/list` calls.
+
+**FIX 3 — Tool name preservation in `_get_tool()`** (`ProxyTool`):
+`ProxyTool.name` is now the full prefixed name (`"server__tool"`) matching what
+FastMCP's resolver expects. The backend-side tool name is stored separately in
+`_actual_tool_name` and used only when forwarding to `BackendClient.call_tool()`.
+
+**FIX 4 — Real parameters in ProxyTool** (`_lookup_tool_params()`):
+`ProxyTool` now publishes the actual JSON Schema parameters from the metadata cache
+instead of the hardcoded `{"type": "object", "properties": {}}`.
+
+**Config toggle** (`config.py:TierConfig`, `proxy.yaml`):
+- `tier.enabled: false` (default) → `TimeoutProxyProvider` (30s timeout)
+- `tier.enabled: true` → `TieredProxyProvider` with all fixes
+
+**Restored tier modules**: `tiered_provider`, `backend_client`, `warm_pool`,
+`lazy_registry`, `breaker`, `semaphore`, `metadata_cache`, `retry_queue`.
+
+### Files modified
+- `src/aria/mcp/proxy/config.py` — `TierConfig` with `enabled` flag (default `false`)
+- `src/aria/mcp/proxy/server.py` — toggle logic: tier or timeout based on `cfg.tier.enabled`
+- `src/aria/mcp/proxy/catalog.py` — `BackendSpec` extended with `proxy_lifecycle` etc.
+- `.aria/config/proxy.yaml` — `tier:` section with `enabled: false`
+- `.aria/config/mcp_catalog.yaml` — `proxy_lifecycle:` for all 17 backends (6 warm, 11 lazy)
+- `src/aria/observability/events.py` — `ProxyTierEventKind` + `ProxyTierEvent`
+- `src/aria/observability/metrics.py` — 7 new tier metrics + methods
+
+### Tests added
+`tests/unit/mcp/proxy/test_tier_provider.py` — 18 new tests covering:
+- FIX 3: `_get_tool("server__tool").name == "server__tool"` (double-underscore and slash)
+- FIX 4: `_lookup_tool_params` returns real params from cache (hit, miss, missing backend)
+- `ProxyTool` name/parameters/semaphore/client integrity
+- Fallback guard tracking (`_lazy_fallback_attempted`)
+- Pre-populate targeting (skips cached backends)
+- `_parse_backend` / `_extract_tool_name` helpers
+
+### Quality gate
+- ruff: 0 errors
+- mypy: 0 real errors (36 pre-existing `import-untyped` — aria has no `py.typed`)
+- pytest: 98/98 proxy tests PASS (49 legacy + 31 tier + 18 new)
+
+### See
+- `docs/plans/router_restore_plan.md` §5 Option C (Phase 1)
+- `docs/foundation/decisions/ADR-0019-mcp-proxy-tier-architecture.md` (restored)
+
+## 2026-05-04T17:13+02:00 — REVERT: tier-based proxy architecture (cold-start discovery regression)
+
+**Operation**: REVERT
+**Branch**: `fix/proxy-tier-architecture`
+**Trigger**: `TieredProxyProvider` causes cold-start discovery regression. Lazy-backend tools are sourced exclusively from a persistent JSON cache that does not exist on a fresh system. At cold start, 11 of 17 proxied backends contribute zero tools to `tools/list`. Agents fall back to ad-hoc Python scripts.
+
+**Revert**: `git revert 5217a05` — `TieredProxyProvider` removed, `TimeoutProxyProvider` restored.
+
+**Files restored**:
+- `src/aria/mcp/proxy/provider.py` — `TimeoutProxyProvider` (30s timeout on `_list_tools()`)
+- `server.py` — uses `TimeoutProxyProvider` via `fastmcp.server.providers.proxy._create_client_factory()`
+- `config.py` — `ProxyConfig` with search-only config (no TierConfig)
+- `.aria/config/proxy.yaml` — search config only (no tier section)
+- `.aria/config/mcp_catalog.yaml` — without `proxy_lifecycle` fields
+
+**Files removed**:
+- `src/aria/mcp/proxy/tier/` (8 modules: tiered_provider, backend_client, warm_pool, lazy_registry, breaker, semaphore, metadata_cache, retry_queue)
+- `tests/fixtures/mock_mcp_backend.py`
+- `tests/unit/mcp/proxy/test_tier_breaker.py`, `test_tier_semaphore.py`, `test_tier_metadata_cache.py`
+- `docs/foundation/decisions/ADR-0019-mcp-proxy-tier-architecture.md`
+
+**Quality gate**: ruff 0, mypy 0 (11 proxy files), pytest 49/49 proxy tests PASS.
+
+**Next steps**: Phase 1 forward fix on tier architecture (cold-start pre-population, live discovery fallback, name/parameter fixes) behind `tier.enabled` config toggle.
+
+**See**: `docs/plans/router_restore_plan.md` §5 Option C (Hybrid)
+
 ## 2026-05-04T09:15+02:00 — FIX: shared proxy caller contamination (search-agent ↔ traveller-agent)
 
 **Operation**: FIX (root-cause remediation in shared proxy caller resolution)
@@ -4108,3 +4197,37 @@ pytest unit        → 35 passed ✅
 pytest integration → 3 passed ✅
 Drift validator    → All checks passed ✅
 ```
+
+## 2026-05-05T15:17+02:00 — DOCS: AGENTS.md — mandatory LLM Wiki-First Reconstruction Rule for conductor
+
+**Operation**: DOCS (codified wiki-first reconstruction as mandatory conductor rule)
+**Trigger**: need to formalize the rule that the aria-conductor must always first read the LLM wiki thoroughly before any operation, to ensure correct understanding of architecture, sub-agents, skills, and MCP proxy tools.
+
+### Changes summary
+
+**AGENTS.md** — 3 sections modified:
+1. **Source of Truth** — added LLM wiki as "Primary operational reference (PRIMA di qualsiasi interazione)" with reference to the new rule section.
+2. **NEW section: LLM Wiki-First Reconstruction Rule** — comprehensive section codifying:
+   - Principle: conductor must read LLM wiki before any operation
+   - Ordered reading list: index.md → log.md → 7 architectural pages → agent-specific pages → protocols
+   - Architecture 4 livelli (L1-L4)
+   - Sub-agent table (search, productivity, trader, traveller) with domain, tools, spawn depth
+   - Dispatch chains (max 2 hop)
+   - MCP proxy tool contract (search_tools + call_tool)
+   - Wiki memory v3 contract (recall/update)
+   - HITL gate rules
+   - Context7 mandatory verification for libraries/SDKs
+   - Anti-pattern to prevent (drift, host-native tools, pseudo-HITL, self-remediation, duplicate updates)
+   - Wiki validity guard
+   - Consequence for failure modes
+3. **Agent Working Rules** — added cross-reference: "LLM Wiki-First Reconstruction obbligatoria" before any operation.
+
+**docs/llm_wiki/wiki/index.md** — version bumped to v9.2, bootstrap log entry added.
+**docs/llm_wiki/wiki/log.md** — this entry.
+
+### Files modified
+- `AGENTS.md` — 3 sections (Source of Truth, NEW rule section, Agent Working Rules)
+- `docs/llm_wiki/wiki/index.md` — version + bootstrap log
+- `docs/llm_wiki/wiki/log.md` — this entry
+
+### Quality gate (N/A — documentation only, no code changes)
